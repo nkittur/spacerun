@@ -691,8 +691,29 @@
             resources: {},
             baseShields: 100,
             escapedEnemies: 0,
-            pendingNotifications: {}
+            pendingNotifications: {},
+            // Zone/background tracking
+            currentZone: 0,
+            zoneProgress: 0,
+            backgroundTransition: 0,
+            isTransitioning: false
         };
+
+        // Space zones - different areas with unique backgrounds
+        const SPACE_ZONES = [
+            { name: 'Starfield', folder: 'Starfields', prefix: 'Starfield', variants: 8 },
+            { name: 'Blue Nebula', folder: 'Blue Nebula', prefix: 'Blue_Nebula', variants: 8 },
+            { name: 'Purple Nebula', folder: 'Purple Nebula', prefix: 'Purple_Nebula', variants: 8 },
+            { name: 'Green Nebula', folder: 'Green Nebula', prefix: 'Green_Nebula', variants: 8 }
+        ];
+
+        const ZONE_DURATION = 60; // Seconds per zone before transitioning
+
+        // Background meshes for crossfade
+        let backgroundMeshA = null;
+        let backgroundMeshB = null;
+        let backgroundMaterialA = null;
+        let backgroundMaterialB = null;
 
         // Initialize resources
         function initResources() {
@@ -853,7 +874,124 @@
             materials.enemyBullet = new BABYLON.StandardMaterial('enemyBulletMat', scene);
             materials.enemyBullet.emissiveColor = new BABYLON.Color3(1, 0.5, 0);
 
+            // Create scrolling backgrounds for zone transitions
+            createBackgrounds();
+
             return scene;
+        }
+
+        // Get background texture path for a zone
+        function getBackgroundPath(zoneIndex) {
+            const zone = SPACE_ZONES[zoneIndex % SPACE_ZONES.length];
+            const variant = Math.floor(Math.random() * zone.variants) + 1;
+            const variantStr = variant.toString().padStart(2, '0');
+            return `assets/SBS - Seamless Space Backgrounds - Small 512x512/Small 512x512/${zone.folder}/${zone.prefix}_${variantStr}-512x512.png`;
+        }
+
+        // Create background meshes
+        function createBackgrounds() {
+            const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+
+            // Background A (current)
+            backgroundMeshA = BABYLON.MeshBuilder.CreatePlane('backgroundA', { width: bgSize, height: bgSize * 2 }, scene);
+            backgroundMeshA.position.z = 5; // Far behind everything
+            backgroundMeshA.position.y = 0;
+
+            backgroundMaterialA = new BABYLON.StandardMaterial('bgMatA', scene);
+            const textureA = new BABYLON.Texture(getBackgroundPath(0), scene);
+            textureA.uScale = bgSize / 20;
+            textureA.vScale = bgSize * 2 / 20;
+            textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+            textureA.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+            backgroundMaterialA.diffuseTexture = textureA;
+            backgroundMaterialA.emissiveTexture = textureA;
+            backgroundMaterialA.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+            backgroundMaterialA.disableLighting = true;
+            backgroundMaterialA.backFaceCulling = false;
+            backgroundMeshA.material = backgroundMaterialA;
+
+            // Background B (for transitions)
+            backgroundMeshB = BABYLON.MeshBuilder.CreatePlane('backgroundB', { width: bgSize, height: bgSize * 2 }, scene);
+            backgroundMeshB.position.z = 4.9; // Slightly in front of A
+            backgroundMeshB.position.y = 0;
+
+            backgroundMaterialB = new BABYLON.StandardMaterial('bgMatB', scene);
+            backgroundMaterialB.diffuseColor = new BABYLON.Color3(0, 0, 0);
+            backgroundMaterialB.emissiveColor = new BABYLON.Color3(0, 0, 0);
+            backgroundMaterialB.disableLighting = true;
+            backgroundMaterialB.backFaceCulling = false;
+            backgroundMaterialB.alpha = 0;
+            backgroundMeshB.material = backgroundMaterialB;
+        }
+
+        // Start transition to next zone
+        function startZoneTransition() {
+            if (gameState.isTransitioning) return;
+
+            gameState.isTransitioning = true;
+            const nextZone = (gameState.currentZone + 1) % SPACE_ZONES.length;
+
+            // Load next zone texture into background B
+            const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+            const textureB = new BABYLON.Texture(getBackgroundPath(nextZone), scene);
+            textureB.uScale = bgSize / 20;
+            textureB.vScale = bgSize * 2 / 20;
+            textureB.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+            textureB.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+
+            if (backgroundMaterialB.diffuseTexture) {
+                backgroundMaterialB.diffuseTexture.dispose();
+            }
+            backgroundMaterialB.diffuseTexture = textureB;
+            backgroundMaterialB.emissiveTexture = textureB;
+            backgroundMaterialB.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        }
+
+        // Update backgrounds (scrolling and transitions)
+        function updateBackgrounds(scrollMultiplier, deltaTime) {
+            if (!backgroundMeshA || !backgroundMeshB) return;
+
+            // Scroll both backgrounds
+            const scrollSpeed = 0.0005 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            if (backgroundMaterialA.diffuseTexture) {
+                backgroundMaterialA.diffuseTexture.vOffset += scrollSpeed * deltaTime;
+            }
+            if (backgroundMaterialB.diffuseTexture && backgroundMaterialB.alpha > 0) {
+                backgroundMaterialB.diffuseTexture.vOffset += scrollSpeed * deltaTime;
+            }
+
+            // Track zone progress
+            gameState.zoneProgress += deltaTime / 1000;
+
+            // Start transition when zone duration is reached
+            if (gameState.zoneProgress >= ZONE_DURATION && !gameState.isTransitioning) {
+                startZoneTransition();
+            }
+
+            // Handle transition animation
+            if (gameState.isTransitioning) {
+                gameState.backgroundTransition += deltaTime / 3000; // 3 second transition
+
+                backgroundMaterialB.alpha = Math.min(1, gameState.backgroundTransition);
+
+                if (gameState.backgroundTransition >= 1) {
+                    // Transition complete - swap backgrounds
+                    gameState.currentZone = (gameState.currentZone + 1) % SPACE_ZONES.length;
+                    gameState.zoneProgress = 0;
+                    gameState.backgroundTransition = 0;
+                    gameState.isTransitioning = false;
+
+                    // Swap textures: B becomes A
+                    const tempTexture = backgroundMaterialA.diffuseTexture;
+                    backgroundMaterialA.diffuseTexture = backgroundMaterialB.diffuseTexture;
+                    backgroundMaterialA.emissiveTexture = backgroundMaterialB.diffuseTexture;
+                    backgroundMaterialB.diffuseTexture = null;
+                    backgroundMaterialB.emissiveTexture = null;
+                    backgroundMaterialB.alpha = 0;
+
+                    if (tempTexture) tempTexture.dispose();
+                }
+            }
         }
 
         // Show collection notification as icon at top
@@ -2136,6 +2274,29 @@
             gameState.lastFrameTime = performance.now();
             gameState.spawnTimer = 0;
 
+            // Reset zone state
+            gameState.currentZone = 0;
+            gameState.zoneProgress = 0;
+            gameState.backgroundTransition = 0;
+            gameState.isTransitioning = false;
+
+            // Reset background to first zone
+            if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
+                backgroundMaterialA.diffuseTexture.dispose();
+                const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+                const textureA = new BABYLON.Texture(getBackgroundPath(0), scene);
+                textureA.uScale = bgSize / 20;
+                textureA.vScale = bgSize * 2 / 20;
+                textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+                textureA.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+                textureA.vOffset = 0;
+                backgroundMaterialA.diffuseTexture = textureA;
+                backgroundMaterialA.emissiveTexture = textureA;
+            }
+            if (backgroundMaterialB) {
+                backgroundMaterialB.alpha = 0;
+            }
+
             initResources();
 
             if (playerShip) {
@@ -2222,6 +2383,7 @@
                 gameState.lastFrameTime = currentTime;
 
                 const scrollMultiplier = updatePlayerPosition(deltaTime);
+                updateBackgrounds(scrollMultiplier, deltaTime);
                 updateStars(scrollMultiplier);
                 firePlayerWeapons(currentTime);
 
