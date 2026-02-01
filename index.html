@@ -1389,8 +1389,11 @@
 
         // Convert world position to screen position
         function worldToScreen(worldX, worldY) {
-            const screenX = ((worldX + orthoWidth) / (orthoWidth * 2)) * gameWidth;
-            const screenY = ((orthoHeight - worldY) / (orthoHeight * 2)) * gameHeight;
+            // Use CSS pixel dimensions for DOM element positioning
+            const cssWidth = canvas.clientWidth;
+            const cssHeight = canvas.clientHeight;
+            const screenX = ((worldX + orthoWidth) / (orthoWidth * 2)) * cssWidth;
+            const screenY = ((orthoHeight - worldY) / (orthoHeight * 2)) * cssHeight;
             return { x: screenX, y: screenY };
         }
 
@@ -1783,8 +1786,11 @@
                 inputState.startX = inputState.currentX;
                 inputState.startY = inputState.currentY;
 
-                const worldDeltaX = (deltaX / gameWidth) * orthoWidth * 2;
-                const worldDeltaY = -(deltaY / gameHeight) * orthoHeight * 2;
+                // Use CSS pixel dimensions (not render pixels) for input conversion
+                const cssWidth = canvas.clientWidth;
+                const cssHeight = canvas.clientHeight;
+                const worldDeltaX = (deltaX / cssWidth) * orthoWidth * 2;
+                const worldDeltaY = -(deltaY / cssHeight) * orthoHeight * 2;
 
                 playerShip.targetX += worldDeltaX;
                 playerShip.targetY += worldDeltaY;
