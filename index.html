@@ -579,8 +579,11 @@
                 const gameScale = 1.5 / maxDim;
                 rootMesh.scaling = new BABYLON.Vector3(gameScale, gameScale, gameScale);
 
-                // Rotate to face upward (toward +Y in our 2D view)
-                rootMesh.rotation.x = Math.PI / 2;
+                // For top-down view: rotate so we see the ship from above
+                // Model's Y-up becomes Z (toward camera), nose points toward +Y on screen
+                rootMesh.rotation.x = -Math.PI / 2; // Lay flat, top facing camera
+                rootMesh.rotation.y = 0;
+                rootMesh.rotation.z = Math.PI; // Nose pointing up (+Y)
 
                 return rootMesh;
             } catch (e) {
@@ -639,8 +642,8 @@
             const enemyMesh = await loadShipModel(settings.enemyShip, settings.enemyColor, scene);
             enemyMesh.parent = enemy;
 
-            // Rotate to face downward (toward player)
-            enemyMesh.rotation.x = -Math.PI / 2;
+            // Rotate to face downward (toward player) - flip from player orientation
+            enemyMesh.rotation.z = 0; // Nose pointing down (-Y) instead of up
 
             enemy.position.x = x;
             enemy.position.y = y;
@@ -720,19 +723,25 @@
             handleInputEnd();
         }, { passive: false });
 
-        canvas.addEventListener('mousedown', (e) => {
-            handleInputStart(e.clientX, e.clientY);
+        // Mouse events - attach to document for better capture
+        document.addEventListener('mousedown', (e) => {
+            // Only handle if game is playing and not on UI elements
+            if (gameState.isPlaying && !gameState.isPaused) {
+                handleInputStart(e.clientX, e.clientY);
+            }
         });
 
-        canvas.addEventListener('mousemove', (e) => {
-            handleInputMove(e.clientX, e.clientY);
+        document.addEventListener('mousemove', (e) => {
+            if (gameState.isPlaying && !gameState.isPaused) {
+                handleInputMove(e.clientX, e.clientY);
+            }
         });
 
-        canvas.addEventListener('mouseup', () => {
+        document.addEventListener('mouseup', () => {
             handleInputEnd();
         });
 
-        canvas.addEventListener('mouseleave', () => {
+        document.addEventListener('mouseleave', () => {
             handleInputEnd();
         });
 
