@@ -335,11 +335,13 @@
         const engine = new BABYLON.Engine(canvas, true);
 
         // Game dimensions (portrait mode)
-        let gameWidth, gameHeight;
+        let gameWidth, gameHeight, orthoHeight = 10, orthoWidth;
 
         function updateGameDimensions() {
             gameWidth = engine.getRenderWidth();
             gameHeight = engine.getRenderHeight();
+            const aspect = gameWidth / gameHeight;
+            orthoWidth = orthoHeight * aspect;
         }
 
         // Create the scene
@@ -347,18 +349,18 @@
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.08, 1);
 
-            // Orthographic camera for 2D view
+            // Orthographic camera for 2D view - looking down -Z axis
             const camera = new BABYLON.FreeCamera('camera', new BABYLON.Vector3(0, 0, -10), scene);
+            camera.setTarget(new BABYLON.Vector3(0, 0, 0));
             camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
 
             function updateCamera() {
                 updateGameDimensions();
                 const aspect = gameWidth / gameHeight;
-                const orthoSize = 10;
-                camera.orthoTop = orthoSize;
-                camera.orthoBottom = -orthoSize;
-                camera.orthoLeft = -orthoSize * aspect;
-                camera.orthoRight = orthoSize * aspect;
+                camera.orthoTop = orthoHeight;
+                camera.orthoBottom = -orthoHeight;
+                camera.orthoLeft = -orthoHeight * aspect;
+                camera.orthoRight = orthoHeight * aspect;
             }
             updateCamera();
 
@@ -393,47 +395,44 @@
             const enemyBulletMat = new BABYLON.StandardMaterial('enemyBulletMat', scene);
             enemyBulletMat.emissiveColor = new BABYLON.Color3(1, 0.5, 0);
 
-            // Star material
-            const starMat = new BABYLON.StandardMaterial('starMat', scene);
-            starMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
-
-            return { playerMat, playerBulletMat, enemyMat, enemyBulletMat, starMat };
+            return { playerMat, playerBulletMat, enemyMat, enemyBulletMat };
         };
 
         const materials = createMaterials();
 
-        // Create player ship
+        // Create player ship - using X for horizontal, Y for vertical, Z=0
         function createPlayerShip() {
             const ship = new BABYLON.TransformNode('playerShip', scene);
 
-            // Main body (triangle pointing up)
+            // Main body (triangle pointing up) - rotated to face up (+Y direction)
             const body = BABYLON.MeshBuilder.CreateCylinder('body', {
                 height: 0.1,
                 diameterTop: 0,
                 diameterBottom: 0.8,
                 tessellation: 3
             }, scene);
-            body.rotation.x = Math.PI / 2;
-            body.rotation.z = Math.PI;
+            // Rotate so triangle points up on screen (towards +Y)
+            body.rotation.x = -Math.PI / 2;
+            body.rotation.y = 0;
             body.material = materials.playerMat;
             body.parent = ship;
 
             // Wings
             const leftWing = BABYLON.MeshBuilder.CreateBox('leftWing', {
                 width: 0.6,
-                height: 0.05,
-                depth: 0.3
+                height: 0.3,
+                depth: 0.05
             }, scene);
-            leftWing.position = new BABYLON.Vector3(-0.4, 0, -0.1);
+            leftWing.position = new BABYLON.Vector3(-0.4, -0.1, 0);
             leftWing.material = materials.playerMat;
             leftWing.parent = ship;
 
             const rightWing = BABYLON.MeshBuilder.CreateBox('rightWing', {
                 width: 0.6,
-                height: 0.05,
-                depth: 0.3
+                height: 0.3,
+                depth: 0.05
             }, scene);
-            rightWing.position = new BABYLON.Vector3(0.4, 0, -0.1);
+            rightWing.position = new BABYLON.Vector3(0.4, -0.1, 0);
             rightWing.material = materials.playerMat;
             rightWing.parent = ship;
 
@@ -441,13 +440,14 @@
             const engineGlow = BABYLON.MeshBuilder.CreateSphere('engineGlow', {
                 diameter: 0.3
             }, scene);
-            engineGlow.position = new BABYLON.Vector3(0, 0, -0.5);
+            engineGlow.position = new BABYLON.Vector3(0, -0.5, 0);
             const engineMat = new BABYLON.StandardMaterial('engineMat', scene);
             engineMat.emissiveColor = new BABYLON.Color3(0, 0.5, 1);
             engineGlow.material = engineMat;
             engineGlow.parent = ship;
 
-            ship.position = new BABYLON.Vector3(0, 0, -7);
+            // Start position: X=0 (center), Y=-7 (bottom area), Z=0
+            ship.position = new BABYLON.Vector3(0, -7, 0);
             ship.targetX = 0;
             ship.targetY = -7;
 
@@ -456,49 +456,51 @@
 
         let playerShip = createPlayerShip();
 
-        // Create stars for background
-        function createStars(count = 100) {
-            const aspect = gameWidth / gameHeight;
-            const orthoSize = 10;
+        // Create stars for background - distributed across X and Y
+        function createStars(count = 150) {
+            updateGameDimensions();
 
             for (let i = 0; i < count; i++) {
+                const size = Math.random() * 0.08 + 0.02;
                 const star = BABYLON.MeshBuilder.CreateSphere('star' + i, {
-                    diameter: Math.random() * 0.1 + 0.02
+                    diameter: size
                 }, scene);
 
-                star.position.x = (Math.random() - 0.5) * orthoSize * 2 * aspect;
-                star.position.y = 0;
-                star.position.z = (Math.random() - 0.5) * 30;
+                // Position stars across the visible area
+                star.position.x = (Math.random() - 0.5) * orthoWidth * 2.5;
+                star.position.y = (Math.random() - 0.5) * orthoHeight * 2.5;
+                star.position.z = 1 + Math.random() * 2; // Behind game objects
 
                 const starMat = new BABYLON.StandardMaterial('starMat' + i, scene);
                 const brightness = Math.random() * 0.5 + 0.5;
                 starMat.emissiveColor = new BABYLON.Color3(brightness, brightness, brightness * 0.9);
                 star.material = starMat;
 
-                star.speed = Math.random() * 0.5 + 0.2;
+                star.speed = (Math.random() * 0.3 + 0.1) * (0.5 + size * 5); // Larger = faster (parallax)
                 gameState.stars.push(star);
             }
         }
 
-        // Create enemy
-        function createEnemy(type = 'basic', x, z) {
+        // Create enemy - uses X for horizontal, Y for vertical
+        function createEnemy(type = 'basic', x, y) {
             const enemy = new BABYLON.TransformNode('enemy', scene);
 
             if (type === 'basic') {
+                // Triangle pointing down (towards player)
                 const body = BABYLON.MeshBuilder.CreateCylinder('enemyBody', {
                     height: 0.1,
                     diameterTop: 0,
                     diameterBottom: 0.6,
                     tessellation: 3
                 }, scene);
-                body.rotation.x = Math.PI / 2;
+                body.rotation.x = Math.PI / 2; // Point down
                 body.material = materials.enemyMat;
                 body.parent = enemy;
             } else if (type === 'shooter') {
                 const body = BABYLON.MeshBuilder.CreateBox('enemyBody', {
                     width: 0.6,
-                    height: 0.1,
-                    depth: 0.6
+                    height: 0.6,
+                    depth: 0.1
                 }, scene);
                 body.material = materials.enemyMat;
                 body.parent = enemy;
@@ -515,7 +517,8 @@
             }
 
             enemy.position.x = x;
-            enemy.position.z = z;
+            enemy.position.y = y;
+            enemy.position.z = 0;
             enemy.type = type;
             enemy.health = type === 'shooter' ? 3 : type === 'fast' ? 1 : 2;
             enemy.speed = type === 'fast' ? 0.08 : 0.03;
@@ -528,17 +531,18 @@
             return enemy;
         }
 
-        // Create bullet
-        function createBullet(isPlayer, x, z, velocityX = 0, velocityZ = 0.2) {
+        // Create bullet - uses X for horizontal, Y for vertical
+        function createBullet(isPlayer, x, y, velocityX = 0, velocityY = 0.2) {
             const bullet = BABYLON.MeshBuilder.CreateSphere('bullet', {
                 diameter: isPlayer ? 0.15 : 0.12
             }, scene);
 
             bullet.position.x = x;
-            bullet.position.z = z;
+            bullet.position.y = y;
+            bullet.position.z = 0;
             bullet.material = isPlayer ? materials.playerBulletMat : materials.enemyBulletMat;
             bullet.velocityX = velocityX;
-            bullet.velocityZ = velocityZ;
+            bullet.velocityY = velocityY;
             bullet.isPlayer = isPlayer;
 
             return bullet;
@@ -609,7 +613,7 @@
 
         // Update player position based on input
         function updatePlayerPosition(deltaTime) {
-            if (!inputState.isPressed) return;
+            if (!inputState.isPressed) return 0.3;
 
             const deltaX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
             const deltaY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
@@ -619,31 +623,32 @@
             inputState.startY = inputState.currentY;
 
             // Convert screen delta to world delta
-            const worldDeltaX = (deltaX / gameWidth) * 20;
-            const worldDeltaZ = -(deltaY / gameHeight) * 20; // Inverted Y
+            // Screen Y is inverted (down is positive), world Y up is positive
+            const worldDeltaX = (deltaX / gameWidth) * orthoWidth * 2;
+            const worldDeltaY = -(deltaY / gameHeight) * orthoHeight * 2;
 
             // Update target position
             playerShip.targetX += worldDeltaX;
-            playerShip.targetY += worldDeltaZ;
+            playerShip.targetY += worldDeltaY;
 
-            // Clamp X position
-            const aspect = gameWidth / gameHeight;
-            const maxX = 10 * aspect - 1;
+            // Clamp X position (horizontal bounds)
+            const maxX = orthoWidth - 1;
             playerShip.targetX = Math.max(-maxX, Math.min(maxX, playerShip.targetX));
 
             // Clamp Y position based on settings
-            const minZ = -10 + 1;
-            const maxZ = -10 + (20 * settings.maxHeight);
-            playerShip.targetY = Math.max(minZ, Math.min(maxZ, playerShip.targetY));
+            // Bottom of screen is -orthoHeight, top is +orthoHeight
+            const minY = -orthoHeight + 1; // Near bottom
+            const maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight); // Max height setting
+            playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
 
             // Smooth movement towards target
             const lerpFactor = 0.15 * settings.shipSpeed;
             playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
-            playerShip.position.z += (playerShip.targetY - playerShip.position.z) * lerpFactor;
+            playerShip.position.y += (playerShip.targetY - playerShip.position.y) * lerpFactor;
 
-            // Calculate scroll speed based on Y position
-            const normalizedY = (playerShip.position.z + 10) / 20;
-            return normalizedY; // Return for scroll speed adjustment
+            // Calculate scroll speed multiplier based on Y position (higher = faster scroll)
+            const normalizedY = (playerShip.position.y + orthoHeight) / (orthoHeight * 2);
+            return Math.max(0.1, normalizedY + 0.2);
         }
 
         // Fire player weapons
@@ -651,13 +656,13 @@
             const fireInterval = 150 / settings.fireRate;
 
             if (currentTime - gameState.lastFireTime > fireInterval && gameState.enemies.length > 0) {
-                // Main gun
-                const bullet1 = createBullet(true, playerShip.position.x, playerShip.position.z + 0.5, 0, 0.3);
+                // Main gun - fires upward (+Y)
+                const bullet1 = createBullet(true, playerShip.position.x, playerShip.position.y + 0.5, 0, 0.3);
                 gameState.playerBullets.push(bullet1);
 
                 // Side guns (spread)
-                const bullet2 = createBullet(true, playerShip.position.x - 0.3, playerShip.position.z + 0.3, -0.02, 0.28);
-                const bullet3 = createBullet(true, playerShip.position.x + 0.3, playerShip.position.z + 0.3, 0.02, 0.28);
+                const bullet2 = createBullet(true, playerShip.position.x - 0.3, playerShip.position.y + 0.3, -0.02, 0.28);
+                const bullet3 = createBullet(true, playerShip.position.x + 0.3, playerShip.position.y + 0.3, 0.02, 0.28);
                 gameState.playerBullets.push(bullet2, bullet3);
 
                 gameState.lastFireTime = currentTime;
@@ -675,7 +680,7 @@
             };
 
             const config = waveConfig[Math.min(gameState.wave, 5)] || waveConfig[5];
-            gameState.enemiesInWave = config.count + Math.floor((gameState.wave - 5) * 2);
+            gameState.enemiesInWave = config.count + Math.floor(Math.max(0, gameState.wave - 5) * 2);
             gameState.enemiesSpawned = 0;
         }
 
@@ -694,18 +699,17 @@
             const config = waveConfig[Math.min(gameState.wave, 5)] || waveConfig[5];
             const type = config.types[Math.floor(Math.random() * config.types.length)];
 
-            const aspect = gameWidth / gameHeight;
-            const maxX = 10 * aspect - 1;
+            const maxX = orthoWidth - 1;
             const x = (Math.random() - 0.5) * maxX * 1.5;
-            const z = 12;
+            const y = orthoHeight + 2; // Spawn above visible area
 
-            const enemy = createEnemy(type, x, z);
+            const enemy = createEnemy(type, x, y);
             gameState.enemies.push(enemy);
             gameState.enemiesSpawned++;
         }
 
         // Update enemies
-        function updateEnemies(deltaTime, currentTime) {
+        function updateEnemies(deltaTime, currentTime, scrollMultiplier) {
             for (let i = gameState.enemies.length - 1; i >= 0; i--) {
                 const enemy = gameState.enemies[i];
 
@@ -716,7 +720,8 @@
                     enemy.position.x = enemy.startX + Math.sin(enemy.time) * 2;
                 }
 
-                enemy.position.z -= enemy.speed * settings.scrollSpeed;
+                // Move down (negative Y direction)
+                enemy.position.y -= enemy.speed * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
                 // Enemy shooting
                 if ((enemy.type === 'shooter' || enemy.type === 'basic') &&
@@ -724,20 +729,20 @@
 
                     // Aim at player
                     const dx = playerShip.position.x - enemy.position.x;
-                    const dz = playerShip.position.z - enemy.position.z;
-                    const dist = Math.sqrt(dx * dx + dz * dz);
+                    const dy = playerShip.position.y - enemy.position.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
 
                     if (dist > 0) {
-                        const bullet = createBullet(false, enemy.position.x, enemy.position.z - 0.3,
-                            (dx / dist) * 0.1, (dz / dist) * 0.1);
+                        const bullet = createBullet(false, enemy.position.x, enemy.position.y - 0.3,
+                            (dx / dist) * 0.1, (dy / dist) * 0.1);
                         gameState.enemyBullets.push(bullet);
                     }
 
                     enemy.lastFireTime = currentTime;
                 }
 
-                // Remove if off screen
-                if (enemy.position.z < -12) {
+                // Remove if off screen (below bottom)
+                if (enemy.position.y < -orthoHeight - 2) {
                     enemy.getChildMeshes().forEach(m => m.dispose());
                     enemy.dispose();
                     gameState.enemies.splice(i, 1);
@@ -751,17 +756,21 @@
             for (let i = gameState.playerBullets.length - 1; i >= 0; i--) {
                 const bullet = gameState.playerBullets[i];
                 bullet.position.x += bullet.velocityX;
-                bullet.position.z += bullet.velocityZ;
+                bullet.position.y += bullet.velocityY;
 
                 // Check collision with enemies
+                let bulletHit = false;
                 for (let j = gameState.enemies.length - 1; j >= 0; j--) {
                     const enemy = gameState.enemies[j];
-                    const dist = BABYLON.Vector3.Distance(bullet.position, enemy.position);
+                    const dx = bullet.position.x - enemy.position.x;
+                    const dy = bullet.position.y - enemy.position.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
 
                     if (dist < 0.5) {
                         enemy.health--;
                         bullet.dispose();
                         gameState.playerBullets.splice(i, 1);
+                        bulletHit = true;
 
                         if (enemy.health <= 0) {
                             const points = enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
@@ -776,8 +785,8 @@
                     }
                 }
 
-                // Remove if off screen
-                if (bullet && bullet.position && bullet.position.z > 15) {
+                // Remove if off screen (above top)
+                if (!bulletHit && bullet.position.y > orthoHeight + 2) {
                     bullet.dispose();
                     gameState.playerBullets.splice(i, 1);
                 }
@@ -787,10 +796,13 @@
             for (let i = gameState.enemyBullets.length - 1; i >= 0; i--) {
                 const bullet = gameState.enemyBullets[i];
                 bullet.position.x += bullet.velocityX;
-                bullet.position.z += bullet.velocityZ;
+                bullet.position.y += bullet.velocityY;
 
                 // Check collision with player
-                const dist = BABYLON.Vector3.Distance(bullet.position, playerShip.position);
+                const dx = bullet.position.x - playerShip.position.x;
+                const dy = bullet.position.y - playerShip.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
                 if (dist < 0.5) {
                     gameState.health -= 10;
                     updateHUD();
@@ -804,25 +816,26 @@
                 }
 
                 // Remove if off screen
-                if (bullet.position.z < -12 || bullet.position.z > 15) {
+                if (bullet.position.y < -orthoHeight - 2 || bullet.position.y > orthoHeight + 2 ||
+                    bullet.position.x < -orthoWidth - 2 || bullet.position.x > orthoWidth + 2) {
                     bullet.dispose();
                     gameState.enemyBullets.splice(i, 1);
                 }
             }
         }
 
-        // Update stars (scrolling background)
+        // Update stars (scrolling background) - move down (-Y direction)
         function updateStars(scrollMultiplier) {
             const baseSpeed = 0.05 * settings.scrollSpeed;
             const adjustedSpeed = baseSpeed * (0.5 + scrollMultiplier);
 
             gameState.stars.forEach(star => {
-                star.position.z -= star.speed * adjustedSpeed * 2;
+                star.position.y -= star.speed * adjustedSpeed;
 
-                if (star.position.z < -15) {
-                    star.position.z = 15;
-                    const aspect = gameWidth / gameHeight;
-                    star.position.x = (Math.random() - 0.5) * 20 * aspect;
+                // Wrap around when star goes below screen
+                if (star.position.y < -orthoHeight - 5) {
+                    star.position.y = orthoHeight + 5;
+                    star.position.x = (Math.random() - 0.5) * orthoWidth * 2.5;
                 }
             });
         }
@@ -831,7 +844,9 @@
         function checkPlayerCollision() {
             for (let i = gameState.enemies.length - 1; i >= 0; i--) {
                 const enemy = gameState.enemies[i];
-                const dist = BABYLON.Vector3.Distance(playerShip.position, enemy.position);
+                const dx = playerShip.position.x - enemy.position.x;
+                const dy = playerShip.position.y - enemy.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
 
                 if (dist < 0.7) {
                     gameState.health -= 25;
@@ -888,7 +903,7 @@
 
             // Reset player position
             playerShip.position.x = 0;
-            playerShip.position.z = -7;
+            playerShip.position.y = -7;
             playerShip.targetX = 0;
             playerShip.targetY = -7;
 
@@ -950,18 +965,18 @@
         });
 
         // Main game loop
-        let lastTime = 0;
+        let lastTime = performance.now();
         let spawnTimer = 0;
 
         scene.registerBeforeRender(() => {
             if (!gameState.isPlaying || gameState.isPaused) return;
 
             const currentTime = performance.now();
-            const deltaTime = currentTime - lastTime;
+            const deltaTime = Math.min(currentTime - lastTime, 50); // Cap delta to prevent huge jumps
             lastTime = currentTime;
 
             // Update player
-            const scrollMultiplier = updatePlayerPosition(deltaTime) || 0.3;
+            const scrollMultiplier = updatePlayerPosition(deltaTime);
 
             // Update stars
             updateStars(scrollMultiplier);
@@ -971,7 +986,7 @@
 
             // Spawn enemies
             spawnTimer += deltaTime;
-            if (spawnTimer > 1000 && gameState.enemiesSpawned < gameState.enemiesInWave) {
+            if (spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
                 spawnEnemy();
                 spawnTimer = 0;
             }
@@ -984,7 +999,7 @@
             }
 
             // Update game objects
-            updateEnemies(deltaTime, currentTime);
+            updateEnemies(deltaTime, currentTime, scrollMultiplier);
             updateBullets();
             checkPlayerCollision();
         });
