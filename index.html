@@ -215,10 +215,10 @@
             color: #fff;
         }
 
-        /* Resource collection notifications at top */
+        /* Resource collection notifications below top UI */
         #collectNotifications {
             position: absolute;
-            top: 45px;
+            top: 75px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
@@ -664,9 +664,9 @@
 
         // Sun types
         const SUN_TYPES = {
-            YellowSun: { folder: 'Yellow Sun', prefix: 'YellowSun', tint: [1.0, 1.0, 0.8] },
-            RedSun: { folder: 'Red Sun', prefix: 'RedSun', tint: [1.0, 0.7, 0.6] },
-            BlueSun: { folder: 'Blue Sun', prefix: 'BlueSun', tint: [0.7, 0.8, 1.0] }
+            YellowSun: { folder: 'Yellow Sun', prefix: 'Sun_Yellow', tint: [1.0, 1.0, 0.8] },
+            RedSun: { folder: 'Red Sun', prefix: 'Sun_Red', tint: [1.0, 0.7, 0.6] },
+            BlueSun: { folder: 'Blue Sun', prefix: 'Sun_Blue', tint: [0.7, 0.8, 1.0] }
         };
 
         // Game State
@@ -1088,12 +1088,10 @@
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
                 if (dist < 1.2) {
-                    // Collect resource
+                    // Collect resource (no notification for enemy loot, only planets)
                     gameState.resources[loot.resourceType] += loot.resourceAmount;
                     gameState.score += loot.resourceAmount * 5;
                     updateHUD();
-
-                    showResourceCollection(loot.resourceType, loot.resourceAmount);
 
                     createExplosion(loot.position.x, loot.position.y, 'small', 'blue');
 
