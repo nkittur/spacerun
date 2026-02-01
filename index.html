@@ -290,9 +290,9 @@
     <div id="startScreen">
         <h1>Space Run</h1>
         <p>Drag to move ship. Up to advance, down to retreat.<br>Weapons fire automatically!</p>
+        <button id="startBtn" style="display: none;">Start Game</button>
         <div id="loadingText">Loading models...</div>
         <div id="modelGrid"></div>
-        <button id="startBtn" style="display: none;">Start Game</button>
     </div>
 
     <button id="settingsBtn" style="display: none;">⚙</button>
@@ -550,7 +550,8 @@
         }
 
         // Load a ship model for gameplay
-        async function loadShipModel(shipName, colorVariant, targetScene) {
+        // faceDirection: 'up' for player (nose toward +Y), 'down' for enemies (nose toward -Y)
+        async function loadShipModel(shipName, colorVariant, targetScene, faceDirection = 'up') {
             const basePath = `assets/Ultimate Spaceships/${shipName}/`;
 
             try {
@@ -579,11 +580,19 @@
                 const gameScale = 1.5 / maxDim;
                 rootMesh.scaling = new BABYLON.Vector3(gameScale, gameScale, gameScale);
 
-                // For top-down view: rotate so we see the ship from above
-                // Model's Y-up becomes Z (toward camera), nose points toward +Y on screen
-                rootMesh.rotation.x = -Math.PI / 2; // Lay flat, top facing camera
-                rootMesh.rotation.y = 0;
-                rootMesh.rotation.z = Math.PI; // Nose pointing up (+Y)
+                // For top-down view with camera at (0,0,-10) looking at origin:
+                // We need to see the ship from above (looking down at its top)
+                // Quaternius models: Y-up, nose along +Z
+                // Rotate to lay flat with top facing camera (-Z), then orient nose
+                if (faceDirection === 'up') {
+                    // Player: nose pointing up (+Y on screen)
+                    rootMesh.rotationQuaternion = null; // Clear any quaternion
+                    rootMesh.rotation.set(Math.PI / 2, Math.PI, 0);
+                } else {
+                    // Enemy: nose pointing down (-Y on screen)
+                    rootMesh.rotationQuaternion = null;
+                    rootMesh.rotation.set(Math.PI / 2, 0, 0);
+                }
 
                 return rootMesh;
             } catch (e) {
@@ -602,7 +611,7 @@
         async function createPlayerShip() {
             playerShip = new BABYLON.TransformNode('playerShip', scene);
 
-            playerShipMesh = await loadShipModel(settings.playerShip, settings.playerColor, scene);
+            playerShipMesh = await loadShipModel(settings.playerShip, settings.playerColor, scene, 'up');
             playerShipMesh.parent = playerShip;
 
             playerShip.position = new BABYLON.Vector3(0, -7, 0);
@@ -638,12 +647,9 @@
         async function createEnemy(type = 'basic', x, y) {
             const enemy = new BABYLON.TransformNode('enemy', scene);
 
-            // Load the enemy ship model
-            const enemyMesh = await loadShipModel(settings.enemyShip, settings.enemyColor, scene);
+            // Load the enemy ship model (facing down toward player)
+            const enemyMesh = await loadShipModel(settings.enemyShip, settings.enemyColor, scene, 'down');
             enemyMesh.parent = enemy;
-
-            // Rotate to face downward (toward player) - flip from player orientation
-            enemyMesh.rotation.z = 0; // Nose pointing down (-Y) instead of up
 
             enemy.position.x = x;
             enemy.position.y = y;
@@ -706,42 +712,44 @@
             inputState.isPressed = false;
         }
 
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            handleInputStart(touch.clientX, touch.clientY);
+        // Touch events
+        document.addEventListener('touchstart', (e) => {
+            if (gameState.isPlaying && !gameState.isPaused && e.touches.length > 0) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                handleInputStart(touch.clientX, touch.clientY);
+            }
         }, { passive: false });
 
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            handleInputMove(touch.clientX, touch.clientY);
+        document.addEventListener('touchmove', (e) => {
+            if (gameState.isPlaying && !gameState.isPaused && e.touches.length > 0) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                handleInputMove(touch.clientX, touch.clientY);
+            }
         }, { passive: false });
 
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
+        document.addEventListener('touchend', (e) => {
             handleInputEnd();
         }, { passive: false });
 
-        // Mouse events - attach to document for better capture
+        // Mouse events
+        let mouseDown = false;
         document.addEventListener('mousedown', (e) => {
-            // Only handle if game is playing and not on UI elements
+            mouseDown = true;
             if (gameState.isPlaying && !gameState.isPaused) {
                 handleInputStart(e.clientX, e.clientY);
             }
         });
 
         document.addEventListener('mousemove', (e) => {
-            if (gameState.isPlaying && !gameState.isPaused) {
+            if (mouseDown && gameState.isPlaying && !gameState.isPaused) {
                 handleInputMove(e.clientX, e.clientY);
             }
         });
 
         document.addEventListener('mouseup', () => {
-            handleInputEnd();
-        });
-
-        document.addEventListener('mouseleave', () => {
+            mouseDown = false;
             handleInputEnd();
         });
 
