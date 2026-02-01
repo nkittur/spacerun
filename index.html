@@ -1668,7 +1668,7 @@
 
             starbase.position.x = (Math.random() - 0.5) * orthoWidth;
             starbase.position.y = orthoHeight + starbaseSize;
-            starbase.position.z = 0.4; // In front of planets
+            starbase.position.z = 0.2; // In front of planets and suns
 
             const texture = new BABYLON.Texture('assets/stellar objects/starbase.png', scene);
             texture.hasAlpha = true;
@@ -1719,10 +1719,11 @@
 
                     // Position bar at starbase
                     const screenPos = worldToScreen(starbase.position.x, starbase.position.y);
-                    const screenSize = (starbase.size / (orthoHeight * 2)) * canvas.clientHeight * 1.2;
-                    const barWidth = screenSize + 20;
+                    const screenSize = (starbase.size / (orthoHeight * 2)) * canvas.clientHeight;
+                    const halfSize = screenSize / 2;
+                    const barWidth = screenSize;
                     harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
-                    harvestBar.style.top = (screenPos.y + screenSize / 2 + 15) + 'px';
+                    harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
                     harvestBar.style.width = barWidth + 'px';
                     harvestBar.style.transform = 'none';
 
@@ -1738,10 +1739,12 @@
                 }
             }
 
-            // Remove if off screen
+            // Remove if off screen - spawn next wave
             if (starbase.position.y < -orthoHeight - starbase.size) {
                 starbase.dispose();
                 gameState.starbase = null;
+                gameState.wavesUntilStarbase = 1; // Reset counter
+                spawnWave(); // Spawn next wave
             }
         }
 
@@ -1946,8 +1949,20 @@
             }
 
             const screenPos = worldToScreen(planet.position.x, planet.position.y);
-            const screenSize = (planet.size / (orthoHeight * 2)) * gameHeight * 1.2;
+            // Use CSS pixels for proper sizing - tight on planet
+            const screenSize = (planet.size / (orthoHeight * 2)) * canvas.clientHeight;
             const halfSize = screenSize / 2;
+
+            // Richness determines targeting color
+            const richnessColors = {
+                1: '#888888', // Grey - common
+                2: '#44aa44', // Green - uncommon
+                3: '#4488ff', // Blue - rare
+                4: '#aa44ff', // Purple - epic
+                5: '#ffaa00'  // Gold - legendary
+            };
+            const targetColor = richnessColors[planet.richness] || '#888888';
+            corners.forEach(c => c.style.borderColor = targetColor);
 
             const positions = [
                 { x: screenPos.x - halfSize - 10, y: screenPos.y - halfSize - 10 }, // top-left
@@ -1963,23 +1978,14 @@
             });
 
             // Position harvest bar at bottom of targeting rectangle
-            const barWidth = screenSize + 20; // Match targeting rectangle width
+            const barWidth = screenSize;
             harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
-            harvestBar.style.top = (screenPos.y + halfSize + 15) + 'px';
+            harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
             harvestBar.style.width = barWidth + 'px';
             harvestBar.style.transform = 'none';
 
-            // Position planet info above targeting rectangle
-            planetInfo.style.display = 'flex';
-            planetInfo.style.left = screenPos.x + 'px';
-            planetInfo.style.top = (screenPos.y - halfSize - 30) + 'px';
-            planetInfo.style.transform = 'translateX(-50%)';
-
-            // Update richness and hazard displays
-            const richnessStars = '★'.repeat(planet.richness) + '☆'.repeat(5 - planet.richness);
-            const hazardBars = '▮'.repeat(planet.hazard) + '▯'.repeat(5 - planet.hazard);
-            document.getElementById('richnessValue').textContent = richnessStars;
-            document.getElementById('hazardValue').textContent = hazardBars;
+            // Hide planet info - richness shown through targeting color
+            planetInfo.style.display = 'none';
         }
 
         // Update planets
