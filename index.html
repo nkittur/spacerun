@@ -291,34 +291,33 @@
             border-right-width: 3px;
         }
 
-        /* Planet info indicators */
+        /* Planet info indicators - subtle and translucent */
         #planetInfo {
             position: absolute;
             display: none;
             flex-direction: row;
-            gap: 8px;
+            gap: 12px;
             z-index: 56;
             pointer-events: none;
             font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 11px;
+            font-size: 12px;
         }
 
         .planet-stat {
             display: flex;
             align-items: center;
-            gap: 3px;
-            padding: 2px 6px;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 3px;
-            color: #fff;
+            gap: 2px;
+            opacity: 0.6;
         }
 
         .planet-stat.richness {
             color: #ffdd44;
+            text-shadow: 0 0 4px rgba(255, 221, 68, 0.5);
         }
 
         .planet-stat.hazard {
             color: #ff6644;
+            text-shadow: 0 0 4px rgba(255, 102, 68, 0.5);
         }
 
         #gameOver {
@@ -1107,6 +1106,32 @@
             }
         }
 
+        // Create radial gradient texture for sun glow
+        function createGlowTexture(scene, tint, size) {
+            const textureSize = 256;
+            const dynamicTexture = new BABYLON.DynamicTexture('glowTexture', textureSize, scene, false);
+            const ctx = dynamicTexture.getContext();
+
+            // Create radial gradient
+            const centerX = textureSize / 2;
+            const centerY = textureSize / 2;
+            const radius = textureSize / 2;
+
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+            gradient.addColorStop(0, `rgba(${Math.floor(tint[0]*255)}, ${Math.floor(tint[1]*255)}, ${Math.floor(tint[2]*255)}, 0.6)`);
+            gradient.addColorStop(0.2, `rgba(${Math.floor(tint[0]*255)}, ${Math.floor(tint[1]*255)}, ${Math.floor(tint[2]*255)}, 0.3)`);
+            gradient.addColorStop(0.5, `rgba(${Math.floor(tint[0]*255)}, ${Math.floor(tint[1]*255)}, ${Math.floor(tint[2]*255)}, 0.1)`);
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, textureSize, textureSize);
+
+            dynamicTexture.update();
+            dynamicTexture.hasAlpha = true;
+
+            return dynamicTexture;
+        }
+
         // Create a sun
         function createSun(x, y) {
             if (!scene) return null;
@@ -1121,41 +1146,22 @@
 
             const sunSize = 4 + Math.random() * 2; // 4-6 units
 
-            // Create glow effect first (behind the sun)
-            const glowSize = sunSize * 6; // Glow extends far out
+            // Create smooth radial gradient glow
+            const glowSize = sunSize * 8; // Large glow area
             const glow = BABYLON.MeshBuilder.CreatePlane('sunGlow', { size: glowSize }, scene);
             glow.position.x = x;
             glow.position.y = y;
-            glow.position.z = 0.8; // Behind the sun
+            glow.position.z = 0.9; // Behind everything
 
+            const glowTexture = createGlowTexture(scene, sunType.tint, glowSize);
             const glowMat = new BABYLON.StandardMaterial('sunGlowMat', scene);
-            glowMat.emissiveColor = new BABYLON.Color3(
-                sunType.tint[0] * 0.4,
-                sunType.tint[1] * 0.4,
-                sunType.tint[2] * 0.4
-            );
+            glowMat.diffuseTexture = glowTexture;
+            glowMat.emissiveTexture = glowTexture;
+            glowMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
             glowMat.disableLighting = true;
-            glowMat.alpha = 0.3;
+            glowMat.useAlphaFromDiffuseTexture = true;
             glowMat.backFaceCulling = false;
             glow.material = glowMat;
-
-            // Create inner glow (closer, brighter)
-            const innerGlowSize = sunSize * 3;
-            const innerGlow = BABYLON.MeshBuilder.CreatePlane('sunInnerGlow', { size: innerGlowSize }, scene);
-            innerGlow.position.x = x;
-            innerGlow.position.y = y;
-            innerGlow.position.z = 0.7;
-
-            const innerGlowMat = new BABYLON.StandardMaterial('sunInnerGlowMat', scene);
-            innerGlowMat.emissiveColor = new BABYLON.Color3(
-                sunType.tint[0] * 0.6,
-                sunType.tint[1] * 0.6,
-                sunType.tint[2] * 0.6
-            );
-            innerGlowMat.disableLighting = true;
-            innerGlowMat.alpha = 0.4;
-            innerGlowMat.backFaceCulling = false;
-            innerGlow.material = innerGlowMat;
 
             // Create the sun itself
             const sun = BABYLON.MeshBuilder.CreatePlane('sun', { size: sunSize }, scene);
@@ -1170,18 +1176,18 @@
             mat.diffuseTexture = texture;
             mat.emissiveTexture = texture;
             mat.emissiveColor = new BABYLON.Color3(
-                sunType.tint[0] * 0.6,
-                sunType.tint[1] * 0.6,
-                sunType.tint[2] * 0.6
+                sunType.tint[0] * 0.7,
+                sunType.tint[1] * 0.7,
+                sunType.tint[2] * 0.7
             );
             mat.useAlphaFromDiffuseTexture = true;
             mat.backFaceCulling = false;
             sun.material = mat;
 
             sun.size = sunSize;
+            sun.glowSize = glowSize;
             sun.isSun = true;
             sun.glow = glow;
-            sun.innerGlow = innerGlow;
             sun.tint = sunType.tint;
 
             return sun;
@@ -1286,21 +1292,82 @@
                 sun.position.y -= moveAmount;
                 sun.rotation.z += 0.0005;
 
-                // Update glow positions
+                // Update glow position
                 if (sun.glow) {
                     sun.glow.position.x = sun.position.x;
                     sun.glow.position.y = sun.position.y;
                 }
-                if (sun.innerGlow) {
-                    sun.innerGlow.position.x = sun.position.x;
-                    sun.innerGlow.position.y = sun.position.y;
-                }
 
-                if (sun.position.y < -orthoHeight - sun.size * 3) {
-                    if (sun.glow) sun.glow.dispose();
-                    if (sun.innerGlow) sun.innerGlow.dispose();
+                if (sun.position.y < -orthoHeight - sun.glowSize) {
+                    if (sun.glow) {
+                        if (sun.glow.material && sun.glow.material.diffuseTexture) {
+                            sun.glow.material.diffuseTexture.dispose();
+                        }
+                        sun.glow.dispose();
+                    }
                     sun.dispose();
                     gameState.suns.splice(i, 1);
+                }
+            }
+        }
+
+        // Apply sun lighting to ships based on proximity
+        function applySunLighting() {
+            if (!playerShipMesh || gameState.suns.length === 0) return;
+
+            // Find nearest sun and calculate lighting
+            let nearestSun = null;
+            let nearestDist = Infinity;
+
+            for (const sun of gameState.suns) {
+                const dx = sun.position.x - playerShip.position.x;
+                const dy = sun.position.y - playerShip.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestSun = sun;
+                }
+            }
+
+            if (nearestSun) {
+                // Calculate lighting intensity based on distance
+                const maxDist = nearestSun.glowSize * 0.6;
+                const intensity = Math.max(0, 1 - nearestDist / maxDist);
+                const tint = nearestSun.tint;
+
+                // Apply to player ship
+                const playerMeshes = playerShipMesh.getChildMeshes ? playerShipMesh.getChildMeshes() : [playerShipMesh];
+                playerMeshes.forEach(mesh => {
+                    if (mesh.material && mesh.material.emissiveColor) {
+                        // Blend base emissive with sun tint
+                        const baseEmissive = 0.3;
+                        mesh.material.emissiveColor = new BABYLON.Color3(
+                            baseEmissive + tint[0] * intensity * 0.4,
+                            baseEmissive + tint[1] * intensity * 0.4,
+                            baseEmissive + tint[2] * intensity * 0.4
+                        );
+                    }
+                });
+
+                // Apply to enemies
+                for (const enemy of gameState.enemies) {
+                    if (enemy.mesh) {
+                        const edx = nearestSun.position.x - enemy.position.x;
+                        const edy = nearestSun.position.y - enemy.position.y;
+                        const eDist = Math.sqrt(edx * edx + edy * edy);
+                        const eIntensity = Math.max(0, 1 - eDist / maxDist);
+
+                        const enemyMeshes = enemy.mesh.getChildMeshes ? enemy.mesh.getChildMeshes() : [enemy.mesh];
+                        enemyMeshes.forEach(mesh => {
+                            if (mesh.material && mesh.material.emissiveColor) {
+                                mesh.material.emissiveColor = new BABYLON.Color3(
+                                    0.3 + tint[0] * eIntensity * 0.4,
+                                    0.3 + tint[1] * eIntensity * 0.4,
+                                    0.3 + tint[2] * eIntensity * 0.4
+                                );
+                            }
+                        });
+                    }
                 }
             }
         }
@@ -2016,8 +2083,12 @@
             gameState.planets = [];
 
             gameState.suns.forEach(s => {
-                if (s.glow) s.glow.dispose();
-                if (s.innerGlow) s.innerGlow.dispose();
+                if (s.glow) {
+                    if (s.glow.material && s.glow.material.diffuseTexture) {
+                        s.glow.material.diffuseTexture.dispose();
+                    }
+                    s.glow.dispose();
+                }
                 s.dispose();
             });
             gameState.suns = [];
@@ -2140,8 +2211,9 @@
                     createSolarSystem();
                 }
 
-                // Update suns
+                // Update suns and apply lighting
                 updateSuns(scrollMultiplier);
+                applySunLighting();
 
                 if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0) {
                     gameState.wave++;
