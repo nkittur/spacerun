@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space Run - Bullet Hell Shooter</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+        }
+
+        #settingsBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #settingsBtn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #settingsPanel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 40, 0.95);
+            border: 2px solid #4488ff;
+            border-radius: 15px;
+            padding: 25px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            z-index: 200;
+            display: none;
+            min-width: 300px;
+            max-width: 90%;
+            box-shadow: 0 0 30px rgba(68, 136, 255, 0.5);
+        }
+
+        #settingsPanel h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4488ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .setting-group {
+            margin-bottom: 15px;
+        }
+
+        .setting-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #aaccff;
+        }
+
+        .setting-group input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #223355;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .setting-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4488ff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .setting-value {
+            text-align: right;
+            font-size: 12px;
+            color: #88aadd;
+            margin-top: 3px;
+        }
+
+        #closeSettings {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background: #4488ff;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #closeSettings:hover {
+            background: #5599ff;
+        }
+
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 16px;
+            z-index: 50;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+        }
+
+        #hud div {
+            margin-bottom: 5px;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 40, 0.95);
+            border: 2px solid #ff4444;
+            border-radius: 15px;
+            padding: 30px 50px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            z-index: 150;
+            display: none;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.5);
+        }
+
+        #gameOver h2 {
+            color: #ff4444;
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+
+        #gameOver p {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        #restartBtn {
+            padding: 12px 30px;
+            background: #ff4444;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        #restartBtn:hover {
+            background: #ff5555;
+        }
+
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #0a0a20 0%, #1a1a40 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
+        }
+
+        #startScreen h1 {
+            font-size: 48px;
+            color: #4488ff;
+            text-shadow: 0 0 20px rgba(68, 136, 255, 0.8);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+
+        #startScreen p {
+            font-size: 16px;
+            color: #aaccff;
+            margin-bottom: 30px;
+            text-align: center;
+            max-width: 80%;
+            line-height: 1.6;
+        }
+
+        #startBtn {
+            padding: 15px 50px;
+            background: #4488ff;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 20px rgba(68, 136, 255, 0.5);
+        }
+
+        #startBtn:hover {
+            background: #5599ff;
+            box-shadow: 0 0 30px rgba(68, 136, 255, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+
+    <div id="startScreen">
+        <h1>Space Run</h1>
+        <p>Drag your finger or mouse to move the ship.<br>
+        Move up to advance, down to retreat.<br>
+        Weapons fire automatically!</p>
+        <button id="startBtn">Start Game</button>
+    </div>
+
+    <button id="settingsBtn">⚙</button>
+
+    <div id="settingsPanel">
+        <h2>Settings</h2>
+        <div class="setting-group">
+            <label>X Sensitivity (Horizontal)</label>
+            <input type="range" id="xSensitivity" min="0.5" max="3" step="0.1" value="1.5">
+            <div class="setting-value" id="xSensitivityValue">1.5</div>
+        </div>
+        <div class="setting-group">
+            <label>Y Sensitivity (Vertical)</label>
+            <input type="range" id="ySensitivity" min="0.5" max="3" step="0.1" value="1.2">
+            <div class="setting-value" id="ySensitivityValue">1.2</div>
+        </div>
+        <div class="setting-group">
+            <label>Max Ship Height (% of screen)</label>
+            <input type="range" id="maxHeight" min="30" max="70" step="5" value="50">
+            <div class="setting-value" id="maxHeightValue">50%</div>
+        </div>
+        <div class="setting-group">
+            <label>Ship Speed</label>
+            <input type="range" id="shipSpeed" min="0.5" max="2" step="0.1" value="1">
+            <div class="setting-value" id="shipSpeedValue">1.0x</div>
+        </div>
+        <div class="setting-group">
+            <label>Fire Rate</label>
+            <input type="range" id="fireRate" min="0.5" max="3" step="0.1" value="1">
+            <div class="setting-value" id="fireRateValue">1.0x</div>
+        </div>
+        <div class="setting-group">
+            <label>Scroll Speed</label>
+            <input type="range" id="scrollSpeed" min="0.5" max="2" step="0.1" value="1">
+            <div class="setting-value" id="scrollSpeedValue">1.0x</div>
+        </div>
+        <button id="closeSettings">Close</button>
+    </div>
+
+    <div id="hud">
+        <div>Score: <span id="score">0</span></div>
+        <div>Health: <span id="health">100</span></div>
+        <div>Wave: <span id="wave">1</span></div>
+    </div>
+
+    <div id="gameOver">
+        <h2>Game Over</h2>
+        <p>Final Score: <span id="finalScore">0</span></p>
+        <button id="restartBtn">Play Again</button>
+    </div>
+
+    <script>
+        // Game Settings
+        const settings = {
+            xSensitivity: 1.5,
+            ySensitivity: 1.2,
+            maxHeight: 0.5,
+            shipSpeed: 1.0,
+            fireRate: 1.0,
+            scrollSpeed: 1.0
+        };
+
+        // Game State
+        let gameState = {
+            score: 0,
+            health: 100,
+            wave: 1,
+            isPlaying: false,
+            isPaused: false,
+            enemies: [],
+            playerBullets: [],
+            enemyBullets: [],
+            stars: [],
+            lastFireTime: 0,
+            waveTimer: 0,
+            enemiesInWave: 0,
+            enemiesSpawned: 0
+        };
+
+        // Babylon.js setup
+        const canvas = document.getElementById('renderCanvas');
+        const engine = new BABYLON.Engine(canvas, true);
+
+        // Game dimensions (portrait mode)
+        let gameWidth, gameHeight;
+
+        function updateGameDimensions() {
+            gameWidth = engine.getRenderWidth();
+            gameHeight = engine.getRenderHeight();
+        }
+
+        // Create the scene
+        const createScene = function() {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.08, 1);
+
+            // Orthographic camera for 2D view
+            const camera = new BABYLON.FreeCamera('camera', new BABYLON.Vector3(0, 0, -10), scene);
+            camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+
+            function updateCamera() {
+                updateGameDimensions();
+                const aspect = gameWidth / gameHeight;
+                const orthoSize = 10;
+                camera.orthoTop = orthoSize;
+                camera.orthoBottom = -orthoSize;
+                camera.orthoLeft = -orthoSize * aspect;
+                camera.orthoRight = orthoSize * aspect;
+            }
+            updateCamera();
+
+            window.addEventListener('resize', updateCamera);
+
+            // Lighting
+            const light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 0, -1), scene);
+            light.intensity = 1.0;
+
+            return scene;
+        };
+
+        const scene = createScene();
+
+        // Materials
+        const createMaterials = () => {
+            // Player ship material
+            const playerMat = new BABYLON.StandardMaterial('playerMat', scene);
+            playerMat.emissiveColor = new BABYLON.Color3(0.2, 0.6, 1);
+            playerMat.diffuseColor = new BABYLON.Color3(0.3, 0.7, 1);
+
+            // Player bullet material
+            const playerBulletMat = new BABYLON.StandardMaterial('playerBulletMat', scene);
+            playerBulletMat.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
+
+            // Enemy material
+            const enemyMat = new BABYLON.StandardMaterial('enemyMat', scene);
+            enemyMat.emissiveColor = new BABYLON.Color3(1, 0.2, 0.2);
+            enemyMat.diffuseColor = new BABYLON.Color3(1, 0.3, 0.3);
+
+            // Enemy bullet material
+            const enemyBulletMat = new BABYLON.StandardMaterial('enemyBulletMat', scene);
+            enemyBulletMat.emissiveColor = new BABYLON.Color3(1, 0.5, 0);
+
+            // Star material
+            const starMat = new BABYLON.StandardMaterial('starMat', scene);
+            starMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+
+            return { playerMat, playerBulletMat, enemyMat, enemyBulletMat, starMat };
+        };
+
+        const materials = createMaterials();
+
+        // Create player ship
+        function createPlayerShip() {
+            const ship = new BABYLON.TransformNode('playerShip', scene);
+
+            // Main body (triangle pointing up)
+            const body = BABYLON.MeshBuilder.CreateCylinder('body', {
+                height: 0.1,
+                diameterTop: 0,
+                diameterBottom: 0.8,
+                tessellation: 3
+            }, scene);
+            body.rotation.x = Math.PI / 2;
+            body.rotation.z = Math.PI;
+            body.material = materials.playerMat;
+            body.parent = ship;
+
+            // Wings
+            const leftWing = BABYLON.MeshBuilder.CreateBox('leftWing', {
+                width: 0.6,
+                height: 0.05,
+                depth: 0.3
+            }, scene);
+            leftWing.position = new BABYLON.Vector3(-0.4, 0, -0.1);
+            leftWing.material = materials.playerMat;
+            leftWing.parent = ship;
+
+            const rightWing = BABYLON.MeshBuilder.CreateBox('rightWing', {
+                width: 0.6,
+                height: 0.05,
+                depth: 0.3
+            }, scene);
+            rightWing.position = new BABYLON.Vector3(0.4, 0, -0.1);
+            rightWing.material = materials.playerMat;
+            rightWing.parent = ship;
+
+            // Engine glow
+            const engineGlow = BABYLON.MeshBuilder.CreateSphere('engineGlow', {
+                diameter: 0.3
+            }, scene);
+            engineGlow.position = new BABYLON.Vector3(0, 0, -0.5);
+            const engineMat = new BABYLON.StandardMaterial('engineMat', scene);
+            engineMat.emissiveColor = new BABYLON.Color3(0, 0.5, 1);
+            engineGlow.material = engineMat;
+            engineGlow.parent = ship;
+
+            ship.position = new BABYLON.Vector3(0, 0, -7);
+            ship.targetX = 0;
+            ship.targetY = -7;
+
+            return ship;
+        }
+
+        let playerShip = createPlayerShip();
+
+        // Create stars for background
+        function createStars(count = 100) {
+            const aspect = gameWidth / gameHeight;
+            const orthoSize = 10;
+
+            for (let i = 0; i < count; i++) {
+                const star = BABYLON.MeshBuilder.CreateSphere('star' + i, {
+                    diameter: Math.random() * 0.1 + 0.02
+                }, scene);
+
+                star.position.x = (Math.random() - 0.5) * orthoSize * 2 * aspect;
+                star.position.y = 0;
+                star.position.z = (Math.random() - 0.5) * 30;
+
+                const starMat = new BABYLON.StandardMaterial('starMat' + i, scene);
+                const brightness = Math.random() * 0.5 + 0.5;
+                starMat.emissiveColor = new BABYLON.Color3(brightness, brightness, brightness * 0.9);
+                star.material = starMat;
+
+                star.speed = Math.random() * 0.5 + 0.2;
+                gameState.stars.push(star);
+            }
+        }
+
+        // Create enemy
+        function createEnemy(type = 'basic', x, z) {
+            const enemy = new BABYLON.TransformNode('enemy', scene);
+
+            if (type === 'basic') {
+                const body = BABYLON.MeshBuilder.CreateCylinder('enemyBody', {
+                    height: 0.1,
+                    diameterTop: 0,
+                    diameterBottom: 0.6,
+                    tessellation: 3
+                }, scene);
+                body.rotation.x = Math.PI / 2;
+                body.material = materials.enemyMat;
+                body.parent = enemy;
+            } else if (type === 'shooter') {
+                const body = BABYLON.MeshBuilder.CreateBox('enemyBody', {
+                    width: 0.6,
+                    height: 0.1,
+                    depth: 0.6
+                }, scene);
+                body.material = materials.enemyMat;
+                body.parent = enemy;
+            } else if (type === 'fast') {
+                const body = BABYLON.MeshBuilder.CreateCylinder('enemyBody', {
+                    height: 0.1,
+                    diameterTop: 0.3,
+                    diameterBottom: 0.5,
+                    tessellation: 6
+                }, scene);
+                body.rotation.x = Math.PI / 2;
+                body.material = materials.enemyMat;
+                body.parent = enemy;
+            }
+
+            enemy.position.x = x;
+            enemy.position.z = z;
+            enemy.type = type;
+            enemy.health = type === 'shooter' ? 3 : type === 'fast' ? 1 : 2;
+            enemy.speed = type === 'fast' ? 0.08 : 0.03;
+            enemy.lastFireTime = 0;
+            enemy.fireRate = type === 'shooter' ? 1500 : 3000;
+            enemy.movementPattern = Math.random() > 0.5 ? 'sine' : 'straight';
+            enemy.startX = x;
+            enemy.time = Math.random() * Math.PI * 2;
+
+            return enemy;
+        }
+
+        // Create bullet
+        function createBullet(isPlayer, x, z, velocityX = 0, velocityZ = 0.2) {
+            const bullet = BABYLON.MeshBuilder.CreateSphere('bullet', {
+                diameter: isPlayer ? 0.15 : 0.12
+            }, scene);
+
+            bullet.position.x = x;
+            bullet.position.z = z;
+            bullet.material = isPlayer ? materials.playerBulletMat : materials.enemyBulletMat;
+            bullet.velocityX = velocityX;
+            bullet.velocityZ = velocityZ;
+            bullet.isPlayer = isPlayer;
+
+            return bullet;
+        }
+
+        // Input handling
+        let inputState = {
+            isPressed: false,
+            startX: 0,
+            startY: 0,
+            currentX: 0,
+            currentY: 0
+        };
+
+        function handleInputStart(x, y) {
+            inputState.isPressed = true;
+            inputState.startX = x;
+            inputState.startY = y;
+            inputState.currentX = x;
+            inputState.currentY = y;
+        }
+
+        function handleInputMove(x, y) {
+            if (inputState.isPressed) {
+                inputState.currentX = x;
+                inputState.currentY = y;
+            }
+        }
+
+        function handleInputEnd() {
+            inputState.isPressed = false;
+        }
+
+        // Touch events
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            handleInputStart(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            handleInputMove(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleInputEnd();
+        }, { passive: false });
+
+        // Mouse events
+        canvas.addEventListener('mousedown', (e) => {
+            handleInputStart(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            handleInputMove(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            handleInputEnd();
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            handleInputEnd();
+        });
+
+        // Update player position based on input
+        function updatePlayerPosition(deltaTime) {
+            if (!inputState.isPressed) return;
+
+            const deltaX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
+            const deltaY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
+
+            // Update start position to current for continuous tracking
+            inputState.startX = inputState.currentX;
+            inputState.startY = inputState.currentY;
+
+            // Convert screen delta to world delta
+            const worldDeltaX = (deltaX / gameWidth) * 20;
+            const worldDeltaZ = -(deltaY / gameHeight) * 20; // Inverted Y
+
+            // Update target position
+            playerShip.targetX += worldDeltaX;
+            playerShip.targetY += worldDeltaZ;
+
+            // Clamp X position
+            const aspect = gameWidth / gameHeight;
+            const maxX = 10 * aspect - 1;
+            playerShip.targetX = Math.max(-maxX, Math.min(maxX, playerShip.targetX));
+
+            // Clamp Y position based on settings
+            const minZ = -10 + 1;
+            const maxZ = -10 + (20 * settings.maxHeight);
+            playerShip.targetY = Math.max(minZ, Math.min(maxZ, playerShip.targetY));
+
+            // Smooth movement towards target
+            const lerpFactor = 0.15 * settings.shipSpeed;
+            playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
+            playerShip.position.z += (playerShip.targetY - playerShip.position.z) * lerpFactor;
+
+            // Calculate scroll speed based on Y position
+            const normalizedY = (playerShip.position.z + 10) / 20;
+            return normalizedY; // Return for scroll speed adjustment
+        }
+
+        // Fire player weapons
+        function firePlayerWeapons(currentTime) {
+            const fireInterval = 150 / settings.fireRate;
+
+            if (currentTime - gameState.lastFireTime > fireInterval && gameState.enemies.length > 0) {
+                // Main gun
+                const bullet1 = createBullet(true, playerShip.position.x, playerShip.position.z + 0.5, 0, 0.3);
+                gameState.playerBullets.push(bullet1);
+
+                // Side guns (spread)
+                const bullet2 = createBullet(true, playerShip.position.x - 0.3, playerShip.position.z + 0.3, -0.02, 0.28);
+                const bullet3 = createBullet(true, playerShip.position.x + 0.3, playerShip.position.z + 0.3, 0.02, 0.28);
+                gameState.playerBullets.push(bullet2, bullet3);
+
+                gameState.lastFireTime = currentTime;
+            }
+        }
+
+        // Spawn enemy wave
+        function spawnWave() {
+            const waveConfig = {
+                1: { count: 5, types: ['basic'] },
+                2: { count: 7, types: ['basic', 'basic', 'fast'] },
+                3: { count: 8, types: ['basic', 'shooter'] },
+                4: { count: 10, types: ['basic', 'fast', 'shooter'] },
+                5: { count: 12, types: ['basic', 'fast', 'shooter', 'shooter'] }
+            };
+
+            const config = waveConfig[Math.min(gameState.wave, 5)] || waveConfig[5];
+            gameState.enemiesInWave = config.count + Math.floor((gameState.wave - 5) * 2);
+            gameState.enemiesSpawned = 0;
+        }
+
+        // Spawn single enemy
+        function spawnEnemy() {
+            if (gameState.enemiesSpawned >= gameState.enemiesInWave) return;
+
+            const waveConfig = {
+                1: { types: ['basic'] },
+                2: { types: ['basic', 'basic', 'fast'] },
+                3: { types: ['basic', 'shooter'] },
+                4: { types: ['basic', 'fast', 'shooter'] },
+                5: { types: ['basic', 'fast', 'shooter', 'shooter'] }
+            };
+
+            const config = waveConfig[Math.min(gameState.wave, 5)] || waveConfig[5];
+            const type = config.types[Math.floor(Math.random() * config.types.length)];
+
+            const aspect = gameWidth / gameHeight;
+            const maxX = 10 * aspect - 1;
+            const x = (Math.random() - 0.5) * maxX * 1.5;
+            const z = 12;
+
+            const enemy = createEnemy(type, x, z);
+            gameState.enemies.push(enemy);
+            gameState.enemiesSpawned++;
+        }
+
+        // Update enemies
+        function updateEnemies(deltaTime, currentTime) {
+            for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+                const enemy = gameState.enemies[i];
+
+                // Movement
+                enemy.time += deltaTime * 0.003;
+
+                if (enemy.movementPattern === 'sine') {
+                    enemy.position.x = enemy.startX + Math.sin(enemy.time) * 2;
+                }
+
+                enemy.position.z -= enemy.speed * settings.scrollSpeed;
+
+                // Enemy shooting
+                if ((enemy.type === 'shooter' || enemy.type === 'basic') &&
+                    currentTime - enemy.lastFireTime > enemy.fireRate) {
+
+                    // Aim at player
+                    const dx = playerShip.position.x - enemy.position.x;
+                    const dz = playerShip.position.z - enemy.position.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+
+                    if (dist > 0) {
+                        const bullet = createBullet(false, enemy.position.x, enemy.position.z - 0.3,
+                            (dx / dist) * 0.1, (dz / dist) * 0.1);
+                        gameState.enemyBullets.push(bullet);
+                    }
+
+                    enemy.lastFireTime = currentTime;
+                }
+
+                // Remove if off screen
+                if (enemy.position.z < -12) {
+                    enemy.getChildMeshes().forEach(m => m.dispose());
+                    enemy.dispose();
+                    gameState.enemies.splice(i, 1);
+                }
+            }
+        }
+
+        // Update bullets
+        function updateBullets() {
+            // Player bullets
+            for (let i = gameState.playerBullets.length - 1; i >= 0; i--) {
+                const bullet = gameState.playerBullets[i];
+                bullet.position.x += bullet.velocityX;
+                bullet.position.z += bullet.velocityZ;
+
+                // Check collision with enemies
+                for (let j = gameState.enemies.length - 1; j >= 0; j--) {
+                    const enemy = gameState.enemies[j];
+                    const dist = BABYLON.Vector3.Distance(bullet.position, enemy.position);
+
+                    if (dist < 0.5) {
+                        enemy.health--;
+                        bullet.dispose();
+                        gameState.playerBullets.splice(i, 1);
+
+                        if (enemy.health <= 0) {
+                            const points = enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
+                            gameState.score += points * gameState.wave;
+                            updateHUD();
+
+                            enemy.getChildMeshes().forEach(m => m.dispose());
+                            enemy.dispose();
+                            gameState.enemies.splice(j, 1);
+                        }
+                        break;
+                    }
+                }
+
+                // Remove if off screen
+                if (bullet && bullet.position && bullet.position.z > 15) {
+                    bullet.dispose();
+                    gameState.playerBullets.splice(i, 1);
+                }
+            }
+
+            // Enemy bullets
+            for (let i = gameState.enemyBullets.length - 1; i >= 0; i--) {
+                const bullet = gameState.enemyBullets[i];
+                bullet.position.x += bullet.velocityX;
+                bullet.position.z += bullet.velocityZ;
+
+                // Check collision with player
+                const dist = BABYLON.Vector3.Distance(bullet.position, playerShip.position);
+                if (dist < 0.5) {
+                    gameState.health -= 10;
+                    updateHUD();
+                    bullet.dispose();
+                    gameState.enemyBullets.splice(i, 1);
+
+                    if (gameState.health <= 0) {
+                        gameOver();
+                    }
+                    continue;
+                }
+
+                // Remove if off screen
+                if (bullet.position.z < -12 || bullet.position.z > 15) {
+                    bullet.dispose();
+                    gameState.enemyBullets.splice(i, 1);
+                }
+            }
+        }
+
+        // Update stars (scrolling background)
+        function updateStars(scrollMultiplier) {
+            const baseSpeed = 0.05 * settings.scrollSpeed;
+            const adjustedSpeed = baseSpeed * (0.5 + scrollMultiplier);
+
+            gameState.stars.forEach(star => {
+                star.position.z -= star.speed * adjustedSpeed * 2;
+
+                if (star.position.z < -15) {
+                    star.position.z = 15;
+                    const aspect = gameWidth / gameHeight;
+                    star.position.x = (Math.random() - 0.5) * 20 * aspect;
+                }
+            });
+        }
+
+        // Check player collision with enemies
+        function checkPlayerCollision() {
+            for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+                const enemy = gameState.enemies[i];
+                const dist = BABYLON.Vector3.Distance(playerShip.position, enemy.position);
+
+                if (dist < 0.7) {
+                    gameState.health -= 25;
+                    updateHUD();
+
+                    enemy.getChildMeshes().forEach(m => m.dispose());
+                    enemy.dispose();
+                    gameState.enemies.splice(i, 1);
+
+                    if (gameState.health <= 0) {
+                        gameOver();
+                    }
+                }
+            }
+        }
+
+        // Update HUD
+        function updateHUD() {
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('health').textContent = Math.max(0, gameState.health);
+            document.getElementById('wave').textContent = gameState.wave;
+        }
+
+        // Game over
+        function gameOver() {
+            gameState.isPlaying = false;
+            document.getElementById('finalScore').textContent = gameState.score;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        // Reset game
+        function resetGame() {
+            // Clear enemies
+            gameState.enemies.forEach(enemy => {
+                enemy.getChildMeshes().forEach(m => m.dispose());
+                enemy.dispose();
+            });
+            gameState.enemies = [];
+
+            // Clear bullets
+            gameState.playerBullets.forEach(b => b.dispose());
+            gameState.playerBullets = [];
+            gameState.enemyBullets.forEach(b => b.dispose());
+            gameState.enemyBullets = [];
+
+            // Reset state
+            gameState.score = 0;
+            gameState.health = 100;
+            gameState.wave = 1;
+            gameState.lastFireTime = 0;
+            gameState.waveTimer = 0;
+            gameState.enemiesInWave = 0;
+            gameState.enemiesSpawned = 0;
+
+            // Reset player position
+            playerShip.position.x = 0;
+            playerShip.position.z = -7;
+            playerShip.targetX = 0;
+            playerShip.targetY = -7;
+
+            updateHUD();
+            spawnWave();
+        }
+
+        // Settings UI
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const closeSettings = document.getElementById('closeSettings');
+
+        settingsBtn.addEventListener('click', () => {
+            settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
+            gameState.isPaused = settingsPanel.style.display === 'block';
+        });
+
+        closeSettings.addEventListener('click', () => {
+            settingsPanel.style.display = 'none';
+            gameState.isPaused = false;
+        });
+
+        // Setting sliders
+        function setupSlider(id, settingKey, suffix = '', multiplier = 1) {
+            const slider = document.getElementById(id);
+            const valueDisplay = document.getElementById(id + 'Value');
+
+            slider.addEventListener('input', () => {
+                const value = parseFloat(slider.value);
+                settings[settingKey] = value * multiplier;
+                valueDisplay.textContent = value + suffix;
+            });
+        }
+
+        setupSlider('xSensitivity', 'xSensitivity');
+        setupSlider('ySensitivity', 'ySensitivity');
+        setupSlider('maxHeight', 'maxHeight', '%', 0.01);
+        setupSlider('shipSpeed', 'shipSpeed', 'x');
+        setupSlider('fireRate', 'fireRate', 'x');
+        setupSlider('scrollSpeed', 'scrollSpeed', 'x');
+
+        // Start screen
+        const startScreen = document.getElementById('startScreen');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const gameOverPanel = document.getElementById('gameOver');
+
+        startBtn.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            gameState.isPlaying = true;
+            createStars();
+            spawnWave();
+        });
+
+        restartBtn.addEventListener('click', () => {
+            gameOverPanel.style.display = 'none';
+            gameState.isPlaying = true;
+            resetGame();
+        });
+
+        // Main game loop
+        let lastTime = 0;
+        let spawnTimer = 0;
+
+        scene.registerBeforeRender(() => {
+            if (!gameState.isPlaying || gameState.isPaused) return;
+
+            const currentTime = performance.now();
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+
+            // Update player
+            const scrollMultiplier = updatePlayerPosition(deltaTime) || 0.3;
+
+            // Update stars
+            updateStars(scrollMultiplier);
+
+            // Fire weapons
+            firePlayerWeapons(currentTime);
+
+            // Spawn enemies
+            spawnTimer += deltaTime;
+            if (spawnTimer > 1000 && gameState.enemiesSpawned < gameState.enemiesInWave) {
+                spawnEnemy();
+                spawnTimer = 0;
+            }
+
+            // Check for wave completion
+            if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0) {
+                gameState.wave++;
+                updateHUD();
+                spawnWave();
+            }
+
+            // Update game objects
+            updateEnemies(deltaTime, currentTime);
+            updateBullets();
+            checkPlayerCollision();
+        });
+
+        // Run render loop
+        engine.runRenderLoop(() => {
+            scene.render();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            engine.resize();
+            updateGameDimensions();
+        });
+    </script>
+</body>
+</html>
