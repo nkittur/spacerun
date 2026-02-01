@@ -147,38 +147,133 @@
             margin-bottom: 3px;
         }
 
-        #resourcesHud {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255,255,255,0.3);
-            font-size: 11px;
-        }
-
-        #resourcesHud .resource-row {
+        #shieldsDisplay {
+            position: absolute;
+            top: 10px;
+            right: 60px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px;
+            z-index: 50;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 2px;
+            align-items: center;
+            gap: 8px;
         }
 
-        #resourcesHud .resource-name {
-            color: #aaccff;
+        #shieldsBar {
+            width: 100px;
+            height: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #44aaff;
+            border-radius: 6px;
+            overflow: hidden;
         }
 
-        #resourcesHud .resource-value {
-            color: #ffdd44;
+        #shieldsBarFill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #44aaff, #88ddff);
+            transition: width 0.3s ease;
+        }
+
+        #resourcesHud {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 50;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        .resource-icon {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 4px;
+            font-size: 13px;
             font-weight: bold;
         }
 
-        #harvestBar {
+        .resource-icon .symbol {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .resource-icon .count {
+            color: #fff;
+        }
+
+        /* Resource collection notifications at top */
+        #collectNotifications {
             position: absolute;
-            bottom: 80px;
+            top: 45px;
             left: 50%;
             transform: translateX(-50%);
-            width: 200px;
-            height: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid #44aaff;
-            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 70;
+            pointer-events: none;
+        }
+
+        .collect-notif {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 6px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            animation: collectPop 2s forwards;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .collect-notif .symbol {
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .collect-notif .amount {
+            color: #fff;
+        }
+
+        @keyframes collectPop {
+            0% { opacity: 0; transform: translateY(10px) scale(0.8); }
+            10% { opacity: 1; transform: translateY(0) scale(1.1); }
+            20% { transform: translateY(0) scale(1); }
+            80% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+
+        /* Harvest progress bar - clean flat at bottom */
+        #harvestBar {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 250px;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.6);
             overflow: hidden;
             display: none;
             z-index: 60;
@@ -187,59 +282,48 @@
         #harvestBarFill {
             height: 100%;
             width: 0%;
-            background: linear-gradient(90deg, #44aaff, #88ffaa);
+            background: #44ffaa;
             transition: width 0.1s linear;
         }
 
-        #harvestLabel {
+        /* Targeting corners overlay */
+        #targetingOverlay {
             position: absolute;
-            bottom: 105px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #88ffaa;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
-            display: none;
-            z-index: 60;
-        }
-
-        #notifications {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 70;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
+            z-index: 55;
         }
 
-        .notification {
-            background: rgba(20, 40, 60, 0.9);
-            border: 1px solid #44aaff;
-            border-radius: 8px;
-            padding: 8px 15px;
-            margin-bottom: 5px;
-            color: white;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
-            text-align: center;
-            animation: notificationFade 2s forwards;
-            white-space: nowrap;
+        .targeting-corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-color: #44ffaa;
+            border-style: solid;
+            border-width: 0;
         }
 
-        .notification .amount {
-            color: #ffdd44;
-            font-weight: bold;
+        .targeting-corner.top-left {
+            border-top-width: 3px;
+            border-left-width: 3px;
         }
 
-        .notification .resource {
-            color: #88ffaa;
+        .targeting-corner.top-right {
+            border-top-width: 3px;
+            border-right-width: 3px;
         }
 
-        @keyframes notificationFade {
-            0% { opacity: 1; transform: translateY(0); }
-            70% { opacity: 1; transform: translateY(-20px); }
-            100% { opacity: 0; transform: translateY(-40px); }
+        .targeting-corner.bottom-left {
+            border-bottom-width: 3px;
+            border-left-width: 3px;
+        }
+
+        .targeting-corner.bottom-right {
+            border-bottom-width: 3px;
+            border-right-width: 3px;
         }
 
         #gameOver {
@@ -431,12 +515,24 @@
         <div>Score: <span id="score">0</span></div>
         <div>Health: <span id="health">100</span></div>
         <div>Wave: <span id="wave">1</span></div>
-        <div id="resourcesHud"></div>
     </div>
 
-    <div id="harvestLabel">Harvesting...</div>
+    <div id="shieldsDisplay" style="display: none;">
+        <span>Base:</span>
+        <div id="shieldsBar"><div id="shieldsBarFill"></div></div>
+        <span id="shieldsValue">100</span>
+    </div>
+
+    <div id="resourcesHud" style="display: none;"></div>
+    <div id="collectNotifications"></div>
+
     <div id="harvestBar"><div id="harvestBarFill"></div></div>
-    <div id="notifications"></div>
+    <div id="targetingOverlay">
+        <div class="targeting-corner top-left"></div>
+        <div class="targeting-corner top-right"></div>
+        <div class="targeting-corner bottom-left"></div>
+        <div class="targeting-corner bottom-right"></div>
+    </div>
 
     <div id="gameOver">
         <h2>Game Over</h2>
@@ -566,6 +662,13 @@
         const modelTemplates = {};
         const previewScenes = [];
 
+        // Sun types
+        const SUN_TYPES = {
+            YellowSun: { folder: 'Yellow Sun', prefix: 'YellowSun', tint: [1.0, 1.0, 0.8] },
+            RedSun: { folder: 'Red Sun', prefix: 'RedSun', tint: [1.0, 0.7, 0.6] },
+            BlueSun: { folder: 'Blue Sun', prefix: 'BlueSun', tint: [0.7, 0.8, 1.0] }
+        };
+
         // Game State
         let gameState = {
             score: 0,
@@ -578,15 +681,20 @@
             enemyBullets: [],
             loot: [],
             planets: [],
+            suns: [],
+            solarSystems: [],
             stars: [],
             lastFireTime: 0,
             waveTimer: 0,
             enemiesInWave: 0,
             enemiesSpawned: 0,
-            planetSpawnTimer: 0,
+            nextSolarSystemY: 0,
             harvestingPlanet: null,
             harvestProgress: 0,
-            resources: {}
+            resources: {},
+            baseShields: 100,
+            escapedEnemies: 0,
+            pendingNotifications: {}
         };
 
         // Initialize resources
@@ -736,15 +844,41 @@
             return scene;
         }
 
-        // Show collection notification
-        function showNotification(text) {
-            const container = document.getElementById('notifications');
-            const notif = document.createElement('div');
-            notif.className = 'notification';
-            notif.innerHTML = text;
-            container.appendChild(notif);
+        // Show collection notification as icon at top
+        function showResourceCollection(resourceType, amount) {
+            // Batch notifications for the same resource
+            if (!gameState.pendingNotifications[resourceType]) {
+                gameState.pendingNotifications[resourceType] = {
+                    amount: 0,
+                    timeout: null
+                };
+            }
 
-            setTimeout(() => notif.remove(), 2000);
+            gameState.pendingNotifications[resourceType].amount += amount;
+
+            // Clear existing timeout and set a new one
+            if (gameState.pendingNotifications[resourceType].timeout) {
+                clearTimeout(gameState.pendingNotifications[resourceType].timeout);
+            }
+
+            // Show notification after small delay to batch rapid collections
+            gameState.pendingNotifications[resourceType].timeout = setTimeout(() => {
+                const totalAmount = gameState.pendingNotifications[resourceType].amount;
+                delete gameState.pendingNotifications[resourceType];
+
+                const container = document.getElementById('collectNotifications');
+                const resourceInfo = RESOURCES[resourceType];
+
+                const notif = document.createElement('div');
+                notif.className = 'collect-notif';
+                notif.innerHTML = `
+                    <div class="symbol" style="background: ${resourceInfo.color}">${resourceInfo.symbol}</div>
+                    <span class="amount">x${totalAmount}</span>
+                `;
+                container.appendChild(notif);
+
+                setTimeout(() => notif.remove(), 2000);
+            }, 100);
         }
 
         // Create explosion effect
@@ -959,7 +1093,7 @@
                     gameState.score += loot.resourceAmount * 5;
                     updateHUD();
 
-                    showNotification(`+<span class="amount">${loot.resourceAmount}</span> <span class="resource">${loot.resourceType}</span>`);
+                    showResourceCollection(loot.resourceType, loot.resourceAmount);
 
                     createExplosion(loot.position.x, loot.position.y, 'small', 'blue');
 
@@ -977,9 +1111,49 @@
             }
         }
 
-        // Create a planet
-        function createPlanet() {
-            if (!scene) return;
+        // Create a sun
+        function createSun(x, y) {
+            if (!scene) return null;
+
+            const sunTypeKeys = Object.keys(SUN_TYPES);
+            const sunTypeKey = sunTypeKeys[Math.floor(Math.random() * sunTypeKeys.length)];
+            const sunType = SUN_TYPES[sunTypeKey];
+
+            const variant = Math.floor(Math.random() * 5) + 1;
+            const variantStr = variant.toString().padStart(2, '0');
+            const imagePath = `assets/Medium Planets 256x256/Suns/${sunType.folder}/${sunType.prefix}_${variantStr}-256x256.png`;
+
+            const sunSize = 4 + Math.random() * 2; // 4-6 units
+
+            const sun = BABYLON.MeshBuilder.CreatePlane('sun', { size: sunSize }, scene);
+            sun.position.x = x;
+            sun.position.y = y;
+            sun.position.z = 0.6; // Behind planets
+
+            const texture = new BABYLON.Texture(imagePath, scene);
+            texture.hasAlpha = true;
+
+            const mat = new BABYLON.StandardMaterial('sunMat', scene);
+            mat.diffuseTexture = texture;
+            mat.emissiveTexture = texture;
+            mat.emissiveColor = new BABYLON.Color3(
+                sunType.tint[0] * 0.6,
+                sunType.tint[1] * 0.6,
+                sunType.tint[2] * 0.6
+            );
+            mat.useAlphaFromDiffuseTexture = true;
+            mat.backFaceCulling = false;
+            sun.material = mat;
+
+            sun.size = sunSize;
+            sun.isSun = true;
+
+            return sun;
+        }
+
+        // Create a planet at specific position
+        function createPlanetAt(x, y) {
+            if (!scene) return null;
 
             const typeKeys = Object.keys(PLANET_TYPES);
             const typeKey = typeKeys[Math.floor(Math.random() * typeKeys.length)];
@@ -989,17 +1163,13 @@
             const variantStr = variant.toString().padStart(2, '0');
             const imagePath = `assets/Medium Planets 256x256/${planetType.category}/${planetType.folder}/${planetType.prefix}_${variantStr}-256x256.png`;
 
-            const planetSize = 2.5 + Math.random() * 2; // 2.5-4.5 units
+            const planetSize = 2 + Math.random() * 1.5; // 2-3.5 units
 
-            // Create a plane with the planet texture
             const planet = BABYLON.MeshBuilder.CreatePlane('planet', { size: planetSize }, scene);
-
-            const x = (Math.random() - 0.5) * (orthoWidth * 1.5);
             planet.position.x = x;
-            planet.position.y = orthoHeight + planetSize;
-            planet.position.z = 0.5; // Behind ships but in front of stars
+            planet.position.y = y;
+            planet.position.z = 0.5;
 
-            // Load and apply texture
             const texture = new BABYLON.Texture(imagePath, scene);
             texture.hasAlpha = true;
 
@@ -1015,14 +1185,103 @@
             mat.backFaceCulling = false;
             planet.material = mat;
 
-            // Store planet data
             planet.planetType = typeKey;
             planet.planetData = planetType;
             planet.harvestsRemaining = planetType.harvests;
             planet.size = planetSize;
             planet.harvestRadius = planetSize * 0.8;
 
-            gameState.planets.push(planet);
+            return planet;
+        }
+
+        // Create a solar system (sun with orbiting planets)
+        function createSolarSystem() {
+            if (!scene) return;
+
+            // Center of solar system
+            const centerX = (Math.random() - 0.5) * (orthoWidth * 1.2);
+            const centerY = orthoHeight + 8; // Start above screen
+
+            // Create sun at center
+            const sun = createSun(centerX, centerY);
+            if (sun) {
+                gameState.suns.push(sun);
+            }
+
+            // Create 2-5 planets orbiting the sun
+            const planetCount = 2 + Math.floor(Math.random() * 4);
+            const minOrbitRadius = sun ? sun.size * 0.8 : 3;
+
+            for (let i = 0; i < planetCount; i++) {
+                const orbitRadius = minOrbitRadius + 2 + i * 2 + Math.random() * 1.5;
+                const angle = Math.random() * Math.PI * 2;
+
+                const px = centerX + Math.cos(angle) * orbitRadius;
+                const py = centerY + Math.sin(angle) * orbitRadius * 0.4; // Flatten orbits
+
+                const planet = createPlanetAt(px, py);
+                if (planet) {
+                    planet.orbitCenterX = centerX;
+                    planet.orbitRadius = orbitRadius;
+                    planet.orbitAngle = angle;
+                    planet.orbitSpeed = 0.0003 + Math.random() * 0.0002;
+                    gameState.planets.push(planet);
+                }
+            }
+
+            // Schedule next solar system with spacing (screen's worth on average)
+            const spacing = orthoHeight * 2 * (0.7 + Math.random() * 0.6); // 0.7-1.3 screens
+            gameState.nextSolarSystemY = centerY + spacing;
+        }
+
+        // Update suns
+        function updateSuns(scrollMultiplier) {
+            for (let i = gameState.suns.length - 1; i >= 0; i--) {
+                const sun = gameState.suns[i];
+
+                sun.position.y -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                sun.rotation.z += 0.0005;
+
+                if (sun.position.y < -orthoHeight - sun.size) {
+                    sun.dispose();
+                    gameState.suns.splice(i, 1);
+                }
+            }
+        }
+
+        // Convert world position to screen position
+        function worldToScreen(worldX, worldY) {
+            const screenX = ((worldX + orthoWidth) / (orthoWidth * 2)) * gameWidth;
+            const screenY = ((orthoHeight - worldY) / (orthoHeight * 2)) * gameHeight;
+            return { x: screenX, y: screenY };
+        }
+
+        // Update targeting overlay
+        function updateTargetingOverlay(planet) {
+            const overlay = document.getElementById('targetingOverlay');
+            const corners = overlay.querySelectorAll('.targeting-corner');
+
+            if (!planet) {
+                corners.forEach(c => c.style.display = 'none');
+                return;
+            }
+
+            const screenPos = worldToScreen(planet.position.x, planet.position.y);
+            const screenSize = (planet.size / (orthoHeight * 2)) * gameHeight * 1.2;
+            const halfSize = screenSize / 2;
+
+            const positions = [
+                { x: screenPos.x - halfSize - 10, y: screenPos.y - halfSize - 10 }, // top-left
+                { x: screenPos.x + halfSize - 10, y: screenPos.y - halfSize - 10 }, // top-right
+                { x: screenPos.x - halfSize - 10, y: screenPos.y + halfSize - 10 }, // bottom-left
+                { x: screenPos.x + halfSize - 10, y: screenPos.y + halfSize - 10 }  // bottom-right
+            ];
+
+            corners.forEach((corner, i) => {
+                corner.style.display = 'block';
+                corner.style.left = positions[i].x + 'px';
+                corner.style.top = positions[i].y + 'px';
+            });
         }
 
         // Update planets
@@ -1037,6 +1296,13 @@
 
                 // Move planet down
                 planet.position.y -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+
+                // Update orbit center if planet is orbiting
+                if (planet.orbitCenterX !== undefined) {
+                    // Find matching sun and update orbit center
+                    planet.orbitAngle += planet.orbitSpeed * deltaTime;
+                    // The orbit center also moves down with the solar system
+                }
 
                 // Slow rotation
                 planet.rotation.z += 0.001;
@@ -1060,10 +1326,9 @@
                 }
             }
 
-            // Handle harvesting
+            // Handle harvesting UI
             const harvestBar = document.getElementById('harvestBar');
             const harvestBarFill = document.getElementById('harvestBarFill');
-            const harvestLabel = document.getElementById('harvestLabel');
 
             if (nearPlanet && nearPlanet.harvestsRemaining > 0) {
                 if (gameState.harvestingPlanet !== nearPlanet) {
@@ -1074,9 +1339,10 @@
                 gameState.harvestProgress += deltaTime / 2000; // 2 seconds to harvest
 
                 harvestBar.style.display = 'block';
-                harvestLabel.style.display = 'block';
-                harvestLabel.textContent = `Harvesting ${nearPlanet.planetType} (${nearPlanet.harvestsRemaining} left)`;
                 harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
+
+                // Show targeting corners
+                updateTargetingOverlay(nearPlanet);
 
                 if (gameState.harvestProgress >= 1) {
                     // Harvest complete!
@@ -1085,16 +1351,14 @@
 
                     // Give resources
                     const resources = nearPlanet.planetData.resources;
-                    let notifText = '';
                     Object.keys(resources).forEach(resName => {
                         const [min, max] = resources[resName];
                         const amount = Math.floor(Math.random() * (max - min + 1)) + min;
                         gameState.resources[resName] += amount;
                         gameState.score += amount * 2;
-                        notifText += `+<span class="amount">${amount}</span> <span class="resource">${resName}</span><br>`;
+                        showResourceCollection(resName, amount);
                     });
 
-                    showNotification(notifText);
                     updateHUD();
 
                     createExplosion(nearPlanet.position.x, nearPlanet.position.y, 'large', 'green');
@@ -1120,7 +1384,7 @@
                 gameState.harvestingPlanet = null;
                 gameState.harvestProgress = 0;
                 harvestBar.style.display = 'none';
-                harvestLabel.style.display = 'none';
+                updateTargetingOverlay(null);
             }
         }
 
@@ -1472,6 +1736,22 @@
                 }
 
                 if (enemy.position.y < -orthoHeight - 2) {
+                    // Enemy escaped - damage base shields
+                    gameState.escapedEnemies++;
+                    gameState.baseShields -= 10;
+                    updateHUD();
+
+                    // Show warning flash
+                    const shieldsBar = document.getElementById('shieldsBarFill');
+                    shieldsBar.style.background = '#ff4444';
+                    setTimeout(() => {
+                        shieldsBar.style.background = 'linear-gradient(90deg, #44aaff, #88ddff)';
+                    }, 200);
+
+                    if (gameState.baseShields <= 0) {
+                        gameOver();
+                    }
+
                     enemy.getChildMeshes().forEach(m => m.dispose());
                     enemy.dispose();
                     gameState.enemies.splice(i, 1);
@@ -1616,17 +1896,26 @@
             document.getElementById('health').textContent = Math.max(0, gameState.health);
             document.getElementById('wave').textContent = gameState.wave;
 
-            // Update resources display
+            // Update base shields
+            const shieldsPercent = Math.max(0, gameState.baseShields);
+            document.getElementById('shieldsBarFill').style.width = `${shieldsPercent}%`;
+            document.getElementById('shieldsValue').textContent = Math.max(0, gameState.baseShields);
+
+            // Update resources display - show as icons at top
             const resourcesHud = document.getElementById('resourcesHud');
             let html = '';
             const displayResources = ['Iron', 'Copper', 'Titanium', 'Silicon', 'Water', 'Hydrogen', 'Carbon', 'Gold'];
             displayResources.forEach(res => {
                 const amount = gameState.resources[res] || 0;
                 if (amount > 0) {
-                    html += `<div class="resource-row"><span class="resource-name">${RESOURCES[res].symbol}</span><span class="resource-value">${amount}</span></div>`;
+                    const info = RESOURCES[res];
+                    html += `<div class="resource-icon">
+                        <div class="symbol" style="background: ${info.color}">${info.symbol}</div>
+                        <span class="count">${amount}</span>
+                    </div>`;
                 }
             });
-            resourcesHud.innerHTML = html || '<div style="color:#666">No resources</div>';
+            resourcesHud.innerHTML = html;
         }
 
         // Game over
@@ -1660,6 +1949,9 @@
             gameState.planets.forEach(p => p.dispose());
             gameState.planets = [];
 
+            gameState.suns.forEach(s => s.dispose());
+            gameState.suns = [];
+
             gameState.score = 0;
             gameState.health = 100;
             gameState.wave = 1;
@@ -1667,9 +1959,12 @@
             gameState.waveTimer = 0;
             gameState.enemiesInWave = 0;
             gameState.enemiesSpawned = 0;
-            gameState.planetSpawnTimer = 0;
+            gameState.nextSolarSystemY = orthoHeight + 15;
             gameState.harvestingPlanet = null;
             gameState.harvestProgress = 0;
+            gameState.baseShields = 100;
+            gameState.escapedEnemies = 0;
+            gameState.pendingNotifications = {};
 
             initResources();
 
@@ -1733,12 +2028,18 @@
             startScreen.style.display = 'none';
             document.getElementById('settingsBtn').style.display = 'flex';
             document.getElementById('hud').style.display = 'block';
+            document.getElementById('shieldsDisplay').style.display = 'flex';
+            document.getElementById('resourcesHud').style.display = 'flex';
 
             createMainScene();
             await createPlayerShip();
             createStars();
             initResources();
             spawnWave();
+
+            // Initialize solar system spawning
+            gameState.nextSolarSystemY = orthoHeight + 15;
+            gameState.baseShields = 100;
 
             gameState.isPlaying = true;
 
@@ -1762,12 +2063,16 @@
                     spawnTimer = 0;
                 }
 
-                // Spawn planets periodically
-                gameState.planetSpawnTimer += deltaTime;
-                if (gameState.planetSpawnTimer > 8000 + Math.random() * 5000) {
-                    createPlanet();
-                    gameState.planetSpawnTimer = 0;
+                // Spawn solar systems with spacing
+                // Check if we need to spawn a new solar system
+                // nextSolarSystemY tracks when the next system should appear at the top
+                gameState.nextSolarSystemY -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                if (gameState.nextSolarSystemY < orthoHeight + 10) {
+                    createSolarSystem();
                 }
+
+                // Update suns
+                updateSuns(scrollMultiplier);
 
                 if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0) {
                     gameState.wave++;
