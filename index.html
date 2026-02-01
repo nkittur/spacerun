@@ -845,7 +845,7 @@
             // Starbase and weapons
             starbase: null,
             isDocked: false,
-            wavesUntilStarbase: 3,
+            wavesUntilStarbase: 1,
             credits: 0,
             ownedWeapons: ['basic'],
             equippedWeapon: 'basic',
@@ -1159,7 +1159,8 @@
             gameState.distanceTraveled += scrollAmount * deltaTime * 0.1;
 
             // Scroll both backgrounds
-            const scrollSpeed = 0.0005 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            // Very slow background scroll for ambient effect
+            const scrollSpeed = 0.00005 * settings.scrollSpeed;
             if (backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.vOffset += scrollSpeed * deltaTime;
             }
@@ -1813,7 +1814,7 @@
             }
 
             // Reset waves until next starbase
-            gameState.wavesUntilStarbase = 3;
+            gameState.wavesUntilStarbase = 1;
         }
 
         // Make functions available globally for onclick
@@ -2764,7 +2765,7 @@
                 gameState.beamMesh = null;
             }
             gameState.isDocked = false;
-            gameState.wavesUntilStarbase = 3;
+            gameState.wavesUntilStarbase = 1;
             gameState.credits = 0;
             gameState.ownedWeapons = ['basic'];
             gameState.equippedWeapon = 'basic';
@@ -2836,7 +2837,7 @@
 
             createMainScene();
             await createPlayerShip();
-            createStars();
+            // Stars hidden - using background textures instead
             initResources();
             spawnWave();
 
@@ -2857,7 +2858,6 @@
 
                 const scrollMultiplier = updatePlayerPosition(deltaTime);
                 updateBackgrounds(scrollMultiplier, deltaTime);
-                updateStars(scrollMultiplier);
                 firePlayerWeapons(currentTime);
 
                 gameState.spawnTimer += deltaTime;
