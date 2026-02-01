@@ -694,22 +694,24 @@
             pendingNotifications: {},
             // Zone/background tracking
             currentZone: 0,
-            zoneProgress: 0,
-            backgroundTransition: 0,
-            isTransitioning: false
+            distanceTraveled: 0,
+            transitionPhase: 0, // 0=none, 1=fading to starfield, 2=fading to next zone
+            backgroundTransition: 0
         };
 
-        // Space zones - different areas with unique backgrounds
+        // Space zones - different areas with unique backgrounds (Starfield is transition zone)
         const SPACE_ZONES = [
-            { name: 'Starfield', folder: 'Starfields', prefix: 'Starfield', variants: 8 },
             { name: 'Blue Nebula', folder: 'Blue Nebula', prefix: 'Blue_Nebula', variants: 8 },
             { name: 'Purple Nebula', folder: 'Purple Nebula', prefix: 'Purple_Nebula', variants: 8 },
             { name: 'Green Nebula', folder: 'Green Nebula', prefix: 'Green_Nebula', variants: 8 }
         ];
 
-        const ZONE_DURATION = 60; // Seconds per zone before transitioning
+        // Starfield is used as neutral transition between zones
+        const STARFIELD_ZONE = { name: 'Starfield', folder: 'Starfields', prefix: 'Starfield', variants: 8 };
 
-        // Background meshes for crossfade
+        const ZONE_DISTANCE = 500; // Distance units per zone before transitioning
+
+        // Background meshes for crossfade (A=current, B=transition target, C=next zone)
         let backgroundMeshA = null;
         let backgroundMeshB = null;
         let backgroundMaterialA = null;
@@ -924,32 +926,51 @@
             backgroundMeshB.material = backgroundMaterialB;
         }
 
-        // Start transition to next zone
-        function startZoneTransition() {
-            if (gameState.isTransitioning) return;
+        // Get starfield texture path
+        function getStarfieldPath() {
+            const variant = Math.floor(Math.random() * STARFIELD_ZONE.variants) + 1;
+            const variantStr = variant.toString().padStart(2, '0');
+            return `assets/SBS - Seamless Space Backgrounds - Small 512x512/Small 512x512/${STARFIELD_ZONE.folder}/${STARFIELD_ZONE.prefix}_${variantStr}-512x512.png`;
+        }
 
-            gameState.isTransitioning = true;
-            const nextZone = (gameState.currentZone + 1) % SPACE_ZONES.length;
-
-            // Load next zone texture into background B
+        // Load texture into background B for transition
+        function loadTransitionTexture(path) {
             const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
-            const textureB = new BABYLON.Texture(getBackgroundPath(nextZone), scene);
-            textureB.uScale = bgSize / 20;
-            textureB.vScale = bgSize * 2 / 20;
-            textureB.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
-            textureB.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+            const texture = new BABYLON.Texture(path, scene);
+            texture.uScale = bgSize / 20;
+            texture.vScale = bgSize * 2 / 20;
+            texture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+            texture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+            // Match current scroll offset
+            if (backgroundMaterialA.diffuseTexture) {
+                texture.vOffset = backgroundMaterialA.diffuseTexture.vOffset;
+            }
 
             if (backgroundMaterialB.diffuseTexture) {
                 backgroundMaterialB.diffuseTexture.dispose();
             }
-            backgroundMaterialB.diffuseTexture = textureB;
-            backgroundMaterialB.emissiveTexture = textureB;
+            backgroundMaterialB.diffuseTexture = texture;
+            backgroundMaterialB.emissiveTexture = texture;
             backgroundMaterialB.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        }
+
+        // Start transition to next zone (via starfield)
+        function startZoneTransition() {
+            if (gameState.transitionPhase !== 0) return;
+
+            // Phase 1: Fade to starfield
+            gameState.transitionPhase = 1;
+            gameState.backgroundTransition = 0;
+            loadTransitionTexture(getStarfieldPath());
         }
 
         // Update backgrounds (scrolling and transitions)
         function updateBackgrounds(scrollMultiplier, deltaTime) {
             if (!backgroundMeshA || !backgroundMeshB) return;
+
+            // Track distance traveled based on scroll
+            const scrollAmount = 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            gameState.distanceTraveled += scrollAmount * deltaTime * 0.1;
 
             // Scroll both backgrounds
             const scrollSpeed = 0.0005 * settings.scrollSpeed * (0.5 + scrollMultiplier);
@@ -960,36 +981,40 @@
                 backgroundMaterialB.diffuseTexture.vOffset += scrollSpeed * deltaTime;
             }
 
-            // Track zone progress
-            gameState.zoneProgress += deltaTime / 1000;
-
-            // Start transition when zone duration is reached
-            if (gameState.zoneProgress >= ZONE_DURATION && !gameState.isTransitioning) {
+            // Start transition when zone distance is reached
+            if (gameState.distanceTraveled >= ZONE_DISTANCE && gameState.transitionPhase === 0) {
                 startZoneTransition();
             }
 
             // Handle transition animation
-            if (gameState.isTransitioning) {
-                gameState.backgroundTransition += deltaTime / 3000; // 3 second transition
+            if (gameState.transitionPhase > 0) {
+                gameState.backgroundTransition += deltaTime / 2000; // 2 second per phase
 
                 backgroundMaterialB.alpha = Math.min(1, gameState.backgroundTransition);
 
                 if (gameState.backgroundTransition >= 1) {
-                    // Transition complete - swap backgrounds
-                    gameState.currentZone = (gameState.currentZone + 1) % SPACE_ZONES.length;
-                    gameState.zoneProgress = 0;
-                    gameState.backgroundTransition = 0;
-                    gameState.isTransitioning = false;
-
-                    // Swap textures: B becomes A
+                    // Phase complete - swap backgrounds
                     const tempTexture = backgroundMaterialA.diffuseTexture;
                     backgroundMaterialA.diffuseTexture = backgroundMaterialB.diffuseTexture;
                     backgroundMaterialA.emissiveTexture = backgroundMaterialB.diffuseTexture;
                     backgroundMaterialB.diffuseTexture = null;
                     backgroundMaterialB.emissiveTexture = null;
                     backgroundMaterialB.alpha = 0;
-
                     if (tempTexture) tempTexture.dispose();
+
+                    gameState.backgroundTransition = 0;
+
+                    if (gameState.transitionPhase === 1) {
+                        // Phase 1 complete (now showing starfield), start phase 2
+                        gameState.transitionPhase = 2;
+                        const nextZone = (gameState.currentZone + 1) % SPACE_ZONES.length;
+                        loadTransitionTexture(getBackgroundPath(nextZone));
+                    } else {
+                        // Phase 2 complete (now showing next zone)
+                        gameState.currentZone = (gameState.currentZone + 1) % SPACE_ZONES.length;
+                        gameState.distanceTraveled = 0;
+                        gameState.transitionPhase = 0;
+                    }
                 }
             }
         }
@@ -2276,9 +2301,9 @@
 
             // Reset zone state
             gameState.currentZone = 0;
-            gameState.zoneProgress = 0;
+            gameState.distanceTraveled = 0;
             gameState.backgroundTransition = 0;
-            gameState.isTransitioning = false;
+            gameState.transitionPhase = 0;
 
             // Reset background to first zone
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
