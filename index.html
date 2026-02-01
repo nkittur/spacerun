@@ -1453,15 +1453,19 @@
                 // Slow rotation
                 planet.rotation.z += 0.001;
 
-                // Check distance to player
-                const dx = planet.position.x - playerShip.position.x;
-                const dy = planet.position.y - playerShip.position.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+                // Check distance to player - only if planet is fully visible on screen
+                const planetFullyVisible = planet.position.y < (orthoHeight - planet.size / 2);
 
-                if (dist < planet.harvestRadius && planet.harvestsRemaining > 0) {
-                    if (dist < nearestDist) {
-                        nearestDist = dist;
-                        nearPlanet = planet;
+                if (planetFullyVisible) {
+                    const dx = planet.position.x - playerShip.position.x;
+                    const dy = planet.position.y - playerShip.position.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < planet.harvestRadius && planet.harvestsRemaining > 0) {
+                        if (dist < nearestDist) {
+                            nearestDist = dist;
+                            nearPlanet = planet;
+                        }
                     }
                 }
 
@@ -2233,10 +2237,11 @@
             });
         });
 
-        restartBtn.addEventListener('click', () => {
+        restartBtn.addEventListener('click', async () => {
             gameOverPanel.style.display = 'none';
+            await resetGame();
+            spawnWave();
             gameState.isPlaying = true;
-            resetGame();
         });
 
         window.addEventListener('resize', () => {
