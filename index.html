@@ -320,6 +320,139 @@
             text-shadow: 0 0 4px rgba(255, 102, 68, 0.5);
         }
 
+        /* Docking/Starbase screen */
+        #dockingScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 10, 20, 0.95);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            z-index: 200;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
+            overflow-y: auto;
+        }
+
+        #dockingScreen h2 {
+            color: #44aaff;
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #dockingCredits {
+            color: #ffdd44;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .upgrade-section {
+            width: 100%;
+            max-width: 350px;
+            margin-bottom: 20px;
+        }
+
+        .upgrade-section h3 {
+            color: #88aadd;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #334;
+            padding-bottom: 5px;
+        }
+
+        .upgrade-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(30, 40, 60, 0.8);
+            border: 1px solid #335;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+
+        .upgrade-item.owned {
+            border-color: #44aa44;
+            background: rgba(40, 60, 40, 0.5);
+        }
+
+        .upgrade-item.equipped {
+            border-color: #44aaff;
+            background: rgba(40, 60, 80, 0.5);
+        }
+
+        .upgrade-info {
+            flex: 1;
+        }
+
+        .upgrade-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .upgrade-desc {
+            font-size: 11px;
+            color: #88aacc;
+            margin-top: 3px;
+        }
+
+        .upgrade-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .upgrade-btn.buy {
+            background: #44aa44;
+            color: white;
+        }
+
+        .upgrade-btn.buy:disabled {
+            background: #444;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .upgrade-btn.equip {
+            background: #4488ff;
+            color: white;
+        }
+
+        .upgrade-btn.equipped {
+            background: #335;
+            color: #88aacc;
+        }
+
+        #departBtn {
+            padding: 15px 50px;
+            background: #ff8844;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 20px;
+        }
+
+        #departBtn:hover {
+            background: #ffaa66;
+        }
+
         #gameOver {
             position: absolute;
             top: 50%;
@@ -531,6 +664,18 @@
         <div class="planet-stat hazard"><span id="hazardIcon">⚠</span><span id="hazardValue"></span></div>
     </div>
 
+    <div id="dockingScreen">
+        <h2>⚓ Starbase</h2>
+        <div id="dockingCredits">Credits: <span id="creditsDisplay">0</span></div>
+
+        <div class="upgrade-section">
+            <h3>Weapons</h3>
+            <div id="weaponsList"></div>
+        </div>
+
+        <button id="departBtn">Depart</button>
+    </div>
+
     <div id="gameOver">
         <h2>Game Over</h2>
         <p>Final Score: <span id="finalScore">0</span></p>
@@ -696,7 +841,16 @@
             currentZone: 0,
             distanceTraveled: 0,
             transitionPhase: 0, // 0=none, 1=fading to starfield, 2=fading to next zone
-            backgroundTransition: 0
+            backgroundTransition: 0,
+            // Starbase and weapons
+            starbase: null,
+            isDocked: false,
+            wavesUntilStarbase: 3,
+            credits: 0,
+            ownedWeapons: ['basic'],
+            equippedWeapon: 'basic',
+            beamActive: false,
+            beamMesh: null
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -710,6 +864,38 @@
         const STARFIELD_ZONE = { name: 'Starfield', folder: 'Starfields', prefix: 'Starfield', variants: 8 };
 
         const ZONE_DISTANCE = 500; // Distance units per zone before transitioning
+
+        // Weapon definitions
+        const WEAPONS = {
+            basic: {
+                name: 'Pulse Cannon',
+                desc: 'Standard single-shot weapon',
+                cost: 0,
+                fireRate: 300,
+                damage: 1
+            },
+            trishot: {
+                name: 'Tri-Shot',
+                desc: 'Fires 3 bullets in a spread',
+                cost: 500,
+                fireRate: 400,
+                damage: 1
+            },
+            rapid: {
+                name: 'Rapid Fire',
+                desc: 'Very fast firing rate',
+                cost: 750,
+                fireRate: 100,
+                damage: 1
+            },
+            beam: {
+                name: 'Beam Laser',
+                desc: 'Hits all enemies in a line, fires slowly',
+                cost: 1000,
+                fireRate: 1500,
+                damage: 2
+            }
+        };
 
         // Background meshes for crossfade (A=current, B=transition target, C=next zone)
         let backgroundMeshA = null;
@@ -1461,6 +1647,179 @@
             gameState.nextSolarSystemY = centerY + spacing;
         }
 
+        // Create starbase
+        function createStarbase() {
+            if (!scene || gameState.starbase) return;
+
+            const starbaseSize = 2.5; // Smaller than planets
+            const starbase = BABYLON.MeshBuilder.CreatePlane('starbase', { size: starbaseSize }, scene);
+
+            starbase.position.x = (Math.random() - 0.5) * orthoWidth;
+            starbase.position.y = orthoHeight + starbaseSize;
+            starbase.position.z = 0.4; // In front of planets
+
+            const texture = new BABYLON.Texture('assets/stellar objects/starbase.png', scene);
+            texture.hasAlpha = true;
+
+            const mat = new BABYLON.StandardMaterial('starbaseMat', scene);
+            mat.diffuseTexture = texture;
+            mat.emissiveTexture = texture;
+            mat.emissiveColor = new BABYLON.Color3(0.4, 0.4, 0.5);
+            mat.useAlphaFromDiffuseTexture = true;
+            mat.backFaceCulling = false;
+            starbase.material = mat;
+
+            starbase.size = starbaseSize;
+            starbase.dockRadius = starbaseSize * 0.8;
+
+            gameState.starbase = starbase;
+        }
+
+        // Update starbase
+        function updateStarbase(scrollMultiplier, deltaTime) {
+            if (!gameState.starbase || !playerShip) return;
+
+            const starbase = gameState.starbase;
+
+            // Move starbase down
+            starbase.position.y -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+
+            // Slow rotation
+            starbase.rotation.z += 0.002;
+
+            // Check distance to player for docking
+            const dx = starbase.position.x - playerShip.position.x;
+            const dy = starbase.position.y - playerShip.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Check if starbase is fully visible
+            const fullyVisible = starbase.position.y < (orthoHeight - starbase.size / 2);
+
+            if (fullyVisible && dist < starbase.dockRadius) {
+                // Show docking progress using harvest bar
+                if (!gameState.harvestingPlanet) {
+                    gameState.harvestProgress += deltaTime / 1500; // 1.5 seconds to dock
+
+                    const harvestBar = document.getElementById('harvestBar');
+                    const harvestBarFill = document.getElementById('harvestBarFill');
+                    harvestBar.style.display = 'block';
+                    harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
+
+                    // Position bar at starbase
+                    const screenPos = worldToScreen(starbase.position.x, starbase.position.y);
+                    const screenSize = (starbase.size / (orthoHeight * 2)) * canvas.clientHeight * 1.2;
+                    const barWidth = screenSize + 20;
+                    harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+                    harvestBar.style.top = (screenPos.y + screenSize / 2 + 15) + 'px';
+                    harvestBar.style.width = barWidth + 'px';
+                    harvestBar.style.transform = 'none';
+
+                    if (gameState.harvestProgress >= 1) {
+                        // Docked!
+                        openDockingScreen();
+                    }
+                }
+            } else {
+                if (!gameState.harvestingPlanet && gameState.harvestProgress > 0 && !gameState.isDocked) {
+                    gameState.harvestProgress = 0;
+                    document.getElementById('harvestBar').style.display = 'none';
+                }
+            }
+
+            // Remove if off screen
+            if (starbase.position.y < -orthoHeight - starbase.size) {
+                starbase.dispose();
+                gameState.starbase = null;
+            }
+        }
+
+        // Open docking screen
+        function openDockingScreen() {
+            gameState.isDocked = true;
+            gameState.isPaused = true;
+            gameState.harvestProgress = 0;
+            document.getElementById('harvestBar').style.display = 'none';
+
+            updateDockingScreen();
+            document.getElementById('dockingScreen').style.display = 'flex';
+        }
+
+        // Update docking screen with current state
+        function updateDockingScreen() {
+            document.getElementById('creditsDisplay').textContent = gameState.credits;
+
+            const weaponsList = document.getElementById('weaponsList');
+            weaponsList.innerHTML = '';
+
+            Object.keys(WEAPONS).forEach(weaponId => {
+                const weapon = WEAPONS[weaponId];
+                const owned = gameState.ownedWeapons.includes(weaponId);
+                const equipped = gameState.equippedWeapon === weaponId;
+                const canAfford = gameState.credits >= weapon.cost;
+
+                const item = document.createElement('div');
+                item.className = 'upgrade-item' + (owned ? ' owned' : '') + (equipped ? ' equipped' : '');
+
+                let btnHtml = '';
+                if (equipped) {
+                    btnHtml = '<button class="upgrade-btn equipped" disabled>Equipped</button>';
+                } else if (owned) {
+                    btnHtml = `<button class="upgrade-btn equip" onclick="equipWeapon('${weaponId}')">Equip</button>`;
+                } else {
+                    btnHtml = `<button class="upgrade-btn buy" ${canAfford ? '' : 'disabled'} onclick="buyWeapon('${weaponId}')">${weapon.cost} cr</button>`;
+                }
+
+                item.innerHTML = `
+                    <div class="upgrade-info">
+                        <div class="upgrade-name">${weapon.name}</div>
+                        <div class="upgrade-desc">${weapon.desc}</div>
+                    </div>
+                    ${btnHtml}
+                `;
+
+                weaponsList.appendChild(item);
+            });
+        }
+
+        // Buy weapon
+        function buyWeapon(weaponId) {
+            const weapon = WEAPONS[weaponId];
+            if (gameState.credits >= weapon.cost && !gameState.ownedWeapons.includes(weaponId)) {
+                gameState.credits -= weapon.cost;
+                gameState.ownedWeapons.push(weaponId);
+                gameState.equippedWeapon = weaponId;
+                updateDockingScreen();
+            }
+        }
+
+        // Equip weapon
+        function equipWeapon(weaponId) {
+            if (gameState.ownedWeapons.includes(weaponId)) {
+                gameState.equippedWeapon = weaponId;
+                updateDockingScreen();
+            }
+        }
+
+        // Close docking screen and depart
+        function departStarbase() {
+            gameState.isDocked = false;
+            gameState.isPaused = false;
+            document.getElementById('dockingScreen').style.display = 'none';
+
+            // Remove starbase
+            if (gameState.starbase) {
+                gameState.starbase.dispose();
+                gameState.starbase = null;
+            }
+
+            // Reset waves until next starbase
+            gameState.wavesUntilStarbase = 3;
+        }
+
+        // Make functions available globally for onclick
+        window.buyWeapon = buyWeapon;
+        window.equipWeapon = equipWeapon;
+
         // Update suns
         function updateSuns(scrollMultiplier) {
             for (let i = gameState.suns.length - 1; i >= 0; i--) {
@@ -1991,13 +2350,85 @@
         function firePlayerWeapons(currentTime) {
             if (!playerShip) return;
 
-            const fireInterval = 300 / settings.fireRate;
+            const weapon = WEAPONS[gameState.equippedWeapon];
+            const fireInterval = weapon.fireRate / settings.fireRate;
 
             if (currentTime - gameState.lastFireTime > fireInterval && gameState.enemies.length > 0) {
-                const bullet = createBullet(true, playerShip.position.x, playerShip.position.y + 0.5, 0, 0.35);
-                gameState.playerBullets.push(bullet);
+                const px = playerShip.position.x;
+                const py = playerShip.position.y + 0.5;
+
+                if (gameState.equippedWeapon === 'basic') {
+                    const bullet = createBullet(true, px, py, 0, 0.35);
+                    gameState.playerBullets.push(bullet);
+                } else if (gameState.equippedWeapon === 'trishot') {
+                    // 3-way spread
+                    const bullet1 = createBullet(true, px, py, 0, 0.35);
+                    const bullet2 = createBullet(true, px - 0.3, py, -0.08, 0.33);
+                    const bullet3 = createBullet(true, px + 0.3, py, 0.08, 0.33);
+                    gameState.playerBullets.push(bullet1, bullet2, bullet3);
+                } else if (gameState.equippedWeapon === 'rapid') {
+                    const bullet = createBullet(true, px, py, 0, 0.4);
+                    gameState.playerBullets.push(bullet);
+                } else if (gameState.equippedWeapon === 'beam') {
+                    // Beam laser - create visual beam and damage all enemies in line
+                    fireBeamLaser(px, py);
+                }
 
                 gameState.lastFireTime = currentTime;
+            }
+
+            // Update beam visual if active
+            if (gameState.beamMesh) {
+                gameState.beamMesh.alpha -= 0.05;
+                if (gameState.beamMesh.alpha <= 0) {
+                    gameState.beamMesh.dispose();
+                    gameState.beamMesh = null;
+                }
+            }
+        }
+
+        // Fire beam laser
+        function fireBeamLaser(px, py) {
+            // Create beam visual
+            if (gameState.beamMesh) {
+                gameState.beamMesh.dispose();
+            }
+
+            const beamHeight = orthoHeight * 2;
+            const beam = BABYLON.MeshBuilder.CreatePlane('beam', { width: 0.3, height: beamHeight }, scene);
+            beam.position.x = px;
+            beam.position.y = py + beamHeight / 2;
+            beam.position.z = -0.1;
+
+            const beamMat = new BABYLON.StandardMaterial('beamMat', scene);
+            beamMat.emissiveColor = new BABYLON.Color3(0, 1, 0.8);
+            beamMat.alpha = 0.8;
+            beamMat.backFaceCulling = false;
+            beam.material = beamMat;
+
+            gameState.beamMesh = beam;
+            beam.alpha = 0.8;
+
+            // Damage all enemies in the beam's path
+            const beamWidth = 0.5;
+            for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+                const enemy = gameState.enemies[i];
+                if (Math.abs(enemy.position.x - px) < beamWidth) {
+                    enemy.health -= WEAPONS.beam.damage;
+                    flashShip(enemy.mesh || enemy);
+
+                    if (enemy.health <= 0) {
+                        createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
+                        createLoot(enemy.position.x, enemy.position.y);
+                        gameState.score += 50;
+                        gameState.credits += 10 + Math.floor(Math.random() * 15);
+                        updateHUD();
+
+                        enemy.getChildMeshes().forEach(m => m.dispose());
+                        enemy.dispose();
+                        gameState.enemies.splice(i, 1);
+                    }
+                }
             }
         }
 
@@ -2126,6 +2557,7 @@
 
                             const points = enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
                             gameState.score += points * gameState.wave;
+                            gameState.credits += 10 + Math.floor(Math.random() * 15);
                             updateHUD();
 
                             enemy.getChildMeshes().forEach(m => m.dispose());
@@ -2322,6 +2754,22 @@
                 backgroundMaterialB.alpha = 0;
             }
 
+            // Reset starbase and weapons
+            if (gameState.starbase) {
+                gameState.starbase.dispose();
+                gameState.starbase = null;
+            }
+            if (gameState.beamMesh) {
+                gameState.beamMesh.dispose();
+                gameState.beamMesh = null;
+            }
+            gameState.isDocked = false;
+            gameState.wavesUntilStarbase = 3;
+            gameState.credits = 0;
+            gameState.ownedWeapons = ['basic'];
+            gameState.equippedWeapon = 'basic';
+            document.getElementById('dockingScreen').style.display = 'none';
+
             initResources();
 
             if (playerShip) {
@@ -2430,16 +2878,24 @@
                 updateSuns(scrollMultiplier);
                 applySunLighting();
 
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0) {
+                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase) {
                     gameState.wave++;
+                    gameState.wavesUntilStarbase--;
                     updateHUD();
-                    spawnWave();
+
+                    // Spawn starbase after every few waves
+                    if (gameState.wavesUntilStarbase <= 0) {
+                        createStarbase();
+                    } else {
+                        spawnWave();
+                    }
                 }
 
                 updateEnemies(deltaTime, currentTime, scrollMultiplier);
                 updateBullets();
                 updateLoot(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
+                updateStarbase(scrollMultiplier, deltaTime);
                 checkPlayerCollision();
             });
 
@@ -2453,6 +2909,11 @@
             await resetGame();
             spawnWave();
             gameState.isPlaying = true;
+        });
+
+        document.getElementById('departBtn').addEventListener('click', () => {
+            departStarbase();
+            spawnWave();
         });
 
         window.addEventListener('resize', () => {
