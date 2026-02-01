@@ -582,16 +582,15 @@
 
                 // For top-down view with camera at (0,0,-10) looking at origin:
                 // We need to see the ship from above (looking down at its top)
-                // Quaternius models: Y-up, nose along +Z
-                // Rotate to lay flat with top facing camera (-Z), then orient nose
+                // Try different rotation to get nose pointing correct direction
                 if (faceDirection === 'up') {
                     // Player: nose pointing up (+Y on screen)
                     rootMesh.rotationQuaternion = null; // Clear any quaternion
-                    rootMesh.rotation.set(Math.PI / 2, Math.PI, 0);
+                    rootMesh.rotation.set(-Math.PI / 2, 0, 0);
                 } else {
                     // Enemy: nose pointing down (-Y on screen)
                     rootMesh.rotationQuaternion = null;
-                    rootMesh.rotation.set(Math.PI / 2, 0, 0);
+                    rootMesh.rotation.set(-Math.PI / 2, 0, Math.PI);
                 }
 
                 return rootMesh;
@@ -617,6 +616,8 @@
             playerShip.position = new BABYLON.Vector3(0, -7, 0);
             playerShip.targetX = 0;
             playerShip.targetY = -7;
+            playerShip.velocityX = 0;
+            playerShip.currentTilt = 0;
 
             return playerShip;
         }
@@ -663,6 +664,8 @@
             enemy.startX = x;
             enemy.time = Math.random() * Math.PI * 2;
             enemy.mesh = enemyMesh;
+            enemy.prevX = x;
+            enemy.currentTilt = 0;
 
             return enemy;
         }
@@ -733,41 +736,52 @@
             handleInputEnd();
         }, { passive: false });
 
-        // Mouse events
-        let mouseDown = false;
+        // Mouse events - simplified and more robust
         document.addEventListener('mousedown', (e) => {
-            mouseDown = true;
+            // Ignore if clicking on UI buttons
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+
             if (gameState.isPlaying && !gameState.isPaused) {
+                e.preventDefault();
                 handleInputStart(e.clientX, e.clientY);
             }
         });
 
         document.addEventListener('mousemove', (e) => {
-            if (mouseDown && gameState.isPlaying && !gameState.isPaused) {
+            if (inputState.isPressed && gameState.isPlaying && !gameState.isPaused) {
                 handleInputMove(e.clientX, e.clientY);
             }
         });
 
-        document.addEventListener('mouseup', () => {
-            mouseDown = false;
+        document.addEventListener('mouseup', (e) => {
+            handleInputEnd();
+        });
+
+        // Also handle when mouse leaves window
+        document.addEventListener('mouseleave', (e) => {
             handleInputEnd();
         });
 
         // Update player position
         function updatePlayerPosition(deltaTime) {
-            if (!inputState.isPressed || !playerShip) return 0.3;
+            if (!playerShip) return 0.3;
 
-            const deltaX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
-            const deltaY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
+            let worldDeltaX = 0;
+            let worldDeltaY = 0;
 
-            inputState.startX = inputState.currentX;
-            inputState.startY = inputState.currentY;
+            if (inputState.isPressed) {
+                const deltaX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
+                const deltaY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
 
-            const worldDeltaX = (deltaX / gameWidth) * orthoWidth * 2;
-            const worldDeltaY = -(deltaY / gameHeight) * orthoHeight * 2;
+                inputState.startX = inputState.currentX;
+                inputState.startY = inputState.currentY;
 
-            playerShip.targetX += worldDeltaX;
-            playerShip.targetY += worldDeltaY;
+                worldDeltaX = (deltaX / gameWidth) * orthoWidth * 2;
+                worldDeltaY = -(deltaY / gameHeight) * orthoHeight * 2;
+
+                playerShip.targetX += worldDeltaX;
+                playerShip.targetY += worldDeltaY;
+            }
 
             const maxX = orthoWidth - 1;
             playerShip.targetX = Math.max(-maxX, Math.min(maxX, playerShip.targetX));
@@ -777,8 +791,26 @@
             playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
 
             const lerpFactor = 0.15 * settings.shipSpeed;
+            const prevX = playerShip.position.x;
             playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
             playerShip.position.y += (playerShip.targetY - playerShip.position.y) * lerpFactor;
+
+            // Calculate velocity for tilting
+            playerShip.velocityX = playerShip.position.x - prevX;
+
+            // Apply tilt based on horizontal velocity
+            // Positive velocity (moving right) = tilt right (negative Z rotation in screen space)
+            const targetTilt = -playerShip.velocityX * 8; // Amplify for visible effect
+            const maxTilt = Math.PI / 6; // 30 degrees max
+            const clampedTilt = Math.max(-maxTilt, Math.min(maxTilt, targetTilt));
+
+            // Smooth tilt transition
+            playerShip.currentTilt += (clampedTilt - playerShip.currentTilt) * 0.15;
+
+            // Apply tilt to the mesh (rotate around Y axis for banking effect in top-down view)
+            if (playerShipMesh) {
+                playerShipMesh.rotation.y = playerShip.currentTilt;
+            }
 
             const normalizedY = (playerShip.position.y + orthoHeight) / (orthoHeight * 2);
             return Math.max(0.1, normalizedY + 0.2);
@@ -840,11 +872,25 @@
 
                 enemy.time += deltaTime * 0.003;
 
+                const prevX = enemy.position.x;
+
                 if (enemy.movementPattern === 'sine') {
                     enemy.position.x = enemy.startX + Math.sin(enemy.time) * 2;
                 }
 
                 enemy.position.y -= enemy.speed * settings.scrollSpeed * (0.5 + scrollMultiplier);
+
+                // Calculate velocity and apply tilt
+                const velocityX = enemy.position.x - prevX;
+                const targetTilt = -velocityX * 8;
+                const maxTilt = Math.PI / 6;
+                const clampedTilt = Math.max(-maxTilt, Math.min(maxTilt, targetTilt));
+                enemy.currentTilt += (clampedTilt - enemy.currentTilt) * 0.15;
+
+                // Apply tilt to enemy mesh
+                if (enemy.mesh) {
+                    enemy.mesh.rotation.y = enemy.currentTilt;
+                }
 
                 if ((enemy.type === 'shooter' || enemy.type === 'basic') &&
                     currentTime - enemy.lastFireTime > enemy.fireRate && playerShip) {
