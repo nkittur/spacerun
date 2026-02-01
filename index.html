@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Space Run - Bullet Hell Shooter</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -199,28 +200,62 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             z-index: 300;
             font-family: 'Segoe UI', Arial, sans-serif;
             color: white;
+            padding-top: 20px;
+            overflow-y: auto;
         }
 
         #startScreen h1 {
-            font-size: 48px;
+            font-size: 36px;
             color: #4488ff;
             text-shadow: 0 0 20px rgba(68, 136, 255, 0.8);
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 5px;
         }
 
         #startScreen p {
-            font-size: 16px;
+            font-size: 14px;
             color: #aaccff;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
             text-align: center;
             max-width: 80%;
-            line-height: 1.6;
+            line-height: 1.4;
+        }
+
+        #modelGrid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 10px;
+            max-width: 100%;
+            width: 100%;
+        }
+
+        .model-card {
+            background: rgba(30, 30, 60, 0.8);
+            border: 1px solid #334;
+            border-radius: 8px;
+            padding: 5px;
+            text-align: center;
+        }
+
+        .model-card canvas {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 4px;
+            background: #111;
+        }
+
+        .model-card .model-name {
+            font-size: 11px;
+            color: #88aadd;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         #startBtn {
@@ -234,11 +269,18 @@
             text-transform: uppercase;
             letter-spacing: 2px;
             box-shadow: 0 0 20px rgba(68, 136, 255, 0.5);
+            margin: 20px 0;
         }
 
         #startBtn:hover {
             background: #5599ff;
             box-shadow: 0 0 30px rgba(68, 136, 255, 0.8);
+        }
+
+        #loadingText {
+            color: #4488ff;
+            font-size: 18px;
+            margin: 20px 0;
         }
     </style>
 </head>
@@ -247,13 +289,13 @@
 
     <div id="startScreen">
         <h1>Space Run</h1>
-        <p>Drag your finger or mouse to move the ship.<br>
-        Move up to advance, down to retreat.<br>
-        Weapons fire automatically!</p>
-        <button id="startBtn">Start Game</button>
+        <p>Drag to move ship. Up to advance, down to retreat.<br>Weapons fire automatically!</p>
+        <div id="loadingText">Loading models...</div>
+        <div id="modelGrid"></div>
+        <button id="startBtn" style="display: none;">Start Game</button>
     </div>
 
-    <button id="settingsBtn">⚙</button>
+    <button id="settingsBtn" style="display: none;">⚙</button>
 
     <div id="settingsPanel">
         <h2>Settings</h2>
@@ -290,7 +332,7 @@
         <button id="closeSettings">Close</button>
     </div>
 
-    <div id="hud">
+    <div id="hud" style="display: none;">
         <div>Score: <span id="score">0</span></div>
         <div>Health: <span id="health">100</span></div>
         <div>Wave: <span id="wave">1</span></div>
@@ -303,6 +345,11 @@
     </div>
 
     <script>
+        // Ship model names
+        const shipNames = ['Bob', 'Challenger', 'Dispatcher', 'Executioner', 'Imperial',
+                          'Insurgent', 'Omen', 'Pancake', 'Spitfire', 'Striker', 'Zenith'];
+        const colorVariants = ['Blue', 'Green', 'Orange', 'Purple', 'Red'];
+
         // Game Settings
         const settings = {
             xSensitivity: 1.5,
@@ -310,8 +357,16 @@
             maxHeight: 0.5,
             shipSpeed: 1.0,
             fireRate: 1.0,
-            scrollSpeed: 1.0
+            scrollSpeed: 1.0,
+            playerShip: 'Bob',
+            playerColor: 'Blue',
+            enemyShip: 'Spitfire',
+            enemyColor: 'Red'
         };
+
+        // Loaded model templates
+        const modelTemplates = {};
+        const previewScenes = [];
 
         // Game State
         let gameState = {
@@ -330,11 +385,11 @@
             enemiesSpawned: 0
         };
 
-        // Babylon.js setup
+        // Main game canvas and engine
         const canvas = document.getElementById('renderCanvas');
         const engine = new BABYLON.Engine(canvas, true);
 
-        // Game dimensions (portrait mode)
+        // Game dimensions
         let gameWidth, gameHeight, orthoHeight = 10, orthoWidth;
 
         function updateGameDimensions() {
@@ -344,12 +399,125 @@
             orthoWidth = orthoHeight * aspect;
         }
 
-        // Create the scene
-        const createScene = function() {
-            const scene = new BABYLON.Scene(engine);
+        // Create preview cards for each ship
+        async function createModelPreviews() {
+            const modelGrid = document.getElementById('modelGrid');
+            const loadingText = document.getElementById('loadingText');
+
+            let loadedCount = 0;
+            const totalModels = shipNames.length;
+
+            for (const shipName of shipNames) {
+                // Create card element
+                const card = document.createElement('div');
+                card.className = 'model-card';
+
+                const previewCanvas = document.createElement('canvas');
+                previewCanvas.id = `preview-${shipName}`;
+                card.appendChild(previewCanvas);
+
+                const nameLabel = document.createElement('div');
+                nameLabel.className = 'model-name';
+                nameLabel.textContent = shipName;
+                card.appendChild(nameLabel);
+
+                modelGrid.appendChild(card);
+
+                // Create preview scene
+                const previewEngine = new BABYLON.Engine(previewCanvas, true);
+                const previewScene = new BABYLON.Scene(previewEngine);
+                previewScene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.15, 1);
+
+                // Camera for preview
+                const camera = new BABYLON.ArcRotateCamera('camera', 0, Math.PI / 3, 5, BABYLON.Vector3.Zero(), previewScene);
+
+                // Lighting
+                const light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, 0), previewScene);
+                light.intensity = 1.0;
+                const light2 = new BABYLON.DirectionalLight('light2', new BABYLON.Vector3(1, -1, 1), previewScene);
+                light2.intensity = 0.5;
+
+                try {
+                    // Load the model
+                    const basePath = `assets/Ultimate Spaceships/${shipName}/`;
+                    const result = await BABYLON.SceneLoader.ImportMeshAsync('', basePath + 'glTF/', `${shipName}.gltf`, previewScene);
+
+                    // Get the root mesh
+                    const rootMesh = result.meshes[0];
+
+                    // Load and apply texture
+                    const texturePath = `${basePath}Textures/${shipName}_Blue.png`;
+                    const texture = new BABYLON.Texture(texturePath, previewScene);
+
+                    result.meshes.forEach(mesh => {
+                        if (mesh.material) {
+                            mesh.material.dispose();
+                        }
+                        const mat = new BABYLON.StandardMaterial(`${shipName}Mat`, previewScene);
+                        mat.diffuseTexture = texture;
+                        mat.emissiveTexture = texture;
+                        mat.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+                        mat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                        mesh.material = mat;
+                    });
+
+                    // Center and scale the model
+                    const boundingInfo = rootMesh.getHierarchyBoundingVectors(true);
+                    const size = boundingInfo.max.subtract(boundingInfo.min);
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const scale = 2 / maxDim;
+                    rootMesh.scaling = new BABYLON.Vector3(scale, scale, scale);
+
+                    // Center it
+                    const center = boundingInfo.min.add(boundingInfo.max).scale(0.5 * scale);
+                    rootMesh.position = center.negate();
+
+                    // Store rotation reference
+                    previewScene.shipMesh = rootMesh;
+
+                    // Store template info for game use
+                    modelTemplates[shipName] = {
+                        path: basePath,
+                        scale: scale
+                    };
+
+                } catch (e) {
+                    console.error(`Failed to load ${shipName}:`, e);
+                    // Create placeholder
+                    const placeholder = BABYLON.MeshBuilder.CreateBox('placeholder', {size: 1}, previewScene);
+                    const mat = new BABYLON.StandardMaterial('placeholderMat', previewScene);
+                    mat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+                    placeholder.material = mat;
+                    previewScene.shipMesh = placeholder;
+                }
+
+                // Render loop for this preview
+                previewEngine.runRenderLoop(() => {
+                    if (previewScene.shipMesh) {
+                        previewScene.shipMesh.rotation.y += 0.02;
+                    }
+                    previewScene.render();
+                });
+
+                previewScenes.push({ engine: previewEngine, scene: previewScene });
+
+                loadedCount++;
+                loadingText.textContent = `Loading models... ${loadedCount}/${totalModels}`;
+            }
+
+            loadingText.style.display = 'none';
+            document.getElementById('startBtn').style.display = 'block';
+        }
+
+        // Main game scene
+        let scene, playerShip, playerShipMesh;
+        let materials = {};
+
+        function createMainScene() {
+            scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.08, 1);
 
-            // Orthographic camera for 2D view - looking down -Z axis
+            // Orthographic camera for 2D gameplay
             const camera = new BABYLON.FreeCamera('camera', new BABYLON.Vector3(0, 0, -10), scene);
             camera.setTarget(new BABYLON.Vector3(0, 0, 0));
             camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
@@ -363,158 +531,116 @@
                 camera.orthoRight = orthoHeight * aspect;
             }
             updateCamera();
-
             window.addEventListener('resize', updateCamera);
 
             // Lighting
-            const light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 0, -1), scene);
+            const light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, -1), scene);
             light.intensity = 1.0;
+            const light2 = new BABYLON.DirectionalLight('light2', new BABYLON.Vector3(0, 0, -1), scene);
+            light2.intensity = 0.8;
+
+            // Create materials
+            materials.playerBullet = new BABYLON.StandardMaterial('playerBulletMat', scene);
+            materials.playerBullet.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
+
+            materials.enemyBullet = new BABYLON.StandardMaterial('enemyBulletMat', scene);
+            materials.enemyBullet.emissiveColor = new BABYLON.Color3(1, 0.5, 0);
 
             return scene;
-        };
-
-        const scene = createScene();
-
-        // Materials
-        const createMaterials = () => {
-            // Player ship material
-            const playerMat = new BABYLON.StandardMaterial('playerMat', scene);
-            playerMat.emissiveColor = new BABYLON.Color3(0.2, 0.6, 1);
-            playerMat.diffuseColor = new BABYLON.Color3(0.3, 0.7, 1);
-
-            // Player bullet material
-            const playerBulletMat = new BABYLON.StandardMaterial('playerBulletMat', scene);
-            playerBulletMat.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
-
-            // Enemy material
-            const enemyMat = new BABYLON.StandardMaterial('enemyMat', scene);
-            enemyMat.emissiveColor = new BABYLON.Color3(1, 0.2, 0.2);
-            enemyMat.diffuseColor = new BABYLON.Color3(1, 0.3, 0.3);
-
-            // Enemy bullet material
-            const enemyBulletMat = new BABYLON.StandardMaterial('enemyBulletMat', scene);
-            enemyBulletMat.emissiveColor = new BABYLON.Color3(1, 0.5, 0);
-
-            return { playerMat, playerBulletMat, enemyMat, enemyBulletMat };
-        };
-
-        const materials = createMaterials();
-
-        // Create player ship - using X for horizontal, Y for vertical, Z=0
-        function createPlayerShip() {
-            const ship = new BABYLON.TransformNode('playerShip', scene);
-
-            // Main body (triangle pointing up) - rotated to face up (+Y direction)
-            const body = BABYLON.MeshBuilder.CreateCylinder('body', {
-                height: 0.1,
-                diameterTop: 0,
-                diameterBottom: 0.8,
-                tessellation: 3
-            }, scene);
-            // Rotate so triangle points up on screen (towards +Y)
-            body.rotation.x = -Math.PI / 2;
-            body.rotation.y = 0;
-            body.material = materials.playerMat;
-            body.parent = ship;
-
-            // Wings
-            const leftWing = BABYLON.MeshBuilder.CreateBox('leftWing', {
-                width: 0.6,
-                height: 0.3,
-                depth: 0.05
-            }, scene);
-            leftWing.position = new BABYLON.Vector3(-0.4, -0.1, 0);
-            leftWing.material = materials.playerMat;
-            leftWing.parent = ship;
-
-            const rightWing = BABYLON.MeshBuilder.CreateBox('rightWing', {
-                width: 0.6,
-                height: 0.3,
-                depth: 0.05
-            }, scene);
-            rightWing.position = new BABYLON.Vector3(0.4, -0.1, 0);
-            rightWing.material = materials.playerMat;
-            rightWing.parent = ship;
-
-            // Engine glow
-            const engineGlow = BABYLON.MeshBuilder.CreateSphere('engineGlow', {
-                diameter: 0.3
-            }, scene);
-            engineGlow.position = new BABYLON.Vector3(0, -0.5, 0);
-            const engineMat = new BABYLON.StandardMaterial('engineMat', scene);
-            engineMat.emissiveColor = new BABYLON.Color3(0, 0.5, 1);
-            engineGlow.material = engineMat;
-            engineGlow.parent = ship;
-
-            // Start position: X=0 (center), Y=-7 (bottom area), Z=0
-            ship.position = new BABYLON.Vector3(0, -7, 0);
-            ship.targetX = 0;
-            ship.targetY = -7;
-
-            return ship;
         }
 
-        let playerShip = createPlayerShip();
+        // Load a ship model for gameplay
+        async function loadShipModel(shipName, colorVariant, targetScene) {
+            const basePath = `assets/Ultimate Spaceships/${shipName}/`;
 
-        // Create stars for background - distributed across X and Y
+            try {
+                const result = await BABYLON.SceneLoader.ImportMeshAsync('', basePath + 'glTF/', `${shipName}.gltf`, targetScene);
+                const rootMesh = result.meshes[0];
+
+                // Load texture
+                const texturePath = `${basePath}Textures/${shipName}_${colorVariant}.png`;
+                const texture = new BABYLON.Texture(texturePath, targetScene);
+
+                result.meshes.forEach(mesh => {
+                    if (mesh.material) {
+                        mesh.material.dispose();
+                    }
+                    const mat = new BABYLON.StandardMaterial(`${shipName}${colorVariant}Mat`, targetScene);
+                    mat.diffuseTexture = texture;
+                    mat.emissiveTexture = texture;
+                    mat.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                    mesh.material = mat;
+                });
+
+                // Scale appropriately for the game
+                const boundingInfo = rootMesh.getHierarchyBoundingVectors(true);
+                const size = boundingInfo.max.subtract(boundingInfo.min);
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const gameScale = 1.5 / maxDim;
+                rootMesh.scaling = new BABYLON.Vector3(gameScale, gameScale, gameScale);
+
+                // Rotate to face upward (toward +Y in our 2D view)
+                rootMesh.rotation.x = Math.PI / 2;
+
+                return rootMesh;
+            } catch (e) {
+                console.error(`Failed to load ship ${shipName}:`, e);
+                // Return a placeholder
+                const placeholder = BABYLON.MeshBuilder.CreateBox('placeholder', {width: 0.8, height: 1.2, depth: 0.3}, targetScene);
+                const mat = new BABYLON.StandardMaterial('placeholderMat', targetScene);
+                mat.diffuseColor = colorVariant === 'Blue' ? new BABYLON.Color3(0.2, 0.4, 1) : new BABYLON.Color3(1, 0.2, 0.2);
+                mat.emissiveColor = mat.diffuseColor.scale(0.3);
+                placeholder.material = mat;
+                return placeholder;
+            }
+        }
+
+        // Create player ship
+        async function createPlayerShip() {
+            playerShip = new BABYLON.TransformNode('playerShip', scene);
+
+            playerShipMesh = await loadShipModel(settings.playerShip, settings.playerColor, scene);
+            playerShipMesh.parent = playerShip;
+
+            playerShip.position = new BABYLON.Vector3(0, -7, 0);
+            playerShip.targetX = 0;
+            playerShip.targetY = -7;
+
+            return playerShip;
+        }
+
+        // Create stars
         function createStars(count = 150) {
             updateGameDimensions();
 
             for (let i = 0; i < count; i++) {
                 const size = Math.random() * 0.08 + 0.02;
-                const star = BABYLON.MeshBuilder.CreateSphere('star' + i, {
-                    diameter: size
-                }, scene);
+                const star = BABYLON.MeshBuilder.CreateSphere('star' + i, { diameter: size }, scene);
 
-                // Position stars across the visible area
                 star.position.x = (Math.random() - 0.5) * orthoWidth * 2.5;
                 star.position.y = (Math.random() - 0.5) * orthoHeight * 2.5;
-                star.position.z = 1 + Math.random() * 2; // Behind game objects
+                star.position.z = 1 + Math.random() * 2;
 
                 const starMat = new BABYLON.StandardMaterial('starMat' + i, scene);
                 const brightness = Math.random() * 0.5 + 0.5;
                 starMat.emissiveColor = new BABYLON.Color3(brightness, brightness, brightness * 0.9);
                 star.material = starMat;
 
-                star.speed = (Math.random() * 0.3 + 0.1) * (0.5 + size * 5); // Larger = faster (parallax)
+                star.speed = (Math.random() * 0.3 + 0.1) * (0.5 + size * 5);
                 gameState.stars.push(star);
             }
         }
 
-        // Create enemy - uses X for horizontal, Y for vertical
-        function createEnemy(type = 'basic', x, y) {
+        // Create enemy
+        async function createEnemy(type = 'basic', x, y) {
             const enemy = new BABYLON.TransformNode('enemy', scene);
 
-            if (type === 'basic') {
-                // Triangle pointing down (towards player)
-                const body = BABYLON.MeshBuilder.CreateCylinder('enemyBody', {
-                    height: 0.1,
-                    diameterTop: 0,
-                    diameterBottom: 0.6,
-                    tessellation: 3
-                }, scene);
-                body.rotation.x = Math.PI / 2; // Point down
-                body.material = materials.enemyMat;
-                body.parent = enemy;
-            } else if (type === 'shooter') {
-                const body = BABYLON.MeshBuilder.CreateBox('enemyBody', {
-                    width: 0.6,
-                    height: 0.6,
-                    depth: 0.1
-                }, scene);
-                body.material = materials.enemyMat;
-                body.parent = enemy;
-            } else if (type === 'fast') {
-                const body = BABYLON.MeshBuilder.CreateCylinder('enemyBody', {
-                    height: 0.1,
-                    diameterTop: 0.3,
-                    diameterBottom: 0.5,
-                    tessellation: 6
-                }, scene);
-                body.rotation.x = Math.PI / 2;
-                body.material = materials.enemyMat;
-                body.parent = enemy;
-            }
+            // Load the enemy ship model
+            const enemyMesh = await loadShipModel(settings.enemyShip, settings.enemyColor, scene);
+            enemyMesh.parent = enemy;
+
+            // Rotate to face downward (toward player)
+            enemyMesh.rotation.x = -Math.PI / 2;
 
             enemy.position.x = x;
             enemy.position.y = y;
@@ -527,11 +653,12 @@
             enemy.movementPattern = Math.random() > 0.5 ? 'sine' : 'straight';
             enemy.startX = x;
             enemy.time = Math.random() * Math.PI * 2;
+            enemy.mesh = enemyMesh;
 
             return enemy;
         }
 
-        // Create bullet - uses X for horizontal, Y for vertical
+        // Create bullet
         function createBullet(isPlayer, x, y, velocityX = 0, velocityY = 0.2) {
             const bullet = BABYLON.MeshBuilder.CreateSphere('bullet', {
                 diameter: isPlayer ? 0.15 : 0.12
@@ -540,7 +667,7 @@
             bullet.position.x = x;
             bullet.position.y = y;
             bullet.position.z = 0;
-            bullet.material = isPlayer ? materials.playerBulletMat : materials.enemyBulletMat;
+            bullet.material = isPlayer ? materials.playerBullet : materials.enemyBullet;
             bullet.velocityX = velocityX;
             bullet.velocityY = velocityY;
             bullet.isPlayer = isPlayer;
@@ -576,7 +703,6 @@
             inputState.isPressed = false;
         }
 
-        // Touch events
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
@@ -594,7 +720,6 @@
             handleInputEnd();
         }, { passive: false });
 
-        // Mouse events
         canvas.addEventListener('mousedown', (e) => {
             handleInputStart(e.clientX, e.clientY);
         });
@@ -611,56 +736,47 @@
             handleInputEnd();
         });
 
-        // Update player position based on input
+        // Update player position
         function updatePlayerPosition(deltaTime) {
-            if (!inputState.isPressed) return 0.3;
+            if (!inputState.isPressed || !playerShip) return 0.3;
 
             const deltaX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
             const deltaY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
 
-            // Update start position to current for continuous tracking
             inputState.startX = inputState.currentX;
             inputState.startY = inputState.currentY;
 
-            // Convert screen delta to world delta
-            // Screen Y is inverted (down is positive), world Y up is positive
             const worldDeltaX = (deltaX / gameWidth) * orthoWidth * 2;
             const worldDeltaY = -(deltaY / gameHeight) * orthoHeight * 2;
 
-            // Update target position
             playerShip.targetX += worldDeltaX;
             playerShip.targetY += worldDeltaY;
 
-            // Clamp X position (horizontal bounds)
             const maxX = orthoWidth - 1;
             playerShip.targetX = Math.max(-maxX, Math.min(maxX, playerShip.targetX));
 
-            // Clamp Y position based on settings
-            // Bottom of screen is -orthoHeight, top is +orthoHeight
-            const minY = -orthoHeight + 1; // Near bottom
-            const maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight); // Max height setting
+            const minY = -orthoHeight + 1;
+            const maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight);
             playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
 
-            // Smooth movement towards target
             const lerpFactor = 0.15 * settings.shipSpeed;
             playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
             playerShip.position.y += (playerShip.targetY - playerShip.position.y) * lerpFactor;
 
-            // Calculate scroll speed multiplier based on Y position (higher = faster scroll)
             const normalizedY = (playerShip.position.y + orthoHeight) / (orthoHeight * 2);
             return Math.max(0.1, normalizedY + 0.2);
         }
 
-        // Fire player weapons
+        // Fire weapons
         function firePlayerWeapons(currentTime) {
+            if (!playerShip) return;
+
             const fireInterval = 150 / settings.fireRate;
 
             if (currentTime - gameState.lastFireTime > fireInterval && gameState.enemies.length > 0) {
-                // Main gun - fires upward (+Y)
                 const bullet1 = createBullet(true, playerShip.position.x, playerShip.position.y + 0.5, 0, 0.3);
                 gameState.playerBullets.push(bullet1);
 
-                // Side guns (spread)
                 const bullet2 = createBullet(true, playerShip.position.x - 0.3, playerShip.position.y + 0.3, -0.02, 0.28);
                 const bullet3 = createBullet(true, playerShip.position.x + 0.3, playerShip.position.y + 0.3, 0.02, 0.28);
                 gameState.playerBullets.push(bullet2, bullet3);
@@ -669,14 +785,14 @@
             }
         }
 
-        // Spawn enemy wave
+        // Spawn wave
         function spawnWave() {
             const waveConfig = {
-                1: { count: 5, types: ['basic'] },
-                2: { count: 7, types: ['basic', 'basic', 'fast'] },
-                3: { count: 8, types: ['basic', 'shooter'] },
-                4: { count: 10, types: ['basic', 'fast', 'shooter'] },
-                5: { count: 12, types: ['basic', 'fast', 'shooter', 'shooter'] }
+                1: { count: 5 },
+                2: { count: 7 },
+                3: { count: 8 },
+                4: { count: 10 },
+                5: { count: 12 }
             };
 
             const config = waveConfig[Math.min(gameState.wave, 5)] || waveConfig[5];
@@ -684,26 +800,18 @@
             gameState.enemiesSpawned = 0;
         }
 
-        // Spawn single enemy
-        function spawnEnemy() {
+        // Spawn enemy
+        async function spawnEnemy() {
             if (gameState.enemiesSpawned >= gameState.enemiesInWave) return;
 
-            const waveConfig = {
-                1: { types: ['basic'] },
-                2: { types: ['basic', 'basic', 'fast'] },
-                3: { types: ['basic', 'shooter'] },
-                4: { types: ['basic', 'fast', 'shooter'] },
-                5: { types: ['basic', 'fast', 'shooter', 'shooter'] }
-            };
-
-            const config = waveConfig[Math.min(gameState.wave, 5)] || waveConfig[5];
-            const type = config.types[Math.floor(Math.random() * config.types.length)];
+            const types = ['basic', 'basic', 'fast', 'shooter'];
+            const type = types[Math.floor(Math.random() * Math.min(types.length, 1 + gameState.wave))];
 
             const maxX = orthoWidth - 1;
             const x = (Math.random() - 0.5) * maxX * 1.5;
-            const y = orthoHeight + 2; // Spawn above visible area
+            const y = orthoHeight + 2;
 
-            const enemy = createEnemy(type, x, y);
+            const enemy = await createEnemy(type, x, y);
             gameState.enemies.push(enemy);
             gameState.enemiesSpawned++;
         }
@@ -713,21 +821,17 @@
             for (let i = gameState.enemies.length - 1; i >= 0; i--) {
                 const enemy = gameState.enemies[i];
 
-                // Movement
                 enemy.time += deltaTime * 0.003;
 
                 if (enemy.movementPattern === 'sine') {
                     enemy.position.x = enemy.startX + Math.sin(enemy.time) * 2;
                 }
 
-                // Move down (negative Y direction)
                 enemy.position.y -= enemy.speed * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
-                // Enemy shooting
                 if ((enemy.type === 'shooter' || enemy.type === 'basic') &&
-                    currentTime - enemy.lastFireTime > enemy.fireRate) {
+                    currentTime - enemy.lastFireTime > enemy.fireRate && playerShip) {
 
-                    // Aim at player
                     const dx = playerShip.position.x - enemy.position.x;
                     const dy = playerShip.position.y - enemy.position.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -741,7 +845,6 @@
                     enemy.lastFireTime = currentTime;
                 }
 
-                // Remove if off screen (below bottom)
                 if (enemy.position.y < -orthoHeight - 2) {
                     enemy.getChildMeshes().forEach(m => m.dispose());
                     enemy.dispose();
@@ -752,13 +855,11 @@
 
         // Update bullets
         function updateBullets() {
-            // Player bullets
             for (let i = gameState.playerBullets.length - 1; i >= 0; i--) {
                 const bullet = gameState.playerBullets[i];
                 bullet.position.x += bullet.velocityX;
                 bullet.position.y += bullet.velocityY;
 
-                // Check collision with enemies
                 let bulletHit = false;
                 for (let j = gameState.enemies.length - 1; j >= 0; j--) {
                     const enemy = gameState.enemies[j];
@@ -785,37 +886,35 @@
                     }
                 }
 
-                // Remove if off screen (above top)
                 if (!bulletHit && bullet.position.y > orthoHeight + 2) {
                     bullet.dispose();
                     gameState.playerBullets.splice(i, 1);
                 }
             }
 
-            // Enemy bullets
             for (let i = gameState.enemyBullets.length - 1; i >= 0; i--) {
                 const bullet = gameState.enemyBullets[i];
                 bullet.position.x += bullet.velocityX;
                 bullet.position.y += bullet.velocityY;
 
-                // Check collision with player
-                const dx = bullet.position.x - playerShip.position.x;
-                const dy = bullet.position.y - playerShip.position.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (playerShip) {
+                    const dx = bullet.position.x - playerShip.position.x;
+                    const dy = bullet.position.y - playerShip.position.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist < 0.5) {
-                    gameState.health -= 10;
-                    updateHUD();
-                    bullet.dispose();
-                    gameState.enemyBullets.splice(i, 1);
+                    if (dist < 0.5) {
+                        gameState.health -= 10;
+                        updateHUD();
+                        bullet.dispose();
+                        gameState.enemyBullets.splice(i, 1);
 
-                    if (gameState.health <= 0) {
-                        gameOver();
+                        if (gameState.health <= 0) {
+                            gameOver();
+                        }
+                        continue;
                     }
-                    continue;
                 }
 
-                // Remove if off screen
                 if (bullet.position.y < -orthoHeight - 2 || bullet.position.y > orthoHeight + 2 ||
                     bullet.position.x < -orthoWidth - 2 || bullet.position.x > orthoWidth + 2) {
                     bullet.dispose();
@@ -824,7 +923,7 @@
             }
         }
 
-        // Update stars (scrolling background) - move down (-Y direction)
+        // Update stars
         function updateStars(scrollMultiplier) {
             const baseSpeed = 0.05 * settings.scrollSpeed;
             const adjustedSpeed = baseSpeed * (0.5 + scrollMultiplier);
@@ -832,7 +931,6 @@
             gameState.stars.forEach(star => {
                 star.position.y -= star.speed * adjustedSpeed;
 
-                // Wrap around when star goes below screen
                 if (star.position.y < -orthoHeight - 5) {
                     star.position.y = orthoHeight + 5;
                     star.position.x = (Math.random() - 0.5) * orthoWidth * 2.5;
@@ -840,8 +938,10 @@
             });
         }
 
-        // Check player collision with enemies
+        // Check collisions
         function checkPlayerCollision() {
+            if (!playerShip) return;
+
             for (let i = gameState.enemies.length - 1; i >= 0; i--) {
                 const enemy = gameState.enemies[i];
                 const dx = playerShip.position.x - enemy.position.x;
@@ -878,21 +978,18 @@
         }
 
         // Reset game
-        function resetGame() {
-            // Clear enemies
+        async function resetGame() {
             gameState.enemies.forEach(enemy => {
                 enemy.getChildMeshes().forEach(m => m.dispose());
                 enemy.dispose();
             });
             gameState.enemies = [];
 
-            // Clear bullets
             gameState.playerBullets.forEach(b => b.dispose());
             gameState.playerBullets = [];
             gameState.enemyBullets.forEach(b => b.dispose());
             gameState.enemyBullets = [];
 
-            // Reset state
             gameState.score = 0;
             gameState.health = 100;
             gameState.wave = 1;
@@ -901,11 +998,12 @@
             gameState.enemiesInWave = 0;
             gameState.enemiesSpawned = 0;
 
-            // Reset player position
-            playerShip.position.x = 0;
-            playerShip.position.y = -7;
-            playerShip.targetX = 0;
-            playerShip.targetY = -7;
+            if (playerShip) {
+                playerShip.position.x = 0;
+                playerShip.position.y = -7;
+                playerShip.targetX = 0;
+                playerShip.targetY = -7;
+            }
 
             updateHUD();
             spawnWave();
@@ -926,7 +1024,6 @@
             gameState.isPaused = false;
         });
 
-        // Setting sliders
         function setupSlider(id, settingKey, suffix = '', multiplier = 1) {
             const slider = document.getElementById(id);
             const valueDisplay = document.getElementById(id + 'Value');
@@ -945,17 +1042,67 @@
         setupSlider('fireRate', 'fireRate', 'x');
         setupSlider('scrollSpeed', 'scrollSpeed', 'x');
 
-        // Start screen
+        // Start game
         const startScreen = document.getElementById('startScreen');
         const startBtn = document.getElementById('startBtn');
         const restartBtn = document.getElementById('restartBtn');
         const gameOverPanel = document.getElementById('gameOver');
 
-        startBtn.addEventListener('click', () => {
+        startBtn.addEventListener('click', async () => {
+            // Stop preview renders
+            previewScenes.forEach(p => {
+                p.engine.stopRenderLoop();
+                p.scene.dispose();
+                p.engine.dispose();
+            });
+
             startScreen.style.display = 'none';
-            gameState.isPlaying = true;
+            document.getElementById('settingsBtn').style.display = 'flex';
+            document.getElementById('hud').style.display = 'block';
+
+            // Create main game scene
+            createMainScene();
+            await createPlayerShip();
             createStars();
             spawnWave();
+
+            gameState.isPlaying = true;
+
+            // Main game loop
+            let lastTime = performance.now();
+            let spawnTimer = 0;
+
+            scene.registerBeforeRender(() => {
+                if (!gameState.isPlaying || gameState.isPaused) return;
+
+                const currentTime = performance.now();
+                const deltaTime = Math.min(currentTime - lastTime, 50);
+                lastTime = currentTime;
+
+                const scrollMultiplier = updatePlayerPosition(deltaTime);
+                updateStars(scrollMultiplier);
+                firePlayerWeapons(currentTime);
+
+                spawnTimer += deltaTime;
+                if (spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
+                    spawnEnemy();
+                    spawnTimer = 0;
+                }
+
+                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0) {
+                    gameState.wave++;
+                    updateHUD();
+                    spawnWave();
+                }
+
+                updateEnemies(deltaTime, currentTime, scrollMultiplier);
+                updateBullets();
+                checkPlayerCollision();
+            });
+
+            engine.runRenderLoop(() => {
+                scene.render();
+            });
         });
 
         restartBtn.addEventListener('click', () => {
@@ -964,56 +1111,14 @@
             resetGame();
         });
 
-        // Main game loop
-        let lastTime = performance.now();
-        let spawnTimer = 0;
-
-        scene.registerBeforeRender(() => {
-            if (!gameState.isPlaying || gameState.isPaused) return;
-
-            const currentTime = performance.now();
-            const deltaTime = Math.min(currentTime - lastTime, 50); // Cap delta to prevent huge jumps
-            lastTime = currentTime;
-
-            // Update player
-            const scrollMultiplier = updatePlayerPosition(deltaTime);
-
-            // Update stars
-            updateStars(scrollMultiplier);
-
-            // Fire weapons
-            firePlayerWeapons(currentTime);
-
-            // Spawn enemies
-            spawnTimer += deltaTime;
-            if (spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
-                spawnEnemy();
-                spawnTimer = 0;
-            }
-
-            // Check for wave completion
-            if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0) {
-                gameState.wave++;
-                updateHUD();
-                spawnWave();
-            }
-
-            // Update game objects
-            updateEnemies(deltaTime, currentTime, scrollMultiplier);
-            updateBullets();
-            checkPlayerCollision();
-        });
-
-        // Run render loop
-        engine.runRenderLoop(() => {
-            scene.render();
-        });
-
-        // Handle window resize
+        // Handle resize
         window.addEventListener('resize', () => {
             engine.resize();
             updateGameDimensions();
         });
+
+        // Initialize - load model previews
+        createModelPreviews();
     </script>
 </body>
 </html>
