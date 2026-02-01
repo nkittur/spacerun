@@ -702,7 +702,17 @@
 
         // Main game canvas and engine
         const canvas = document.getElementById('renderCanvas');
-        const engine = new BABYLON.Engine(canvas, true);
+
+        // Enable high DPI rendering for crisp visuals on retina displays
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        const engine = new BABYLON.Engine(canvas, true, {
+            preserveDrawingBuffer: true,
+            stencil: true,
+            antialias: true
+        });
+
+        // Set hardware scaling to match device pixel ratio for crisp rendering
+        engine.setHardwareScalingLevel(1 / devicePixelRatio);
 
         // Game dimensions
         let gameWidth, gameHeight, orthoHeight = 10, orthoWidth;
@@ -737,7 +747,11 @@
 
                 modelGrid.appendChild(card);
 
-                const previewEngine = new BABYLON.Engine(previewCanvas, true);
+                const previewEngine = new BABYLON.Engine(previewCanvas, true, {
+                    preserveDrawingBuffer: true,
+                    antialias: true
+                });
+                previewEngine.setHardwareScalingLevel(1 / devicePixelRatio);
                 const previewScene = new BABYLON.Scene(previewEngine);
                 previewScene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.15, 1);
 
@@ -755,7 +769,8 @@
                     const rootMesh = result.meshes[0];
 
                     const texturePath = `${basePath}Textures/${shipName}_Blue.png`;
-                    const texture = new BABYLON.Texture(texturePath, previewScene);
+                    const texture = new BABYLON.Texture(texturePath, previewScene, false, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+                    texture.anisotropicFilteringLevel = 16;
 
                     result.meshes.forEach(mesh => {
                         if (mesh.material) mesh.material.dispose();
@@ -1550,7 +1565,8 @@
                 const rootMesh = result.meshes[0];
 
                 const texturePath = `${basePath}Textures/${shipName}_${colorVariant}.png`;
-                const texture = new BABYLON.Texture(texturePath, targetScene);
+                const texture = new BABYLON.Texture(texturePath, targetScene, false, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+                texture.anisotropicFilteringLevel = 16;
 
                 result.meshes.forEach(mesh => {
                     if (mesh.material) mesh.material.dispose();
