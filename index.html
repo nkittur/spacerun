@@ -703,7 +703,7 @@
                 } else {
                     // Enemy: nose pointing down (-Y on screen)
                     rootMesh.rotationQuaternion = null;
-                    rootMesh.rotation.set(-Math.PI / 2, 0, Math.PI);
+                    rootMesh.rotation.set(Math.PI / 2, 0, 0);
                 }
 
                 return rootMesh;
@@ -785,14 +785,45 @@
 
         // Create bullet
         function createBullet(isPlayer, x, y, velocityX = 0, velocityY = 0.2) {
-            const bullet = BABYLON.MeshBuilder.CreateSphere('bullet', {
-                diameter: isPlayer ? 0.15 : 0.12
-            }, scene);
+            let bullet;
+
+            if (isPlayer) {
+                // Player bullets: simple spheres
+                bullet = BABYLON.MeshBuilder.CreateSphere('bullet', {
+                    diameter: 0.15
+                }, scene);
+                bullet.material = materials.playerBullet;
+            } else {
+                // Enemy bullets: elongated plasma bolts
+                bullet = BABYLON.MeshBuilder.CreateCapsule('bullet', {
+                    height: 0.5,
+                    radius: 0.1
+                }, scene);
+                // Rotate to point in direction of travel
+                bullet.rotation.z = Math.atan2(velocityX, -velocityY);
+
+                // Create a glowing enemy bullet material
+                const enemyBulletMat = new BABYLON.StandardMaterial('enemyBulletMat', scene);
+                enemyBulletMat.emissiveColor = new BABYLON.Color3(1, 0.3, 0.8); // Magenta/pink
+                enemyBulletMat.diffuseColor = new BABYLON.Color3(1, 0.5, 1);
+                enemyBulletMat.alpha = 0.9;
+                bullet.material = enemyBulletMat;
+
+                // Add a glow core
+                const core = BABYLON.MeshBuilder.CreateSphere('bulletCore', {
+                    diameter: 0.15
+                }, scene);
+                core.parent = bullet;
+                core.position.y = 0;
+                const coreMat = new BABYLON.StandardMaterial('coreMat', scene);
+                coreMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                coreMat.disableLighting = true;
+                core.material = coreMat;
+            }
 
             bullet.position.x = x;
             bullet.position.y = y;
-            bullet.position.z = 0;
-            bullet.material = isPlayer ? materials.playerBullet : materials.enemyBullet;
+            bullet.position.z = -0.1; // Slightly in front
             bullet.velocityX = velocityX;
             bullet.velocityY = velocityY;
             bullet.isPlayer = isPlayer;
@@ -933,15 +964,12 @@
         function firePlayerWeapons(currentTime) {
             if (!playerShip) return;
 
-            const fireInterval = 150 / settings.fireRate;
+            // Single-stream weapon with slower base fire rate
+            const fireInterval = 300 / settings.fireRate;
 
             if (currentTime - gameState.lastFireTime > fireInterval && gameState.enemies.length > 0) {
-                const bullet1 = createBullet(true, playerShip.position.x, playerShip.position.y + 0.5, 0, 0.3);
-                gameState.playerBullets.push(bullet1);
-
-                const bullet2 = createBullet(true, playerShip.position.x - 0.3, playerShip.position.y + 0.3, -0.02, 0.28);
-                const bullet3 = createBullet(true, playerShip.position.x + 0.3, playerShip.position.y + 0.3, 0.02, 0.28);
-                gameState.playerBullets.push(bullet2, bullet3);
+                const bullet = createBullet(true, playerShip.position.x, playerShip.position.y + 0.5, 0, 0.35);
+                gameState.playerBullets.push(bullet);
 
                 gameState.lastFireTime = currentTime;
             }
@@ -1089,8 +1117,8 @@
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
                     if (dist < 0.5) {
-                        // Small explosion at hit location
-                        createExplosion(bullet.position.x, bullet.position.y, 'small', 'red');
+                        // Small explosion at hit location (orange to match enemy style)
+                        createExplosion(bullet.position.x, bullet.position.y, 'small', 'orange');
 
                         // Flash player ship
                         flashShip(playerShipMesh);
