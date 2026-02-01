@@ -1707,10 +1707,22 @@
             // Check if starbase is fully visible
             const fullyVisible = starbase.position.y < (orthoHeight - starbase.size / 2);
 
+            // Debug logging
+            console.log('Starbase debug:', {
+                dist: dist.toFixed(2),
+                dockRadius: starbase.dockRadius,
+                fullyVisible,
+                starbaseY: starbase.position.y.toFixed(2),
+                playerY: playerShip.position.y.toFixed(2),
+                harvestingPlanet: !!gameState.harvestingPlanet,
+                harvestProgress: gameState.harvestProgress.toFixed(2)
+            });
+
             if (fullyVisible && dist < starbase.dockRadius) {
                 // Show docking progress using harvest bar
                 if (!gameState.harvestingPlanet) {
                     gameState.harvestProgress += deltaTime / 1500; // 1.5 seconds to dock
+                    console.log('Docking in progress:', gameState.harvestProgress);
 
                     const harvestBar = document.getElementById('harvestBar');
                     const harvestBarFill = document.getElementById('harvestBarFill');
@@ -1727,8 +1739,16 @@
                     harvestBar.style.width = barWidth + 'px';
                     harvestBar.style.transform = 'none';
 
+                    console.log('Harvest bar positioned:', {
+                        display: harvestBar.style.display,
+                        width: harvestBar.style.width,
+                        left: harvestBar.style.left,
+                        top: harvestBar.style.top
+                    });
+
                     if (gameState.harvestProgress >= 1) {
                         // Docked!
+                        console.log('DOCKING COMPLETE!');
                         openDockingScreen();
                     }
                 }
