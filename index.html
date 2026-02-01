@@ -2077,7 +2077,8 @@
             document.getElementById('finalScore').textContent = gameState.score;
             document.getElementById('gameOver').style.display = 'block';
             document.getElementById('harvestBar').style.display = 'none';
-            document.getElementById('harvestLabel').style.display = 'none';
+            document.getElementById('planetInfo').style.display = 'none';
+            updateTargetingOverlay(null);
         }
 
         // Reset game
@@ -2126,6 +2127,8 @@
             gameState.baseShields = 100;
             gameState.escapedEnemies = 0;
             gameState.pendingNotifications = {};
+            gameState.lastFrameTime = performance.now();
+            gameState.spawnTimer = 0;
 
             initResources();
 
@@ -2202,25 +2205,24 @@
             gameState.baseShields = 100;
 
             gameState.isPlaying = true;
-
-            let lastTime = performance.now();
-            let spawnTimer = 0;
+            gameState.lastFrameTime = performance.now();
+            gameState.spawnTimer = 0;
 
             scene.registerBeforeRender(() => {
                 if (!gameState.isPlaying || gameState.isPaused) return;
 
                 const currentTime = performance.now();
-                const deltaTime = Math.min(currentTime - lastTime, 50);
-                lastTime = currentTime;
+                const deltaTime = Math.min(currentTime - gameState.lastFrameTime, 50);
+                gameState.lastFrameTime = currentTime;
 
                 const scrollMultiplier = updatePlayerPosition(deltaTime);
                 updateStars(scrollMultiplier);
                 firePlayerWeapons(currentTime);
 
-                spawnTimer += deltaTime;
-                if (spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
+                gameState.spawnTimer += deltaTime;
+                if (gameState.spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
                     spawnEnemy();
-                    spawnTimer = 0;
+                    gameState.spawnTimer = 0;
                 }
 
                 // Spawn solar systems with spacing
