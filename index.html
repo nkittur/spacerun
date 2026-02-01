@@ -378,6 +378,7 @@
             enemies: [],
             playerBullets: [],
             enemyBullets: [],
+            loot: [],
             stars: [],
             lastFireTime: 0,
             waveTimer: 0,
@@ -660,6 +661,139 @@
                     }
                 });
             }, duration);
+        }
+
+        // Create loot drop when enemy dies
+        function createLoot(x, y, enemyType) {
+            if (!scene) return;
+
+            // Number of scrap pieces based on enemy type
+            const pieceCount = enemyType === 'shooter' ? 4 : enemyType === 'fast' ? 2 : 3;
+
+            for (let i = 0; i < pieceCount; i++) {
+                // Create a glowing geometric shape
+                const shapes = ['box', 'octahedron', 'icosphere'];
+                const shapeType = shapes[Math.floor(Math.random() * shapes.length)];
+
+                let lootMesh;
+                const size = 0.15 + Math.random() * 0.1;
+
+                if (shapeType === 'box') {
+                    lootMesh = BABYLON.MeshBuilder.CreateBox('loot', { size: size }, scene);
+                } else if (shapeType === 'octahedron') {
+                    lootMesh = BABYLON.MeshBuilder.CreatePolyhedron('loot', { type: 1, size: size * 0.5 }, scene);
+                } else {
+                    lootMesh = BABYLON.MeshBuilder.CreateIcoSphere('loot', { radius: size * 0.5, subdivisions: 1 }, scene);
+                }
+
+                // Scatter slightly from explosion point
+                const offsetX = (Math.random() - 0.5) * 1.5;
+                const offsetY = (Math.random() - 0.5) * 1.5;
+                lootMesh.position.x = x + offsetX;
+                lootMesh.position.y = y + offsetY;
+                lootMesh.position.z = -0.2;
+
+                // Random initial rotation
+                lootMesh.rotation.x = Math.random() * Math.PI * 2;
+                lootMesh.rotation.y = Math.random() * Math.PI * 2;
+                lootMesh.rotation.z = Math.random() * Math.PI * 2;
+
+                // Create glowing material with random color tint
+                const lootMat = new BABYLON.StandardMaterial('lootMat', scene);
+                const colorChoices = [
+                    { r: 0.2, g: 1, b: 0.5 },    // Cyan-green
+                    { r: 1, g: 0.8, b: 0.2 },    // Gold
+                    { r: 0.5, g: 0.8, b: 1 },    // Light blue
+                    { r: 1, g: 0.5, b: 1 }       // Pink
+                ];
+                const color = colorChoices[Math.floor(Math.random() * colorChoices.length)];
+                lootMat.emissiveColor = new BABYLON.Color3(color.r, color.g, color.b);
+                lootMat.diffuseColor = new BABYLON.Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
+                lootMat.specularColor = new BABYLON.Color3(1, 1, 1);
+                lootMesh.material = lootMat;
+
+                // Add a glow core inside
+                const core = BABYLON.MeshBuilder.CreateSphere('lootCore', { diameter: size * 0.6 }, scene);
+                core.parent = lootMesh;
+                const coreMat = new BABYLON.StandardMaterial('lootCoreMat', scene);
+                coreMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                coreMat.disableLighting = true;
+                coreMat.alpha = 0.7;
+                core.material = coreMat;
+
+                // Store loot properties
+                lootMesh.velocityX = offsetX * 0.02;
+                lootMesh.velocityY = offsetY * 0.02;
+                lootMesh.rotSpeed = (Math.random() - 0.5) * 0.1;
+                lootMesh.pulsePhase = Math.random() * Math.PI * 2;
+                lootMesh.baseColor = color;
+                lootMesh.value = enemyType === 'shooter' ? 15 : enemyType === 'fast' ? 10 : 5;
+                lootMesh.spawnTime = performance.now();
+
+                gameState.loot.push(lootMesh);
+            }
+        }
+
+        // Update loot (movement, rotation, collection)
+        function updateLoot(scrollMultiplier) {
+            if (!playerShip) return;
+
+            const now = performance.now();
+
+            for (let i = gameState.loot.length - 1; i >= 0; i--) {
+                const loot = gameState.loot[i];
+
+                // Slow down initial scatter velocity
+                loot.velocityX *= 0.98;
+                loot.velocityY *= 0.98;
+
+                // Move with scroll and scatter velocity
+                loot.position.x += loot.velocityX;
+                loot.position.y += loot.velocityY - 0.02 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+
+                // Rotate
+                loot.rotation.x += loot.rotSpeed;
+                loot.rotation.y += loot.rotSpeed * 1.3;
+                loot.rotation.z += loot.rotSpeed * 0.7;
+
+                // Pulse glow effect
+                const age = (now - loot.spawnTime) / 1000;
+                const pulse = 0.7 + 0.3 * Math.sin(age * 5 + loot.pulsePhase);
+                if (loot.material) {
+                    loot.material.emissiveColor = new BABYLON.Color3(
+                        loot.baseColor.r * pulse,
+                        loot.baseColor.g * pulse,
+                        loot.baseColor.b * pulse
+                    );
+                }
+
+                // Check player collection
+                const dx = loot.position.x - playerShip.position.x;
+                const dy = loot.position.y - playerShip.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < 1.0) {
+                    // Collected! Add score and small visual feedback
+                    gameState.score += loot.value * gameState.wave;
+                    updateHUD();
+
+                    // Small sparkle effect
+                    createExplosion(loot.position.x, loot.position.y, 'small', 'blue');
+
+                    // Dispose loot
+                    loot.getChildMeshes().forEach(m => m.dispose());
+                    loot.dispose();
+                    gameState.loot.splice(i, 1);
+                    continue;
+                }
+
+                // Remove if off screen
+                if (loot.position.y < -orthoHeight - 2) {
+                    loot.getChildMeshes().forEach(m => m.dispose());
+                    loot.dispose();
+                    gameState.loot.splice(i, 1);
+                }
+            }
         }
 
         // Load a ship model for gameplay
@@ -1085,6 +1219,9 @@
                             // Large explosion when destroyed
                             createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
 
+                            // Drop loot
+                            createLoot(enemy.position.x, enemy.position.y, enemy.type);
+
                             const points = enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
                             gameState.score += points * gameState.wave;
                             updateHUD();
@@ -1176,6 +1313,9 @@
                     const midY = (playerShip.position.y + enemy.position.y) / 2;
                     createExplosion(midX, midY, 'large', 'orange');
 
+                    // Drop loot from collision-killed enemy
+                    createLoot(enemy.position.x, enemy.position.y, enemy.type);
+
                     // Flash player
                     flashShip(playerShipMesh);
 
@@ -1220,6 +1360,11 @@
             gameState.playerBullets = [];
             gameState.enemyBullets.forEach(b => b.dispose());
             gameState.enemyBullets = [];
+            gameState.loot.forEach(l => {
+                l.getChildMeshes().forEach(m => m.dispose());
+                l.dispose();
+            });
+            gameState.loot = [];
 
             gameState.score = 0;
             gameState.health = 100;
@@ -1328,6 +1473,7 @@
 
                 updateEnemies(deltaTime, currentTime, scrollMultiplier);
                 updateBullets();
+                updateLoot(scrollMultiplier);
                 checkPlayerCollision();
             });
 
