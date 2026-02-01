@@ -177,48 +177,10 @@
             transition: width 0.3s ease;
         }
 
-        #resourcesHud {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 12px;
-            z-index: 50;
-            font-family: 'Segoe UI', Arial, sans-serif;
-        }
-
-        .resource-icon {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 8px;
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: bold;
-        }
-
-        .resource-icon .symbol {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            font-weight: bold;
-            color: #000;
-        }
-
-        .resource-icon .count {
-            color: #fff;
-        }
-
         /* Resource collection notifications below top UI */
         #collectNotifications {
             position: absolute;
-            top: 75px;
+            top: 45px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
@@ -265,13 +227,16 @@
             100% { opacity: 0; transform: translateY(-10px); }
         }
 
-        /* Harvest progress bar - clean flat at bottom */
+        /* Harvest progress bar - positioned on planet */
         #harvestBar {
             position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 250px;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            display: none;
+            z-index: 60;
+            border-radius: 2px;
+        }
             height: 6px;
             background: rgba(0, 0, 0, 0.6);
             overflow: hidden;
@@ -324,6 +289,36 @@
         .targeting-corner.bottom-right {
             border-bottom-width: 3px;
             border-right-width: 3px;
+        }
+
+        /* Planet info indicators */
+        #planetInfo {
+            position: absolute;
+            display: none;
+            flex-direction: row;
+            gap: 8px;
+            z-index: 56;
+            pointer-events: none;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 11px;
+        }
+
+        .planet-stat {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 6px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 3px;
+            color: #fff;
+        }
+
+        .planet-stat.richness {
+            color: #ffdd44;
+        }
+
+        .planet-stat.hazard {
+            color: #ff6644;
         }
 
         #gameOver {
@@ -523,7 +518,6 @@
         <span id="shieldsValue">100</span>
     </div>
 
-    <div id="resourcesHud" style="display: none;"></div>
     <div id="collectNotifications"></div>
 
     <div id="harvestBar"><div id="harvestBarFill"></div></div>
@@ -532,6 +526,10 @@
         <div class="targeting-corner top-right"></div>
         <div class="targeting-corner bottom-left"></div>
         <div class="targeting-corner bottom-right"></div>
+    </div>
+    <div id="planetInfo">
+        <div class="planet-stat richness"><span id="richnessIcon">💎</span><span id="richnessValue"></span></div>
+        <div class="planet-stat hazard"><span id="hazardIcon">⚠</span><span id="hazardValue"></span></div>
     </div>
 
     <div id="gameOver">
@@ -1123,6 +1121,43 @@
 
             const sunSize = 4 + Math.random() * 2; // 4-6 units
 
+            // Create glow effect first (behind the sun)
+            const glowSize = sunSize * 6; // Glow extends far out
+            const glow = BABYLON.MeshBuilder.CreatePlane('sunGlow', { size: glowSize }, scene);
+            glow.position.x = x;
+            glow.position.y = y;
+            glow.position.z = 0.8; // Behind the sun
+
+            const glowMat = new BABYLON.StandardMaterial('sunGlowMat', scene);
+            glowMat.emissiveColor = new BABYLON.Color3(
+                sunType.tint[0] * 0.4,
+                sunType.tint[1] * 0.4,
+                sunType.tint[2] * 0.4
+            );
+            glowMat.disableLighting = true;
+            glowMat.alpha = 0.3;
+            glowMat.backFaceCulling = false;
+            glow.material = glowMat;
+
+            // Create inner glow (closer, brighter)
+            const innerGlowSize = sunSize * 3;
+            const innerGlow = BABYLON.MeshBuilder.CreatePlane('sunInnerGlow', { size: innerGlowSize }, scene);
+            innerGlow.position.x = x;
+            innerGlow.position.y = y;
+            innerGlow.position.z = 0.7;
+
+            const innerGlowMat = new BABYLON.StandardMaterial('sunInnerGlowMat', scene);
+            innerGlowMat.emissiveColor = new BABYLON.Color3(
+                sunType.tint[0] * 0.6,
+                sunType.tint[1] * 0.6,
+                sunType.tint[2] * 0.6
+            );
+            innerGlowMat.disableLighting = true;
+            innerGlowMat.alpha = 0.4;
+            innerGlowMat.backFaceCulling = false;
+            innerGlow.material = innerGlowMat;
+
+            // Create the sun itself
             const sun = BABYLON.MeshBuilder.CreatePlane('sun', { size: sunSize }, scene);
             sun.position.x = x;
             sun.position.y = y;
@@ -1145,6 +1180,9 @@
 
             sun.size = sunSize;
             sun.isSun = true;
+            sun.glow = glow;
+            sun.innerGlow = innerGlow;
+            sun.tint = sunType.tint;
 
             return sun;
         }
@@ -1188,6 +1226,13 @@
             planet.harvestsRemaining = planetType.harvests;
             planet.size = planetSize;
             planet.harvestRadius = planetSize * 0.8;
+
+            // Richness affects loot multiplier (1-5 scale)
+            planet.richness = Math.floor(Math.random() * 5) + 1;
+            // Hazardousness affects harvest time (1-5 scale, higher = longer)
+            planet.hazard = Math.floor(Math.random() * 5) + 1;
+            // Base harvest time is 2 seconds, hazard adds 0.5s per level
+            planet.harvestTime = 1500 + planet.hazard * 500; // 2s to 4s
 
             return planet;
         }
@@ -1237,10 +1282,23 @@
             for (let i = gameState.suns.length - 1; i >= 0; i--) {
                 const sun = gameState.suns[i];
 
-                sun.position.y -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                const moveAmount = 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                sun.position.y -= moveAmount;
                 sun.rotation.z += 0.0005;
 
-                if (sun.position.y < -orthoHeight - sun.size) {
+                // Update glow positions
+                if (sun.glow) {
+                    sun.glow.position.x = sun.position.x;
+                    sun.glow.position.y = sun.position.y;
+                }
+                if (sun.innerGlow) {
+                    sun.innerGlow.position.x = sun.position.x;
+                    sun.innerGlow.position.y = sun.position.y;
+                }
+
+                if (sun.position.y < -orthoHeight - sun.size * 3) {
+                    if (sun.glow) sun.glow.dispose();
+                    if (sun.innerGlow) sun.innerGlow.dispose();
                     sun.dispose();
                     gameState.suns.splice(i, 1);
                 }
@@ -1258,9 +1316,13 @@
         function updateTargetingOverlay(planet) {
             const overlay = document.getElementById('targetingOverlay');
             const corners = overlay.querySelectorAll('.targeting-corner');
+            const harvestBar = document.getElementById('harvestBar');
+            const planetInfo = document.getElementById('planetInfo');
 
             if (!planet) {
                 corners.forEach(c => c.style.display = 'none');
+                harvestBar.style.display = 'none';
+                planetInfo.style.display = 'none';
                 return;
             }
 
@@ -1280,6 +1342,25 @@
                 corner.style.left = positions[i].x + 'px';
                 corner.style.top = positions[i].y + 'px';
             });
+
+            // Position harvest bar at bottom of targeting rectangle
+            const barWidth = screenSize + 20; // Match targeting rectangle width
+            harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+            harvestBar.style.top = (screenPos.y + halfSize + 15) + 'px';
+            harvestBar.style.width = barWidth + 'px';
+            harvestBar.style.transform = 'none';
+
+            // Position planet info above targeting rectangle
+            planetInfo.style.display = 'flex';
+            planetInfo.style.left = screenPos.x + 'px';
+            planetInfo.style.top = (screenPos.y - halfSize - 30) + 'px';
+            planetInfo.style.transform = 'translateX(-50%)';
+
+            // Update richness and hazard displays
+            const richnessStars = '★'.repeat(planet.richness) + '☆'.repeat(5 - planet.richness);
+            const hazardBars = '▮'.repeat(planet.hazard) + '▯'.repeat(5 - planet.hazard);
+            document.getElementById('richnessValue').textContent = richnessStars;
+            document.getElementById('hazardValue').textContent = hazardBars;
         }
 
         // Update planets
@@ -1334,12 +1415,13 @@
                     gameState.harvestProgress = 0;
                 }
 
-                gameState.harvestProgress += deltaTime / 2000; // 2 seconds to harvest
+                // Harvest time based on hazardousness
+                gameState.harvestProgress += deltaTime / nearPlanet.harvestTime;
 
                 harvestBar.style.display = 'block';
                 harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
 
-                // Show targeting corners
+                // Show targeting corners and planet info
                 updateTargetingOverlay(nearPlanet);
 
                 if (gameState.harvestProgress >= 1) {
@@ -1347,11 +1429,13 @@
                     nearPlanet.harvestsRemaining--;
                     gameState.harvestProgress = 0;
 
-                    // Give resources
+                    // Give resources - multiply by richness
                     const resources = nearPlanet.planetData.resources;
+                    const richnessMultiplier = 0.5 + nearPlanet.richness * 0.3; // 0.8x to 2x
                     Object.keys(resources).forEach(resName => {
                         const [min, max] = resources[resName];
-                        const amount = Math.floor(Math.random() * (max - min + 1)) + min;
+                        const baseAmount = Math.floor(Math.random() * (max - min + 1)) + min;
+                        const amount = Math.floor(baseAmount * richnessMultiplier);
                         gameState.resources[resName] += amount;
                         gameState.score += amount * 2;
                         showResourceCollection(resName, amount);
@@ -1898,22 +1982,6 @@
             const shieldsPercent = Math.max(0, gameState.baseShields);
             document.getElementById('shieldsBarFill').style.width = `${shieldsPercent}%`;
             document.getElementById('shieldsValue').textContent = Math.max(0, gameState.baseShields);
-
-            // Update resources display - show as icons at top
-            const resourcesHud = document.getElementById('resourcesHud');
-            let html = '';
-            const displayResources = ['Iron', 'Copper', 'Titanium', 'Silicon', 'Water', 'Hydrogen', 'Carbon', 'Gold'];
-            displayResources.forEach(res => {
-                const amount = gameState.resources[res] || 0;
-                if (amount > 0) {
-                    const info = RESOURCES[res];
-                    html += `<div class="resource-icon">
-                        <div class="symbol" style="background: ${info.color}">${info.symbol}</div>
-                        <span class="count">${amount}</span>
-                    </div>`;
-                }
-            });
-            resourcesHud.innerHTML = html;
         }
 
         // Game over
@@ -1947,7 +2015,11 @@
             gameState.planets.forEach(p => p.dispose());
             gameState.planets = [];
 
-            gameState.suns.forEach(s => s.dispose());
+            gameState.suns.forEach(s => {
+                if (s.glow) s.glow.dispose();
+                if (s.innerGlow) s.innerGlow.dispose();
+                s.dispose();
+            });
             gameState.suns = [];
 
             gameState.score = 0;
@@ -2027,7 +2099,6 @@
             document.getElementById('settingsBtn').style.display = 'flex';
             document.getElementById('hud').style.display = 'block';
             document.getElementById('shieldsDisplay').style.display = 'flex';
-            document.getElementById('resourcesHud').style.display = 'flex';
 
             createMainScene();
             await createPlayerShip();
