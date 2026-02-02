@@ -1533,18 +1533,18 @@
 
             // Create smooth radial gradient glow
             const glowSize = sunSize * 8; // Large glow area
-            const glow = BABYLON.MeshBuilder.CreatePlane('sunGlow', { size: glowSize }, scene);
+            // TEST: Use a simple disc with solid color instead of textured plane
+            const glow = BABYLON.MeshBuilder.CreateDisc('sunGlow', { radius: glowSize / 2, tessellation: 64 }, scene);
             glow.position.x = x;
             glow.position.y = y;
             glow.position.z = 0.9; // Behind everything
 
-            const glowTexture = createGlowTexture(scene, sunType.tint, glowSize);
+            // Simple material without texture to test if DynamicTexture is the issue
             const glowMat = new BABYLON.StandardMaterial('sunGlowMat', scene);
-            // Simpler setup: just diffuse with alpha, no emissive
-            glowMat.diffuseTexture = glowTexture;
-            glowMat.useAlphaFromDiffuseTexture = true;
+            glowMat.diffuseColor = new BABYLON.Color3(sunType.tint[0], sunType.tint[1], sunType.tint[2]);
+            glowMat.emissiveColor = new BABYLON.Color3(sunType.tint[0], sunType.tint[1], sunType.tint[2]);
+            glowMat.alpha = 0.3;
             glowMat.disableLighting = true;
-            glowMat.emissiveColor = new BABYLON.Color3(1, 1, 1); // Make it bright without emissive texture
             glowMat.backFaceCulling = false;
             glow.material = glowMat;
 
