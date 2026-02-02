@@ -2986,6 +2986,9 @@
             enemy.type = type;
             enemy.health = type === 'shooter' ? 5 : type === 'fast' ? 2 : 3;
             enemy.speed = type === 'fast' ? 0.08 : 0.03;
+            // Hitbox dimensions (ships are scaled to 1.5 max, so wings can extend ~0.75 from center)
+            enemy.hitboxWidth = 0.9;  // Wider for wings
+            enemy.hitboxHeight = 0.6; // Narrower vertically
             enemy.lastFireTime = 0;
             enemy.fireRate = type === 'shooter' ? 1500 : 3000;
             enemy.movementPattern = Math.random() > 0.5 ? 'sine' : 'straight';
@@ -3290,8 +3293,11 @@
 
             // Update beam visual if active
             if (gameState.beamMesh) {
-                gameState.beamMesh.alpha -= 0.05;
-                if (gameState.beamMesh.alpha <= 0) {
+                gameState.beamMesh.material.alpha -= 0.05;
+                if (gameState.beamMesh.material.alpha <= 0) {
+                    if (sunGlowLayer) {
+                        sunGlowLayer.removeIncludedOnlyMesh(gameState.beamMesh);
+                    }
                     gameState.beamMesh.dispose();
                     gameState.beamMesh = null;
                 }
@@ -3302,6 +3308,9 @@
         function fireBeamLaser(px, py) {
             // Create beam visual
             if (gameState.beamMesh) {
+                if (sunGlowLayer) {
+                    sunGlowLayer.removeIncludedOnlyMesh(gameState.beamMesh);
+                }
                 gameState.beamMesh.dispose();
             }
 
@@ -3316,6 +3325,11 @@
             beamMat.alpha = 0.8;
             beamMat.backFaceCulling = false;
             beam.material = beamMat;
+
+            // Add beam to glow layer for dramatic effect
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(beam);
+            }
 
             gameState.beamMesh = beam;
             beam.alpha = 0.8;
@@ -3460,9 +3474,12 @@
                     const enemy = gameState.enemies[j];
                     const dx = bullet.position.x - enemy.position.x;
                     const dy = bullet.position.y - enemy.position.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    // Use elliptical hitbox - wider for wings
+                    const hitX = dx / (enemy.hitboxWidth || 0.9);
+                    const hitY = dy / (enemy.hitboxHeight || 0.6);
+                    const dist = Math.sqrt(hitX * hitX + hitY * hitY);
 
-                    if (dist < 0.5) {
+                    if (dist < 1.0) {
                         enemy.health--;
 
                         createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
