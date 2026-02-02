@@ -1510,7 +1510,7 @@
 
         // Create a sun
         function createSun(x, y) {
-            return null; // TEMP TEST: disable suns to check if dots still appear
+            // return null; // TEMP TEST: disable suns to check if dots still appear
             if (!scene) return null;
 
             const sunTypeKeys = Object.keys(SUN_TYPES);
@@ -1523,6 +1523,8 @@
 
             const sunSize = 4 + Math.random() * 2; // 4-6 units
 
+            // TEMP: Skip glow creation to test if it's the source of dots
+            /*
             // Create smooth radial gradient glow
             const glowSize = sunSize * 8; // Large glow area
             const glow = BABYLON.MeshBuilder.CreatePlane('sunGlow', { size: glowSize }, scene);
@@ -1539,6 +1541,7 @@
             glowMat.useAlphaFromDiffuseTexture = true;
             glowMat.backFaceCulling = false;
             glow.material = glowMat;
+            */
 
             // Create the sun itself
             const sun = BABYLON.MeshBuilder.CreatePlane('sun', { size: sunSize }, scene);
@@ -1562,9 +1565,9 @@
             sun.material = mat;
 
             sun.size = sunSize;
-            sun.glowSize = glowSize;
+            sun.glowSize = sunSize * 8; // TEMP: hardcoded since glow is disabled
             sun.isSun = true;
-            sun.glow = glow;
+            sun.glow = null; // TEMP: glow disabled for testing
             sun.tint = sunType.tint;
 
             return sun;
