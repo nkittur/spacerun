@@ -1522,7 +1522,7 @@
             const sun = BABYLON.MeshBuilder.CreatePlane('sun', { size: sunSize }, scene);
             sun.position.x = x;
             sun.position.y = y;
-            sun.position.z = 0.6; // Behind planets
+            sun.position.z = 3; // Far behind everything except background
 
             const texture = new BABYLON.Texture(imagePath, scene);
             texture.hasAlpha = true;
@@ -1878,10 +1878,10 @@
 
             if (nearestSun) {
                 const tint = nearestSun.tint;
-                const sunRadius = nearestSun.size / 2;
+                const sunRadius = nearestSun.size;
 
-                // Silhouette zone: when ship is within 2x sun radius
-                const silhouetteZone = sunRadius * 2.5;
+                // Silhouette zone: when ship overlaps or is very close to sun
+                const silhouetteZone = sunRadius * 1.5;
                 // Light influence zone: much broader for the diffuse light effect
                 const lightZone = 50;
 
@@ -1890,19 +1890,14 @@
                 playerMeshes.forEach(mesh => {
                     if (mesh.material) {
                         if (nearestDist < silhouetteZone) {
-                            // Silhouette effect when very close to sun
-                            const silhouetteFactor = nearestDist / silhouetteZone;
-                            mesh.material.emissiveColor = new BABYLON.Color3(
-                                0.05 * silhouetteFactor,
-                                0.05 * silhouetteFactor,
-                                0.05 * silhouetteFactor
-                            );
-                            if (mesh.material.diffuseColor) {
-                                mesh.material.diffuseColor = new BABYLON.Color3(
-                                    0.1 * silhouetteFactor,
-                                    0.1 * silhouetteFactor,
-                                    0.1 * silhouetteFactor
-                                );
+                            // Silhouette effect when overlapping sun - make ship dark
+                            const silhouetteFactor = Math.pow(nearestDist / silhouetteZone, 0.5); // Sharper falloff
+                            const darkness = 0.02 + 0.1 * silhouetteFactor;
+                            mesh.material.emissiveColor = new BABYLON.Color3(darkness, darkness, darkness);
+                            mesh.material.diffuseColor = new BABYLON.Color3(darkness, darkness, darkness);
+                            // Reduce texture influence
+                            if (mesh.material.emissiveTexture) {
+                                mesh.material.emissiveTexture.level = silhouetteFactor * 0.3;
                             }
                         } else {
                             // Normal tinted lighting outside silhouette zone
@@ -1912,6 +1907,10 @@
                                 0.3 + tint[1] * intensity * 0.3,
                                 0.3 + tint[2] * intensity * 0.3
                             );
+                            mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                            if (mesh.material.emissiveTexture) {
+                                mesh.material.emissiveTexture.level = 1;
+                            }
                         }
                     }
                 });
@@ -1927,19 +1926,13 @@
                         enemyMeshes.forEach(mesh => {
                             if (mesh.material) {
                                 if (eDist < silhouetteZone) {
-                                    // Silhouette effect when very close to sun
-                                    const silhouetteFactor = eDist / silhouetteZone;
-                                    mesh.material.emissiveColor = new BABYLON.Color3(
-                                        0.05 * silhouetteFactor,
-                                        0.05 * silhouetteFactor,
-                                        0.05 * silhouetteFactor
-                                    );
-                                    if (mesh.material.diffuseColor) {
-                                        mesh.material.diffuseColor = new BABYLON.Color3(
-                                            0.1 * silhouetteFactor,
-                                            0.1 * silhouetteFactor,
-                                            0.1 * silhouetteFactor
-                                        );
+                                    // Silhouette effect when overlapping sun
+                                    const silhouetteFactor = Math.pow(eDist / silhouetteZone, 0.5);
+                                    const darkness = 0.02 + 0.1 * silhouetteFactor;
+                                    mesh.material.emissiveColor = new BABYLON.Color3(darkness, darkness, darkness);
+                                    mesh.material.diffuseColor = new BABYLON.Color3(darkness, darkness, darkness);
+                                    if (mesh.material.emissiveTexture) {
+                                        mesh.material.emissiveTexture.level = silhouetteFactor * 0.3;
                                     }
                                 } else {
                                     // Normal tinted lighting
@@ -1949,6 +1942,10 @@
                                         0.3 + tint[1] * eIntensity * 0.3,
                                         0.3 + tint[2] * eIntensity * 0.3
                                     );
+                                    mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                                    if (mesh.material.emissiveTexture) {
+                                        mesh.material.emissiveTexture.level = 1;
+                                    }
                                 }
                             }
                         });
@@ -2195,11 +2192,62 @@
         }
 
         // Create player ship
+        // Create engine exhaust glow
+        function createEngineExhaust(parent, color, offsetY, isEnemy = false) {
+            const exhausts = [];
+            // Create multiple exhaust points for better effect
+            const exhaustPositions = isEnemy ?
+                [{ x: -0.15, y: offsetY }, { x: 0.15, y: offsetY }] :
+                [{ x: -0.2, y: offsetY }, { x: 0.2, y: offsetY }];
+
+            exhaustPositions.forEach((pos, i) => {
+                // Outer glow
+                const glow = BABYLON.MeshBuilder.CreateSphere('exhaust_glow_' + i, { diameter: 0.4 }, scene);
+                glow.parent = parent;
+                glow.position.x = pos.x;
+                glow.position.y = pos.y;
+                glow.position.z = 0;
+
+                const glowMat = new BABYLON.StandardMaterial('exhaustGlowMat_' + i, scene);
+                glowMat.emissiveColor = color;
+                glowMat.alpha = 0.4;
+                glowMat.disableLighting = true;
+                glowMat.backFaceCulling = false;
+                glow.material = glowMat;
+
+                // Inner core
+                const core = BABYLON.MeshBuilder.CreateSphere('exhaust_core_' + i, { diameter: 0.15 }, scene);
+                core.parent = parent;
+                core.position.x = pos.x;
+                core.position.y = pos.y;
+                core.position.z = 0;
+
+                const coreMat = new BABYLON.StandardMaterial('exhaustCoreMat_' + i, scene);
+                coreMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                coreMat.disableLighting = true;
+                core.material = coreMat;
+
+                // Add to glow layer
+                if (sunGlowLayer) {
+                    sunGlowLayer.addIncludedOnlyMesh(glow);
+                    sunGlowLayer.addIncludedOnlyMesh(core);
+                }
+
+                exhausts.push({ glow, core });
+            });
+
+            return exhausts;
+        }
+
         async function createPlayerShip() {
             playerShip = new BABYLON.TransformNode('playerShip', scene);
 
             playerShipMesh = await loadShipModel(settings.playerShip, settings.playerColor, scene, 'up');
             playerShipMesh.parent = playerShip;
+
+            // Add blue engine exhaust
+            const blueColor = new BABYLON.Color3(0.2, 0.5, 1);
+            playerShip.exhausts = createEngineExhaust(playerShip, blueColor, -0.6, false);
 
             playerShip.position = new BABYLON.Vector3(0, -7, 0);
             playerShip.targetX = 0;
@@ -2239,6 +2287,10 @@
             const enemyMesh = await loadShipModel(settings.enemyShip, settings.enemyColor, scene, 'down');
             enemyMesh.parent = enemy;
 
+            // Add red engine exhaust (facing up since enemy is rotated down)
+            const redColor = new BABYLON.Color3(1, 0.3, 0.1);
+            enemy.exhausts = createEngineExhaust(enemy, redColor, 0.5, true);
+
             enemy.position.x = x;
             enemy.position.y = y;
             enemy.position.z = 0;
@@ -2262,13 +2314,22 @@
             let bullet;
 
             if (isPlayer) {
-                bullet = BABYLON.MeshBuilder.CreateSphere('bullet', { diameter: 0.15 }, scene);
-                // Enhanced player bullet material for better glow
+                // Player bullet with defined core and subtle glow
+                bullet = BABYLON.MeshBuilder.CreateSphere('bullet', { diameter: 0.2 }, scene);
                 const playerBulletMat = new BABYLON.StandardMaterial('playerBulletMat', scene);
-                playerBulletMat.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
-                playerBulletMat.diffuseColor = new BABYLON.Color3(0.5, 1, 0.8);
+                playerBulletMat.emissiveColor = new BABYLON.Color3(0, 0.8, 0.4);
+                playerBulletMat.diffuseColor = new BABYLON.Color3(0, 1, 0.5);
+                playerBulletMat.alpha = 0.7;
                 playerBulletMat.disableLighting = true;
                 bullet.material = playerBulletMat;
+
+                // Bright core for definition
+                const core = BABYLON.MeshBuilder.CreateSphere('bulletCore', { diameter: 0.1 }, scene);
+                core.parent = bullet;
+                const coreMat = new BABYLON.StandardMaterial('coreMat', scene);
+                coreMat.emissiveColor = new BABYLON.Color3(0.5, 1, 0.8);
+                coreMat.disableLighting = true;
+                core.material = coreMat;
             } else {
                 bullet = BABYLON.MeshBuilder.CreateCapsule('bullet', { height: 0.5, radius: 0.1 }, scene);
                 bullet.rotation.z = Math.atan2(velocityX, -velocityY);
@@ -2276,11 +2337,11 @@
                 const enemyBulletMat = new BABYLON.StandardMaterial('enemyBulletMat', scene);
                 enemyBulletMat.emissiveColor = new BABYLON.Color3(1, 0.3, 0.8);
                 enemyBulletMat.diffuseColor = new BABYLON.Color3(1, 0.5, 1);
-                enemyBulletMat.alpha = 0.9;
+                enemyBulletMat.alpha = 0.8;
                 enemyBulletMat.disableLighting = true;
                 bullet.material = enemyBulletMat;
 
-                const core = BABYLON.MeshBuilder.CreateSphere('bulletCore', { diameter: 0.15 }, scene);
+                const core = BABYLON.MeshBuilder.CreateSphere('bulletCore', { diameter: 0.12 }, scene);
                 core.parent = bullet;
                 core.position.y = 0;
                 const coreMat = new BABYLON.StandardMaterial('coreMat', scene);
@@ -2295,11 +2356,6 @@
             bullet.velocityX = velocityX;
             bullet.velocityY = velocityY;
             bullet.isPlayer = isPlayer;
-
-            // Add bullet to GlowLayer for bloom effect
-            if (sunGlowLayer) {
-                sunGlowLayer.addIncludedOnlyMesh(bullet);
-            }
 
             return bullet;
         }
