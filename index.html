@@ -1481,7 +1481,7 @@
         // Create radial gradient texture for sun glow
         function createGlowTexture(scene, tint, size) {
             const textureSize = 512; // Higher resolution to reduce artifacts
-            const dynamicTexture = new BABYLON.DynamicTexture('glowTexture', textureSize, scene, true); // true = generate mipmaps
+            const dynamicTexture = new BABYLON.DynamicTexture('glowTexture', textureSize, scene, false); // false = no mipmaps to avoid alpha bleeding
             const ctx = dynamicTexture.getContext();
 
             // Clear to fully transparent first
