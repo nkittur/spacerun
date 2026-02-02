@@ -1477,55 +1477,42 @@
             }
         }
 
-        // Create radial gradient texture for sun glow
-        function createGlowTexture(scene, tint, size) {
-            const textureSize = 512;
-            const dynamicTexture = new BABYLON.DynamicTexture('glowTexture', textureSize, scene, false); // false = no mipmaps
+        // Create glow effect using concentric discs (avoids DynamicTexture iOS issues)
+        function createGlowDiscs(scene, x, y, z, glowSize, tint) {
+            const discs = [];
+            // 8 layers for smooth gradient
+            const layers = [
+                { radiusFactor: 1.0, alpha: 0.03 },
+                { radiusFactor: 0.85, alpha: 0.06 },
+                { radiusFactor: 0.7, alpha: 0.1 },
+                { radiusFactor: 0.55, alpha: 0.15 },
+                { radiusFactor: 0.4, alpha: 0.25 },
+                { radiusFactor: 0.28, alpha: 0.35 },
+                { radiusFactor: 0.18, alpha: 0.5 },
+                { radiusFactor: 0.1, alpha: 0.7 }
+            ];
 
-            // Fix mobile rendering: clamp sampling and disable anisotropic filtering
-            dynamicTexture.updateSamplingMode(BABYLON.Texture.BILINEAR_SAMPLINGMODE);
-            dynamicTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-            dynamicTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-            dynamicTexture.anisotropicFilteringLevel = 1;
+            layers.forEach((layer, i) => {
+                const disc = BABYLON.MeshBuilder.CreateDisc('glowDisc' + i, {
+                    radius: (glowSize / 2) * layer.radiusFactor,
+                    tessellation: 32
+                }, scene);
+                disc.position.x = x;
+                disc.position.y = y;
+                disc.position.z = z + (i * 0.001); // Slight z offset to prevent z-fighting
 
-            const ctx = dynamicTexture.getContext();
+                const mat = new BABYLON.StandardMaterial('glowMat' + i, scene);
+                mat.diffuseColor = new BABYLON.Color3(tint[0], tint[1], tint[2]);
+                mat.emissiveColor = new BABYLON.Color3(tint[0], tint[1], tint[2]);
+                mat.alpha = layer.alpha;
+                mat.disableLighting = true;
+                mat.backFaceCulling = false;
+                disc.material = mat;
 
-            // Clear canvas fully with transparent pixels to avoid iOS leftover pixel artifacts
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.clearRect(0, 0, textureSize, textureSize);
-            // Fill with transparent to ensure all pixels are initialized
-            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.fillRect(0, 0, textureSize, textureSize);
+                discs.push(disc);
+            });
 
-            const centerX = textureSize / 2;
-            const centerY = textureSize / 2;
-            const radius = textureSize / 2;
-
-            const r = Math.floor(tint[0] * 255);
-            const g = Math.floor(tint[1] * 255);
-            const b = Math.floor(tint[2] * 255);
-
-            // Draw circular glow
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            ctx.closePath();
-
-            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-            gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.8)`);
-            gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, 0.5)`);
-            gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.25)`);
-            gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.1)`);
-            gradient.addColorStop(0.8, `rgba(${r}, ${g}, ${b}, 0.03)`);
-            gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-
-            ctx.fillStyle = gradient;
-            ctx.fill();
-
-            dynamicTexture.update(false); // false = don't invertY
-            dynamicTexture.hasAlpha = true;
-
-            return dynamicTexture;
+            return discs;
         }
 
         // Create a sun
@@ -1542,21 +1529,9 @@
 
             const sunSize = 4 + Math.random() * 2; // 4-6 units
 
-            // Create smooth radial gradient glow
-            const glowSize = sunSize * 8; // Large glow area
-            const glow = BABYLON.MeshBuilder.CreatePlane('sunGlow', { size: glowSize }, scene);
-            glow.position.x = x;
-            glow.position.y = y;
-            glow.position.z = 0.9; // Behind everything
-
-            const glowTexture = createGlowTexture(scene, sunType.tint, glowSize);
-            const glowMat = new BABYLON.StandardMaterial('sunGlowMat', scene);
-            glowMat.diffuseTexture = glowTexture;
-            glowMat.useAlphaFromDiffuseTexture = true;
-            glowMat.disableLighting = true;
-            glowMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
-            glowMat.backFaceCulling = false;
-            glow.material = glowMat;
+            // Create glow using concentric discs (avoids iOS DynamicTexture issues)
+            const glowSize = sunSize * 8;
+            const glowDiscs = createGlowDiscs(scene, x, y, 0.9, glowSize, sunType.tint);
 
             // Create the sun itself
             const sun = BABYLON.MeshBuilder.CreatePlane('sun', { size: sunSize }, scene);
@@ -1582,7 +1557,7 @@
             sun.size = sunSize;
             sun.glowSize = glowSize;
             sun.isSun = true;
-            sun.glow = glow;
+            sun.glowDiscs = glowDiscs; // Array of disc meshes
             sun.tint = sunType.tint;
 
             return sun;
@@ -1863,18 +1838,21 @@
                 sun.position.y -= moveAmount;
                 sun.rotation.z += 0.0005;
 
-                // Update glow position
-                if (sun.glow) {
-                    sun.glow.position.x = sun.position.x;
-                    sun.glow.position.y = sun.position.y;
+                // Update all glow disc positions
+                if (sun.glowDiscs) {
+                    sun.glowDiscs.forEach(disc => {
+                        disc.position.x = sun.position.x;
+                        disc.position.y = sun.position.y;
+                    });
                 }
 
                 if (sun.position.y < -orthoHeight - sun.glowSize) {
-                    if (sun.glow) {
-                        if (sun.glow.material && sun.glow.material.diffuseTexture) {
-                            sun.glow.material.diffuseTexture.dispose();
-                        }
-                        sun.glow.dispose();
+                    // Dispose all glow discs
+                    if (sun.glowDiscs) {
+                        sun.glowDiscs.forEach(disc => {
+                            if (disc.material) disc.material.dispose();
+                            disc.dispose();
+                        });
                     }
                     sun.dispose();
                     gameState.suns.splice(i, 1);
@@ -2830,11 +2808,11 @@
             gameState.planets = [];
 
             gameState.suns.forEach(s => {
-                if (s.glow) {
-                    if (s.glow.material && s.glow.material.diffuseTexture) {
-                        s.glow.material.diffuseTexture.dispose();
-                    }
-                    s.glow.dispose();
+                if (s.glowDiscs) {
+                    s.glowDiscs.forEach(disc => {
+                        if (disc.material) disc.material.dispose();
+                        disc.dispose();
+                    });
                 }
                 s.dispose();
             });
