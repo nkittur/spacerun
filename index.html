@@ -1482,15 +1482,21 @@
             const dynamicTexture = new BABYLON.DynamicTexture('glowTexture', textureSize, scene, false);
             const ctx = dynamicTexture.getContext();
 
-            // Create radial gradient
+            // Create radial gradient - more opaque to cover background stars
             const centerX = textureSize / 2;
             const centerY = textureSize / 2;
             const radius = textureSize / 2;
 
+            const r = Math.floor(tint[0] * 255);
+            const g = Math.floor(tint[1] * 255);
+            const b = Math.floor(tint[2] * 255);
+
             const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-            gradient.addColorStop(0, `rgba(${Math.floor(tint[0]*255)}, ${Math.floor(tint[1]*255)}, ${Math.floor(tint[2]*255)}, 0.6)`);
-            gradient.addColorStop(0.2, `rgba(${Math.floor(tint[0]*255)}, ${Math.floor(tint[1]*255)}, ${Math.floor(tint[2]*255)}, 0.3)`);
-            gradient.addColorStop(0.5, `rgba(${Math.floor(tint[0]*255)}, ${Math.floor(tint[1]*255)}, ${Math.floor(tint[2]*255)}, 0.1)`);
+            gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.9)`);
+            gradient.addColorStop(0.15, `rgba(${r}, ${g}, ${b}, 0.7)`);
+            gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 0.4)`);
+            gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.15)`);
+            gradient.addColorStop(0.75, `rgba(${r}, ${g}, ${b}, 0.05)`);
             gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
             ctx.fillStyle = gradient;
