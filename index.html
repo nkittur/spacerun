@@ -1478,11 +1478,13 @@
 
         // Create radial gradient texture for sun glow
         function createGlowTexture(scene, tint, size) {
-            const textureSize = 256;
-            const dynamicTexture = new BABYLON.DynamicTexture('glowTexture', textureSize, scene, false);
+            const textureSize = 512; // Higher resolution to reduce artifacts
+            const dynamicTexture = new BABYLON.DynamicTexture('glowTexture', textureSize, scene, true); // true = generate mipmaps
             const ctx = dynamicTexture.getContext();
 
-            // Create radial gradient - more opaque to cover background stars
+            // Clear to fully transparent first
+            ctx.clearRect(0, 0, textureSize, textureSize);
+
             const centerX = textureSize / 2;
             const centerY = textureSize / 2;
             const radius = textureSize / 2;
@@ -1491,16 +1493,21 @@
             const g = Math.floor(tint[1] * 255);
             const b = Math.floor(tint[2] * 255);
 
+            // Draw circular glow (not square) to avoid corner artifacts
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.closePath();
+
             const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
             gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.9)`);
             gradient.addColorStop(0.15, `rgba(${r}, ${g}, ${b}, 0.7)`);
             gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 0.4)`);
             gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.15)`);
-            gradient.addColorStop(0.75, `rgba(${r}, ${g}, ${b}, 0.05)`);
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            gradient.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, 0.02)`);
+            gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
 
             ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, textureSize, textureSize);
+            ctx.fill(); // Fill only the circular path
 
             dynamicTexture.update();
             dynamicTexture.hasAlpha = true;
@@ -1510,7 +1517,6 @@
 
         // Create a sun
         function createSun(x, y) {
-            // return null; // TEMP TEST: disable suns to check if dots still appear
             if (!scene) return null;
 
             const sunTypeKeys = Object.keys(SUN_TYPES);
@@ -1523,8 +1529,6 @@
 
             const sunSize = 4 + Math.random() * 2; // 4-6 units
 
-            // TEMP: Skip glow creation to test if it's the source of dots
-            /*
             // Create smooth radial gradient glow
             const glowSize = sunSize * 8; // Large glow area
             const glow = BABYLON.MeshBuilder.CreatePlane('sunGlow', { size: glowSize }, scene);
@@ -1541,7 +1545,6 @@
             glowMat.useAlphaFromDiffuseTexture = true;
             glowMat.backFaceCulling = false;
             glow.material = glowMat;
-            */
 
             // Create the sun itself
             const sun = BABYLON.MeshBuilder.CreatePlane('sun', { size: sunSize }, scene);
@@ -1565,9 +1568,9 @@
             sun.material = mat;
 
             sun.size = sunSize;
-            sun.glowSize = sunSize * 8; // TEMP: hardcoded since glow is disabled
+            sun.glowSize = glowSize;
             sun.isSun = true;
-            sun.glow = null; // TEMP: glow disabled for testing
+            sun.glow = glow;
             sun.tint = sunType.tint;
 
             return sun;
