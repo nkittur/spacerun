@@ -1062,12 +1062,12 @@
             const light2 = new BABYLON.DirectionalLight('light2', new BABYLON.Vector3(0, 0, -1), scene);
             light2.intensity = 0.8;
 
-            // GlowLayer for suns and bullets - whitelisted meshes
+            // GlowLayer for suns, bullets, and explosions - whitelisted meshes
             sunGlowLayer = new BABYLON.GlowLayer('sunGlow', scene, {
                 mainTextureFixedSize: 512,
-                blurKernelSize: 32 // Smaller blur for tighter glow
+                blurKernelSize: 24 // Tighter glow
             });
-            sunGlowLayer.intensity = 1.0; // Reduced intensity
+            sunGlowLayer.intensity = 0.7; // Reduced intensity
 
             // DefaultRenderingPipeline for global bloom
             renderPipeline = new BABYLON.DefaultRenderingPipeline(
@@ -1077,13 +1077,20 @@
                 [camera]
             );
             renderPipeline.bloomEnabled = true;
-            renderPipeline.bloomKernel = 32; // Tighter bloom
-            renderPipeline.bloomWeight = 0.3; // Subtle bloom
-            renderPipeline.bloomThreshold = 0.6; // Higher threshold - only bright things bloom
+            renderPipeline.bloomKernel = 24; // Tighter bloom
+            renderPipeline.bloomWeight = 0.25; // Subtle bloom
+            renderPipeline.bloomThreshold = 0.7; // Higher threshold
             renderPipeline.bloomScale = 0.5;
             renderPipeline.imageProcessingEnabled = true;
             renderPipeline.imageProcessing.contrast = 1.1;
             renderPipeline.imageProcessing.exposure = 1.0;
+
+            // Dynamic sun light - will be updated based on nearest sun
+            const sunLight = new BABYLON.DirectionalLight('sunLight', new BABYLON.Vector3(0, -1, 0.5), scene);
+            sunLight.intensity = 0;
+            sunLight.diffuse = new BABYLON.Color3(1, 1, 1);
+            sunLight.specular = new BABYLON.Color3(0.5, 0.5, 0.5);
+            gameState.sunLight = sunLight;
 
             materials.playerBullet = new BABYLON.StandardMaterial('playerBulletMat', scene);
             materials.playerBullet.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
@@ -1314,6 +1321,11 @@
                 );
                 mat.disableLighting = true;
                 particle.material = mat;
+
+                // Add explosion particles to GlowLayer for dramatic glow effect
+                if (sunGlowLayer) {
+                    sunGlowLayer.addIncludedOnlyMesh(particle);
+                }
 
                 particle.startTime = performance.now();
                 particle.duration = duration * (0.7 + Math.random() * 0.6);
@@ -1912,6 +1924,53 @@
                 const starbaseMeshes = gameState.starbase.getChildMeshes ? gameState.starbase.getChildMeshes(false) || [] : [];
                 if (gameState.starbase.material) starbaseMeshes.push(gameState.starbase);
                 applyToObject(gameState.starbase.position.x, gameState.starbase.position.y, starbaseMeshes);
+            }
+
+            // Update DirectionalLight for dramatic sun lighting from above
+            if (gameState.sunLight && playerShip) {
+                let nearestSun = null;
+                let nearestDist = Infinity;
+
+                for (const sun of gameState.suns) {
+                    const dx = sun.position.x - playerShip.position.x;
+                    const dy = sun.position.y - playerShip.position.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestSun = sun;
+                    }
+                }
+
+                if (nearestSun) {
+                    // Direction from sun (above) pointing down at player
+                    const dx = playerShip.position.x - nearestSun.position.x;
+                    const dy = playerShip.position.y - nearestSun.position.y;
+                    // Light comes from high above (strong Y component) with slight XY offset toward player
+                    gameState.sunLight.direction = new BABYLON.Vector3(
+                        dx * 0.1,
+                        -1,
+                        0.3
+                    ).normalize();
+
+                    // Intensity based on distance - stronger when closer
+                    const maxRange = 20;
+                    const intensity = Math.max(0, 1 - nearestDist / maxRange) * 1.5;
+                    gameState.sunLight.intensity = intensity;
+
+                    // Use sun's color for the light
+                    gameState.sunLight.diffuse = new BABYLON.Color3(
+                        nearestSun.tint[0],
+                        nearestSun.tint[1],
+                        nearestSun.tint[2]
+                    );
+                    gameState.sunLight.specular = new BABYLON.Color3(
+                        nearestSun.tint[0] * 0.5,
+                        nearestSun.tint[1] * 0.5,
+                        nearestSun.tint[2] * 0.5
+                    );
+                } else {
+                    gameState.sunLight.intensity = 0;
+                }
             }
         }
 
