@@ -521,7 +521,7 @@
             background: #ff5555;
         }
 
-        /* Warp Gate Icon Previews - positioned above gates */
+        /* Warp Gate HUD Previews - sci-fi style, positioned below gates */
         #warpGatePanel {
             position: absolute;
             top: 0;
@@ -531,7 +531,7 @@
             display: none;
             pointer-events: none;
             z-index: 80;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            font-family: 'Courier New', monospace;
         }
 
         .gate-preview {
@@ -542,49 +542,94 @@
             pointer-events: none;
         }
 
-        .gate-preview.left {
-            left: 25%;
-            transform: translateX(-50%);
-        }
-
-        .gate-preview.right {
-            right: 25%;
-            transform: translateX(50%);
-        }
-
-        .gate-icons {
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 10px;
+        .gate-hud {
+            background: rgba(0, 10, 20, 0.85);
+            border: 1px solid;
             padding: 8px 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 90px;
         }
 
-        .gate-icon-row {
+        .gate-preview.left .gate-hud {
+            border-color: #ff8844;
+            box-shadow: 0 0 10px rgba(255, 136, 68, 0.3), inset 0 0 20px rgba(255, 136, 68, 0.1);
+        }
+
+        .gate-preview.right .gate-hud {
+            border-color: #44ff88;
+            box-shadow: 0 0 10px rgba(68, 255, 136, 0.3), inset 0 0 20px rgba(68, 255, 136, 0.1);
+        }
+
+        .hud-row {
             display: flex;
             align-items: center;
-            gap: 4px;
-            font-size: 16px;
-            min-height: 20px;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 11px;
+            letter-spacing: 1px;
         }
 
-        .gate-icon-row .icon {
-            width: 18px;
-            text-align: center;
+        .hud-row:last-child {
+            margin-bottom: 0;
         }
 
-        .gate-icon-row .value {
-            font-size: 12px;
+        .hud-label {
+            color: #668;
+            text-transform: uppercase;
+            font-size: 9px;
+        }
+
+        .hud-value {
             font-weight: bold;
-            color: white;
+            font-size: 12px;
+        }
+
+        /* Threat level indicator bar */
+        .threat-bar {
+            display: flex;
+            gap: 2px;
+            margin-left: 8px;
+        }
+
+        .threat-pip {
+            width: 8px;
+            height: 12px;
+            background: #223;
+            border: 1px solid #334;
+        }
+
+        .threat-pip.active {
+            border-color: currentColor;
+            background: currentColor;
+            box-shadow: 0 0 4px currentColor;
         }
 
         .threat-low { color: #44ff88; }
         .threat-medium { color: #ffaa44; }
         .threat-high { color: #ff6644; }
-        .threat-extreme { color: #ff4444; text-shadow: 0 0 5px #ff0000; }
+        .threat-extreme { color: #ff4444; }
+
+        /* Station icons - simple geometric */
+        .station-icons {
+            display: flex;
+            gap: 4px;
+            margin-left: 8px;
+        }
+
+        .station-icon {
+            width: 14px;
+            height: 14px;
+            border: 1px solid;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            font-weight: bold;
+        }
+
+        .station-icon.trade { border-color: #44aaff; color: #44aaff; }
+        .station-icon.armory { border-color: #ff4444; color: #ff4444; }
+        .station-icon.repair { border-color: #44ff88; color: #44ff88; }
+        .station-icon.fuel { border-color: #ffaa44; color: #ffaa44; }
 
         /* Warp/Lightspeed Animation */
         #warpOverlay {
@@ -633,31 +678,36 @@
             pointer-events: none;
         }
 
-        /* Speed Up Button */
+        /* Speed Up Button - Sci-fi HUD style */
         #speedUpBtn {
             position: absolute;
             bottom: 20px;
             left: 20px;
-            padding: 12px 20px;
-            background: rgba(68, 136, 255, 0.3);
-            border: 2px solid #4488ff;
-            border-radius: 8px;
-            color: white;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
+            padding: 10px 16px;
+            background: rgba(0, 20, 40, 0.85);
+            border: 1px solid #4488ff;
+            border-radius: 0;
+            color: #4488ff;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 2px;
             cursor: pointer;
             z-index: 60;
             display: none;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
+            text-transform: uppercase;
         }
 
         #speedUpBtn:hover {
-            background: rgba(68, 136, 255, 0.5);
+            background: rgba(68, 136, 255, 0.2);
+            box-shadow: 0 0 10px rgba(68, 136, 255, 0.3);
         }
 
         #speedUpBtn:active, #speedUpBtn.active {
-            background: rgba(68, 136, 255, 0.8);
-            box-shadow: 0 0 15px rgba(68, 136, 255, 0.5);
+            background: rgba(68, 136, 255, 0.4);
+            color: white;
+            box-shadow: 0 0 20px rgba(68, 136, 255, 0.6), inset 0 0 10px rgba(68, 136, 255, 0.3);
         }
 
         #speedUpBtn:disabled {
@@ -854,17 +904,35 @@
 
     <div id="warpGatePanel">
         <div class="gate-preview left" id="gateLeftPreview">
-            <div class="gate-icons">
-                <div class="gate-icon-row" id="gateLeftThreat" title="Threat Level"></div>
-                <div class="gate-icon-row" id="gateLeftWaves" title="Waves"></div>
-                <div class="gate-icon-row" id="gateLeftStations" title="Stations"></div>
+            <div class="gate-hud">
+                <div class="hud-row">
+                    <span class="hud-label">THR</span>
+                    <div class="threat-bar" id="gateLeftThreat"></div>
+                </div>
+                <div class="hud-row">
+                    <span class="hud-label">WAV</span>
+                    <span class="hud-value" id="gateLeftWaves">3</span>
+                </div>
+                <div class="hud-row">
+                    <span class="hud-label">STA</span>
+                    <div class="station-icons" id="gateLeftStations"></div>
+                </div>
             </div>
         </div>
         <div class="gate-preview right" id="gateRightPreview">
-            <div class="gate-icons">
-                <div class="gate-icon-row" id="gateRightThreat" title="Threat Level"></div>
-                <div class="gate-icon-row" id="gateRightWaves" title="Waves"></div>
-                <div class="gate-icon-row" id="gateRightStations" title="Stations"></div>
+            <div class="gate-hud">
+                <div class="hud-row">
+                    <span class="hud-label">THR</span>
+                    <div class="threat-bar" id="gateRightThreat"></div>
+                </div>
+                <div class="hud-row">
+                    <span class="hud-label">WAV</span>
+                    <span class="hud-value" id="gateRightWaves">5</span>
+                </div>
+                <div class="hud-row">
+                    <span class="hud-label">STA</span>
+                    <div class="station-icons" id="gateRightStations"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -872,7 +940,7 @@
     <div id="warpOverlay"></div>
     <div id="warpFlash"></div>
 
-    <button id="speedUpBtn">⏩ Speed Up</button>
+    <button id="speedUpBtn">&gt;&gt; WARP</button>
 
     <div id="gameOver">
         <h2>Game Over</h2>
@@ -2179,40 +2247,41 @@
             return gate;
         }
 
-        // Update the gate UI panels with icons
+        // Update the gate UI panels with sci-fi HUD style
         function updateGateUI() {
             if (!gameState.gateChoices) return;
 
-            const getThreatIcons = (config) => {
-                const threatColors = {
-                    'Low': 'threat-low',
-                    'Medium': 'threat-medium',
-                    'High': 'threat-high',
-                    'Extreme': 'threat-extreme'
-                };
-                const threatCounts = { 'Low': 1, 'Medium': 2, 'High': 3, 'Extreme': 4 };
-                const skulls = '💀'.repeat(threatCounts[config.threatLevel] || 1);
-                return `<span class="${threatColors[config.threatLevel]}">${skulls}</span>`;
+            // Generate threat bar pips (4 pips, filled based on threat level)
+            const getThreatBar = (config) => {
+                const threatLevels = { 'Low': 1, 'Medium': 2, 'High': 3, 'Extreme': 4 };
+                const threatColors = { 'Low': 'threat-low', 'Medium': 'threat-medium', 'High': 'threat-high', 'Extreme': 'threat-extreme' };
+                const level = threatLevels[config.threatLevel] || 1;
+                const colorClass = threatColors[config.threatLevel];
+                let html = '';
+                for (let i = 0; i < 4; i++) {
+                    html += `<div class="threat-pip ${i < level ? 'active ' + colorClass : ''}"></div>`;
+                }
+                return html;
             };
 
-            const getWaveIcons = (config) => {
-                return `<span class="icon">🌊</span><span class="value">×${config.waveCount}</span>`;
-            };
-
+            // Station icons with letter codes
             const getStationIcons = (config) => {
-                if (config.stations.length === 0) return '<span style="color: #666">—</span>';
-                const stationEmoji = { 'Trade': '🏪', 'Armory': '🔫', 'Repair': '🔧', 'Fuel': '⛽' };
-                return config.stations.map(s => stationEmoji[s] || '🏢').join('');
+                if (config.stations.length === 0) return '<span style="color: #445; font-size: 10px;">---</span>';
+                const stationCodes = { 'Trade': 'T', 'Armory': 'A', 'Repair': 'R', 'Fuel': 'F' };
+                const stationClasses = { 'Trade': 'trade', 'Armory': 'armory', 'Repair': 'repair', 'Fuel': 'fuel' };
+                return config.stations.map(s =>
+                    `<div class="station-icon ${stationClasses[s]}">${stationCodes[s]}</div>`
+                ).join('');
             };
 
             // Left gate
-            document.getElementById('gateLeftThreat').innerHTML = getThreatIcons(gameState.gateChoices.left);
-            document.getElementById('gateLeftWaves').innerHTML = getWaveIcons(gameState.gateChoices.left);
+            document.getElementById('gateLeftThreat').innerHTML = getThreatBar(gameState.gateChoices.left);
+            document.getElementById('gateLeftWaves').textContent = gameState.gateChoices.left.waveCount;
             document.getElementById('gateLeftStations').innerHTML = getStationIcons(gameState.gateChoices.left);
 
             // Right gate
-            document.getElementById('gateRightThreat').innerHTML = getThreatIcons(gameState.gateChoices.right);
-            document.getElementById('gateRightWaves').innerHTML = getWaveIcons(gameState.gateChoices.right);
+            document.getElementById('gateRightThreat').innerHTML = getThreatBar(gameState.gateChoices.right);
+            document.getElementById('gateRightWaves').textContent = gameState.gateChoices.right.waveCount;
             document.getElementById('gateRightStations').innerHTML = getStationIcons(gameState.gateChoices.right);
         }
 
@@ -2229,14 +2298,14 @@
                 // Slow rotation
                 gate.rotation.z += 0.005;
 
-                // Update UI position above gate
-                const screenPos = worldToScreen(gate.position.x, gate.position.y + gate.size / 2 + 0.5);
+                // Update UI position below gate (so player can see it longer)
+                const screenPos = worldToScreen(gate.position.x, gate.position.y - gate.size / 2 - 0.5);
                 const previewId = gate.gateId === 'left' ? 'gateLeftPreview' : 'gateRightPreview';
                 const preview = document.getElementById(previewId);
                 if (preview) {
                     preview.style.left = screenPos.x + 'px';
                     preview.style.top = screenPos.y + 'px';
-                    preview.style.transform = 'translate(-50%, -100%)';
+                    preview.style.transform = 'translate(-50%, 0)';
                 }
 
                 // Check collision with player
@@ -3747,7 +3816,7 @@
                 // Update speed-up button visibility
                 updateSpeedUpButton();
 
-                const scrollMultiplier = updatePlayerPosition(deltaTime);
+                const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
                 updateBackgrounds(scrollMultiplier, deltaTime);
                 firePlayerWeapons(currentTime);
 
@@ -3757,9 +3826,7 @@
                     gameState.spawnTimer = 0;
                 }
 
-                // Spawn solar systems with spacing
-                // Check if we need to spawn a new solar system
-                // nextSolarSystemY tracks when the next system should appear at the top
+                // Spawn solar systems with spacing - apply speed multiplier
                 gameState.nextSolarSystemY -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 if (gameState.nextSolarSystemY < orthoHeight + 10) {
                     createSolarSystem();
