@@ -1498,12 +1498,13 @@
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.closePath();
 
-            // Gradient with higher alpha floor to avoid mobile GPU precision issues
+            // Gradient extending to full radius
             const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
             gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.8)`);
-            gradient.addColorStop(0.25, `rgba(${r}, ${g}, ${b}, 0.4)`);
-            gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.15)`);
-            gradient.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, 0)`);
+            gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, 0.5)`);
+            gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.25)`);
+            gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.1)`);
+            gradient.addColorStop(0.8, `rgba(${r}, ${g}, ${b}, 0.03)`);
             gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
 
             ctx.fillStyle = gradient;
@@ -1538,12 +1539,12 @@
 
             const glowTexture = createGlowTexture(scene, sunType.tint, glowSize);
             const glowMat = new BABYLON.StandardMaterial('sunGlowMat', scene);
-            glowMat.emissiveTexture = glowTexture;
+            // Simpler setup: just diffuse with alpha, no emissive
+            glowMat.diffuseTexture = glowTexture;
+            glowMat.useAlphaFromDiffuseTexture = true;
             glowMat.disableLighting = true;
+            glowMat.emissiveColor = new BABYLON.Color3(1, 1, 1); // Make it bright without emissive texture
             glowMat.backFaceCulling = false;
-            // Use opacity texture for alpha instead of diffuse
-            glowMat.opacityTexture = glowTexture;
-            glowMat.alpha = 1;
             glow.material = glowMat;
 
             // Create the sun itself
