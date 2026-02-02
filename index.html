@@ -1001,7 +1001,7 @@
     </div>
 
     <div id="hud" style="display: none;">
-        <div>Score: <span id="score">0</span></div>
+        <div>Credits: <span id="creditsHud">0</span></div>
         <div>Health: <span id="health">100</span></div>
         <div>Level: <span id="level">1</span> | Wave: <span id="wave">1</span>/<span id="totalWaves">3</span></div>
     </div>
@@ -1080,7 +1080,7 @@
 
     <div id="gameOver">
         <h2>Game Over</h2>
-        <p>Final Score: <span id="finalScore">0</span></p>
+        <p>Final Credits: <span id="finalCredits">0</span></p>
         <button id="restartBtn">Play Again</button>
     </div>
     </div><!-- end gameContainer -->
@@ -3839,7 +3839,7 @@
 
         // Update HUD
         function updateHUD() {
-            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('creditsHud').textContent = gameState.credits;
             document.getElementById('health').textContent = Math.max(0, gameState.health);
             document.getElementById('level').textContent = gameState.level;
             document.getElementById('wave').textContent = gameState.levelWave;
@@ -3854,7 +3854,7 @@
         // Game over
         function gameOver() {
             gameState.isPlaying = false;
-            document.getElementById('finalScore').textContent = gameState.score;
+            document.getElementById('finalCredits').textContent = gameState.credits;
             document.getElementById('gameOver').style.display = 'block';
             document.getElementById('harvestBar').style.display = 'none';
             document.getElementById('planetInfo').style.display = 'none';
