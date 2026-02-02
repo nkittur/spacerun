@@ -39,28 +39,6 @@
             touch-action: none;
         }
 
-        #settingsBtn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 40px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 8px;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #settingsBtn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
         #settingsPanel {
             position: absolute;
             top: 50%;
@@ -803,6 +781,153 @@
             font-size: 18px;
             margin: 20px 0;
         }
+
+        /* System Menu */
+        #systemBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #systemBtn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #systemMenu {
+            position: absolute;
+            top: 55px;
+            right: 10px;
+            background: rgba(20, 20, 40, 0.95);
+            border: 2px solid #4488ff;
+            border-radius: 10px;
+            padding: 8px 0;
+            z-index: 150;
+            display: none;
+            min-width: 150px;
+            box-shadow: 0 0 20px rgba(68, 136, 255, 0.5);
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.2s;
+        }
+
+        .menu-item:hover {
+            background: rgba(68, 136, 255, 0.3);
+        }
+
+        .menu-divider {
+            height: 1px;
+            background: rgba(68, 136, 255, 0.3);
+            margin: 5px 0;
+        }
+
+        /* Saved Notification */
+        #savedNotification {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(40, 180, 80, 0.9);
+            border: 2px solid #4f4;
+            border-radius: 8px;
+            padding: 10px 25px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 16px;
+            z-index: 300;
+            display: none;
+            box-shadow: 0 0 15px rgba(68, 255, 68, 0.5);
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
+
+        /* Confirmation Dialog */
+        #confirmDialog {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 40, 0.98);
+            border: 2px solid #ff6644;
+            border-radius: 15px;
+            padding: 25px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            z-index: 250;
+            display: none;
+            min-width: 280px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(255, 100, 68, 0.5);
+        }
+
+        #confirmDialog h3 {
+            margin-bottom: 15px;
+            color: #ff8866;
+        }
+
+        #confirmDialog p {
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #aaccff;
+        }
+
+        .confirm-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .confirm-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .confirm-btn.danger {
+            background: #ff4444;
+            color: white;
+        }
+
+        .confirm-btn.danger:hover {
+            background: #ff6666;
+        }
+
+        .confirm-btn.cancel {
+            background: #445566;
+            color: white;
+        }
+
+        .confirm-btn.cancel:hover {
+            background: #556677;
+        }
     </style>
 </head>
 <body>
@@ -817,7 +942,22 @@
         <div id="modelGrid"></div>
     </div>
 
-    <button id="settingsBtn" style="display: none;">⚙</button>
+    <button id="systemBtn" style="display: none;">☰</button>
+    <div id="systemMenu">
+        <div class="menu-item" id="menuSettings">⚙ Settings</div>
+        <div class="menu-divider"></div>
+        <div class="menu-item" id="menuSaveQuit">💾 Save & Quit</div>
+        <div class="menu-item" id="menuNewGame">🔄 New Game</div>
+    </div>
+    <div id="savedNotification">Saved...</div>
+    <div id="confirmDialog">
+        <h3>Start New Game?</h3>
+        <p>Your current progress will be lost if not saved.</p>
+        <div class="confirm-buttons">
+            <button class="confirm-btn danger" id="confirmNewGame">New Game</button>
+            <button class="confirm-btn cancel" id="cancelNewGame">Cancel</button>
+        </div>
+    </div>
 
     <div id="settingsPanel">
         <h2>Settings</h2>
@@ -1371,7 +1511,12 @@
             }
 
             loadingText.style.display = 'none';
-            document.getElementById('startBtn').style.display = 'block';
+            const startBtn = document.getElementById('startBtn');
+            startBtn.style.display = 'block';
+            // Show "Continue" if there's a saved game
+            if (hasSavedGame()) {
+                startBtn.textContent = 'Continue';
+            }
         }
 
         // Main game scene
@@ -2349,6 +2494,9 @@
             playWarpAnimation(() => {
                 // After animation, start new level with fresh background
                 startNewLevel(chosenConfig);
+                // Save game progress when entering new level
+                saveGame();
+                showSavedNotification();
                 gameState.isPaused = false;
             });
         }
@@ -3730,18 +3878,193 @@
             spawnWave();
         }
 
-        // Settings UI
-        const settingsBtn = document.getElementById('settingsBtn');
+        // =====================
+        // SAVE/LOAD SYSTEM
+        // =====================
+        const SAVE_KEY = 'spacerun_save';
+
+        function getSaveableState() {
+            return {
+                score: gameState.score,
+                health: gameState.health,
+                wave: gameState.wave,
+                level: gameState.level,
+                levelWave: gameState.levelWave,
+                levelConfig: gameState.levelConfig,
+                stationsVisited: gameState.stationsVisited,
+                currentZone: gameState.currentZone,
+                credits: gameState.credits,
+                ownedWeapons: gameState.ownedWeapons,
+                equippedWeapon: gameState.equippedWeapon,
+                baseShields: gameState.baseShields,
+                resources: gameState.resources,
+                distanceTraveled: gameState.distanceTraveled,
+                wavesUntilStarbase: gameState.wavesUntilStarbase,
+                savedAt: Date.now()
+            };
+        }
+
+        function saveGame() {
+            try {
+                const saveData = getSaveableState();
+                localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+                return true;
+            } catch (e) {
+                console.error('Failed to save game:', e);
+                return false;
+            }
+        }
+
+        function loadGame() {
+            try {
+                const saveStr = localStorage.getItem(SAVE_KEY);
+                if (!saveStr) return null;
+                return JSON.parse(saveStr);
+            } catch (e) {
+                console.error('Failed to load game:', e);
+                return null;
+            }
+        }
+
+        function hasSavedGame() {
+            return localStorage.getItem(SAVE_KEY) !== null;
+        }
+
+        function deleteSave() {
+            localStorage.removeItem(SAVE_KEY);
+        }
+
+        function applySavedState(saveData) {
+            if (!saveData) return;
+
+            gameState.score = saveData.score || 0;
+            gameState.health = saveData.health || 100;
+            gameState.wave = saveData.wave || 1;
+            gameState.level = saveData.level || 1;
+            gameState.levelWave = saveData.levelWave || 0;
+            gameState.levelConfig = saveData.levelConfig || generateLevelConfig(1);
+            gameState.stationsVisited = saveData.stationsVisited || 0;
+            gameState.currentZone = saveData.currentZone || 0;
+            gameState.credits = saveData.credits || 0;
+            gameState.ownedWeapons = saveData.ownedWeapons || ['basic'];
+            gameState.equippedWeapon = saveData.equippedWeapon || 'basic';
+            gameState.baseShields = saveData.baseShields || 100;
+            gameState.resources = saveData.resources || {};
+            gameState.distanceTraveled = saveData.distanceTraveled || 0;
+            gameState.wavesUntilStarbase = saveData.wavesUntilStarbase || 1;
+
+            // Update zone background
+            if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
+                backgroundMaterialA.diffuseTexture.dispose();
+                const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+                const textureA = new BABYLON.Texture(getBackgroundPath(gameState.currentZone), scene);
+                textureA.uScale = bgSize / 20;
+                textureA.vScale = bgSize * 2 / 20;
+                textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+                textureA.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+                textureA.vOffset = 0;
+                backgroundMaterialA.diffuseTexture = textureA;
+                backgroundMaterialA.emissiveTexture = textureA;
+            }
+
+            updateHUD();
+        }
+
+        function showSavedNotification() {
+            const notification = document.getElementById('savedNotification');
+            notification.style.display = 'block';
+            // Reset animation
+            notification.style.animation = 'none';
+            notification.offsetHeight; // Trigger reflow
+            notification.style.animation = 'fadeInOut 2s ease-in-out';
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 2000);
+        }
+
+        // Auto-save on visibility change (tab hidden/app paused)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && gameState.isPlaying && !gameState.isDocked) {
+                saveGame();
+                console.log('Auto-saved on pause');
+            }
+        });
+
+        // =====================
+        // SYSTEM MENU UI
+        // =====================
+        const systemBtn = document.getElementById('systemBtn');
+        const systemMenu = document.getElementById('systemMenu');
         const settingsPanel = document.getElementById('settingsPanel');
         const closeSettings = document.getElementById('closeSettings');
+        const confirmDialog = document.getElementById('confirmDialog');
 
-        settingsBtn.addEventListener('click', () => {
-            settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
-            gameState.isPaused = settingsPanel.style.display === 'block';
+        systemBtn.addEventListener('click', () => {
+            const isVisible = systemMenu.style.display === 'block';
+            systemMenu.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                gameState.isPaused = true;
+            }
+        });
+
+        // Close system menu when clicking elsewhere
+        document.addEventListener('click', (e) => {
+            if (!systemBtn.contains(e.target) && !systemMenu.contains(e.target) &&
+                !settingsPanel.contains(e.target) && !confirmDialog.contains(e.target)) {
+                systemMenu.style.display = 'none';
+                if (settingsPanel.style.display !== 'block' && confirmDialog.style.display !== 'block') {
+                    gameState.isPaused = false;
+                }
+            }
+        });
+
+        // Settings menu item
+        document.getElementById('menuSettings').addEventListener('click', () => {
+            systemMenu.style.display = 'none';
+            settingsPanel.style.display = 'block';
+            gameState.isPaused = true;
         });
 
         closeSettings.addEventListener('click', () => {
             settingsPanel.style.display = 'none';
+            gameState.isPaused = false;
+        });
+
+        // Save & Quit menu item
+        document.getElementById('menuSaveQuit').addEventListener('click', () => {
+            systemMenu.style.display = 'none';
+            saveGame();
+            showSavedNotification();
+
+            // Return to start screen after delay
+            setTimeout(() => {
+                gameState.isPlaying = false;
+                gameState.isPaused = false;
+                document.getElementById('hud').style.display = 'none';
+                document.getElementById('shieldsDisplay').style.display = 'none';
+                systemBtn.style.display = 'none';
+                document.getElementById('startScreen').style.display = 'flex';
+                document.getElementById('startBtn').textContent = 'Continue';
+            }, 500);
+        });
+
+        // New Game menu item
+        document.getElementById('menuNewGame').addEventListener('click', () => {
+            systemMenu.style.display = 'none';
+            confirmDialog.style.display = 'block';
+            gameState.isPaused = true;
+        });
+
+        // Confirm New Game
+        document.getElementById('confirmNewGame').addEventListener('click', () => {
+            confirmDialog.style.display = 'none';
+            deleteSave();
+            resetGame();
+        });
+
+        // Cancel New Game
+        document.getElementById('cancelNewGame').addEventListener('click', () => {
+            confirmDialog.style.display = 'none';
             gameState.isPaused = false;
         });
 
@@ -3785,7 +4108,7 @@
             });
 
             startScreen.style.display = 'none';
-            document.getElementById('settingsBtn').style.display = 'flex';
+            document.getElementById('systemBtn').style.display = 'flex';
             document.getElementById('hud').style.display = 'block';
             document.getElementById('shieldsDisplay').style.display = 'flex';
 
@@ -3794,16 +4117,22 @@
             // Stars hidden - using background textures instead
             initResources();
 
-            // Debug mode: start with 1000 credits
-            if (settings.debugMode) {
-                gameState.credits = 1000;
-            }
+            // Check for saved game
+            const savedGame = loadGame();
+            if (savedGame) {
+                applySavedState(savedGame);
+            } else {
+                // Debug mode: start with 1000 credits
+                if (settings.debugMode) {
+                    gameState.credits = 1000;
+                }
 
-            // Initialize first level
-            gameState.level = 1;
-            gameState.levelWave = 0;
-            gameState.levelConfig = generateLevelConfig(1);
-            gameState.wavesUntilStarbase = gameState.levelConfig.waveCount;
+                // Initialize first level
+                gameState.level = 1;
+                gameState.levelWave = 0;
+                gameState.levelConfig = generateLevelConfig(1);
+                gameState.wavesUntilStarbase = gameState.levelConfig.waveCount;
+            }
 
             spawnWave();
 
@@ -3900,6 +4229,8 @@
 
         document.getElementById('departBtn').addEventListener('click', () => {
             departStarbase();
+            saveGame();
+            showSavedNotification();
             spawnWave();
         });
 
