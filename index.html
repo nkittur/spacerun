@@ -1490,9 +1490,12 @@
 
             const ctx = dynamicTexture.getContext();
 
-            // Fully clear with solid black first (not just clearRect) to avoid iOS leftover pixels
+            // Clear canvas fully with transparent pixels to avoid iOS leftover pixel artifacts
             ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.fillStyle = 'black';
+            ctx.clearRect(0, 0, textureSize, textureSize);
+            // Fill with transparent to ensure all pixels are initialized
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+            ctx.globalCompositeOperation = 'source-over';
             ctx.fillRect(0, 0, textureSize, textureSize);
 
             const centerX = textureSize / 2;
