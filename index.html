@@ -1546,13 +1546,8 @@
                 sunGlowLayer.addIncludedOnlyMesh(sun);
             }
 
-            // Create a PointLight at the sun position to light nearby ships
-            const sunLight = new BABYLON.PointLight('sunLight_' + Date.now(), new BABYLON.Vector3(x, y, -5), scene);
-            sunLight.intensity = 3.0;
-            sunLight.range = 100; // Very broad light that covers most of the screen
-            sunLight.diffuse = new BABYLON.Color3(sunType.tint[0], sunType.tint[1], sunType.tint[2]);
-            sunLight.specular = new BABYLON.Color3(1, 1, 1);
-            sun.sunLight = sunLight;
+            // No PointLight - sun lighting is handled via material changes in applySunLighting()
+            // This prevents washout of ships and starbases
 
             sun.size = sunSize;
             sun.glowSize = sunSize * 4; // Used for cleanup distance check
@@ -1837,17 +1832,7 @@
                 sun.position.y -= moveAmount;
                 sun.rotation.z += 0.0005;
 
-                // Update PointLight position to follow sun
-                if (sun.sunLight) {
-                    sun.sunLight.position.x = sun.position.x;
-                    sun.sunLight.position.y = sun.position.y;
-                }
-
                 if (sun.position.y < -orthoHeight - sun.glowSize) {
-                    // Dispose the sun's PointLight
-                    if (sun.sunLight) {
-                        sun.sunLight.dispose();
-                    }
                     // Remove from GlowLayer
                     if (sunGlowLayer) {
                         sunGlowLayer.removeIncludedOnlyMesh(sun);
@@ -1858,77 +1843,100 @@
             }
         }
 
-        // Apply sun lighting to ships based on proximity
-        // Logic: Bright when near sun (lit by it), dark silhouette ONLY when directly overlapping
+        // Apply sun lighting to ships and starbase based on proximity
+        // Logic: Bright when near sun (lit by it), dark silhouette ONLY when directly overlapping the sun disc
         function applySunLighting() {
-            if (!playerShipMesh || gameState.suns.length === 0) return;
+            if (gameState.suns.length === 0) return;
 
-            // Find nearest sun and calculate lighting
-            let nearestSun = null;
-            let nearestDist = Infinity;
+            // Helper to apply lighting to a mesh based on distance to sun
+            const applyLightingToMesh = (mesh, dist, tint, sunSize) => {
+                if (!mesh.material || mesh.name.indexOf('exhaust') !== -1) return;
 
-            for (const sun of gameState.suns) {
-                const dx = sun.position.x - playerShip.position.x;
-                const dy = sun.position.y - playerShip.position.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < nearestDist) {
-                    nearestDist = dist;
-                    nearestSun = sun;
+                // The visual sun with glow appears larger than the mesh
+                // Sun mesh is sunSize, but with GlowLayer it appears ~2x larger
+                const silhouetteRadius = sunSize * 1.2; // Core sun disc where silhouette happens
+                const glowRadius = sunSize * 2.5; // Extended glow area - still bright
+                const lightingRange = 20; // How far the lighting effect extends
+
+                if (dist < silhouetteRadius) {
+                    // DIRECTLY OVER SUN DISC: Dark silhouette (backlit)
+                    const factor = dist / silhouetteRadius;
+                    mesh.material.emissiveColor = new BABYLON.Color3(0.03 * factor, 0.03 * factor, 0.03 * factor);
+                    mesh.material.diffuseColor = new BABYLON.Color3(0.05 * factor, 0.05 * factor, 0.05 * factor);
+                    if (mesh.material.emissiveTexture) mesh.material.emissiveTexture.level = 0.05 + factor * 0.1;
+                    if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.level = 0.05 + factor * 0.1;
+                } else if (dist < glowRadius) {
+                    // IN GLOW AREA: Very bright, strongly lit by sun
+                    const brightness = 1 - (dist - silhouetteRadius) / (glowRadius - silhouetteRadius);
+                    mesh.material.emissiveColor = new BABYLON.Color3(
+                        0.4 + tint[0] * brightness * 0.5,
+                        0.4 + tint[1] * brightness * 0.5,
+                        0.4 + tint[2] * brightness * 0.5
+                    );
+                    mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                    if (mesh.material.emissiveTexture) mesh.material.emissiveTexture.level = 1;
+                    if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.level = 1;
+                } else if (dist < lightingRange) {
+                    // NEAR SUN: Moderately lit
+                    const brightness = 1 - (dist - glowRadius) / (lightingRange - glowRadius);
+                    mesh.material.emissiveColor = new BABYLON.Color3(
+                        0.25 + tint[0] * brightness * 0.2,
+                        0.25 + tint[1] * brightness * 0.2,
+                        0.25 + tint[2] * brightness * 0.2
+                    );
+                    mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                    if (mesh.material.emissiveTexture) mesh.material.emissiveTexture.level = 1;
+                    if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.level = 1;
+                } else {
+                    // FAR FROM SUN: Normal lighting
+                    mesh.material.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+                    mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                    if (mesh.material.emissiveTexture) mesh.material.emissiveTexture.level = 1;
+                    if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.level = 1;
+                }
+            };
+
+            // Helper to get distance to nearest sun and apply lighting
+            const applyToObject = (objX, objY, meshes) => {
+                let nearestSun = null;
+                let nearestDist = Infinity;
+
+                for (const sun of gameState.suns) {
+                    const dx = sun.position.x - objX;
+                    const dy = sun.position.y - objY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestSun = sun;
+                    }
+                }
+
+                if (nearestSun) {
+                    meshes.forEach(mesh => applyLightingToMesh(mesh, nearestDist, nearestSun.tint, nearestSun.size));
+                }
+            };
+
+            // Apply to player ship
+            if (playerShipMesh) {
+                const playerMeshes = playerShipMesh.getChildMeshes(false) || [];
+                if (playerShipMesh.material) playerMeshes.push(playerShipMesh);
+                applyToObject(playerShip.position.x, playerShip.position.y, playerMeshes);
+            }
+
+            // Apply to enemies
+            for (const enemy of gameState.enemies) {
+                if (enemy.mesh) {
+                    const enemyMeshes = enemy.mesh.getChildMeshes(false) || [];
+                    if (enemy.mesh.material) enemyMeshes.push(enemy.mesh);
+                    applyToObject(enemy.position.x, enemy.position.y, enemyMeshes);
                 }
             }
 
-            if (nearestSun) {
-                const tint = nearestSun.tint;
-                const sunVisualRadius = nearestSun.size * 0.5; // Actual visible sun disc
-                const lightingZone = 25; // How far sun light reaches
-
-                // Helper to apply lighting to a mesh
-                const applyLightingToMesh = (mesh, dist) => {
-                    if (!mesh.material || mesh.name.indexOf('exhaust') !== -1) return;
-
-                    if (dist < sunVisualRadius) {
-                        // DIRECTLY OVER SUN: Dark silhouette (backlit)
-                        mesh.material.emissiveColor = new BABYLON.Color3(0.02, 0.02, 0.02);
-                        mesh.material.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
-                        if (mesh.material.emissiveTexture) mesh.material.emissiveTexture.level = 0.1;
-                        if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.level = 0.1;
-                    } else if (dist < lightingZone) {
-                        // NEAR SUN: Bright, lit by sun
-                        const brightness = 1 - (dist - sunVisualRadius) / (lightingZone - sunVisualRadius);
-                        mesh.material.emissiveColor = new BABYLON.Color3(
-                            0.3 + tint[0] * brightness * 0.7,
-                            0.3 + tint[1] * brightness * 0.7,
-                            0.3 + tint[2] * brightness * 0.7
-                        );
-                        mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
-                        if (mesh.material.emissiveTexture) mesh.material.emissiveTexture.level = 1;
-                        if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.level = 1;
-                    } else {
-                        // FAR FROM SUN: Normal lighting
-                        mesh.material.emissiveColor = new BABYLON.Color3(0.25, 0.25, 0.25);
-                        mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
-                        if (mesh.material.emissiveTexture) mesh.material.emissiveTexture.level = 1;
-                        if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.level = 1;
-                    }
-                };
-
-                // Apply to player ship
-                const playerMeshes = playerShipMesh.getChildMeshes(false) || [];
-                if (playerShipMesh.material) playerMeshes.push(playerShipMesh);
-                playerMeshes.forEach(mesh => applyLightingToMesh(mesh, nearestDist));
-
-                // Apply to enemies
-                for (const enemy of gameState.enemies) {
-                    if (enemy.mesh) {
-                        const edx = nearestSun.position.x - enemy.position.x;
-                        const edy = nearestSun.position.y - enemy.position.y;
-                        const eDist = Math.sqrt(edx * edx + edy * edy);
-
-                        const enemyMeshes = enemy.mesh.getChildMeshes(false) || [];
-                        if (enemy.mesh.material) enemyMeshes.push(enemy.mesh);
-                        enemyMeshes.forEach(mesh => applyLightingToMesh(mesh, eDist));
-                    }
-                }
+            // Apply to starbase
+            if (gameState.starbase) {
+                const starbaseMeshes = gameState.starbase.getChildMeshes ? gameState.starbase.getChildMeshes(false) || [] : [];
+                if (gameState.starbase.material) starbaseMeshes.push(gameState.starbase);
+                applyToObject(gameState.starbase.position.x, gameState.starbase.position.y, starbaseMeshes);
             }
         }
 
@@ -2905,9 +2913,6 @@
             gameState.planets = [];
 
             gameState.suns.forEach(s => {
-                if (s.sunLight) {
-                    s.sunLight.dispose();
-                }
                 if (sunGlowLayer) {
                     sunGlowLayer.removeIncludedOnlyMesh(s);
                 }
