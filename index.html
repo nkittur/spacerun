@@ -1062,6 +1062,29 @@
             const light2 = new BABYLON.DirectionalLight('light2', new BABYLON.Vector3(0, 0, -1), scene);
             light2.intensity = 0.8;
 
+            // GlowLayer for suns only - whitelisted meshes
+            sunGlowLayer = new BABYLON.GlowLayer('sunGlow', scene, {
+                mainTextureFixedSize: 512,
+                blurKernelSize: 64
+            });
+            sunGlowLayer.intensity = 1.5;
+
+            // DefaultRenderingPipeline for global bloom
+            renderPipeline = new BABYLON.DefaultRenderingPipeline(
+                'defaultPipeline',
+                true,
+                scene,
+                [camera]
+            );
+            renderPipeline.bloomEnabled = true;
+            renderPipeline.bloomKernel = 64;
+            renderPipeline.bloomWeight = 0.3;
+            renderPipeline.bloomThreshold = 0.8; // High threshold so only suns bloom
+            renderPipeline.bloomScale = 0.5;
+            renderPipeline.imageProcessingEnabled = true;
+            renderPipeline.imageProcessing.contrast = 1.1;
+            renderPipeline.imageProcessing.exposure = 1.0;
+
             materials.playerBullet = new BABYLON.StandardMaterial('playerBulletMat', scene);
             materials.playerBullet.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
 
@@ -1477,43 +1500,9 @@
             }
         }
 
-        // Create glow effect using concentric discs (avoids DynamicTexture iOS issues)
-        function createGlowDiscs(scene, x, y, z, glowSize, tint) {
-            const discs = [];
-            // 8 layers for smooth gradient
-            const layers = [
-                { radiusFactor: 1.0, alpha: 0.03 },
-                { radiusFactor: 0.85, alpha: 0.06 },
-                { radiusFactor: 0.7, alpha: 0.1 },
-                { radiusFactor: 0.55, alpha: 0.15 },
-                { radiusFactor: 0.4, alpha: 0.25 },
-                { radiusFactor: 0.28, alpha: 0.35 },
-                { radiusFactor: 0.18, alpha: 0.5 },
-                { radiusFactor: 0.1, alpha: 0.7 }
-            ];
-
-            layers.forEach((layer, i) => {
-                const disc = BABYLON.MeshBuilder.CreateDisc('glowDisc' + i, {
-                    radius: (glowSize / 2) * layer.radiusFactor,
-                    tessellation: 32
-                }, scene);
-                disc.position.x = x;
-                disc.position.y = y;
-                disc.position.z = z + (i * 0.001); // Slight z offset to prevent z-fighting
-
-                const mat = new BABYLON.StandardMaterial('glowMat' + i, scene);
-                mat.diffuseColor = new BABYLON.Color3(tint[0], tint[1], tint[2]);
-                mat.emissiveColor = new BABYLON.Color3(tint[0], tint[1], tint[2]);
-                mat.alpha = layer.alpha;
-                mat.disableLighting = true;
-                mat.backFaceCulling = false;
-                disc.material = mat;
-
-                discs.push(disc);
-            });
-
-            return discs;
-        }
+        // Global glow layer for suns (initialized in setupScene)
+        let sunGlowLayer = null;
+        let renderPipeline = null;
 
         // Create a sun
         function createSun(x, y) {
@@ -1529,11 +1518,7 @@
 
             const sunSize = 4 + Math.random() * 2; // 4-6 units
 
-            // Create glow using concentric discs (avoids iOS DynamicTexture issues)
-            const glowSize = sunSize * 8;
-            const glowDiscs = createGlowDiscs(scene, x, y, 0.9, glowSize, sunType.tint);
-
-            // Create the sun itself
+            // Create the sun mesh
             const sun = BABYLON.MeshBuilder.CreatePlane('sun', { size: sunSize }, scene);
             sun.position.x = x;
             sun.position.y = y;
@@ -1545,19 +1530,33 @@
             const mat = new BABYLON.StandardMaterial('sunMat', scene);
             mat.diffuseTexture = texture;
             mat.emissiveTexture = texture;
+            // Strong emissive for GlowLayer to pick up
             mat.emissiveColor = new BABYLON.Color3(
-                sunType.tint[0] * 0.7,
-                sunType.tint[1] * 0.7,
-                sunType.tint[2] * 0.7
+                sunType.tint[0],
+                sunType.tint[1],
+                sunType.tint[2]
             );
             mat.useAlphaFromDiffuseTexture = true;
             mat.backFaceCulling = false;
+            mat.disableLighting = true;
             sun.material = mat;
 
+            // Add sun to GlowLayer for bloom effect
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(sun);
+            }
+
+            // Create a PointLight at the sun position to light nearby ships
+            const sunLight = new BABYLON.PointLight('sunLight_' + Date.now(), new BABYLON.Vector3(x, y, -5), scene);
+            sunLight.intensity = 2.0;
+            sunLight.range = sunSize * 10;
+            sunLight.diffuse = new BABYLON.Color3(sunType.tint[0], sunType.tint[1], sunType.tint[2]);
+            sunLight.specular = new BABYLON.Color3(0.5, 0.5, 0.5);
+            sun.sunLight = sunLight;
+
             sun.size = sunSize;
-            sun.glowSize = glowSize;
+            sun.glowSize = sunSize * 4; // Used for cleanup distance check
             sun.isSun = true;
-            sun.glowDiscs = glowDiscs; // Array of disc meshes
             sun.tint = sunType.tint;
 
             return sun;
@@ -1838,21 +1837,20 @@
                 sun.position.y -= moveAmount;
                 sun.rotation.z += 0.0005;
 
-                // Update all glow disc positions
-                if (sun.glowDiscs) {
-                    sun.glowDiscs.forEach(disc => {
-                        disc.position.x = sun.position.x;
-                        disc.position.y = sun.position.y;
-                    });
+                // Update PointLight position to follow sun
+                if (sun.sunLight) {
+                    sun.sunLight.position.x = sun.position.x;
+                    sun.sunLight.position.y = sun.position.y;
                 }
 
                 if (sun.position.y < -orthoHeight - sun.glowSize) {
-                    // Dispose all glow discs
-                    if (sun.glowDiscs) {
-                        sun.glowDiscs.forEach(disc => {
-                            if (disc.material) disc.material.dispose();
-                            disc.dispose();
-                        });
+                    // Dispose the sun's PointLight
+                    if (sun.sunLight) {
+                        sun.sunLight.dispose();
+                    }
+                    // Remove from GlowLayer
+                    if (sunGlowLayer) {
+                        sunGlowLayer.removeIncludedOnlyMesh(sun);
                     }
                     sun.dispose();
                     gameState.suns.splice(i, 1);
@@ -2808,11 +2806,11 @@
             gameState.planets = [];
 
             gameState.suns.forEach(s => {
-                if (s.glowDiscs) {
-                    s.glowDiscs.forEach(disc => {
-                        if (disc.material) disc.material.dispose();
-                        disc.dispose();
-                    });
+                if (s.sunLight) {
+                    s.sunLight.dispose();
+                }
+                if (sunGlowLayer) {
+                    sunGlowLayer.removeIncludedOnlyMesh(s);
                 }
                 s.dispose();
             });
