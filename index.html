@@ -1859,6 +1859,7 @@
         }
 
         // Apply sun lighting to ships based on proximity
+        // Logic: Bright when near sun (lit by it), dark silhouette ONLY when directly overlapping
         function applySunLighting() {
             if (!playerShipMesh || gameState.suns.length === 0) return;
 
@@ -1878,50 +1879,43 @@
 
             if (nearestSun) {
                 const tint = nearestSun.tint;
-                const sunRadius = nearestSun.size;
+                const sunVisualRadius = nearestSun.size * 0.5; // Actual visible sun disc
+                const lightingZone = 25; // How far sun light reaches
 
-                // Silhouette zone: much larger to account for visual glow
-                const silhouetteZone = sunRadius * 3;
-                // Light influence zone: for color tinting
-                const lightZone = 30;
+                // Helper to apply lighting to a mesh
+                const applyLightingToMesh = (mesh, dist) => {
+                    if (!mesh.material || mesh.name.indexOf('exhaust') !== -1) return;
 
-                // Apply to player ship - get ALL descendant meshes
+                    if (dist < sunVisualRadius) {
+                        // DIRECTLY OVER SUN: Dark silhouette (backlit)
+                        mesh.material.emissiveColor = new BABYLON.Color3(0.02, 0.02, 0.02);
+                        mesh.material.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+                        if (mesh.material.emissiveTexture) mesh.material.emissiveTexture.level = 0.1;
+                        if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.level = 0.1;
+                    } else if (dist < lightingZone) {
+                        // NEAR SUN: Bright, lit by sun
+                        const brightness = 1 - (dist - sunVisualRadius) / (lightingZone - sunVisualRadius);
+                        mesh.material.emissiveColor = new BABYLON.Color3(
+                            0.3 + tint[0] * brightness * 0.7,
+                            0.3 + tint[1] * brightness * 0.7,
+                            0.3 + tint[2] * brightness * 0.7
+                        );
+                        mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                        if (mesh.material.emissiveTexture) mesh.material.emissiveTexture.level = 1;
+                        if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.level = 1;
+                    } else {
+                        // FAR FROM SUN: Normal lighting
+                        mesh.material.emissiveColor = new BABYLON.Color3(0.25, 0.25, 0.25);
+                        mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                        if (mesh.material.emissiveTexture) mesh.material.emissiveTexture.level = 1;
+                        if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.level = 1;
+                    }
+                };
+
+                // Apply to player ship
                 const playerMeshes = playerShipMesh.getChildMeshes(false) || [];
                 if (playerShipMesh.material) playerMeshes.push(playerShipMesh);
-
-                playerMeshes.forEach(mesh => {
-                    if (mesh.material && mesh.name.indexOf('exhaust') === -1) {
-                        if (nearestDist < silhouetteZone) {
-                            // Silhouette effect when near sun - make ship dark
-                            const silhouetteFactor = nearestDist / silhouetteZone;
-                            const darkness = 0.05 * silhouetteFactor;
-                            mesh.material.emissiveColor = new BABYLON.Color3(darkness, darkness, darkness);
-                            mesh.material.diffuseColor = new BABYLON.Color3(darkness * 2, darkness * 2, darkness * 2);
-                            // Reduce texture influence
-                            if (mesh.material.emissiveTexture) {
-                                mesh.material.emissiveTexture.level = silhouetteFactor * 0.2;
-                            }
-                            if (mesh.material.diffuseTexture) {
-                                mesh.material.diffuseTexture.level = silhouetteFactor * 0.3;
-                            }
-                        } else {
-                            // Normal tinted lighting outside silhouette zone - stronger effect
-                            const intensity = Math.max(0, 1 - (nearestDist - silhouetteZone) / lightZone);
-                            mesh.material.emissiveColor = new BABYLON.Color3(
-                                0.2 + tint[0] * intensity * 0.5,
-                                0.2 + tint[1] * intensity * 0.5,
-                                0.2 + tint[2] * intensity * 0.5
-                            );
-                            mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
-                            if (mesh.material.emissiveTexture) {
-                                mesh.material.emissiveTexture.level = 1;
-                            }
-                            if (mesh.material.diffuseTexture) {
-                                mesh.material.diffuseTexture.level = 1;
-                            }
-                        }
-                    }
-                });
+                playerMeshes.forEach(mesh => applyLightingToMesh(mesh, nearestDist));
 
                 // Apply to enemies
                 for (const enemy of gameState.enemies) {
@@ -1932,39 +1926,7 @@
 
                         const enemyMeshes = enemy.mesh.getChildMeshes(false) || [];
                         if (enemy.mesh.material) enemyMeshes.push(enemy.mesh);
-
-                        enemyMeshes.forEach(mesh => {
-                            if (mesh.material && mesh.name.indexOf('exhaust') === -1) {
-                                if (eDist < silhouetteZone) {
-                                    // Silhouette effect when near sun
-                                    const silhouetteFactor = eDist / silhouetteZone;
-                                    const darkness = 0.05 * silhouetteFactor;
-                                    mesh.material.emissiveColor = new BABYLON.Color3(darkness, darkness, darkness);
-                                    mesh.material.diffuseColor = new BABYLON.Color3(darkness * 2, darkness * 2, darkness * 2);
-                                    if (mesh.material.emissiveTexture) {
-                                        mesh.material.emissiveTexture.level = silhouetteFactor * 0.2;
-                                    }
-                                    if (mesh.material.diffuseTexture) {
-                                        mesh.material.diffuseTexture.level = silhouetteFactor * 0.3;
-                                    }
-                                } else {
-                                    // Normal tinted lighting
-                                    const eIntensity = Math.max(0, 1 - (eDist - silhouetteZone) / lightZone);
-                                    mesh.material.emissiveColor = new BABYLON.Color3(
-                                        0.2 + tint[0] * eIntensity * 0.5,
-                                        0.2 + tint[1] * eIntensity * 0.5,
-                                        0.2 + tint[2] * eIntensity * 0.5
-                                    );
-                                    mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
-                                    if (mesh.material.emissiveTexture) {
-                                        mesh.material.emissiveTexture.level = 1;
-                                    }
-                                    if (mesh.material.diffuseTexture) {
-                                        mesh.material.diffuseTexture.level = 1;
-                                    }
-                                }
-                            }
-                        });
+                        enemyMeshes.forEach(mesh => applyLightingToMesh(mesh, eDist));
                     }
                 }
             }
@@ -2261,9 +2223,9 @@
             playerShipMesh = await loadShipModel(settings.playerShip, settings.playerColor, scene, 'up');
             playerShipMesh.parent = playerShip;
 
-            // Add blue engine exhaust - position much lower behind ship
+            // Add blue engine exhaust - positioned at rear of ship
             const blueColor = new BABYLON.Color3(0.3, 0.6, 1);
-            playerShip.exhausts = createEngineExhaust(playerShip, blueColor, -1.2, false);
+            playerShip.exhausts = createEngineExhaust(playerShip, blueColor, -0.5, false);
 
             playerShip.position = new BABYLON.Vector3(0, -7, 0);
             playerShip.targetX = 0;
@@ -2305,7 +2267,7 @@
 
             // Add red engine exhaust (facing up since enemy is rotated down)
             const redColor = new BABYLON.Color3(1, 0.4, 0.2);
-            enemy.exhausts = createEngineExhaust(enemy, redColor, 1.0, true);
+            enemy.exhausts = createEngineExhaust(enemy, redColor, 0.45, true);
 
             enemy.position.x = x;
             enemy.position.y = y;
