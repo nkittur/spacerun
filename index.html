@@ -2005,7 +2005,7 @@
         let sunGlowLayer = null;
         let renderPipeline = null;
 
-        // Create a sun
+        // Create a sun with geometry-based corona (not post-process glow)
         function createSun(x, y) {
             if (!scene) return null;
 
@@ -2019,11 +2019,42 @@
 
             const sunSize = 4 + Math.random() * 2; // 4-6 units
 
+            // Create parent node for sun + corona
+            const sunNode = new BABYLON.TransformNode('sunNode', scene);
+            sunNode.position.x = x;
+            sunNode.position.y = y;
+            sunNode.position.z = 3; // Far behind everything except background
+
+            // Create corona (glow aura) - multiple layers for soft glow effect
+            const coronaSizes = [2.5, 2.0, 1.6];
+            const coronaAlphas = [0.08, 0.12, 0.2];
+            sunNode.coronas = [];
+
+            coronaSizes.forEach((sizeMult, i) => {
+                const corona = BABYLON.MeshBuilder.CreatePlane('corona' + i, { size: sunSize * sizeMult }, scene);
+                corona.parent = sunNode;
+                corona.position.z = 0.1 * (i + 1); // Slightly behind sun
+
+                const coronaMat = new BABYLON.StandardMaterial('coronaMat' + i, scene);
+                coronaMat.emissiveColor = new BABYLON.Color3(
+                    sunType.tint[0],
+                    sunType.tint[1],
+                    sunType.tint[2]
+                );
+                coronaMat.alpha = coronaAlphas[i];
+                coronaMat.disableLighting = true;
+                coronaMat.backFaceCulling = false;
+                coronaMat.disableDepthWrite = true;
+                corona.material = coronaMat;
+                corona.renderingGroupId = 1;
+
+                sunNode.coronas.push(corona);
+            });
+
             // Create the sun mesh
             const sun = BABYLON.MeshBuilder.CreatePlane('sun', { size: sunSize }, scene);
-            sun.position.x = x;
-            sun.position.y = y;
-            sun.position.z = 3; // Far behind everything except background
+            sun.parent = sunNode;
+            sun.position.z = 0;
 
             const texture = new BABYLON.Texture(imagePath, scene);
             texture.hasAlpha = true;
@@ -2031,7 +2062,6 @@
             const mat = new BABYLON.StandardMaterial('sunMat', scene);
             mat.diffuseTexture = texture;
             mat.emissiveTexture = texture;
-            // Strong emissive for GlowLayer to pick up
             mat.emissiveColor = new BABYLON.Color3(
                 sunType.tint[0],
                 sunType.tint[1],
@@ -2040,27 +2070,19 @@
             mat.useAlphaFromDiffuseTexture = true;
             mat.backFaceCulling = false;
             mat.disableLighting = true;
-            // Disable depth writing so other objects render on top
             mat.disableDepthWrite = true;
             sun.material = mat;
-
-            // Use rendering group to ensure sun renders before game objects
             sun.renderingGroupId = 1;
 
-            // Add sun to GlowLayer for bloom effect
-            if (sunGlowLayer) {
-                sunGlowLayer.addIncludedOnlyMesh(sun);
-            }
+            // Do NOT add sun to GlowLayer - use geometry corona instead
 
-            // No PointLight - sun lighting is handled via material changes in applySunLighting()
-            // This prevents washout of ships and starbases
+            sunNode.size = sunSize;
+            sunNode.glowSize = sunSize * 4;
+            sunNode.isSun = true;
+            sunNode.tint = sunType.tint;
+            sunNode.sunMesh = sun;
 
-            sun.size = sunSize;
-            sun.glowSize = sunSize * 4; // Used for cleanup distance check
-            sun.isSun = true;
-            sun.tint = sunType.tint;
-
-            return sun;
+            return sunNode;
         }
 
         // Create a planet at specific position
@@ -2113,8 +2135,8 @@
             planet.richness = Math.floor(Math.random() * 5) + 1;
             // Hazardousness affects harvest time (1-5 scale, higher = longer)
             planet.hazard = Math.floor(Math.random() * 5) + 1;
-            // Base harvest time is 2 seconds, hazard adds 0.5s per level
-            planet.harvestTime = 1500 + planet.hazard * 500; // 2s to 4s
+            // Base harvest time is 4 seconds, hazard adds 1s per level
+            planet.harvestTime = 3000 + planet.hazard * 1000; // 4s to 8s
 
             return planet;
         }
@@ -2342,6 +2364,32 @@
         // Create warp gates at end of level
         function createWarpGates() {
             if (!scene || gameState.showingGates) return;
+
+            // Clear any planets/suns above the player to make room for gates
+            const clearThreshold = playerShip ? playerShip.position.y + 3 : 0;
+
+            // Remove planets above threshold
+            for (let i = gameState.planets.length - 1; i >= 0; i--) {
+                if (gameState.planets[i].position.y > clearThreshold) {
+                    gameState.planets[i].dispose();
+                    gameState.planets.splice(i, 1);
+                }
+            }
+
+            // Remove suns above threshold (with their coronas)
+            for (let i = gameState.suns.length - 1; i >= 0; i--) {
+                if (gameState.suns[i].position.y > clearThreshold) {
+                    const sun = gameState.suns[i];
+                    if (sun.coronas) {
+                        sun.coronas.forEach(c => c.dispose());
+                    }
+                    if (sun.sunMesh) {
+                        sun.sunMesh.dispose();
+                    }
+                    sun.dispose();
+                    gameState.suns.splice(i, 1);
+                }
+            }
 
             // Generate two different level options
             const nextLevel = gameState.level + 1;
@@ -2612,9 +2660,14 @@
             gameState.planets.forEach(p => p.dispose());
             gameState.planets = [];
 
-            // Clear suns
+            // Clear suns (with their corona children)
             gameState.suns.forEach(s => {
-                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(s);
+                if (s.coronas) {
+                    s.coronas.forEach(c => c.dispose());
+                }
+                if (s.sunMesh) {
+                    s.sunMesh.dispose();
+                }
                 s.dispose();
             });
             gameState.suns = [];
@@ -2665,12 +2718,19 @@
 
                 const moveAmount = 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 sun.position.y -= moveAmount;
-                sun.rotation.z += 0.0005;
+
+                // Rotate the sun mesh (not the whole node with coronas)
+                if (sun.sunMesh) {
+                    sun.sunMesh.rotation.z += 0.0005;
+                }
 
                 if (sun.position.y < -orthoHeight - sun.glowSize) {
-                    // Remove from GlowLayer
-                    if (sunGlowLayer) {
-                        sunGlowLayer.removeIncludedOnlyMesh(sun);
+                    // Dispose corona meshes
+                    if (sun.coronas) {
+                        sun.coronas.forEach(c => c.dispose());
+                    }
+                    if (sun.sunMesh) {
+                        sun.sunMesh.dispose();
                     }
                     sun.dispose();
                     gameState.suns.splice(i, 1);
@@ -3824,8 +3884,11 @@
             gameState.planets = [];
 
             gameState.suns.forEach(s => {
-                if (sunGlowLayer) {
-                    sunGlowLayer.removeIncludedOnlyMesh(s);
+                if (s.coronas) {
+                    s.coronas.forEach(c => c.dispose());
+                }
+                if (s.sunMesh) {
+                    s.sunMesh.dispose();
                 }
                 s.dispose();
             });
@@ -4205,8 +4268,12 @@
                 }
 
                 // Spawn solar systems with spacing - apply speed multiplier
+                // Don't spawn when warp gates are showing or about to show (last wave)
+                const isLastWave = gameState.levelConfig && gameState.levelWave >= gameState.levelConfig.waveCount - 1;
+                const shouldSpawnSolarSystems = !gameState.showingGates && !isLastWave;
+
                 gameState.nextSolarSystemY -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
-                if (gameState.nextSolarSystemY < orthoHeight + 10) {
+                if (gameState.nextSolarSystemY < orthoHeight + 10 && shouldSpawnSolarSystems) {
                     createSolarSystem();
                 }
 
