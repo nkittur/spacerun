@@ -499,6 +499,101 @@
             background: #ff5555;
         }
 
+        /* Warp Gate Selection UI */
+        #warpGatePanel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: 20px;
+            z-index: 80;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        .warp-gate-card {
+            background: rgba(10, 15, 30, 0.9);
+            border: 2px solid #4488ff;
+            border-radius: 12px;
+            padding: 15px;
+            width: 150px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(68, 136, 255, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .warp-gate-card:hover {
+            border-color: #66aaff;
+            box-shadow: 0 0 30px rgba(68, 136, 255, 0.5);
+        }
+
+        .warp-gate-card.left {
+            border-color: #ff8844;
+            box-shadow: 0 0 20px rgba(255, 136, 68, 0.3);
+        }
+
+        .warp-gate-card.left:hover {
+            border-color: #ffaa66;
+            box-shadow: 0 0 30px rgba(255, 136, 68, 0.5);
+        }
+
+        .warp-gate-card.right {
+            border-color: #44ff88;
+            box-shadow: 0 0 20px rgba(68, 255, 136, 0.3);
+        }
+
+        .warp-gate-card.right:hover {
+            border-color: #66ffaa;
+            box-shadow: 0 0 30px rgba(68, 255, 136, 0.5);
+        }
+
+        .gate-title {
+            font-size: 12px;
+            color: #88aadd;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .gate-signature {
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        .gate-stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .gate-stat-label {
+            color: #88aacc;
+        }
+
+        .gate-stat-value {
+            font-weight: bold;
+        }
+
+        .gate-stat-value.danger {
+            color: #ff6644;
+        }
+
+        .gate-stat-value.medium {
+            color: #ffaa44;
+        }
+
+        .gate-stat-value.safe {
+            color: #44ff88;
+        }
+
+        .gate-instruction {
+            margin-top: 10px;
+            font-size: 10px;
+            color: #668899;
+            font-style: italic;
+        }
+
         #startScreen {
             position: absolute;
             top: 0;
@@ -645,7 +740,7 @@
     <div id="hud" style="display: none;">
         <div>Score: <span id="score">0</span></div>
         <div>Health: <span id="health">100</span></div>
-        <div>Wave: <span id="wave">1</span></div>
+        <div>Level: <span id="level">1</span> | Wave: <span id="wave">1</span>/<span id="totalWaves">3</span></div>
     </div>
 
     <div id="shieldsDisplay" style="display: none;">
@@ -678,6 +773,45 @@
         </div>
 
         <button id="departBtn">Depart</button>
+    </div>
+
+    <div id="warpGatePanel">
+        <div class="warp-gate-card left" id="gateLeft">
+            <div class="gate-title">Gate Alpha</div>
+            <div class="gate-signature">
+                <div class="gate-stat">
+                    <span class="gate-stat-label">Threat:</span>
+                    <span class="gate-stat-value" id="gateLeftThreat">Medium</span>
+                </div>
+                <div class="gate-stat">
+                    <span class="gate-stat-label">Waves:</span>
+                    <span class="gate-stat-value" id="gateLeftWaves">3</span>
+                </div>
+                <div class="gate-stat">
+                    <span class="gate-stat-label">Stations:</span>
+                    <span class="gate-stat-value" id="gateLeftStations">1 Trade</span>
+                </div>
+            </div>
+            <div class="gate-instruction">Fly into gate</div>
+        </div>
+        <div class="warp-gate-card right" id="gateRight">
+            <div class="gate-title">Gate Beta</div>
+            <div class="gate-signature">
+                <div class="gate-stat">
+                    <span class="gate-stat-label">Threat:</span>
+                    <span class="gate-stat-value" id="gateRightThreat">High</span>
+                </div>
+                <div class="gate-stat">
+                    <span class="gate-stat-label">Waves:</span>
+                    <span class="gate-stat-value" id="gateRightWaves">5</span>
+                </div>
+                <div class="gate-stat">
+                    <span class="gate-stat-label">Stations:</span>
+                    <span class="gate-stat-value" id="gateRightStations">2 Armory</span>
+                </div>
+            </div>
+            <div class="gate-instruction">Fly into gate</div>
+        </div>
     </div>
 
     <div id="gameOver">
@@ -855,7 +989,15 @@
             ownedWeapons: ['basic'],
             equippedWeapon: 'basic',
             beamActive: false,
-            beamMesh: null
+            beamMesh: null,
+            // River navigation - level system
+            level: 1,
+            levelWave: 0,           // Current wave within level (0 = not started)
+            levelConfig: null,      // Config for current level
+            stationsVisited: 0,     // How many stations visited this level
+            warpGates: [],          // Active warp gates
+            gateChoices: null,      // The two gate options
+            showingGates: false     // Whether gates are currently displayed
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -901,6 +1043,78 @@
                 damage: 2
             }
         };
+
+        // Station types for level signatures
+        const STATION_TYPES = ['Trade', 'Armory', 'Repair', 'Fuel'];
+
+        // Generate a random level configuration
+        function generateLevelConfig(levelNum) {
+            // Difficulty scales with level
+            const baseDifficulty = Math.min(levelNum, 10);
+
+            // Random number of waves (2-6, scaling with level)
+            const minWaves = Math.min(2 + Math.floor(levelNum / 3), 4);
+            const maxWaves = Math.min(3 + Math.floor(levelNum / 2), 7);
+            const waveCount = minWaves + Math.floor(Math.random() * (maxWaves - minWaves + 1));
+
+            // Enemy strength: Low, Medium, High, Extreme
+            const strengthRoll = Math.random() + (levelNum * 0.05);
+            let threatLevel, threatClass;
+            if (strengthRoll < 0.3) {
+                threatLevel = 'Low';
+                threatClass = 'safe';
+            } else if (strengthRoll < 0.6) {
+                threatLevel = 'Medium';
+                threatClass = 'medium';
+            } else if (strengthRoll < 0.85) {
+                threatLevel = 'High';
+                threatClass = 'danger';
+            } else {
+                threatLevel = 'Extreme';
+                threatClass = 'danger';
+            }
+
+            // Enemy multiplier based on threat
+            const enemyMultiplier = { 'Low': 0.7, 'Medium': 1.0, 'High': 1.3, 'Extreme': 1.6 }[threatLevel];
+
+            // Stations (0-2, random types)
+            const stationCount = Math.floor(Math.random() * 3);
+            const stations = [];
+            for (let i = 0; i < stationCount; i++) {
+                stations.push(STATION_TYPES[Math.floor(Math.random() * STATION_TYPES.length)]);
+            }
+
+            // Format stations for display
+            let stationDisplay = 'None';
+            if (stations.length > 0) {
+                const stationCounts = {};
+                stations.forEach(s => stationCounts[s] = (stationCounts[s] || 0) + 1);
+                stationDisplay = Object.entries(stationCounts)
+                    .map(([type, count]) => count > 1 ? `${count} ${type}` : type)
+                    .join(', ');
+            }
+
+            // Calculate which waves should have stations after them
+            // Distribute stations evenly through the level
+            const stationWaves = [];
+            if (stations.length > 0) {
+                const interval = Math.floor(waveCount / (stations.length + 1));
+                for (let i = 0; i < stations.length; i++) {
+                    stationWaves.push(interval * (i + 1));
+                }
+            }
+
+            return {
+                waveCount,
+                threatLevel,
+                threatClass,
+                enemyMultiplier,
+                stations,
+                stationWaves,  // Which wave numbers trigger station spawns
+                stationDisplay,
+                levelNum
+            };
+        }
 
         // Background meshes for crossfade (A=current, B=transition target, C=next zone)
         let backgroundMeshA = null;
@@ -1748,7 +1962,6 @@
             if (starbase.position.y < -orthoHeight - starbase.size) {
                 starbase.dispose();
                 gameState.starbase = null;
-                gameState.wavesUntilStarbase = 1; // Reset counter
                 spawnWave(); // Spawn next wave
             }
         }
@@ -1831,14 +2044,170 @@
                 gameState.starbase.dispose();
                 gameState.starbase = null;
             }
-
-            // Reset waves until next starbase
-            gameState.wavesUntilStarbase = 1;
         }
 
         // Make functions available globally for onclick
         window.buyWeapon = buyWeapon;
         window.equipWeapon = equipWeapon;
+
+        // ========== RIVER NAVIGATION - WARP GATES ==========
+
+        // Create warp gates at end of level
+        function createWarpGates() {
+            if (!scene || gameState.showingGates) return;
+
+            // Generate two different level options
+            const nextLevel = gameState.level + 1;
+            gameState.gateChoices = {
+                left: generateLevelConfig(nextLevel),
+                right: generateLevelConfig(nextLevel)
+            };
+
+            // Update UI with gate signatures
+            updateGateUI();
+
+            // Create the gate meshes
+            const gateSize = 2.5;
+            const gateY = orthoHeight + gateSize;
+            const gateSpacing = 4;
+
+            // Left gate (orange)
+            const leftGate = createGateMesh('warpGateLeft', -gateSpacing / 2, gateY, gateSize, [1, 0.5, 0.2]);
+            leftGate.gateId = 'left';
+            gameState.warpGates.push(leftGate);
+
+            // Right gate (green)
+            const rightGate = createGateMesh('warpGateRight', gateSpacing / 2, gateY, gateSize, [0.2, 1, 0.5]);
+            rightGate.gateId = 'right';
+            gameState.warpGates.push(rightGate);
+
+            gameState.showingGates = true;
+            document.getElementById('warpGatePanel').style.display = 'flex';
+        }
+
+        // Create a single warp gate mesh using the warpgate.png texture
+        function createGateMesh(name, x, y, size, color) {
+            const gate = BABYLON.MeshBuilder.CreatePlane(name, { size: size }, scene);
+
+            gate.position.x = x;
+            gate.position.y = y;
+            gate.position.z = 0.1;
+
+            const texture = new BABYLON.Texture('assets/stellar objects/warpgate.png', scene);
+            texture.hasAlpha = true;
+
+            const mat = new BABYLON.StandardMaterial(name + 'Mat', scene);
+            mat.diffuseTexture = texture;
+            mat.emissiveTexture = texture;
+            // Tint with the gate color
+            mat.emissiveColor = new BABYLON.Color3(color[0] * 0.6, color[1] * 0.6, color[2] * 0.6);
+            mat.useAlphaFromDiffuseTexture = true;
+            mat.backFaceCulling = false;
+            mat.disableLighting = true;
+            gate.material = mat;
+
+            // Add to glow layer for the glowing effect
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(gate);
+            }
+
+            gate.size = size;
+            gate.enterRadius = size * 0.4;
+
+            return gate;
+        }
+
+        // Update the gate UI panels
+        function updateGateUI() {
+            if (!gameState.gateChoices) return;
+
+            const left = gameState.gateChoices.left;
+            const right = gameState.gateChoices.right;
+
+            // Left gate
+            document.getElementById('gateLeftThreat').textContent = left.threatLevel;
+            document.getElementById('gateLeftThreat').className = 'gate-stat-value ' + left.threatClass;
+            document.getElementById('gateLeftWaves').textContent = left.waveCount;
+            document.getElementById('gateLeftStations').textContent = left.stationDisplay;
+
+            // Right gate
+            document.getElementById('gateRightThreat').textContent = right.threatLevel;
+            document.getElementById('gateRightThreat').className = 'gate-stat-value ' + right.threatClass;
+            document.getElementById('gateRightWaves').textContent = right.waveCount;
+            document.getElementById('gateRightStations').textContent = right.stationDisplay;
+        }
+
+        // Update warp gates (movement and collision)
+        function updateWarpGates(scrollMultiplier, deltaTime) {
+            if (!gameState.showingGates || gameState.warpGates.length === 0) return;
+
+            for (let i = gameState.warpGates.length - 1; i >= 0; i--) {
+                const gate = gameState.warpGates[i];
+
+                // Move gate down
+                gate.position.y -= 0.01 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+
+                // Slow rotation
+                gate.rotation.z += 0.005;
+
+                // Check collision with player
+                if (playerShip) {
+                    const dx = gate.position.x - playerShip.position.x;
+                    const dy = gate.position.y - playerShip.position.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < gate.enterRadius) {
+                        // Player entered this gate!
+                        enterWarpGate(gate.gateId);
+                        return;
+                    }
+                }
+
+                // Remove if off screen (player missed both gates - shouldn't happen normally)
+                if (gate.position.y < -orthoHeight - gate.size) {
+                    // Force player into a random gate
+                    enterWarpGate(Math.random() < 0.5 ? 'left' : 'right');
+                    return;
+                }
+            }
+        }
+
+        // Handle entering a warp gate
+        function enterWarpGate(gateId) {
+            const chosenConfig = gameState.gateChoices[gateId];
+
+            // Clean up gates
+            gameState.warpGates.forEach(gate => {
+                if (sunGlowLayer) {
+                    sunGlowLayer.removeIncludedOnlyMesh(gate);
+                }
+                gate.dispose();
+            });
+            gameState.warpGates = [];
+            gameState.showingGates = false;
+            gameState.gateChoices = null;
+            document.getElementById('warpGatePanel').style.display = 'none';
+
+            // Start the new level
+            startNewLevel(chosenConfig);
+        }
+
+        // Start a new level with the given config
+        function startNewLevel(config) {
+            gameState.level = config.levelNum;
+            gameState.levelConfig = config;
+            gameState.levelWave = 0;
+            gameState.stationsVisited = 0;
+            gameState.wave = (gameState.level - 1) * 5 + 1; // Global wave number for difficulty
+
+            // Update HUD to show level
+            updateHUD();
+
+            // Start first wave
+            spawnWave();
+        }
+
+        // ========== END RIVER NAVIGATION ==========
 
         // Update suns
         function updateSuns(scrollMultiplier) {
@@ -2698,8 +3067,17 @@
                 5: { count: 12 }
             };
 
-            const config = waveConfig[Math.min(gameState.wave, 5)] || waveConfig[5];
-            gameState.enemiesInWave = config.count + Math.floor(Math.max(0, gameState.wave - 5) * 2);
+            // Use levelWave for difficulty within level, apply enemy multiplier from level config
+            const waveNum = Math.min(gameState.levelWave + 1, 5);
+            const config = waveConfig[waveNum] || waveConfig[5];
+            let enemyCount = config.count + Math.floor(Math.max(0, gameState.level - 1) * 2);
+
+            // Apply level threat multiplier
+            if (gameState.levelConfig) {
+                enemyCount = Math.floor(enemyCount * gameState.levelConfig.enemyMultiplier);
+            }
+
+            gameState.enemiesInWave = enemyCount;
             gameState.enemiesSpawned = 0;
         }
 
@@ -2920,7 +3298,9 @@
         function updateHUD() {
             document.getElementById('score').textContent = gameState.score;
             document.getElementById('health').textContent = Math.max(0, gameState.health);
-            document.getElementById('wave').textContent = gameState.wave;
+            document.getElementById('level').textContent = gameState.level;
+            document.getElementById('wave').textContent = gameState.levelWave;
+            document.getElementById('totalWaves').textContent = gameState.levelConfig ? gameState.levelConfig.waveCount : 3;
 
             // Update base shields
             const shieldsPercent = Math.max(0, gameState.baseShields);
@@ -3017,10 +3397,25 @@
                 gameState.beamMesh = null;
             }
             gameState.isDocked = false;
-            gameState.wavesUntilStarbase = 1;
             gameState.credits = 0;
             gameState.ownedWeapons = ['basic'];
             gameState.equippedWeapon = 'basic';
+
+            // Reset level/river navigation state
+            gameState.level = 1;
+            gameState.levelWave = 0;
+            gameState.stationsVisited = 0;
+            // Generate initial level config
+            gameState.levelConfig = generateLevelConfig(1);
+            // Clean up any existing warp gates
+            gameState.warpGates.forEach(gate => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(gate);
+                gate.dispose();
+            });
+            gameState.warpGates = [];
+            gameState.gateChoices = null;
+            gameState.showingGates = false;
+            document.getElementById('warpGatePanel').style.display = 'none';
             document.getElementById('dockingScreen').style.display = 'none';
 
             initResources();
@@ -3091,6 +3486,13 @@
             await createPlayerShip();
             // Stars hidden - using background textures instead
             initResources();
+
+            // Initialize first level
+            gameState.level = 1;
+            gameState.levelWave = 0;
+            gameState.levelConfig = generateLevelConfig(1);
+            gameState.wavesUntilStarbase = gameState.levelConfig.waveCount;
+
             spawnWave();
 
             // Initialize solar system spawning
@@ -3130,18 +3532,34 @@
                 updateSuns(scrollMultiplier);
                 applySunLighting();
 
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase) {
+                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates) {
                     gameState.wave++;
-                    gameState.wavesUntilStarbase--;
+                    gameState.levelWave++;
                     updateHUD();
 
-                    // Spawn starbase after every few waves
-                    if (gameState.wavesUntilStarbase <= 0) {
-                        createStarbase();
+                    const config = gameState.levelConfig;
+
+                    // Check if level complete (all waves done)
+                    if (gameState.levelWave >= config.waveCount) {
+                        // Level complete - spawn warp gates for next level choice
+                        createWarpGates();
                     } else {
-                        spawnWave();
+                        // Check if a station should appear after this wave
+                        const shouldSpawnStation = config.stationWaves &&
+                            config.stationWaves.includes(gameState.levelWave) &&
+                            gameState.stationsVisited < config.stations.length;
+
+                        if (shouldSpawnStation) {
+                            createStarbase();
+                            gameState.stationsVisited++;
+                        } else {
+                            spawnWave();
+                        }
                     }
                 }
+
+                // Update warp gates
+                updateWarpGates(scrollMultiplier, deltaTime);
 
                 updateEnemies(deltaTime, currentTime, scrollMultiplier);
                 updateBullets();
