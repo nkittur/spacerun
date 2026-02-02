@@ -860,11 +860,9 @@
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
         const SPACE_ZONES = [
-            { name: 'Starfield', folder: 'Starfields', prefix: 'Starfield', variants: 8 }
-            // TEMP TEST: using starfield instead of nebulas
-            // { name: 'Blue Nebula', folder: 'Blue Nebula', prefix: 'Blue_Nebula', variants: 8 },
-            // { name: 'Purple Nebula', folder: 'Purple Nebula', prefix: 'Purple_Nebula', variants: 8 },
-            // { name: 'Green Nebula', folder: 'Green Nebula', prefix: 'Green_Nebula', variants: 8 }
+            { name: 'Blue Nebula', folder: 'Blue Nebula', prefix: 'Blue_Nebula', variants: 8 },
+            { name: 'Purple Nebula', folder: 'Purple Nebula', prefix: 'Purple_Nebula', variants: 8 },
+            { name: 'Green Nebula', folder: 'Green Nebula', prefix: 'Green_Nebula', variants: 8 }
         ];
 
         // Starfield is used as neutral transition between zones
@@ -1500,12 +1498,12 @@
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.closePath();
 
+            // Gradient with higher alpha floor to avoid mobile GPU precision issues
             const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-            gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.9)`);
-            gradient.addColorStop(0.15, `rgba(${r}, ${g}, ${b}, 0.7)`);
-            gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 0.4)`);
+            gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.8)`);
+            gradient.addColorStop(0.25, `rgba(${r}, ${g}, ${b}, 0.4)`);
             gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.15)`);
-            gradient.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, 0.02)`);
+            gradient.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, 0)`);
             gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
 
             ctx.fillStyle = gradient;
@@ -2991,12 +2989,6 @@
                 // Update suns and apply lighting
                 updateSuns(scrollMultiplier);
                 applySunLighting();
-
-                // DEBUG: Log all mesh names periodically
-                if (Math.random() < 0.01) {
-                    const meshNames = scene.meshes.map(m => m.name);
-                    console.log('Scene meshes:', meshNames.length, meshNames);
-                }
 
                 if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase) {
                     gameState.wave++;
