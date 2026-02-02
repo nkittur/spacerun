@@ -521,7 +521,7 @@
             background: #ff5555;
         }
 
-        /* Warp Gate HUD Previews - sci-fi style, positioned below gates */
+        /* Warp Gate HUD Previews - minimal, blends with background */
         #warpGatePanel {
             position: absolute;
             top: 0;
@@ -543,29 +543,18 @@
         }
 
         .gate-hud {
-            background: rgba(0, 10, 20, 0.85);
-            border: 1px solid;
-            padding: 8px 12px;
-            min-width: 90px;
-        }
-
-        .gate-preview.left .gate-hud {
-            border-color: #ff8844;
-            box-shadow: 0 0 10px rgba(255, 136, 68, 0.3), inset 0 0 20px rgba(255, 136, 68, 0.1);
-        }
-
-        .gate-preview.right .gate-hud {
-            border-color: #44ff88;
-            box-shadow: 0 0 10px rgba(68, 255, 136, 0.3), inset 0 0 20px rgba(68, 255, 136, 0.1);
+            padding: 6px 10px;
+            min-width: 80px;
         }
 
         .hud-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
             font-size: 11px;
             letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,1);
         }
 
         .hud-row:last-child {
@@ -573,34 +562,36 @@
         }
 
         .hud-label {
-            color: #668;
+            color: rgba(150, 150, 180, 0.8);
             text-transform: uppercase;
             font-size: 9px;
+            margin-right: 8px;
         }
 
         .hud-value {
             font-weight: bold;
-            font-size: 12px;
+            font-size: 13px;
+            color: #fff;
         }
+
+        .gate-preview.left .hud-value { color: #ffaa66; }
+        .gate-preview.right .hud-value { color: #66ffaa; }
 
         /* Threat level indicator bar */
         .threat-bar {
             display: flex;
-            gap: 2px;
-            margin-left: 8px;
+            gap: 3px;
         }
 
         .threat-pip {
-            width: 8px;
-            height: 12px;
-            background: #223;
-            border: 1px solid #334;
+            width: 6px;
+            height: 10px;
+            background: rgba(40, 40, 60, 0.5);
         }
 
         .threat-pip.active {
-            border-color: currentColor;
             background: currentColor;
-            box-shadow: 0 0 4px currentColor;
+            box-shadow: 0 0 6px currentColor;
         }
 
         .threat-low { color: #44ff88; }
@@ -608,28 +599,33 @@
         .threat-high { color: #ff6644; }
         .threat-extreme { color: #ff4444; }
 
-        /* Station icons - simple geometric */
+        /* Station icons - minimal dots */
         .station-icons {
             display: flex;
             gap: 4px;
-            margin-left: 8px;
         }
 
         .station-icon {
-            width: 14px;
-            height: 14px;
-            border: 1px solid;
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 8px;
             font-weight: bold;
+            background: rgba(0, 0, 0, 0.4);
         }
 
-        .station-icon.trade { border-color: #44aaff; color: #44aaff; }
-        .station-icon.armory { border-color: #ff4444; color: #ff4444; }
-        .station-icon.repair { border-color: #44ff88; color: #44ff88; }
-        .station-icon.fuel { border-color: #ffaa44; color: #ffaa44; }
+        .station-icon.trade { color: #44aaff; text-shadow: 0 0 4px #44aaff; }
+        .station-icon.armory { color: #ff4444; text-shadow: 0 0 4px #ff4444; }
+        .station-icon.repair { color: #44ff88; text-shadow: 0 0 4px #44ff88; }
+        .station-icon.fuel { color: #ffaa44; text-shadow: 0 0 4px #ffaa44; }
+
+        .no-stations {
+            color: rgba(100, 100, 120, 0.6);
+            font-size: 10px;
+        }
 
         /* Warp/Lightspeed Animation */
         #warpOverlay {
@@ -2266,7 +2262,7 @@
 
             // Station icons with letter codes
             const getStationIcons = (config) => {
-                if (config.stations.length === 0) return '<span style="color: #445; font-size: 10px;">---</span>';
+                if (config.stations.length === 0) return '<span class="no-stations">--</span>';
                 const stationCodes = { 'Trade': 'T', 'Armory': 'A', 'Repair': 'R', 'Fuel': 'F' };
                 const stationClasses = { 'Trade': 'trade', 'Armory': 'armory', 'Repair': 'repair', 'Fuel': 'fuel' };
                 return config.stations.map(s =>
@@ -3827,7 +3823,7 @@
                 gameState.lastFrameTime = currentTime;
 
                 // Apply speed-up multiplier when button is pressed
-                const speedMultiplier = gameState.speedUp ? 4 : 1;
+                const speedMultiplier = gameState.speedUp ? 8 : 1;
                 deltaTime *= speedMultiplier;
 
                 // Update speed-up button visibility
