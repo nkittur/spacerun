@@ -1479,12 +1479,21 @@
 
         // Create radial gradient texture for sun glow
         function createGlowTexture(scene, tint, size) {
-            const textureSize = 512; // Higher resolution to reduce artifacts
-            const dynamicTexture = new BABYLON.DynamicTexture('glowTexture', textureSize, scene, false); // false = no mipmaps to avoid alpha bleeding
+            const textureSize = 512;
+            const dynamicTexture = new BABYLON.DynamicTexture('glowTexture', textureSize, scene, false); // false = no mipmaps
+
+            // Fix mobile rendering: clamp sampling and disable anisotropic filtering
+            dynamicTexture.updateSamplingMode(BABYLON.Texture.BILINEAR_SAMPLINGMODE);
+            dynamicTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+            dynamicTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+            dynamicTexture.anisotropicFilteringLevel = 1;
+
             const ctx = dynamicTexture.getContext();
 
-            // Clear to fully transparent first
-            ctx.clearRect(0, 0, textureSize, textureSize);
+            // Fully clear with solid black first (not just clearRect) to avoid iOS leftover pixels
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, textureSize, textureSize);
 
             const centerX = textureSize / 2;
             const centerY = textureSize / 2;
@@ -1494,12 +1503,11 @@
             const g = Math.floor(tint[1] * 255);
             const b = Math.floor(tint[2] * 255);
 
-            // Draw circular glow (not square) to avoid corner artifacts
+            // Draw circular glow
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.closePath();
 
-            // Gradient extending to full radius
             const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
             gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.8)`);
             gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, 0.5)`);
@@ -1509,9 +1517,9 @@
             gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
 
             ctx.fillStyle = gradient;
-            ctx.fill(); // Fill only the circular path
+            ctx.fill();
 
-            dynamicTexture.update();
+            dynamicTexture.update(false); // false = don't invertY
             dynamicTexture.hasAlpha = true;
 
             return dynamicTexture;
@@ -1533,18 +1541,17 @@
 
             // Create smooth radial gradient glow
             const glowSize = sunSize * 8; // Large glow area
-            // TEST: Use a simple disc with solid color instead of textured plane
-            const glow = BABYLON.MeshBuilder.CreateDisc('sunGlow', { radius: glowSize / 2, tessellation: 64 }, scene);
+            const glow = BABYLON.MeshBuilder.CreatePlane('sunGlow', { size: glowSize }, scene);
             glow.position.x = x;
             glow.position.y = y;
             glow.position.z = 0.9; // Behind everything
 
-            // Simple material without texture to test if DynamicTexture is the issue
+            const glowTexture = createGlowTexture(scene, sunType.tint, glowSize);
             const glowMat = new BABYLON.StandardMaterial('sunGlowMat', scene);
-            glowMat.diffuseColor = new BABYLON.Color3(sunType.tint[0], sunType.tint[1], sunType.tint[2]);
-            glowMat.emissiveColor = new BABYLON.Color3(sunType.tint[0], sunType.tint[1], sunType.tint[2]);
-            glowMat.alpha = 0.3;
+            glowMat.diffuseTexture = glowTexture;
+            glowMat.useAlphaFromDiffuseTexture = true;
             glowMat.disableLighting = true;
+            glowMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
             glowMat.backFaceCulling = false;
             glow.material = glowMat;
 
