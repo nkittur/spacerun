@@ -521,99 +521,148 @@
             background: #ff5555;
         }
 
-        /* Warp Gate Selection UI */
+        /* Warp Gate Icon Previews - positioned above gates */
         #warpGatePanel {
             position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             display: none;
-            gap: 20px;
+            pointer-events: none;
             z-index: 80;
             font-family: 'Segoe UI', Arial, sans-serif;
         }
 
-        .warp-gate-card {
-            background: rgba(10, 15, 30, 0.9);
-            border: 2px solid #4488ff;
-            border-radius: 12px;
-            padding: 15px;
-            width: 150px;
-            color: white;
+        .gate-preview {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .gate-preview.left {
+            left: 25%;
+            transform: translateX(-50%);
+        }
+
+        .gate-preview.right {
+            right: 25%;
+            transform: translateX(50%);
+        }
+
+        .gate-icons {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .gate-icon-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 16px;
+            min-height: 20px;
+        }
+
+        .gate-icon-row .icon {
+            width: 18px;
             text-align: center;
-            box-shadow: 0 0 20px rgba(68, 136, 255, 0.3);
+        }
+
+        .gate-icon-row .value {
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .threat-low { color: #44ff88; }
+        .threat-medium { color: #ffaa44; }
+        .threat-high { color: #ff6644; }
+        .threat-extreme { color: #ff4444; text-shadow: 0 0 5px #ff0000; }
+
+        /* Warp/Lightspeed Animation */
+        #warpOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+            z-index: 250;
+            display: none;
+            overflow: hidden;
+        }
+
+        .warp-star {
+            position: absolute;
+            background: linear-gradient(to bottom, transparent, white, transparent);
+            width: 2px;
+            transform-origin: center bottom;
+            animation: warpStreak 0.8s ease-in forwards;
+        }
+
+        @keyframes warpStreak {
+            0% {
+                height: 5px;
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            100% {
+                height: 100vh;
+                opacity: 0;
+            }
+        }
+
+        #warpFlash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0;
+            z-index: 260;
+            pointer-events: none;
+        }
+
+        /* Speed Up Button */
+        #speedUpBtn {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            padding: 12px 20px;
+            background: rgba(68, 136, 255, 0.3);
+            border: 2px solid #4488ff;
+            border-radius: 8px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 60;
+            display: none;
             transition: all 0.2s ease;
         }
 
-        .warp-gate-card:hover {
-            border-color: #66aaff;
-            box-shadow: 0 0 30px rgba(68, 136, 255, 0.5);
+        #speedUpBtn:hover {
+            background: rgba(68, 136, 255, 0.5);
         }
 
-        .warp-gate-card.left {
-            border-color: #ff8844;
-            box-shadow: 0 0 20px rgba(255, 136, 68, 0.3);
+        #speedUpBtn:active, #speedUpBtn.active {
+            background: rgba(68, 136, 255, 0.8);
+            box-shadow: 0 0 15px rgba(68, 136, 255, 0.5);
         }
 
-        .warp-gate-card.left:hover {
-            border-color: #ffaa66;
-            box-shadow: 0 0 30px rgba(255, 136, 68, 0.5);
-        }
-
-        .warp-gate-card.right {
-            border-color: #44ff88;
-            box-shadow: 0 0 20px rgba(68, 255, 136, 0.3);
-        }
-
-        .warp-gate-card.right:hover {
-            border-color: #66ffaa;
-            box-shadow: 0 0 30px rgba(68, 255, 136, 0.5);
-        }
-
-        .gate-title {
-            font-size: 12px;
-            color: #88aadd;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-
-        .gate-signature {
-            font-size: 11px;
-            line-height: 1.6;
-        }
-
-        .gate-stat {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 4px;
-        }
-
-        .gate-stat-label {
-            color: #88aacc;
-        }
-
-        .gate-stat-value {
-            font-weight: bold;
-        }
-
-        .gate-stat-value.danger {
-            color: #ff6644;
-        }
-
-        .gate-stat-value.medium {
-            color: #ffaa44;
-        }
-
-        .gate-stat-value.safe {
-            color: #44ff88;
-        }
-
-        .gate-instruction {
-            margin-top: 10px;
-            font-size: 10px;
-            color: #668899;
-            font-style: italic;
+        #speedUpBtn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
         }
 
         #startScreen {
@@ -804,43 +853,26 @@
     </div>
 
     <div id="warpGatePanel">
-        <div class="warp-gate-card left" id="gateLeft">
-            <div class="gate-title">Gate Alpha</div>
-            <div class="gate-signature">
-                <div class="gate-stat">
-                    <span class="gate-stat-label">Threat:</span>
-                    <span class="gate-stat-value" id="gateLeftThreat">Medium</span>
-                </div>
-                <div class="gate-stat">
-                    <span class="gate-stat-label">Waves:</span>
-                    <span class="gate-stat-value" id="gateLeftWaves">3</span>
-                </div>
-                <div class="gate-stat">
-                    <span class="gate-stat-label">Stations:</span>
-                    <span class="gate-stat-value" id="gateLeftStations">1 Trade</span>
-                </div>
+        <div class="gate-preview left" id="gateLeftPreview">
+            <div class="gate-icons">
+                <div class="gate-icon-row" id="gateLeftThreat" title="Threat Level"></div>
+                <div class="gate-icon-row" id="gateLeftWaves" title="Waves"></div>
+                <div class="gate-icon-row" id="gateLeftStations" title="Stations"></div>
             </div>
-            <div class="gate-instruction">Fly into gate</div>
         </div>
-        <div class="warp-gate-card right" id="gateRight">
-            <div class="gate-title">Gate Beta</div>
-            <div class="gate-signature">
-                <div class="gate-stat">
-                    <span class="gate-stat-label">Threat:</span>
-                    <span class="gate-stat-value" id="gateRightThreat">High</span>
-                </div>
-                <div class="gate-stat">
-                    <span class="gate-stat-label">Waves:</span>
-                    <span class="gate-stat-value" id="gateRightWaves">5</span>
-                </div>
-                <div class="gate-stat">
-                    <span class="gate-stat-label">Stations:</span>
-                    <span class="gate-stat-value" id="gateRightStations">2 Armory</span>
-                </div>
+        <div class="gate-preview right" id="gateRightPreview">
+            <div class="gate-icons">
+                <div class="gate-icon-row" id="gateRightThreat" title="Threat Level"></div>
+                <div class="gate-icon-row" id="gateRightWaves" title="Waves"></div>
+                <div class="gate-icon-row" id="gateRightStations" title="Stations"></div>
             </div>
-            <div class="gate-instruction">Fly into gate</div>
         </div>
     </div>
+
+    <div id="warpOverlay"></div>
+    <div id="warpFlash"></div>
+
+    <button id="speedUpBtn">⏩ Speed Up</button>
 
     <div id="gameOver">
         <h2>Game Over</h2>
@@ -1026,7 +1058,8 @@
             stationsVisited: 0,     // How many stations visited this level
             warpGates: [],          // Active warp gates
             gateChoices: null,      // The two gate options
-            showingGates: false     // Whether gates are currently displayed
+            showingGates: false,    // Whether gates are currently displayed
+            speedUp: false          // Speed-up button pressed
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -2095,10 +2128,10 @@
             // Update UI with gate signatures
             updateGateUI();
 
-            // Create the gate meshes
-            const gateSize = 2.5;
-            const gateY = orthoHeight + gateSize;
-            const gateSpacing = 4;
+            // Create the gate meshes - large gates taking up most of screen width
+            const gateSize = 7;  // Much larger gates
+            const gateY = orthoHeight + gateSize / 2;
+            const gateSpacing = gateSize + 1;  // Small gap between gates
 
             // Left gate (orange)
             const leftGate = createGateMesh('warpGateLeft', -gateSpacing / 2, gateY, gateSize, [1, 0.5, 0.2]);
@@ -2146,24 +2179,41 @@
             return gate;
         }
 
-        // Update the gate UI panels
+        // Update the gate UI panels with icons
         function updateGateUI() {
             if (!gameState.gateChoices) return;
 
-            const left = gameState.gateChoices.left;
-            const right = gameState.gateChoices.right;
+            const getThreatIcons = (config) => {
+                const threatColors = {
+                    'Low': 'threat-low',
+                    'Medium': 'threat-medium',
+                    'High': 'threat-high',
+                    'Extreme': 'threat-extreme'
+                };
+                const threatCounts = { 'Low': 1, 'Medium': 2, 'High': 3, 'Extreme': 4 };
+                const skulls = '💀'.repeat(threatCounts[config.threatLevel] || 1);
+                return `<span class="${threatColors[config.threatLevel]}">${skulls}</span>`;
+            };
+
+            const getWaveIcons = (config) => {
+                return `<span class="icon">🌊</span><span class="value">×${config.waveCount}</span>`;
+            };
+
+            const getStationIcons = (config) => {
+                if (config.stations.length === 0) return '<span style="color: #666">—</span>';
+                const stationEmoji = { 'Trade': '🏪', 'Armory': '🔫', 'Repair': '🔧', 'Fuel': '⛽' };
+                return config.stations.map(s => stationEmoji[s] || '🏢').join('');
+            };
 
             // Left gate
-            document.getElementById('gateLeftThreat').textContent = left.threatLevel;
-            document.getElementById('gateLeftThreat').className = 'gate-stat-value ' + left.threatClass;
-            document.getElementById('gateLeftWaves').textContent = left.waveCount;
-            document.getElementById('gateLeftStations').textContent = left.stationDisplay;
+            document.getElementById('gateLeftThreat').innerHTML = getThreatIcons(gameState.gateChoices.left);
+            document.getElementById('gateLeftWaves').innerHTML = getWaveIcons(gameState.gateChoices.left);
+            document.getElementById('gateLeftStations').innerHTML = getStationIcons(gameState.gateChoices.left);
 
             // Right gate
-            document.getElementById('gateRightThreat').textContent = right.threatLevel;
-            document.getElementById('gateRightThreat').className = 'gate-stat-value ' + right.threatClass;
-            document.getElementById('gateRightWaves').textContent = right.waveCount;
-            document.getElementById('gateRightStations').textContent = right.stationDisplay;
+            document.getElementById('gateRightThreat').innerHTML = getThreatIcons(gameState.gateChoices.right);
+            document.getElementById('gateRightWaves').innerHTML = getWaveIcons(gameState.gateChoices.right);
+            document.getElementById('gateRightStations').innerHTML = getStationIcons(gameState.gateChoices.right);
         }
 
         // Update warp gates (movement and collision)
@@ -2178,6 +2228,16 @@
 
                 // Slow rotation
                 gate.rotation.z += 0.005;
+
+                // Update UI position above gate
+                const screenPos = worldToScreen(gate.position.x, gate.position.y + gate.size / 2 + 0.5);
+                const previewId = gate.gateId === 'left' ? 'gateLeftPreview' : 'gateRightPreview';
+                const preview = document.getElementById(previewId);
+                if (preview) {
+                    preview.style.left = screenPos.x + 'px';
+                    preview.style.top = screenPos.y + 'px';
+                    preview.style.transform = 'translate(-50%, -100%)';
+                }
 
                 // Check collision with player
                 if (playerShip) {
@@ -2217,11 +2277,52 @@
             gameState.gateChoices = null;
             document.getElementById('warpGatePanel').style.display = 'none';
 
-            // Start the new level
-            startNewLevel(chosenConfig);
+            // Pause game during warp
+            gameState.isPaused = true;
+
+            // Show warp animation
+            playWarpAnimation(() => {
+                // After animation, start new level with fresh background
+                startNewLevel(chosenConfig);
+                gameState.isPaused = false;
+            });
         }
 
-        // Start a new level with the given config
+        // Play lightspeed warp animation
+        function playWarpAnimation(callback) {
+            const overlay = document.getElementById('warpOverlay');
+            const flash = document.getElementById('warpFlash');
+            overlay.style.display = 'block';
+            overlay.innerHTML = '';
+
+            // Create streaking stars
+            const starCount = 50;
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.className = 'warp-star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 50 + '%';
+                star.style.animationDelay = (Math.random() * 0.3) + 's';
+                star.style.opacity = 0.5 + Math.random() * 0.5;
+                overlay.appendChild(star);
+            }
+
+            // Flash and transition
+            setTimeout(() => {
+                flash.style.transition = 'opacity 0.15s ease-in';
+                flash.style.opacity = '1';
+            }, 600);
+
+            setTimeout(() => {
+                flash.style.transition = 'opacity 0.4s ease-out';
+                flash.style.opacity = '0';
+                overlay.style.display = 'none';
+                overlay.innerHTML = '';
+                if (callback) callback();
+            }, 800);
+        }
+
+        // Start a new level with the given config - fresh start with new background
         function startNewLevel(config) {
             gameState.level = config.levelNum;
             gameState.levelConfig = config;
@@ -2229,11 +2330,98 @@
             gameState.stationsVisited = 0;
             gameState.wave = (gameState.level - 1) * 5 + 1; // Global wave number for difficulty
 
+            // Clear all existing game objects for fresh start
+            clearLevelObjects();
+
+            // Change to a new random background zone
+            changeToNewZone();
+
+            // Reset player position to center-bottom
+            if (playerShip) {
+                playerShip.position.x = 0;
+                playerShip.position.y = -7;
+                playerShip.targetX = 0;
+                playerShip.targetY = -7;
+            }
+
+            // Reset solar system spawning
+            gameState.nextSolarSystemY = orthoHeight + 15;
+
             // Update HUD to show level
             updateHUD();
 
             // Start first wave
             spawnWave();
+        }
+
+        // Clear all level objects for fresh start
+        function clearLevelObjects() {
+            // Clear enemies
+            gameState.enemies.forEach(e => {
+                e.getChildMeshes().forEach(m => m.dispose());
+                e.dispose();
+            });
+            gameState.enemies = [];
+
+            // Clear bullets
+            gameState.playerBullets.forEach(b => b.dispose());
+            gameState.playerBullets = [];
+            gameState.enemyBullets.forEach(b => b.dispose());
+            gameState.enemyBullets = [];
+
+            // Clear loot
+            gameState.loot.forEach(l => {
+                l.getChildMeshes().forEach(m => m.dispose());
+                l.dispose();
+            });
+            gameState.loot = [];
+
+            // Clear planets
+            gameState.planets.forEach(p => p.dispose());
+            gameState.planets = [];
+
+            // Clear suns
+            gameState.suns.forEach(s => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(s);
+                s.dispose();
+            });
+            gameState.suns = [];
+
+            // Clear starbase
+            if (gameState.starbase) {
+                gameState.starbase.dispose();
+                gameState.starbase = null;
+            }
+
+            // Reset spawn timers
+            gameState.enemiesInWave = 0;
+            gameState.enemiesSpawned = 0;
+        }
+
+        // Change to a new random background zone
+        function changeToNewZone() {
+            // Pick a different zone than current
+            let newZone;
+            do {
+                newZone = Math.floor(Math.random() * SPACE_ZONES.length);
+            } while (newZone === gameState.currentZone && SPACE_ZONES.length > 1);
+
+            gameState.currentZone = newZone;
+            gameState.distanceTraveled = 0;
+
+            // Update background texture
+            if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
+                backgroundMaterialA.diffuseTexture.dispose();
+                const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+                const newTexture = new BABYLON.Texture(getBackgroundPath(newZone), scene);
+                newTexture.uScale = bgSize / 20;
+                newTexture.vScale = bgSize * 2 / 20;
+                newTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+                newTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+                newTexture.vOffset = 0;
+                backgroundMaterialA.diffuseTexture = newTexture;
+                backgroundMaterialA.emissiveTexture = newTexture;
+            }
         }
 
         // ========== END RIVER NAVIGATION ==========
@@ -3549,8 +3737,15 @@
                 if (!gameState.isPlaying || gameState.isPaused) return;
 
                 const currentTime = performance.now();
-                const deltaTime = Math.min(currentTime - gameState.lastFrameTime, 50);
+                let deltaTime = Math.min(currentTime - gameState.lastFrameTime, 50);
                 gameState.lastFrameTime = currentTime;
+
+                // Apply speed-up multiplier when button is pressed
+                const speedMultiplier = gameState.speedUp ? 4 : 1;
+                deltaTime *= speedMultiplier;
+
+                // Update speed-up button visibility
+                updateSpeedUpButton();
 
                 const scrollMultiplier = updatePlayerPosition(deltaTime);
                 updateBackgrounds(scrollMultiplier, deltaTime);
@@ -3627,6 +3822,56 @@
             departStarbase();
             spawnWave();
         });
+
+        // Speed-up button handlers
+        const speedUpBtn = document.getElementById('speedUpBtn');
+        speedUpBtn.addEventListener('mousedown', () => {
+            if (!speedUpBtn.disabled) {
+                gameState.speedUp = true;
+                speedUpBtn.classList.add('active');
+            }
+        });
+        speedUpBtn.addEventListener('mouseup', () => {
+            gameState.speedUp = false;
+            speedUpBtn.classList.remove('active');
+        });
+        speedUpBtn.addEventListener('mouseleave', () => {
+            gameState.speedUp = false;
+            speedUpBtn.classList.remove('active');
+        });
+        speedUpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!speedUpBtn.disabled) {
+                gameState.speedUp = true;
+                speedUpBtn.classList.add('active');
+            }
+        });
+        speedUpBtn.addEventListener('touchend', () => {
+            gameState.speedUp = false;
+            speedUpBtn.classList.remove('active');
+        });
+
+        // Update speed-up button visibility
+        function updateSpeedUpButton() {
+            const btn = document.getElementById('speedUpBtn');
+            if (!gameState.isPlaying || gameState.isPaused || gameState.isDocked) {
+                btn.style.display = 'none';
+                return;
+            }
+
+            // Hide when enemies are on screen or near warp gates
+            const hasEnemies = gameState.enemies.length > 0;
+            const nearGates = gameState.showingGates && gameState.warpGates.some(gate =>
+                gate.position.y < orthoHeight
+            );
+
+            if (hasEnemies || nearGates) {
+                btn.style.display = 'none';
+                gameState.speedUp = false;
+            } else {
+                btn.style.display = 'block';
+            }
+        }
 
         window.addEventListener('resize', () => {
             engine.resize();
