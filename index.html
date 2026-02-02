@@ -922,7 +922,8 @@
         const engine = new BABYLON.Engine(canvas, true, {
             preserveDrawingBuffer: true,
             stencil: true,
-            antialias: true
+            antialias: true,
+            premultipliedAlpha: false // Fix alpha blending artifacts on mobile
         });
 
         // Set hardware scaling to match device pixel ratio for crisp rendering
