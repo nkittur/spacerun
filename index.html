@@ -1065,9 +1065,9 @@
             // GlowLayer for suns and bullets - whitelisted meshes
             sunGlowLayer = new BABYLON.GlowLayer('sunGlow', scene, {
                 mainTextureFixedSize: 512,
-                blurKernelSize: 64
+                blurKernelSize: 32 // Smaller blur for tighter glow
             });
-            sunGlowLayer.intensity = 2.0;
+            sunGlowLayer.intensity = 1.0; // Reduced intensity
 
             // DefaultRenderingPipeline for global bloom
             renderPipeline = new BABYLON.DefaultRenderingPipeline(
@@ -1077,9 +1077,9 @@
                 [camera]
             );
             renderPipeline.bloomEnabled = true;
-            renderPipeline.bloomKernel = 64;
-            renderPipeline.bloomWeight = 0.5; // Higher weight for more visible glows
-            renderPipeline.bloomThreshold = 0.4; // Lower threshold so bullets bloom too
+            renderPipeline.bloomKernel = 32; // Tighter bloom
+            renderPipeline.bloomWeight = 0.3; // Subtle bloom
+            renderPipeline.bloomThreshold = 0.6; // Higher threshold - only bright things bloom
             renderPipeline.bloomScale = 0.5;
             renderPipeline.imageProcessingEnabled = true;
             renderPipeline.imageProcessing.contrast = 1.1;
@@ -2217,8 +2217,8 @@
                 [{ x: -0.15, y: offsetY }, { x: 0.15, y: offsetY }];
 
             exhaustPositions.forEach((pos, i) => {
-                // Outer glow
-                const glow = BABYLON.MeshBuilder.CreateSphere('exhaust_glow_' + i, { diameter: 0.5 }, scene);
+                // Outer glow - smaller and more subtle
+                const glow = BABYLON.MeshBuilder.CreateSphere('exhaust_glow_' + i, { diameter: 0.25 }, scene);
                 glow.parent = parent;
                 glow.position.x = pos.x;
                 glow.position.y = pos.y;
@@ -2226,13 +2226,13 @@
 
                 const glowMat = new BABYLON.StandardMaterial('exhaustGlowMat_' + i, scene);
                 glowMat.emissiveColor = color;
-                glowMat.alpha = 0.5;
+                glowMat.alpha = 0.3;
                 glowMat.disableLighting = true;
                 glowMat.backFaceCulling = false;
                 glow.material = glowMat;
 
                 // Inner core
-                const core = BABYLON.MeshBuilder.CreateSphere('exhaust_core_' + i, { diameter: 0.12 }, scene);
+                const core = BABYLON.MeshBuilder.CreateSphere('exhaust_core_' + i, { diameter: 0.08 }, scene);
                 core.parent = parent;
                 core.position.x = pos.x;
                 core.position.y = pos.y;
@@ -2330,11 +2330,11 @@
             let bullet;
 
             if (isPlayer) {
-                // Player bullet: glow aura + defined solid core
-                bullet = BABYLON.MeshBuilder.CreateSphere('bullet', { diameter: 0.35 }, scene);
+                // Player bullet: subtle glow aura + defined solid core
+                bullet = BABYLON.MeshBuilder.CreateSphere('bullet', { diameter: 0.22 }, scene);
                 const glowMat = new BABYLON.StandardMaterial('bulletGlowMat', scene);
-                glowMat.emissiveColor = new BABYLON.Color3(0.2, 1, 0.5);
-                glowMat.alpha = 0.4;
+                glowMat.emissiveColor = new BABYLON.Color3(0.2, 0.8, 0.4);
+                glowMat.alpha = 0.25;
                 glowMat.disableLighting = true;
                 glowMat.backFaceCulling = false;
                 bullet.material = glowMat;
@@ -2345,22 +2345,22 @@
                 }
 
                 // Solid defined core on top
-                const core = BABYLON.MeshBuilder.CreateSphere('bulletCore', { diameter: 0.15 }, scene);
+                const core = BABYLON.MeshBuilder.CreateSphere('bulletCore', { diameter: 0.12 }, scene);
                 core.parent = bullet;
                 core.position.z = -0.05; // Slightly in front
                 const coreMat = new BABYLON.StandardMaterial('coreMat', scene);
-                coreMat.emissiveColor = new BABYLON.Color3(0.5, 1, 0.7);
-                coreMat.diffuseColor = new BABYLON.Color3(0.3, 0.8, 0.5);
+                coreMat.emissiveColor = new BABYLON.Color3(0.4, 1, 0.6);
+                coreMat.diffuseColor = new BABYLON.Color3(0.2, 0.7, 0.4);
                 coreMat.disableLighting = true;
                 core.material = coreMat;
             } else {
-                // Enemy bullet: glow capsule + bright core
-                bullet = BABYLON.MeshBuilder.CreateCapsule('bullet', { height: 0.5, radius: 0.12 }, scene);
+                // Enemy bullet: subtle glow capsule + bright core
+                bullet = BABYLON.MeshBuilder.CreateCapsule('bullet', { height: 0.4, radius: 0.08 }, scene);
                 bullet.rotation.z = Math.atan2(velocityX, -velocityY);
 
                 const glowMat = new BABYLON.StandardMaterial('enemyBulletGlowMat', scene);
-                glowMat.emissiveColor = new BABYLON.Color3(1, 0.3, 0.6);
-                glowMat.alpha = 0.5;
+                glowMat.emissiveColor = new BABYLON.Color3(1, 0.3, 0.5);
+                glowMat.alpha = 0.3;
                 glowMat.disableLighting = true;
                 glowMat.backFaceCulling = false;
                 bullet.material = glowMat;
@@ -2371,12 +2371,12 @@
                 }
 
                 // Solid core
-                const core = BABYLON.MeshBuilder.CreateSphere('bulletCore', { diameter: 0.1 }, scene);
+                const core = BABYLON.MeshBuilder.CreateSphere('bulletCore', { diameter: 0.08 }, scene);
                 core.parent = bullet;
                 core.position.y = 0;
                 core.position.z = -0.05;
                 const coreMat = new BABYLON.StandardMaterial('coreMat', scene);
-                coreMat.emissiveColor = new BABYLON.Color3(1, 0.8, 0.9);
+                coreMat.emissiveColor = new BABYLON.Color3(1, 0.7, 0.85);
                 coreMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
                 coreMat.disableLighting = true;
                 core.material = coreMat;
