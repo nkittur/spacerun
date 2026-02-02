@@ -2992,6 +2992,12 @@
                 updateSuns(scrollMultiplier);
                 applySunLighting();
 
+                // DEBUG: Log all mesh names periodically
+                if (Math.random() < 0.01) {
+                    const meshNames = scene.meshes.map(m => m.name);
+                    console.log('Scene meshes:', meshNames.length, meshNames);
+                }
+
                 if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase) {
                     gameState.wave++;
                     gameState.wavesUntilStarbase--;
