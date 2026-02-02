@@ -123,6 +123,28 @@
             margin-top: 3px;
         }
 
+        .checkbox-group {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #334;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #aaccff;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4488ff;
+            cursor: pointer;
+        }
+
         #closeSettings {
             width: 100%;
             padding: 12px;
@@ -734,6 +756,12 @@
             <input type="range" id="scrollSpeed" min="0.5" max="2" step="0.1" value="1">
             <div class="setting-value" id="scrollSpeedValue">1.0x</div>
         </div>
+        <div class="setting-group checkbox-group">
+            <label>
+                <input type="checkbox" id="debugMode">
+                Debug Mode (1000 credits at start)
+            </label>
+        </div>
         <button id="closeSettings">Close</button>
     </div>
 
@@ -936,7 +964,8 @@
             playerShip: 'Bob',
             playerColor: 'Blue',
             enemyShip: 'Spitfire',
-            enemyColor: 'Red'
+            enemyColor: 'Red',
+            debugMode: localStorage.getItem('debugMode') === 'true'
         };
 
         // Loaded model templates
@@ -3397,7 +3426,7 @@
                 gameState.beamMesh = null;
             }
             gameState.isDocked = false;
-            gameState.credits = 0;
+            gameState.credits = settings.debugMode ? 1000 : 0;
             gameState.ownedWeapons = ['basic'];
             gameState.equippedWeapon = 'basic';
 
@@ -3464,6 +3493,14 @@
         setupSlider('fireRate', 'fireRate', 'x');
         setupSlider('scrollSpeed', 'scrollSpeed', 'x');
 
+        // Debug mode checkbox
+        const debugModeCheckbox = document.getElementById('debugMode');
+        debugModeCheckbox.checked = settings.debugMode;
+        debugModeCheckbox.addEventListener('change', () => {
+            settings.debugMode = debugModeCheckbox.checked;
+            localStorage.setItem('debugMode', settings.debugMode);
+        });
+
         // Start game
         const startScreen = document.getElementById('startScreen');
         const startBtn = document.getElementById('startBtn');
@@ -3486,6 +3523,11 @@
             await createPlayerShip();
             // Stars hidden - using background textures instead
             initResources();
+
+            // Debug mode: start with 1000 credits
+            if (settings.debugMode) {
+                gameState.credits = 1000;
+            }
 
             // Initialize first level
             gameState.level = 1;
