@@ -4451,7 +4451,7 @@
                 updateSuns(scrollMultiplier);
                 applySunLighting();
 
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates) {
+                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && gameState.currentLevelZone === 'wave') {
                     gameState.wave++;
                     gameState.levelWave++;
                     updateHUD();
