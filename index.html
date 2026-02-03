@@ -376,7 +376,19 @@
         .quality-common { color: #ffffff; }
         .quality-good { color: #44ff44; }
         .quality-excellent { color: #4488ff; }
-        .quality-superior { color: #ff44ff; }
+        .quality-legendary { color: #ff8800; text-shadow: 0 0 8px #ff8800; }
+
+        /* Weapon level badge */
+        .weapon-level {
+            display: inline-block;
+            background: linear-gradient(135deg, #446 0%, #335 100%);
+            border: 1px solid #668;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
 
         .upgrade-info {
             flex: 1;
@@ -1551,18 +1563,36 @@
             spread: { name: 'Spread', speedMult: 0.9 }
         };
 
-        // Base weapon templates for generation
+        // Base weapon templates with level scaling configurations
+        // Each weapon class scales differently with level:
+        // - damagePerLevel: flat damage added per level
+        // - damageMultPerLevel: % damage increase per level (compounding)
+        // - fireRatePerLevel: ms reduction per level (lower = faster)
+        // - projectilesPerLevel: extra projectiles gained per N levels
+        // - spreadPerLevel: spread increase per level
+        // - speedPerLevel: projectile speed multiplier per level
         const WEAPON_TEMPLATES = {
-            // Light weapons
+            // === LIGHT WEAPONS ===
             pulse_cannon: {
                 baseName: 'Pulse Cannon',
                 type: 'bullet',
                 size: 'light',
                 baseDamage: 8,
                 baseFireRate: 300,
-                spread: 0,
-                projectiles: 1,
-                baseCost: 100
+                baseSpread: 0,
+                baseProjectiles: 1,
+                baseSpeed: 0.35,
+                baseCost: 80,
+                // Balanced scaling - moderate improvements across the board
+                scaling: {
+                    damagePerLevel: 2,
+                    damageMultPerLevel: 0.08,
+                    fireRatePerLevel: -15,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0,
+                    speedPerLevel: 0.02
+                },
+                variants: ['Mk', 'Type', 'Model']
             },
             light_laser: {
                 baseName: 'Light Laser',
@@ -1570,30 +1600,64 @@
                 size: 'light',
                 baseDamage: 12,
                 baseFireRate: 800,
-                spread: 0.3,
-                projectiles: 1,
-                baseCost: 150
+                baseSpread: 0.3,
+                baseProjectiles: 1,
+                baseSpeed: 0,
+                baseCost: 120,
+                // Beam width and damage scale, fire rate improves slowly
+                scaling: {
+                    damagePerLevel: 3,
+                    damageMultPerLevel: 0.1,
+                    fireRatePerLevel: -20,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.05,  // Wider beam
+                    speedPerLevel: 0
+                },
+                variants: ['Beam', 'Lance', 'Ray']
             },
             scatter_gun: {
                 baseName: 'Scatter Gun',
                 type: 'spread',
                 size: 'light',
-                baseDamage: 5,
+                baseDamage: 4,
                 baseFireRate: 450,
-                spread: 0.4,
-                projectiles: 3,
-                baseCost: 180
+                baseSpread: 0.4,
+                baseProjectiles: 3,
+                baseSpeed: 0.32,
+                baseCost: 140,
+                // More projectiles with level, small damage per projectile
+                scaling: {
+                    damagePerLevel: 1,
+                    damageMultPerLevel: 0.05,
+                    fireRatePerLevel: -10,
+                    projectilesPerLevel: 0.4,  // +1 projectile every 2-3 levels
+                    spreadPerLevel: 0.03,
+                    speedPerLevel: 0.01
+                },
+                variants: ['Spreader', 'Scattershot', 'Pelter']
             },
-            // Medium weapons
+
+            // === MEDIUM WEAPONS ===
             plasma_cannon: {
                 baseName: 'Plasma Cannon',
                 type: 'bullet',
                 size: 'medium',
                 baseDamage: 18,
                 baseFireRate: 400,
-                spread: 0,
-                projectiles: 1,
-                baseCost: 300
+                baseSpread: 0,
+                baseProjectiles: 1,
+                baseSpeed: 0.38,
+                baseCost: 250,
+                // High damage scaling, moderate fire rate improvement
+                scaling: {
+                    damagePerLevel: 5,
+                    damageMultPerLevel: 0.12,
+                    fireRatePerLevel: -12,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0,
+                    speedPerLevel: 0.025
+                },
+                variants: ['Plasma', 'Ion', 'Particle']
             },
             twin_laser: {
                 baseName: 'Twin Laser',
@@ -1601,9 +1665,20 @@
                 size: 'medium',
                 baseDamage: 22,
                 baseFireRate: 900,
-                spread: 0.5,
-                projectiles: 2,
-                baseCost: 400
+                baseSpread: 0.5,
+                baseProjectiles: 2,
+                baseSpeed: 0,
+                baseCost: 320,
+                // More beams at high levels, wider coverage
+                scaling: {
+                    damagePerLevel: 4,
+                    damageMultPerLevel: 0.08,
+                    fireRatePerLevel: -25,
+                    projectilesPerLevel: 0.25,  // Extra beam every 4 levels
+                    spreadPerLevel: 0.06,
+                    speedPerLevel: 0
+                },
+                variants: ['Dual', 'Twin', 'Binary']
             },
             burst_rifle: {
                 baseName: 'Burst Rifle',
@@ -1611,20 +1686,43 @@
                 size: 'medium',
                 baseDamage: 10,
                 baseFireRate: 350,
-                spread: 0.25,
-                projectiles: 3,
-                baseCost: 350
+                baseSpread: 0.25,
+                baseProjectiles: 3,
+                baseSpeed: 0.4,
+                baseCost: 280,
+                // Fast fire rate improvement, tight spread
+                scaling: {
+                    damagePerLevel: 2,
+                    damageMultPerLevel: 0.07,
+                    fireRatePerLevel: -20,
+                    projectilesPerLevel: 0.3,
+                    spreadPerLevel: -0.01,  // Tighter spread at higher levels
+                    speedPerLevel: 0.03
+                },
+                variants: ['Burst', 'Volley', 'Salvo']
             },
-            // Heavy weapons
+
+            // === HEAVY WEAPONS ===
             mass_driver: {
                 baseName: 'Mass Driver',
                 type: 'bullet',
                 size: 'heavy',
                 baseDamage: 45,
                 baseFireRate: 600,
-                spread: 0,
-                projectiles: 1,
-                baseCost: 600
+                baseSpread: 0,
+                baseProjectiles: 1,
+                baseSpeed: 0.45,
+                baseCost: 500,
+                // Very high damage scaling, slow fire rate improvement
+                scaling: {
+                    damagePerLevel: 12,
+                    damageMultPerLevel: 0.15,
+                    fireRatePerLevel: -8,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0,
+                    speedPerLevel: 0.04
+                },
+                variants: ['Kinetic', 'Impact', 'Slug']
             },
             heavy_beam: {
                 baseName: 'Heavy Beam',
@@ -1632,30 +1730,64 @@
                 size: 'heavy',
                 baseDamage: 55,
                 baseFireRate: 1200,
-                spread: 0.8,
-                projectiles: 1,
-                baseCost: 750
+                baseSpread: 0.8,
+                baseProjectiles: 1,
+                baseSpeed: 0,
+                baseCost: 600,
+                // Massive beam width scaling, high damage
+                scaling: {
+                    damagePerLevel: 10,
+                    damageMultPerLevel: 0.1,
+                    fireRatePerLevel: -30,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.12,  // Much wider beam
+                    speedPerLevel: 0
+                },
+                variants: ['Devastator', 'Annihilator', 'Obliterator']
             },
             flak_cannon: {
                 baseName: 'Flak Cannon',
                 type: 'spread',
                 size: 'heavy',
-                baseDamage: 20,
+                baseDamage: 15,
                 baseFireRate: 500,
-                spread: 0.6,
-                projectiles: 5,
-                baseCost: 650
+                baseSpread: 0.6,
+                baseProjectiles: 5,
+                baseSpeed: 0.3,
+                baseCost: 520,
+                // LOTS more projectiles, small damage per projectile
+                scaling: {
+                    damagePerLevel: 2,
+                    damageMultPerLevel: 0.04,
+                    fireRatePerLevel: -5,
+                    projectilesPerLevel: 0.8,  // +1 projectile almost every level
+                    spreadPerLevel: 0.04,
+                    speedPerLevel: 0.01
+                },
+                variants: ['Flak', 'Shrapnel', 'Frag']
             },
-            // Assault weapons
+
+            // === ASSAULT WEAPONS ===
             railgun: {
                 baseName: 'Railgun',
                 type: 'bullet',
                 size: 'assault',
                 baseDamage: 100,
-                baseFireRate: 1000,
-                spread: 0,
-                projectiles: 1,
-                baseCost: 1200
+                baseFireRate: 1200,
+                baseSpread: 0,
+                baseProjectiles: 1,
+                baseSpeed: 0.5,
+                baseCost: 1000,
+                // MASSIVE damage and speed scaling, fire rate stays slow
+                scaling: {
+                    damagePerLevel: 25,
+                    damageMultPerLevel: 0.2,
+                    fireRatePerLevel: -5,  // Barely improves
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0,
+                    speedPerLevel: 0.08  // Very fast projectiles
+                },
+                variants: ['Gauss', 'Coil', 'Magnetic']
             },
             siege_laser: {
                 baseName: 'Siege Laser',
@@ -1663,30 +1795,95 @@
                 size: 'assault',
                 baseDamage: 120,
                 baseFireRate: 1500,
-                spread: 1.2,
-                projectiles: 1,
-                baseCost: 1500
+                baseSpread: 1.2,
+                baseProjectiles: 1,
+                baseSpeed: 0,
+                baseCost: 1200,
+                // Enormous beam coverage, very high damage
+                scaling: {
+                    damagePerLevel: 20,
+                    damageMultPerLevel: 0.12,
+                    fireRatePerLevel: -40,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.15,  // Massive beam width
+                    speedPerLevel: 0
+                },
+                variants: ['Siege', 'Extinction', 'Apocalypse']
             },
             devastator: {
                 baseName: 'Devastator',
                 type: 'spread',
                 size: 'assault',
-                baseDamage: 40,
+                baseDamage: 30,
                 baseFireRate: 700,
-                spread: 0.8,
-                projectiles: 7,
-                baseCost: 1300
+                baseSpread: 0.8,
+                baseProjectiles: 7,
+                baseSpeed: 0.35,
+                baseCost: 1100,
+                // Wall of projectiles, moderate damage each
+                scaling: {
+                    damagePerLevel: 4,
+                    damageMultPerLevel: 0.06,
+                    fireRatePerLevel: -10,
+                    projectilesPerLevel: 1.0,  // +1 projectile every level
+                    spreadPerLevel: 0.05,
+                    speedPerLevel: 0.02
+                },
+                variants: ['Storm', 'Tempest', 'Maelstrom']
             }
         };
 
-        // Weapon quality prefixes
-        const WEAPON_PREFIXES = {
-            poor: { namePre: 'Worn', statMult: 0.7, costMult: 0.5 },
+        // Maximum weapon level
+        const MAX_WEAPON_LEVEL = 10;
+
+        // Weapon quality modifiers (applied on top of level)
+        const WEAPON_QUALITIES = {
+            poor: { namePre: 'Worn', statMult: 0.8, costMult: 0.6 },
             common: { namePre: '', statMult: 1.0, costMult: 1.0 },
-            good: { namePre: 'Tuned', statMult: 1.15, costMult: 1.5 },
-            excellent: { namePre: 'Enhanced', statMult: 1.3, costMult: 2.0 },
-            superior: { namePre: 'Superior', statMult: 1.5, costMult: 3.0 }
+            good: { namePre: 'Refined', statMult: 1.1, costMult: 1.4 },
+            excellent: { namePre: 'Superior', statMult: 1.2, costMult: 2.0 },
+            legendary: { namePre: 'Legendary', statMult: 1.35, costMult: 3.5 }
         };
+
+        // Calculate weapon stats based on level and template
+        function calculateWeaponStats(template, level, quality) {
+            const q = WEAPON_QUALITIES[quality];
+            const s = template.scaling;
+            const lvl = level - 1;  // Level 1 = base stats
+
+            // Calculate each stat with level scaling
+            let damage = template.baseDamage;
+            damage += s.damagePerLevel * lvl;
+            damage *= (1 + s.damageMultPerLevel * lvl);
+            damage *= q.statMult;
+
+            let fireRate = template.baseFireRate;
+            fireRate += s.fireRatePerLevel * lvl;
+            fireRate = Math.max(50, fireRate);  // Minimum 50ms fire rate
+
+            let projectiles = template.baseProjectiles;
+            projectiles += Math.floor(s.projectilesPerLevel * lvl);
+
+            let spread = template.baseSpread;
+            spread += s.spreadPerLevel * lvl;
+            spread = Math.max(0, spread);  // Can't go negative
+
+            let speed = template.baseSpeed;
+            speed += s.speedPerLevel * lvl;
+
+            let cost = template.baseCost;
+            cost *= (1 + (level - 1) * 0.5);  // 50% more per level
+            cost *= q.costMult;
+
+            return {
+                damage: Math.round(damage),
+                fireRate: Math.round(fireRate),
+                projectiles: Math.max(1, projectiles),
+                spread: Math.round(spread * 100) / 100,
+                speed: Math.round(speed * 100) / 100,
+                cost: Math.round(cost)
+            };
+        }
 
         // Generate a random weapon based on zone level
         function generateWeapon(zoneLevel, maxSize = 'assault') {
@@ -1694,11 +1891,10 @@
             const maxSizeIdx = WEAPON_SIZE_ORDER[maxSize];
             const availableSizes = WEAPON_SIZES.filter(s => WEAPON_SIZE_ORDER[s] <= maxSizeIdx);
 
-            // Higher zones unlock heavier weapons, but still random
-            const sizeWeights = availableSizes.map((size, idx) => {
+            // Higher zones unlock heavier weapons
+            const sizeWeights = availableSizes.map((size) => {
                 const sizeIdx = WEAPON_SIZE_ORDER[size];
-                // Unlock chance based on zone level
-                if (sizeIdx > Math.floor(zoneLevel / 2)) return 0.1; // Rare at low levels
+                if (sizeIdx > Math.floor(zoneLevel / 2)) return 0.1;
                 return 1.0;
             });
             const totalWeight = sizeWeights.reduce((a, b) => a + b, 0);
@@ -1717,56 +1913,62 @@
                 .filter(([_, t]) => t.size === selectedSize);
             const [templateId, template] = sizeTemplates[Math.floor(Math.random() * sizeTemplates.length)];
 
-            // Determine quality based on zone level
-            const qualityRoll = Math.random() + (zoneLevel * 0.05);
+            // Determine weapon level based on zone (with some randomness)
+            // Zone 1: levels 1-2, Zone 5: levels 3-6, Zone 10: levels 7-10
+            const minLevel = Math.max(1, Math.floor(zoneLevel * 0.6));
+            const maxLevel = Math.min(MAX_WEAPON_LEVEL, Math.ceil(zoneLevel * 1.2) + 1);
+            const weaponLevel = minLevel + Math.floor(Math.random() * (maxLevel - minLevel + 1));
+
+            // Determine quality (higher zones = better quality chance)
+            const qualityRoll = Math.random() + (zoneLevel * 0.03) + (weaponLevel * 0.02);
             let quality;
-            if (qualityRoll < 0.3) quality = 'poor';
-            else if (qualityRoll < 0.6) quality = 'common';
+            if (qualityRoll < 0.25) quality = 'poor';
+            else if (qualityRoll < 0.55) quality = 'common';
             else if (qualityRoll < 0.8) quality = 'good';
             else if (qualityRoll < 0.95) quality = 'excellent';
-            else quality = 'superior';
+            else quality = 'legendary';
 
-            const prefix = WEAPON_PREFIXES[quality];
+            // Calculate stats
+            const stats = calculateWeaponStats(template, weaponLevel, quality);
+            const q = WEAPON_QUALITIES[quality];
 
-            // Generate stats with some randomness
-            const variance = 0.9 + Math.random() * 0.2; // 90-110% variance
-            const levelBonus = 1 + (zoneLevel * 0.1); // 10% per zone level
-
-            const damage = Math.round(template.baseDamage * prefix.statMult * variance * levelBonus);
-            const fireRate = Math.round(template.baseFireRate / (prefix.statMult * 0.9 + 0.1)); // Lower is better
-            const cost = Math.round(template.baseCost * prefix.costMult * levelBonus);
+            // Generate weapon name with variant and level
+            const variant = template.variants[Math.floor(Math.random() * template.variants.length)];
+            let weaponName = template.baseName;
+            if (q.namePre) weaponName = `${q.namePre} ${weaponName}`;
+            weaponName = `${weaponName} ${variant}-${weaponLevel}`;
 
             // Generate unique ID
-            const weaponId = `${templateId}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-
-            const weaponName = prefix.namePre ? `${prefix.namePre} ${template.baseName}` : template.baseName;
+            const weaponId = `${templateId}_L${weaponLevel}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 
             return {
                 id: weaponId,
                 templateId: templateId,
                 name: weaponName,
-                desc: generateWeaponDesc(template, damage, fireRate),
+                desc: generateWeaponDesc(template, stats, weaponLevel),
                 type: template.type,
                 size: template.size,
-                damage: damage,
-                fireRate: fireRate,
-                spread: template.spread,
-                projectiles: template.projectiles,
-                cost: cost,
+                level: weaponLevel,
+                damage: stats.damage,
+                fireRate: stats.fireRate,
+                spread: stats.spread,
+                projectiles: stats.projectiles,
+                speed: stats.speed,
+                cost: stats.cost,
                 quality: quality
             };
         }
 
         // Generate weapon description
-        function generateWeaponDesc(template, damage, fireRate) {
+        function generateWeaponDesc(template, stats, level) {
             const typeDesc = WEAPON_TYPES[template.type].name;
             const sizeDesc = template.size.charAt(0).toUpperCase() + template.size.slice(1);
-            let desc = `${sizeDesc} ${typeDesc}. `;
-            if (template.projectiles > 1) {
-                desc += `Fires ${template.projectiles} shots. `;
+            let desc = `Lv.${level} ${sizeDesc} ${typeDesc}. `;
+            if (stats.projectiles > 1) {
+                desc += `${stats.projectiles} projectiles. `;
             }
             if (template.type === 'beam') {
-                desc += `Hits all enemies in line.`;
+                desc += `Width: ${stats.spread.toFixed(1)}. `;
             }
             return desc.trim();
         }
@@ -1825,15 +2027,18 @@
         const WEAPONS = {
             basic: {
                 id: 'basic',
-                name: 'Pulse Cannon',
-                desc: 'Standard single-shot weapon',
+                name: 'Pulse Cannon Mk-1',
+                desc: 'Lv.1 Light Projectile. Standard issue.',
                 type: 'bullet',
                 size: 'light',
-                damage: 10,
+                level: 1,
+                damage: 8,
                 fireRate: 300,
                 spread: 0,
                 projectiles: 1,
-                cost: 0
+                speed: 0.35,
+                cost: 0,
+                quality: 'common'
             }
         };
 
@@ -3117,7 +3322,9 @@
                     let unequipBtn = '';
                     if (equippedWeapon) {
                         const qClass = getQualityClass(equippedWeapon.quality);
-                        weaponInfo = `<span class="${qClass}">${equippedWeapon.name}</span> <span style="color: #888;">(DMG: ${equippedWeapon.damage}, ROF: ${(1000/equippedWeapon.fireRate).toFixed(1)}/s)</span>`;
+                        const lvl = equippedWeapon.level || 1;
+                        const projInfo = equippedWeapon.projectiles > 1 ? ` x${equippedWeapon.projectiles}` : '';
+                        weaponInfo = `<span class="${qClass}">${equippedWeapon.name}</span> <span class="weapon-level">Lv.${lvl}</span><br><span style="color: #888; font-size: 11px;">DMG: ${equippedWeapon.damage}${projInfo} | ROF: ${(1000/equippedWeapon.fireRate).toFixed(1)}/s</span>`;
                         unequipBtn = `<button class="upgrade-btn unequip" onclick="unequipWeapon(${idx})">Remove</button>`;
                     }
 
@@ -3172,11 +3379,15 @@
                         mountBtns = '<span style="color: #ff6666; font-size: 11px;">No compatible hardpoint</span>';
                     }
 
+                    const lvl = weapon.level || 1;
+                    const projInfo = weapon.projectiles > 1 ? ` x${weapon.projectiles}` : '';
+                    const typeLabel = weapon.type.charAt(0).toUpperCase() + weapon.type.slice(1);
+
                     item.innerHTML = `
                         <div class="upgrade-info">
-                            <div class="upgrade-name ${qClass}">${weapon.name} <span style="color: #888; font-size: 11px;">[${weapon.size}]</span></div>
+                            <div class="upgrade-name ${qClass}">${weapon.name} <span class="weapon-level">Lv.${lvl}</span> <span style="color: #888; font-size: 11px;">[${weapon.size}]</span></div>
                             <div class="upgrade-desc">${weapon.desc}</div>
-                            <div style="font-size: 11px; color: #aaa;">DMG: ${weapon.damage} | ROF: ${(1000/weapon.fireRate).toFixed(1)}/s | Type: ${weapon.type}</div>
+                            <div style="font-size: 11px; color: #aaa;">DMG: ${weapon.damage}${projInfo} | ROF: ${(1000/weapon.fireRate).toFixed(1)}/s | ${typeLabel}</div>
                         </div>
                         <div class="mount-buttons">${mountBtns}</div>
                     `;
@@ -3200,6 +3411,9 @@
                 gameState.stationWeapons.forEach((weapon, idx) => {
                     const canAfford = gameState.credits >= weapon.cost;
                     const qClass = getQualityClass(weapon.quality);
+                    const lvl = weapon.level || 1;
+                    const projInfo = weapon.projectiles > 1 ? ` x${weapon.projectiles}` : '';
+                    const typeLabel = weapon.type.charAt(0).toUpperCase() + weapon.type.slice(1);
 
                     const item = document.createElement('div');
                     item.className = 'upgrade-item' + (weapon.onSale ? ' on-sale' : '');
@@ -3211,9 +3425,9 @@
 
                     item.innerHTML = `
                         <div class="upgrade-info">
-                            <div class="upgrade-name ${qClass}">${weapon.name} <span style="color: #888; font-size: 11px;">[${weapon.size}]</span></div>
+                            <div class="upgrade-name ${qClass}">${weapon.name} <span class="weapon-level">Lv.${lvl}</span> <span style="color: #888; font-size: 11px;">[${weapon.size}]</span></div>
                             <div class="upgrade-desc">${weapon.desc}</div>
-                            <div style="font-size: 11px; color: #aaa;">DMG: ${weapon.damage} | ROF: ${(1000/weapon.fireRate).toFixed(1)}/s | Type: ${weapon.type}</div>
+                            <div style="font-size: 11px; color: #aaa;">DMG: ${weapon.damage}${projInfo} | ROF: ${(1000/weapon.fireRate).toFixed(1)}/s | ${typeLabel}</div>
                             <div style="font-size: 12px; margin-top: 3px;">${priceHtml}</div>
                         </div>
                         <button class="upgrade-btn buy" ${canAfford ? '' : 'disabled'} onclick="buyStationWeapon(${idx})">Buy</button>
@@ -4639,6 +4853,9 @@
                     const px = playerShip.position.x + hardpointOffset.x;
                     const py = playerShip.position.y + hardpointOffset.y + 0.2;
 
+                    // Get weapon speed (default 0.35 for backward compatibility)
+                    const weaponSpeed = weapon.speed || 0.35;
+
                     // Fire based on weapon type
                     if (weapon.type === 'beam') {
                         fireBeamLaser(px, py, weapon);
@@ -4651,14 +4868,14 @@
 
                         for (let i = 0; i < count; i++) {
                             const angle = count > 1 ? startAngle + (angleStep * i) : 0;
-                            const vx = Math.sin(angle) * 0.35;
-                            const vy = Math.cos(angle) * 0.35;
+                            const vx = Math.sin(angle) * weaponSpeed;
+                            const vy = Math.cos(angle) * weaponSpeed;
                             const bullet = createBullet(true, px + (vx * 0.3), py, vx * 0.3, vy, weapon.damage);
                             gameState.playerBullets.push(bullet);
                         }
                     } else {
                         // Single projectile bullet weapon
-                        const bullet = createBullet(true, px, py, 0, 0.35, weapon.damage);
+                        const bullet = createBullet(true, px, py, 0, weaponSpeed, weapon.damage);
                         gameState.playerBullets.push(bullet);
                     }
 
