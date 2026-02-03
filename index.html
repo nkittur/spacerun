@@ -1263,10 +1263,7 @@
             warpGates: [],          // Active warp gates
             gateChoices: null,      // The two gate options
             showingGates: false,    // Whether gates are currently displayed
-            // Zone-based level structure
-            currentLevelZone: 'wave',  // 'wave', 'reward', or 'gate'
-            zoneScrollProgress: 0,     // How far scrolled into current zone
-            rewardZoneGenerated: false, // Whether reward zone content was created
+            levelEndSpawned: false, // Whether end-of-level content (reward + gates) has been spawned
             speedUp: false          // Speed-up button pressed
         };
 
@@ -1282,12 +1279,10 @@
 
         const ZONE_DISTANCE = 500; // Distance units per zone before transitioning
 
-        // Level zone sizes (in scroll distance units)
-        // Wave zone has no fixed size - ends when enemies defeated
-        // Reward and gate zones have defined vertical extents
-        const LEVEL_ZONE_SIZES = {
-            reward: 30,  // Scroll distance for reward/exploration zone
-            gate: 20     // Scroll distance for gate zone
+        // Level zone heights in world Y units (1 screen height ≈ orthoHeight*2 ≈ 20 units)
+        const LEVEL_ZONE_HEIGHTS = {
+            reward: 25,  // Y distance for reward/exploration zone (~1.25 screens)
+            gate: 15     // Y distance for gate zone
         };
 
         // Weapon definitions
@@ -2401,19 +2396,70 @@
 
         // ========== RIVER NAVIGATION - WARP GATES ==========
 
-        // Create warp gates at end of level
-        function createWarpGates() {
+        // Generate all end-of-level content (reward zone + gate zone)
+        // Uses position-based spawning - content is placed at specific Y coordinates
+        function generateLevelEndContent() {
+            if (!scene || gameState.levelEndSpawned) return;
+
+            // Base spawn position - above the visible screen
+            const baseSpawnY = orthoHeight + 10;
+
+            // 1. REWARD ZONE: Spawn solar system(s) as reward for completing waves
+            const rewardY = baseSpawnY;
+            createSolarSystemAt(rewardY);
+
+            // 2. GATE ZONE: Spawn warp gates after the reward zone
+            const gateY = rewardY + LEVEL_ZONE_HEIGHTS.reward;
+            createWarpGates(gateY);
+
+            gameState.levelEndSpawned = true;
+        }
+
+        // Create a solar system at a specific Y position
+        function createSolarSystemAt(spawnY) {
+            if (!scene) return;
+
+            const centerX = (Math.random() - 0.5) * (orthoWidth * 1.2);
+            const centerY = spawnY;
+
+            // Create sun at center
+            const sun = createSun(centerX, centerY);
+            if (sun) {
+                gameState.suns.push(sun);
+            }
+
+            // Create 2-5 planets orbiting the sun
+            const planetCount = 2 + Math.floor(Math.random() * 4);
+            const minOrbitRadius = sun ? sun.size * 0.8 : 3;
+
+            for (let i = 0; i < planetCount; i++) {
+                const orbitRadius = minOrbitRadius + 2 + i * 2 + Math.random() * 1.5;
+                const angle = Math.random() * Math.PI * 2;
+
+                const px = centerX + Math.cos(angle) * orbitRadius;
+                const py = centerY + Math.sin(angle) * orbitRadius * 0.4;
+
+                const planet = createPlanetAt(px, py);
+                if (planet) {
+                    planet.orbitCenterX = centerX;
+                    planet.orbitRadius = orbitRadius;
+                    planet.orbitAngle = angle;
+                    planet.orbitSpeed = 0.0003 + Math.random() * 0.0002;
+                    gameState.planets.push(planet);
+                }
+            }
+        }
+
+        // Create warp gates at specified Y position
+        function createWarpGates(spawnY) {
             if (!scene || gameState.showingGates) return;
 
             // Gate dimensions for positioning
             const gateSize = 7;
             const gateSpacing = gateSize + 1;
-            const gateY = orthoHeight + gateSize / 2;
+            const gateY = spawnY !== undefined ? spawnY : orthoHeight + gateSize / 2;
             const leftGateX = -gateSpacing / 2;
             const rightGateX = gateSpacing / 2;
-
-            // Note: Gates spawn AFTER reward zone, so solar systems have already
-            // scrolled past - no clearing needed
 
             // Generate two different level options
             const nextLevel = gameState.level + 1;
@@ -2630,10 +2676,8 @@
             gameState.stationsVisited = 0;
             gameState.wave = (gameState.level - 1) * 5 + 1; // Global wave number for difficulty
 
-            // Reset zone state for new level
-            gameState.currentLevelZone = 'wave';
-            gameState.zoneScrollProgress = 0;
-            gameState.rewardZoneGenerated = false;
+            // Reset level end state for new level
+            gameState.levelEndSpawned = false;
 
             // Clear all existing game objects for fresh start
             clearLevelObjects();
@@ -4065,10 +4109,7 @@
             gameState.level = 1;
             gameState.levelWave = 0;
             gameState.stationsVisited = 0;
-            // Reset zone state
-            gameState.currentLevelZone = 'wave';
-            gameState.zoneScrollProgress = 0;
-            gameState.rewardZoneGenerated = false;
+            gameState.levelEndSpawned = false;
             // Generate initial level config
             gameState.levelConfig = generateLevelConfig(1);
             // Clean up any existing warp gates
@@ -4110,9 +4151,7 @@
                 levelConfig: gameState.levelConfig,
                 stationsVisited: gameState.stationsVisited,
                 currentZone: gameState.currentZone,
-                currentLevelZone: gameState.currentLevelZone,
-                zoneScrollProgress: gameState.zoneScrollProgress,
-                rewardZoneGenerated: gameState.rewardZoneGenerated,
+                levelEndSpawned: gameState.levelEndSpawned,
                 credits: gameState.credits,
                 ownedWeapons: gameState.ownedWeapons,
                 equippedWeapon: gameState.equippedWeapon,
@@ -4165,9 +4204,7 @@
             gameState.levelConfig = saveData.levelConfig || generateLevelConfig(1);
             gameState.stationsVisited = saveData.stationsVisited || 0;
             gameState.currentZone = saveData.currentZone || 0;
-            gameState.currentLevelZone = saveData.currentLevelZone || 'wave';
-            gameState.zoneScrollProgress = saveData.zoneScrollProgress || 0;
-            gameState.rewardZoneGenerated = saveData.rewardZoneGenerated || false;
+            gameState.levelEndSpawned = saveData.levelEndSpawned || false;
             gameState.credits = saveData.credits || 0;
             gameState.ownedWeapons = saveData.ownedWeapons || ['basic'];
             gameState.equippedWeapon = saveData.equippedWeapon || 'basic';
@@ -4391,9 +4428,9 @@
                     gameState.spawnTimer = 0;
                 }
 
-                // Spawn solar systems with spacing - only during wave zone
-                // Wave zone may randomly have 0-2 solar systems
-                const shouldSpawnSolarSystems = gameState.currentLevelZone === 'wave' && !gameState.showingGates;
+                // Spawn solar systems with spacing - only during active waves
+                // Stop spawning once level end content (reward + gates) has been generated
+                const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates;
 
                 gameState.nextSolarSystemY -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 if (gameState.nextSolarSystemY < orthoHeight + 10 && shouldSpawnSolarSystems) {
@@ -4404,7 +4441,7 @@
                 updateSuns(scrollMultiplier);
                 applySunLighting();
 
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && gameState.currentLevelZone === 'wave') {
+                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned) {
                     gameState.wave++;
                     gameState.levelWave++;
                     updateHUD();
@@ -4413,10 +4450,9 @@
 
                     // Check if level complete (all waves done)
                     if (gameState.levelWave >= config.waveCount) {
-                        // Level complete - transition to reward zone
-                        gameState.currentLevelZone = 'reward';
-                        gameState.zoneScrollProgress = 0;
-                        gameState.rewardZoneGenerated = false;
+                        // Level complete - generate reward zone and gates
+                        // Both are spawned at specific Y positions, scrolling reveals them naturally
+                        generateLevelEndContent();
                     } else {
                         // Check if a station should appear after this wave
                         const shouldSpawnStation = config.stationWaves &&
@@ -4429,26 +4465,6 @@
                         } else {
                             spawnWave();
                         }
-                    }
-                }
-
-                // Handle zone-based level progression
-                if (gameState.currentLevelZone === 'reward') {
-                    // Track scroll progress through reward zone
-                    const scrollAmount = 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
-                    gameState.zoneScrollProgress += scrollAmount;
-
-                    // Generate reward zone content once at the start
-                    if (!gameState.rewardZoneGenerated) {
-                        createSolarSystem(); // Spawn reward solar system
-                        gameState.rewardZoneGenerated = true;
-                    }
-
-                    // Transition to gate zone when reward zone is complete
-                    if (gameState.zoneScrollProgress >= LEVEL_ZONE_SIZES.reward) {
-                        gameState.currentLevelZone = 'gate';
-                        gameState.zoneScrollProgress = 0;
-                        createWarpGates();
                     }
                 }
 
