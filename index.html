@@ -2652,14 +2652,14 @@
                 const g = parseInt(hex.slice(3,5), 16) / 255;
                 const b = parseInt(hex.slice(5,7), 16) / 255;
 
-                // Create realistic metallic material - dark base with specular highlights
+                // Create glowing metallic material in element color
                 const lootMat = new BABYLON.StandardMaterial('lootMat', scene);
-                // Dark diffuse for shadowed look
-                lootMat.diffuseColor = new BABYLON.Color3(r * 0.25, g * 0.25, b * 0.25);
-                // Subtle ambient to prevent pure black
+                // Darker diffuse base
+                lootMat.diffuseColor = new BABYLON.Color3(r * 0.2, g * 0.2, b * 0.2);
+                // Subtle ambient
                 lootMat.ambientColor = new BABYLON.Color3(r * 0.1, g * 0.1, b * 0.1);
-                // Very subtle emissive for visibility in dark areas
-                lootMat.emissiveColor = new BABYLON.Color3(r * 0.08, g * 0.08, b * 0.08);
+                // Slight glow in element color for visibility
+                lootMat.emissiveColor = new BABYLON.Color3(r * 0.35, g * 0.35, b * 0.35);
                 // Strong specular for metallic shine
                 lootMat.specularColor = new BABYLON.Color3(0.6 + r * 0.3, 0.6 + g * 0.3, 0.6 + b * 0.3);
                 lootMat.specularPower = 64;
