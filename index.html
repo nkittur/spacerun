@@ -39,28 +39,6 @@
             touch-action: none;
         }
 
-        #settingsBtn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 40px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 8px;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #settingsBtn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
         #settingsPanel {
             position: absolute;
             top: 50%;
@@ -121,6 +99,28 @@
             font-size: 12px;
             color: #88aadd;
             margin-top: 3px;
+        }
+
+        .checkbox-group {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #334;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #aaccff;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4488ff;
+            cursor: pointer;
         }
 
         #closeSettings {
@@ -499,6 +499,196 @@
             background: #ff5555;
         }
 
+        /* Warp Gate HUD Previews - minimal, blends with background */
+        #warpGatePanel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            pointer-events: none;
+            z-index: 80;
+            font-family: 'Courier New', monospace;
+        }
+
+        .gate-preview {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .gate-hud {
+            padding: 6px 10px;
+            min-width: 80px;
+        }
+
+        .hud-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,1);
+        }
+
+        .hud-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .hud-label {
+            color: rgba(150, 150, 180, 0.8);
+            text-transform: uppercase;
+            font-size: 9px;
+            margin-right: 8px;
+        }
+
+        .hud-value {
+            font-weight: bold;
+            font-size: 13px;
+            color: #fff;
+        }
+
+        .gate-preview.left .hud-value { color: #ffaa66; }
+        .gate-preview.right .hud-value { color: #66ffaa; }
+
+        /* Threat level indicator bar */
+        .threat-bar {
+            display: flex;
+            gap: 3px;
+        }
+
+        .threat-pip {
+            width: 6px;
+            height: 10px;
+            background: rgba(40, 40, 60, 0.5);
+        }
+
+        .threat-pip.active {
+            background: currentColor;
+            box-shadow: 0 0 6px currentColor;
+        }
+
+        .threat-low { color: #44ff88; }
+        .threat-medium { color: #ffaa44; }
+        .threat-high { color: #ff6644; }
+        .threat-extreme { color: #ff4444; }
+
+        /* Station icons - minimal dots */
+        .station-icons {
+            display: flex;
+            gap: 4px;
+        }
+
+        .station-icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .station-icon.trade { color: #44aaff; text-shadow: 0 0 4px #44aaff; }
+        .station-icon.armory { color: #ff4444; text-shadow: 0 0 4px #ff4444; }
+        .station-icon.repair { color: #44ff88; text-shadow: 0 0 4px #44ff88; }
+        .station-icon.fuel { color: #ffaa44; text-shadow: 0 0 4px #ffaa44; }
+
+        .no-stations {
+            color: rgba(100, 100, 120, 0.6);
+            font-size: 10px;
+        }
+
+        /* Warp/Lightspeed Animation */
+        #warpOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+            z-index: 250;
+            display: none;
+            overflow: hidden;
+        }
+
+        .warp-star {
+            position: absolute;
+            background: linear-gradient(to bottom, transparent, white, transparent);
+            width: 2px;
+            transform-origin: center bottom;
+            animation: warpStreak 0.8s ease-in forwards;
+        }
+
+        @keyframes warpStreak {
+            0% {
+                height: 5px;
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            100% {
+                height: 100vh;
+                opacity: 0;
+            }
+        }
+
+        #warpFlash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0;
+            z-index: 260;
+            pointer-events: none;
+        }
+
+        /* Speed Up Button - Sci-fi HUD style */
+        #speedUpBtn {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px 16px;
+            background: rgba(0, 20, 40, 0.85);
+            border: 1px solid #4488ff;
+            border-radius: 0;
+            color: #4488ff;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            cursor: pointer;
+            z-index: 60;
+            display: none;
+            transition: all 0.15s ease;
+            text-transform: uppercase;
+        }
+
+        #speedUpBtn:hover {
+            background: rgba(68, 136, 255, 0.2);
+            box-shadow: 0 0 10px rgba(68, 136, 255, 0.3);
+        }
+
+        #speedUpBtn:active, #speedUpBtn.active {
+            background: rgba(68, 136, 255, 0.4);
+            color: white;
+            box-shadow: 0 0 20px rgba(68, 136, 255, 0.6), inset 0 0 10px rgba(68, 136, 255, 0.3);
+        }
+
+        #speedUpBtn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
         #startScreen {
             position: absolute;
             top: 0;
@@ -591,6 +781,153 @@
             font-size: 18px;
             margin: 20px 0;
         }
+
+        /* System Menu */
+        #systemBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #systemBtn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #systemMenu {
+            position: absolute;
+            top: 55px;
+            right: 10px;
+            background: rgba(20, 20, 40, 0.95);
+            border: 2px solid #4488ff;
+            border-radius: 10px;
+            padding: 8px 0;
+            z-index: 150;
+            display: none;
+            min-width: 150px;
+            box-shadow: 0 0 20px rgba(68, 136, 255, 0.5);
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.2s;
+        }
+
+        .menu-item:hover {
+            background: rgba(68, 136, 255, 0.3);
+        }
+
+        .menu-divider {
+            height: 1px;
+            background: rgba(68, 136, 255, 0.3);
+            margin: 5px 0;
+        }
+
+        /* Saved Notification */
+        #savedNotification {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(40, 180, 80, 0.9);
+            border: 2px solid #4f4;
+            border-radius: 8px;
+            padding: 10px 25px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 16px;
+            z-index: 300;
+            display: none;
+            box-shadow: 0 0 15px rgba(68, 255, 68, 0.5);
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
+
+        /* Confirmation Dialog */
+        #confirmDialog {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 40, 0.98);
+            border: 2px solid #ff6644;
+            border-radius: 15px;
+            padding: 25px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            z-index: 250;
+            display: none;
+            min-width: 280px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(255, 100, 68, 0.5);
+        }
+
+        #confirmDialog h3 {
+            margin-bottom: 15px;
+            color: #ff8866;
+        }
+
+        #confirmDialog p {
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #aaccff;
+        }
+
+        .confirm-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .confirm-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .confirm-btn.danger {
+            background: #ff4444;
+            color: white;
+        }
+
+        .confirm-btn.danger:hover {
+            background: #ff6666;
+        }
+
+        .confirm-btn.cancel {
+            background: #445566;
+            color: white;
+        }
+
+        .confirm-btn.cancel:hover {
+            background: #556677;
+        }
     </style>
 </head>
 <body>
@@ -605,7 +942,22 @@
         <div id="modelGrid"></div>
     </div>
 
-    <button id="settingsBtn" style="display: none;">⚙</button>
+    <button id="systemBtn" style="display: none;">☰</button>
+    <div id="systemMenu">
+        <div class="menu-item" id="menuSettings">⚙ Settings</div>
+        <div class="menu-divider"></div>
+        <div class="menu-item" id="menuSaveQuit">💾 Save & Quit</div>
+        <div class="menu-item" id="menuNewGame">🔄 New Game</div>
+    </div>
+    <div id="savedNotification">Saved...</div>
+    <div id="confirmDialog">
+        <h3>Start New Game?</h3>
+        <p>Your current progress will be lost if not saved.</p>
+        <div class="confirm-buttons">
+            <button class="confirm-btn danger" id="confirmNewGame">New Game</button>
+            <button class="confirm-btn cancel" id="cancelNewGame">Cancel</button>
+        </div>
+    </div>
 
     <div id="settingsPanel">
         <h2>Settings</h2>
@@ -639,13 +991,19 @@
             <input type="range" id="scrollSpeed" min="0.5" max="2" step="0.1" value="1">
             <div class="setting-value" id="scrollSpeedValue">1.0x</div>
         </div>
+        <div class="setting-group checkbox-group">
+            <label>
+                <input type="checkbox" id="debugMode">
+                Debug Mode (1000 credits at start)
+            </label>
+        </div>
         <button id="closeSettings">Close</button>
     </div>
 
     <div id="hud" style="display: none;">
-        <div>Score: <span id="score">0</span></div>
+        <div>Credits: <span id="creditsHud">0</span></div>
         <div>Health: <span id="health">100</span></div>
-        <div>Wave: <span id="wave">1</span></div>
+        <div>Level: <span id="level">1</span> | Wave: <span id="wave">1</span>/<span id="totalWaves">3</span></div>
     </div>
 
     <div id="shieldsDisplay" style="display: none;">
@@ -680,9 +1038,49 @@
         <button id="departBtn">Depart</button>
     </div>
 
+    <div id="warpGatePanel">
+        <div class="gate-preview left" id="gateLeftPreview">
+            <div class="gate-hud">
+                <div class="hud-row">
+                    <span class="hud-label">THR</span>
+                    <div class="threat-bar" id="gateLeftThreat"></div>
+                </div>
+                <div class="hud-row">
+                    <span class="hud-label">WAV</span>
+                    <span class="hud-value" id="gateLeftWaves">3</span>
+                </div>
+                <div class="hud-row">
+                    <span class="hud-label">STA</span>
+                    <div class="station-icons" id="gateLeftStations"></div>
+                </div>
+            </div>
+        </div>
+        <div class="gate-preview right" id="gateRightPreview">
+            <div class="gate-hud">
+                <div class="hud-row">
+                    <span class="hud-label">THR</span>
+                    <div class="threat-bar" id="gateRightThreat"></div>
+                </div>
+                <div class="hud-row">
+                    <span class="hud-label">WAV</span>
+                    <span class="hud-value" id="gateRightWaves">5</span>
+                </div>
+                <div class="hud-row">
+                    <span class="hud-label">STA</span>
+                    <div class="station-icons" id="gateRightStations"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="warpOverlay"></div>
+    <div id="warpFlash"></div>
+
+    <button id="speedUpBtn">&gt;&gt; WARP</button>
+
     <div id="gameOver">
         <h2>Game Over</h2>
-        <p>Final Score: <span id="finalScore">0</span></p>
+        <p>Final Credits: <span id="finalCredits">0</span></p>
         <button id="restartBtn">Play Again</button>
     </div>
     </div><!-- end gameContainer -->
@@ -802,7 +1200,8 @@
             playerShip: 'Bob',
             playerColor: 'Blue',
             enemyShip: 'Spitfire',
-            enemyColor: 'Red'
+            enemyColor: 'Red',
+            debugMode: localStorage.getItem('debugMode') === 'true'
         };
 
         // Loaded model templates
@@ -855,7 +1254,16 @@
             ownedWeapons: ['basic'],
             equippedWeapon: 'basic',
             beamActive: false,
-            beamMesh: null
+            beamMesh: null,
+            // River navigation - level system
+            level: 1,
+            levelWave: 0,           // Current wave within level (0 = not started)
+            levelConfig: null,      // Config for current level
+            stationsVisited: 0,     // How many stations visited this level
+            warpGates: [],          // Active warp gates
+            gateChoices: null,      // The two gate options
+            showingGates: false,    // Whether gates are currently displayed
+            speedUp: false          // Speed-up button pressed
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -902,6 +1310,78 @@
             }
         };
 
+        // Station types for level signatures
+        const STATION_TYPES = ['Trade', 'Armory', 'Repair', 'Fuel'];
+
+        // Generate a random level configuration
+        function generateLevelConfig(levelNum) {
+            // Difficulty scales with level
+            const baseDifficulty = Math.min(levelNum, 10);
+
+            // Random number of waves (2-6, scaling with level)
+            const minWaves = Math.min(2 + Math.floor(levelNum / 3), 4);
+            const maxWaves = Math.min(3 + Math.floor(levelNum / 2), 7);
+            const waveCount = minWaves + Math.floor(Math.random() * (maxWaves - minWaves + 1));
+
+            // Enemy strength: Low, Medium, High, Extreme
+            const strengthRoll = Math.random() + (levelNum * 0.05);
+            let threatLevel, threatClass;
+            if (strengthRoll < 0.3) {
+                threatLevel = 'Low';
+                threatClass = 'safe';
+            } else if (strengthRoll < 0.6) {
+                threatLevel = 'Medium';
+                threatClass = 'medium';
+            } else if (strengthRoll < 0.85) {
+                threatLevel = 'High';
+                threatClass = 'danger';
+            } else {
+                threatLevel = 'Extreme';
+                threatClass = 'danger';
+            }
+
+            // Enemy multiplier based on threat
+            const enemyMultiplier = { 'Low': 0.7, 'Medium': 1.0, 'High': 1.3, 'Extreme': 1.6 }[threatLevel];
+
+            // Stations (0-2, random types)
+            const stationCount = Math.floor(Math.random() * 3);
+            const stations = [];
+            for (let i = 0; i < stationCount; i++) {
+                stations.push(STATION_TYPES[Math.floor(Math.random() * STATION_TYPES.length)]);
+            }
+
+            // Format stations for display
+            let stationDisplay = 'None';
+            if (stations.length > 0) {
+                const stationCounts = {};
+                stations.forEach(s => stationCounts[s] = (stationCounts[s] || 0) + 1);
+                stationDisplay = Object.entries(stationCounts)
+                    .map(([type, count]) => count > 1 ? `${count} ${type}` : type)
+                    .join(', ');
+            }
+
+            // Calculate which waves should have stations after them
+            // Distribute stations evenly through the level
+            const stationWaves = [];
+            if (stations.length > 0) {
+                const interval = Math.floor(waveCount / (stations.length + 1));
+                for (let i = 0; i < stations.length; i++) {
+                    stationWaves.push(interval * (i + 1));
+                }
+            }
+
+            return {
+                waveCount,
+                threatLevel,
+                threatClass,
+                enemyMultiplier,
+                stations,
+                stationWaves,  // Which wave numbers trigger station spawns
+                stationDisplay,
+                levelNum
+            };
+        }
+
         // Background meshes for crossfade (A=current, B=transition target, C=next zone)
         let backgroundMeshA = null;
         let backgroundMeshB = null;
@@ -922,7 +1402,8 @@
         const engine = new BABYLON.Engine(canvas, true, {
             preserveDrawingBuffer: true,
             stencil: true,
-            antialias: true
+            antialias: true,
+            premultipliedAlpha: false // Fix alpha blending artifacts on mobile
         });
 
         // Set hardware scaling to match device pixel ratio for crisp rendering
@@ -1030,7 +1511,12 @@
             }
 
             loadingText.style.display = 'none';
-            document.getElementById('startBtn').style.display = 'block';
+            const startBtn = document.getElementById('startBtn');
+            startBtn.style.display = 'block';
+            // Show "Continue" if there's a saved game
+            if (hasSavedGame()) {
+                startBtn.textContent = 'Continue';
+            }
         }
 
         // Main game scene
@@ -1060,6 +1546,36 @@
             light.intensity = 1.0;
             const light2 = new BABYLON.DirectionalLight('light2', new BABYLON.Vector3(0, 0, -1), scene);
             light2.intensity = 0.8;
+
+            // GlowLayer for suns, bullets, and explosions - whitelisted meshes
+            sunGlowLayer = new BABYLON.GlowLayer('sunGlow', scene, {
+                mainTextureFixedSize: 512,
+                blurKernelSize: 24 // Tighter glow
+            });
+            sunGlowLayer.intensity = 0.7; // Reduced intensity
+
+            // DefaultRenderingPipeline for global bloom
+            renderPipeline = new BABYLON.DefaultRenderingPipeline(
+                'defaultPipeline',
+                true,
+                scene,
+                [camera]
+            );
+            renderPipeline.bloomEnabled = true;
+            renderPipeline.bloomKernel = 24; // Tighter bloom
+            renderPipeline.bloomWeight = 0.25; // Subtle bloom
+            renderPipeline.bloomThreshold = 0.7; // Higher threshold
+            renderPipeline.bloomScale = 0.5;
+            renderPipeline.imageProcessingEnabled = true;
+            renderPipeline.imageProcessing.contrast = 1.1;
+            renderPipeline.imageProcessing.exposure = 1.0;
+
+            // Dynamic sun light - will be updated based on nearest sun
+            const sunLight = new BABYLON.DirectionalLight('sunLight', new BABYLON.Vector3(0, -1, 0.5), scene);
+            sunLight.intensity = 0;
+            sunLight.diffuse = new BABYLON.Color3(1, 1, 1);
+            sunLight.specular = new BABYLON.Color3(0.5, 0.5, 0.5);
+            gameState.sunLight = sunLight;
 
             materials.playerBullet = new BABYLON.StandardMaterial('playerBulletMat', scene);
             materials.playerBullet.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
@@ -1102,11 +1618,13 @@
             backgroundMaterialA.disableLighting = true;
             backgroundMaterialA.backFaceCulling = false;
             backgroundMeshA.material = backgroundMaterialA;
+            backgroundMeshA.renderingGroupId = 0;
 
             // Background B (for transitions)
             backgroundMeshB = BABYLON.MeshBuilder.CreatePlane('backgroundB', { width: bgSize, height: bgSize * 2 }, scene);
             backgroundMeshB.position.z = 4.9; // Slightly in front of A
             backgroundMeshB.position.y = 0;
+            backgroundMeshB.renderingGroupId = 0;
 
             backgroundMaterialB = new BABYLON.StandardMaterial('bgMatB', scene);
             backgroundMaterialB.diffuseColor = new BABYLON.Color3(0, 0, 0);
@@ -1291,6 +1809,12 @@
                 mat.disableLighting = true;
                 particle.material = mat;
 
+                // Add explosion particles to GlowLayer for dramatic glow effect
+                if (sunGlowLayer) {
+                    sunGlowLayer.addIncludedOnlyMesh(particle);
+                }
+
+                particle.renderingGroupId = 2;
                 particle.startTime = performance.now();
                 particle.duration = duration * (0.7 + Math.random() * 0.6);
                 particles.push(particle);
@@ -1378,6 +1902,7 @@
                 lootMesh.position.x = x + offsetX;
                 lootMesh.position.y = y + offsetY;
                 lootMesh.position.z = -0.2;
+                lootMesh.renderingGroupId = 2;
 
                 lootMesh.rotation.x = Math.random() * Math.PI * 2;
                 lootMesh.rotation.y = Math.random() * Math.PI * 2;
@@ -1476,41 +2001,12 @@
             }
         }
 
-        // Create radial gradient texture for sun glow
-        function createGlowTexture(scene, tint, size) {
-            const textureSize = 256;
-            const dynamicTexture = new BABYLON.DynamicTexture('glowTexture', textureSize, scene, false);
-            const ctx = dynamicTexture.getContext();
+        // Global glow layer for suns (initialized in setupScene)
+        let sunGlowLayer = null;
+        let renderPipeline = null;
 
-            // Create radial gradient - more opaque to cover background stars
-            const centerX = textureSize / 2;
-            const centerY = textureSize / 2;
-            const radius = textureSize / 2;
-
-            const r = Math.floor(tint[0] * 255);
-            const g = Math.floor(tint[1] * 255);
-            const b = Math.floor(tint[2] * 255);
-
-            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-            gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.9)`);
-            gradient.addColorStop(0.15, `rgba(${r}, ${g}, ${b}, 0.7)`);
-            gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 0.4)`);
-            gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.15)`);
-            gradient.addColorStop(0.75, `rgba(${r}, ${g}, ${b}, 0.05)`);
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, textureSize, textureSize);
-
-            dynamicTexture.update();
-            dynamicTexture.hasAlpha = true;
-
-            return dynamicTexture;
-        }
-
-        // Create a sun
+        // Create a sun with geometry-based corona (not post-process glow)
         function createSun(x, y) {
-            // return null; // TEMP TEST: disable suns to check if dots still appear
             if (!scene) return null;
 
             const sunTypeKeys = Object.keys(SUN_TYPES);
@@ -1523,31 +2019,42 @@
 
             const sunSize = 4 + Math.random() * 2; // 4-6 units
 
-            // TEMP: Skip glow creation to test if it's the source of dots
-            /*
-            // Create smooth radial gradient glow
-            const glowSize = sunSize * 8; // Large glow area
-            const glow = BABYLON.MeshBuilder.CreatePlane('sunGlow', { size: glowSize }, scene);
-            glow.position.x = x;
-            glow.position.y = y;
-            glow.position.z = 0.9; // Behind everything
+            // Create parent node for sun + corona
+            const sunNode = new BABYLON.TransformNode('sunNode', scene);
+            sunNode.position.x = x;
+            sunNode.position.y = y;
+            sunNode.position.z = 3; // Far behind everything except background
 
-            const glowTexture = createGlowTexture(scene, sunType.tint, glowSize);
-            const glowMat = new BABYLON.StandardMaterial('sunGlowMat', scene);
-            glowMat.diffuseTexture = glowTexture;
-            glowMat.emissiveTexture = glowTexture;
-            glowMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
-            glowMat.disableLighting = true;
-            glowMat.useAlphaFromDiffuseTexture = true;
-            glowMat.backFaceCulling = false;
-            glow.material = glowMat;
-            */
+            // Create corona (glow aura) - multiple layers for soft glow effect
+            const coronaSizes = [2.5, 2.0, 1.6];
+            const coronaAlphas = [0.08, 0.12, 0.2];
+            sunNode.coronas = [];
 
-            // Create the sun itself
+            coronaSizes.forEach((sizeMult, i) => {
+                const corona = BABYLON.MeshBuilder.CreatePlane('corona' + i, { size: sunSize * sizeMult }, scene);
+                corona.parent = sunNode;
+                corona.position.z = 0.1 * (i + 1); // Slightly behind sun
+
+                const coronaMat = new BABYLON.StandardMaterial('coronaMat' + i, scene);
+                coronaMat.emissiveColor = new BABYLON.Color3(
+                    sunType.tint[0],
+                    sunType.tint[1],
+                    sunType.tint[2]
+                );
+                coronaMat.alpha = coronaAlphas[i];
+                coronaMat.disableLighting = true;
+                coronaMat.backFaceCulling = false;
+                coronaMat.disableDepthWrite = true;
+                corona.material = coronaMat;
+                corona.renderingGroupId = 1;
+
+                sunNode.coronas.push(corona);
+            });
+
+            // Create the sun mesh
             const sun = BABYLON.MeshBuilder.CreatePlane('sun', { size: sunSize }, scene);
-            sun.position.x = x;
-            sun.position.y = y;
-            sun.position.z = 0.6; // Behind planets
+            sun.parent = sunNode;
+            sun.position.z = 0;
 
             const texture = new BABYLON.Texture(imagePath, scene);
             texture.hasAlpha = true;
@@ -1556,21 +2063,26 @@
             mat.diffuseTexture = texture;
             mat.emissiveTexture = texture;
             mat.emissiveColor = new BABYLON.Color3(
-                sunType.tint[0] * 0.7,
-                sunType.tint[1] * 0.7,
-                sunType.tint[2] * 0.7
+                sunType.tint[0],
+                sunType.tint[1],
+                sunType.tint[2]
             );
             mat.useAlphaFromDiffuseTexture = true;
             mat.backFaceCulling = false;
+            mat.disableLighting = true;
+            mat.disableDepthWrite = true;
             sun.material = mat;
+            sun.renderingGroupId = 1;
 
-            sun.size = sunSize;
-            sun.glowSize = sunSize * 8; // TEMP: hardcoded since glow is disabled
-            sun.isSun = true;
-            sun.glow = null; // TEMP: glow disabled for testing
-            sun.tint = sunType.tint;
+            // Do NOT add sun to GlowLayer - use geometry corona instead
 
-            return sun;
+            sunNode.size = sunSize;
+            sunNode.glowSize = sunSize * 4;
+            sunNode.isSun = true;
+            sunNode.tint = sunType.tint;
+            sunNode.sunMesh = sun;
+
+            return sunNode;
         }
 
         // Create a planet at specific position
@@ -1605,7 +2117,13 @@
             );
             mat.useAlphaFromDiffuseTexture = true;
             mat.backFaceCulling = false;
+            mat.disableLighting = true;
+            // Disable depth writing so ships/bullets render on top
+            mat.disableDepthWrite = true;
             planet.material = mat;
+
+            // Render in group 1 (after background, before game objects)
+            planet.renderingGroupId = 1;
 
             planet.planetType = typeKey;
             planet.planetData = planetType;
@@ -1617,8 +2135,8 @@
             planet.richness = Math.floor(Math.random() * 5) + 1;
             // Hazardousness affects harvest time (1-5 scale, higher = longer)
             planet.hazard = Math.floor(Math.random() * 5) + 1;
-            // Base harvest time is 2 seconds, hazard adds 0.5s per level
-            planet.harvestTime = 1500 + planet.hazard * 500; // 2s to 4s
+            // Base harvest time is 4 seconds, hazard adds 1s per level
+            planet.harvestTime = 3000 + planet.hazard * 1000; // 4s to 8s
 
             return planet;
         }
@@ -1684,6 +2202,12 @@
             mat.useAlphaFromDiffuseTexture = true;
             mat.backFaceCulling = false;
             starbase.material = mat;
+            starbase.renderingGroupId = 2;
+
+            // Exclude starbase from GlowLayer to prevent bloom washout
+            if (sunGlowLayer) {
+                sunGlowLayer.addExcludedMesh(starbase);
+            }
 
             starbase.size = starbaseSize;
             starbase.dockRadius = starbaseSize * 0.8;
@@ -1747,7 +2271,6 @@
             if (starbase.position.y < -orthoHeight - starbase.size) {
                 starbase.dispose();
                 gameState.starbase = null;
-                gameState.wavesUntilStarbase = 1; // Reset counter
                 spawnWave(); // Spawn next wave
             }
         }
@@ -1830,14 +2353,363 @@
                 gameState.starbase.dispose();
                 gameState.starbase = null;
             }
-
-            // Reset waves until next starbase
-            gameState.wavesUntilStarbase = 1;
         }
 
         // Make functions available globally for onclick
         window.buyWeapon = buyWeapon;
         window.equipWeapon = equipWeapon;
+
+        // ========== RIVER NAVIGATION - WARP GATES ==========
+
+        // Create warp gates at end of level
+        function createWarpGates() {
+            if (!scene || gameState.showingGates) return;
+
+            // Clear any planets/suns above the player to make room for gates
+            const clearThreshold = playerShip ? playerShip.position.y + 3 : 0;
+
+            // Remove planets above threshold
+            for (let i = gameState.planets.length - 1; i >= 0; i--) {
+                if (gameState.planets[i].position.y > clearThreshold) {
+                    gameState.planets[i].dispose();
+                    gameState.planets.splice(i, 1);
+                }
+            }
+
+            // Remove suns above threshold (with their coronas)
+            for (let i = gameState.suns.length - 1; i >= 0; i--) {
+                if (gameState.suns[i].position.y > clearThreshold) {
+                    const sun = gameState.suns[i];
+                    if (sun.coronas) {
+                        sun.coronas.forEach(c => c.dispose());
+                    }
+                    if (sun.sunMesh) {
+                        sun.sunMesh.dispose();
+                    }
+                    sun.dispose();
+                    gameState.suns.splice(i, 1);
+                }
+            }
+
+            // Generate two different level options
+            const nextLevel = gameState.level + 1;
+            gameState.gateChoices = {
+                left: generateLevelConfig(nextLevel),
+                right: generateLevelConfig(nextLevel)
+            };
+
+            // Update UI with gate signatures
+            updateGateUI();
+
+            // Create the gate meshes - large gates taking up most of screen width
+            const gateSize = 7;  // Much larger gates
+            const gateY = orthoHeight + gateSize / 2;
+            const gateSpacing = gateSize + 1;  // Small gap between gates
+
+            // Left gate (orange)
+            const leftGate = createGateMesh('warpGateLeft', -gateSpacing / 2, gateY, gateSize, [1, 0.5, 0.2]);
+            leftGate.gateId = 'left';
+            gameState.warpGates.push(leftGate);
+
+            // Right gate (green)
+            const rightGate = createGateMesh('warpGateRight', gateSpacing / 2, gateY, gateSize, [0.2, 1, 0.5]);
+            rightGate.gateId = 'right';
+            gameState.warpGates.push(rightGate);
+
+            gameState.showingGates = true;
+            document.getElementById('warpGatePanel').style.display = 'flex';
+        }
+
+        // Create a single warp gate mesh using the warpgate.png texture
+        function createGateMesh(name, x, y, size, color) {
+            const gate = BABYLON.MeshBuilder.CreatePlane(name, { size: size }, scene);
+
+            gate.position.x = x;
+            gate.position.y = y;
+            gate.position.z = 0.1;
+
+            const texture = new BABYLON.Texture('assets/stellar objects/warpgate.png', scene);
+            texture.hasAlpha = true;
+
+            const mat = new BABYLON.StandardMaterial(name + 'Mat', scene);
+            mat.diffuseTexture = texture;
+            mat.emissiveTexture = texture;
+            // Tint with the gate color
+            mat.emissiveColor = new BABYLON.Color3(color[0] * 0.6, color[1] * 0.6, color[2] * 0.6);
+            mat.useAlphaFromDiffuseTexture = true;
+            mat.backFaceCulling = false;
+            mat.disableLighting = true;
+            gate.material = mat;
+            // Disable depth write so ships render on top when flying through
+            mat.disableDepthWrite = true;
+            gate.renderingGroupId = 1;
+
+            // Add to glow layer for the glowing effect
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(gate);
+            }
+
+            gate.size = size;
+            gate.enterRadius = size * 0.4;
+
+            return gate;
+        }
+
+        // Update the gate UI panels with sci-fi HUD style
+        function updateGateUI() {
+            if (!gameState.gateChoices) return;
+
+            // Generate threat bar pips (4 pips, filled based on threat level)
+            const getThreatBar = (config) => {
+                const threatLevels = { 'Low': 1, 'Medium': 2, 'High': 3, 'Extreme': 4 };
+                const threatColors = { 'Low': 'threat-low', 'Medium': 'threat-medium', 'High': 'threat-high', 'Extreme': 'threat-extreme' };
+                const level = threatLevels[config.threatLevel] || 1;
+                const colorClass = threatColors[config.threatLevel];
+                let html = '';
+                for (let i = 0; i < 4; i++) {
+                    html += `<div class="threat-pip ${i < level ? 'active ' + colorClass : ''}"></div>`;
+                }
+                return html;
+            };
+
+            // Station icons with letter codes
+            const getStationIcons = (config) => {
+                if (config.stations.length === 0) return '<span class="no-stations">--</span>';
+                const stationCodes = { 'Trade': 'T', 'Armory': 'A', 'Repair': 'R', 'Fuel': 'F' };
+                const stationClasses = { 'Trade': 'trade', 'Armory': 'armory', 'Repair': 'repair', 'Fuel': 'fuel' };
+                return config.stations.map(s =>
+                    `<div class="station-icon ${stationClasses[s]}">${stationCodes[s]}</div>`
+                ).join('');
+            };
+
+            // Left gate
+            document.getElementById('gateLeftThreat').innerHTML = getThreatBar(gameState.gateChoices.left);
+            document.getElementById('gateLeftWaves').textContent = gameState.gateChoices.left.waveCount;
+            document.getElementById('gateLeftStations').innerHTML = getStationIcons(gameState.gateChoices.left);
+
+            // Right gate
+            document.getElementById('gateRightThreat').innerHTML = getThreatBar(gameState.gateChoices.right);
+            document.getElementById('gateRightWaves').textContent = gameState.gateChoices.right.waveCount;
+            document.getElementById('gateRightStations').innerHTML = getStationIcons(gameState.gateChoices.right);
+        }
+
+        // Update warp gates (movement and collision)
+        function updateWarpGates(scrollMultiplier, deltaTime) {
+            if (!gameState.showingGates || gameState.warpGates.length === 0) return;
+
+            for (let i = gameState.warpGates.length - 1; i >= 0; i--) {
+                const gate = gameState.warpGates[i];
+
+                // Move gate down
+                gate.position.y -= 0.01 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+
+                // Slow rotation
+                gate.rotation.z += 0.005;
+
+                // Update UI position below gate (so player can see it longer)
+                const screenPos = worldToScreen(gate.position.x, gate.position.y - gate.size / 2 - 0.5);
+                const previewId = gate.gateId === 'left' ? 'gateLeftPreview' : 'gateRightPreview';
+                const preview = document.getElementById(previewId);
+                if (preview) {
+                    preview.style.left = screenPos.x + 'px';
+                    preview.style.top = screenPos.y + 'px';
+                    preview.style.transform = 'translate(-50%, 0)';
+                }
+
+                // Check collision with player
+                if (playerShip) {
+                    const dx = gate.position.x - playerShip.position.x;
+                    const dy = gate.position.y - playerShip.position.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < gate.enterRadius) {
+                        // Player entered this gate!
+                        enterWarpGate(gate.gateId);
+                        return;
+                    }
+                }
+
+                // Remove if off screen (player missed both gates - shouldn't happen normally)
+                if (gate.position.y < -orthoHeight - gate.size) {
+                    // Force player into a random gate
+                    enterWarpGate(Math.random() < 0.5 ? 'left' : 'right');
+                    return;
+                }
+            }
+        }
+
+        // Handle entering a warp gate
+        function enterWarpGate(gateId) {
+            const chosenConfig = gameState.gateChoices[gateId];
+
+            // Clean up gates
+            gameState.warpGates.forEach(gate => {
+                if (sunGlowLayer) {
+                    sunGlowLayer.removeIncludedOnlyMesh(gate);
+                }
+                gate.dispose();
+            });
+            gameState.warpGates = [];
+            gameState.showingGates = false;
+            gameState.gateChoices = null;
+            document.getElementById('warpGatePanel').style.display = 'none';
+
+            // Pause game during warp
+            gameState.isPaused = true;
+
+            // Show warp animation
+            playWarpAnimation(() => {
+                // After animation, start new level with fresh background
+                startNewLevel(chosenConfig);
+                // Save game progress when entering new level
+                saveGame();
+                showSavedNotification();
+                gameState.isPaused = false;
+            });
+        }
+
+        // Play lightspeed warp animation
+        function playWarpAnimation(callback) {
+            const overlay = document.getElementById('warpOverlay');
+            const flash = document.getElementById('warpFlash');
+            overlay.style.display = 'block';
+            overlay.innerHTML = '';
+
+            // Create streaking stars
+            const starCount = 50;
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.className = 'warp-star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 50 + '%';
+                star.style.animationDelay = (Math.random() * 0.3) + 's';
+                star.style.opacity = 0.5 + Math.random() * 0.5;
+                overlay.appendChild(star);
+            }
+
+            // Flash and transition
+            setTimeout(() => {
+                flash.style.transition = 'opacity 0.15s ease-in';
+                flash.style.opacity = '1';
+            }, 600);
+
+            setTimeout(() => {
+                flash.style.transition = 'opacity 0.4s ease-out';
+                flash.style.opacity = '0';
+                overlay.style.display = 'none';
+                overlay.innerHTML = '';
+                if (callback) callback();
+            }, 800);
+        }
+
+        // Start a new level with the given config - fresh start with new background
+        function startNewLevel(config) {
+            gameState.level = config.levelNum;
+            gameState.levelConfig = config;
+            gameState.levelWave = 0;
+            gameState.stationsVisited = 0;
+            gameState.wave = (gameState.level - 1) * 5 + 1; // Global wave number for difficulty
+
+            // Clear all existing game objects for fresh start
+            clearLevelObjects();
+
+            // Change to a new random background zone
+            changeToNewZone();
+
+            // Reset player position to center-bottom
+            if (playerShip) {
+                playerShip.position.x = 0;
+                playerShip.position.y = -7;
+                playerShip.targetX = 0;
+                playerShip.targetY = -7;
+            }
+
+            // Reset solar system spawning
+            gameState.nextSolarSystemY = orthoHeight + 15;
+
+            // Update HUD to show level
+            updateHUD();
+
+            // Start first wave
+            spawnWave();
+        }
+
+        // Clear all level objects for fresh start
+        function clearLevelObjects() {
+            // Clear enemies
+            gameState.enemies.forEach(e => {
+                e.getChildMeshes().forEach(m => m.dispose());
+                e.dispose();
+            });
+            gameState.enemies = [];
+
+            // Clear bullets
+            gameState.playerBullets.forEach(b => b.dispose());
+            gameState.playerBullets = [];
+            gameState.enemyBullets.forEach(b => b.dispose());
+            gameState.enemyBullets = [];
+
+            // Clear loot
+            gameState.loot.forEach(l => {
+                l.getChildMeshes().forEach(m => m.dispose());
+                l.dispose();
+            });
+            gameState.loot = [];
+
+            // Clear planets
+            gameState.planets.forEach(p => p.dispose());
+            gameState.planets = [];
+
+            // Clear suns (with their corona children)
+            gameState.suns.forEach(s => {
+                if (s.coronas) {
+                    s.coronas.forEach(c => c.dispose());
+                }
+                if (s.sunMesh) {
+                    s.sunMesh.dispose();
+                }
+                s.dispose();
+            });
+            gameState.suns = [];
+
+            // Clear starbase
+            if (gameState.starbase) {
+                gameState.starbase.dispose();
+                gameState.starbase = null;
+            }
+
+            // Reset spawn timers
+            gameState.enemiesInWave = 0;
+            gameState.enemiesSpawned = 0;
+        }
+
+        // Change to a new random background zone
+        function changeToNewZone() {
+            // Pick a different zone than current
+            let newZone;
+            do {
+                newZone = Math.floor(Math.random() * SPACE_ZONES.length);
+            } while (newZone === gameState.currentZone && SPACE_ZONES.length > 1);
+
+            gameState.currentZone = newZone;
+            gameState.distanceTraveled = 0;
+
+            // Update background texture
+            if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
+                backgroundMaterialA.diffuseTexture.dispose();
+                const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+                const newTexture = new BABYLON.Texture(getBackgroundPath(newZone), scene);
+                newTexture.uScale = bgSize / 20;
+                newTexture.vScale = bgSize * 2 / 20;
+                newTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+                newTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+                newTexture.vOffset = 0;
+                backgroundMaterialA.diffuseTexture = newTexture;
+                backgroundMaterialA.emissiveTexture = newTexture;
+            }
+        }
+
+        // ========== END RIVER NAVIGATION ==========
 
         // Update suns
         function updateSuns(scrollMultiplier) {
@@ -1846,20 +2718,19 @@
 
                 const moveAmount = 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 sun.position.y -= moveAmount;
-                sun.rotation.z += 0.0005;
 
-                // Update glow position
-                if (sun.glow) {
-                    sun.glow.position.x = sun.position.x;
-                    sun.glow.position.y = sun.position.y;
+                // Rotate the sun mesh (not the whole node with coronas)
+                if (sun.sunMesh) {
+                    sun.sunMesh.rotation.z += 0.0005;
                 }
 
                 if (sun.position.y < -orthoHeight - sun.glowSize) {
-                    if (sun.glow) {
-                        if (sun.glow.material && sun.glow.material.diffuseTexture) {
-                            sun.glow.material.diffuseTexture.dispose();
-                        }
-                        sun.glow.dispose();
+                    // Dispose corona meshes
+                    if (sun.coronas) {
+                        sun.coronas.forEach(c => c.dispose());
+                    }
+                    if (sun.sunMesh) {
+                        sun.sunMesh.dispose();
                     }
                     sun.dispose();
                     gameState.suns.splice(i, 1);
@@ -1867,63 +2738,116 @@
             }
         }
 
-        // Apply sun lighting to ships based on proximity
+        // Apply subtle sun color tinting to ships when near a sun
+        // Ships are excluded from GlowLayer so they won't be washed out
+        // The silhouette effect happens naturally when ship is in front of the bright sun
         function applySunLighting() {
-            if (!playerShipMesh || gameState.suns.length === 0) return;
+            // Simplified: no complex calculations needed since ships are excluded from bloom
+            // Just apply subtle color tinting based on nearest sun
+            if (gameState.suns.length === 0) return;
 
-            // Find nearest sun and calculate lighting
-            let nearestSun = null;
-            let nearestDist = Infinity;
+            const applyTintToMesh = (mesh, dist, tint) => {
+                if (!mesh.material || mesh.name.indexOf('exhaust') !== -1) return;
 
-            for (const sun of gameState.suns) {
-                const dx = sun.position.x - playerShip.position.x;
-                const dy = sun.position.y - playerShip.position.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < nearestDist) {
-                    nearestDist = dist;
-                    nearestSun = sun;
+                const tintRange = 15; // How close before sun tint applies
+                if (dist < tintRange) {
+                    const intensity = 1 - dist / tintRange;
+                    // Subtle sun color tint on the ship
+                    mesh.material.emissiveColor = new BABYLON.Color3(
+                        0.25 + tint[0] * intensity * 0.15,
+                        0.25 + tint[1] * intensity * 0.15,
+                        0.25 + tint[2] * intensity * 0.15
+                    );
+                } else {
+                    // Normal lighting
+                    mesh.material.emissiveColor = new BABYLON.Color3(0.25, 0.25, 0.25);
+                }
+            };
+
+            const applyToObject = (objX, objY, meshes) => {
+                let nearestDist = Infinity;
+                let nearestTint = [1, 1, 1];
+
+                for (const sun of gameState.suns) {
+                    const dx = sun.position.x - objX;
+                    const dy = sun.position.y - objY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestTint = sun.tint;
+                    }
+                }
+
+                meshes.forEach(mesh => applyTintToMesh(mesh, nearestDist, nearestTint));
+            };
+
+            // Apply to player ship
+            if (playerShipMesh) {
+                const playerMeshes = playerShipMesh.getChildMeshes(false) || [];
+                if (playerShipMesh.material) playerMeshes.push(playerShipMesh);
+                applyToObject(playerShip.position.x, playerShip.position.y, playerMeshes);
+            }
+
+            // Apply to enemies
+            for (const enemy of gameState.enemies) {
+                if (enemy.mesh) {
+                    const enemyMeshes = enemy.mesh.getChildMeshes(false) || [];
+                    if (enemy.mesh.material) enemyMeshes.push(enemy.mesh);
+                    applyToObject(enemy.position.x, enemy.position.y, enemyMeshes);
                 }
             }
 
-            if (nearestSun) {
-                // Calculate lighting intensity based on distance
-                const maxDist = nearestSun.glowSize * 0.6;
-                const intensity = Math.max(0, 1 - nearestDist / maxDist);
-                const tint = nearestSun.tint;
+            // Apply to starbase
+            if (gameState.starbase) {
+                const starbaseMeshes = gameState.starbase.getChildMeshes ? gameState.starbase.getChildMeshes(false) || [] : [];
+                if (gameState.starbase.material) starbaseMeshes.push(gameState.starbase);
+                applyToObject(gameState.starbase.position.x, gameState.starbase.position.y, starbaseMeshes);
+            }
 
-                // Apply to player ship
-                const playerMeshes = playerShipMesh.getChildMeshes ? playerShipMesh.getChildMeshes() : [playerShipMesh];
-                playerMeshes.forEach(mesh => {
-                    if (mesh.material && mesh.material.emissiveColor) {
-                        // Blend base emissive with sun tint
-                        const baseEmissive = 0.3;
-                        mesh.material.emissiveColor = new BABYLON.Color3(
-                            baseEmissive + tint[0] * intensity * 0.4,
-                            baseEmissive + tint[1] * intensity * 0.4,
-                            baseEmissive + tint[2] * intensity * 0.4
-                        );
+            // Update DirectionalLight for dramatic sun lighting from above
+            if (gameState.sunLight && playerShip) {
+                let nearestSun = null;
+                let nearestDist = Infinity;
+
+                for (const sun of gameState.suns) {
+                    const dx = sun.position.x - playerShip.position.x;
+                    const dy = sun.position.y - playerShip.position.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestSun = sun;
                     }
-                });
+                }
 
-                // Apply to enemies
-                for (const enemy of gameState.enemies) {
-                    if (enemy.mesh) {
-                        const edx = nearestSun.position.x - enemy.position.x;
-                        const edy = nearestSun.position.y - enemy.position.y;
-                        const eDist = Math.sqrt(edx * edx + edy * edy);
-                        const eIntensity = Math.max(0, 1 - eDist / maxDist);
+                if (nearestSun) {
+                    // Direction from sun (above) pointing down at player
+                    const dx = playerShip.position.x - nearestSun.position.x;
+                    const dy = playerShip.position.y - nearestSun.position.y;
+                    // Light comes from high above (strong Y component) with slight XY offset toward player
+                    gameState.sunLight.direction = new BABYLON.Vector3(
+                        dx * 0.1,
+                        -1,
+                        0.3
+                    ).normalize();
 
-                        const enemyMeshes = enemy.mesh.getChildMeshes ? enemy.mesh.getChildMeshes() : [enemy.mesh];
-                        enemyMeshes.forEach(mesh => {
-                            if (mesh.material && mesh.material.emissiveColor) {
-                                mesh.material.emissiveColor = new BABYLON.Color3(
-                                    0.3 + tint[0] * eIntensity * 0.4,
-                                    0.3 + tint[1] * eIntensity * 0.4,
-                                    0.3 + tint[2] * eIntensity * 0.4
-                                );
-                            }
-                        });
-                    }
+                    // Intensity based on distance - stronger when closer
+                    const maxRange = 20;
+                    const intensity = Math.max(0, 1 - nearestDist / maxRange) * 1.5;
+                    gameState.sunLight.intensity = intensity;
+
+                    // Use sun's color for the light
+                    gameState.sunLight.diffuse = new BABYLON.Color3(
+                        nearestSun.tint[0],
+                        nearestSun.tint[1],
+                        nearestSun.tint[2]
+                    );
+                    gameState.sunLight.specular = new BABYLON.Color3(
+                        nearestSun.tint[0] * 0.5,
+                        nearestSun.tint[1] * 0.5,
+                        nearestSun.tint[2] * 0.5
+                    );
+                } else {
+                    gameState.sunLight.intensity = 0;
                 }
             }
         }
@@ -2166,11 +3090,77 @@
         }
 
         // Create player ship
+        // Create engine exhaust glow
+        function createEngineExhaust(parent, color, offsetY, isEnemy = false) {
+            const exhausts = [];
+            // Create multiple exhaust points for better effect
+            const exhaustPositions = isEnemy ?
+                [{ x: -0.12, y: offsetY }, { x: 0.12, y: offsetY }] :
+                [{ x: -0.15, y: offsetY }, { x: 0.15, y: offsetY }];
+
+            exhaustPositions.forEach((pos, i) => {
+                // Outer glow - smaller and more subtle
+                const glow = BABYLON.MeshBuilder.CreateSphere('exhaust_glow_' + i, { diameter: 0.25 }, scene);
+                glow.parent = parent;
+                glow.position.x = pos.x;
+                glow.position.y = pos.y;
+                glow.position.z = 0.1; // Slightly behind ship
+
+                const glowMat = new BABYLON.StandardMaterial('exhaustGlowMat_' + i, scene);
+                glowMat.emissiveColor = color;
+                glowMat.alpha = 0.3;
+                glowMat.disableLighting = true;
+                glowMat.backFaceCulling = false;
+                glow.material = glowMat;
+
+                // Inner core
+                const core = BABYLON.MeshBuilder.CreateSphere('exhaust_core_' + i, { diameter: 0.08 }, scene);
+                core.parent = parent;
+                core.position.x = pos.x;
+                core.position.y = pos.y;
+                core.position.z = 0.1;
+
+                const coreMat = new BABYLON.StandardMaterial('exhaustCoreMat_' + i, scene);
+                coreMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                coreMat.disableLighting = true;
+                core.material = coreMat;
+
+                // Add to glow layer
+                if (sunGlowLayer) {
+                    sunGlowLayer.addIncludedOnlyMesh(glow);
+                    sunGlowLayer.addIncludedOnlyMesh(core);
+                }
+
+                // Render on top of suns/planets
+                glow.renderingGroupId = 2;
+                core.renderingGroupId = 2;
+
+                exhausts.push({ glow, core });
+            });
+
+            return exhausts;
+        }
+
         async function createPlayerShip() {
             playerShip = new BABYLON.TransformNode('playerShip', scene);
 
             playerShipMesh = await loadShipModel(settings.playerShip, settings.playerColor, scene, 'up');
             playerShipMesh.parent = playerShip;
+
+            // Exclude ship from GlowLayer to prevent bloom washout
+            // Set rendering group to render on top of suns/planets
+            if (sunGlowLayer) {
+                const shipMeshes = playerShipMesh.getChildMeshes(false) || [];
+                shipMeshes.push(playerShipMesh);
+                shipMeshes.forEach(mesh => {
+                    sunGlowLayer.addExcludedMesh(mesh);
+                    mesh.renderingGroupId = 2;
+                });
+            }
+
+            // Add blue engine exhaust - positioned at rear of ship
+            const blueColor = new BABYLON.Color3(0.3, 0.6, 1);
+            playerShip.exhausts = createEngineExhaust(playerShip, blueColor, -0.5, false);
 
             playerShip.position = new BABYLON.Vector3(0, -7, 0);
             playerShip.targetX = 0;
@@ -2210,12 +3200,30 @@
             const enemyMesh = await loadShipModel(settings.enemyShip, settings.enemyColor, scene, 'down');
             enemyMesh.parent = enemy;
 
+            // Exclude enemy ship from GlowLayer to prevent bloom washout
+            // Set rendering group to render on top of suns/planets
+            if (sunGlowLayer) {
+                const shipMeshes = enemyMesh.getChildMeshes(false) || [];
+                shipMeshes.push(enemyMesh);
+                shipMeshes.forEach(mesh => {
+                    sunGlowLayer.addExcludedMesh(mesh);
+                    mesh.renderingGroupId = 2;
+                });
+            }
+
+            // Add red engine exhaust (facing up since enemy is rotated down)
+            const redColor = new BABYLON.Color3(1, 0.4, 0.2);
+            enemy.exhausts = createEngineExhaust(enemy, redColor, 0.45, true);
+
             enemy.position.x = x;
             enemy.position.y = y;
             enemy.position.z = 0;
             enemy.type = type;
             enemy.health = type === 'shooter' ? 5 : type === 'fast' ? 2 : 3;
             enemy.speed = type === 'fast' ? 0.08 : 0.03;
+            // Hitbox dimensions (ships are scaled to 1.5 max, so wings can extend ~0.75 from center)
+            enemy.hitboxWidth = 0.9;  // Wider for wings
+            enemy.hitboxHeight = 0.6; // Narrower vertically
             enemy.lastFireTime = 0;
             enemy.fireRate = type === 'shooter' ? 1500 : 3000;
             enemy.movementPattern = Math.random() > 0.5 ? 'sine' : 'straight';
@@ -2233,23 +3241,54 @@
             let bullet;
 
             if (isPlayer) {
-                bullet = BABYLON.MeshBuilder.CreateSphere('bullet', { diameter: 0.15 }, scene);
-                bullet.material = materials.playerBullet;
+                // Player bullet: subtle glow aura + defined solid core
+                bullet = BABYLON.MeshBuilder.CreateSphere('bullet', { diameter: 0.22 }, scene);
+                const glowMat = new BABYLON.StandardMaterial('bulletGlowMat', scene);
+                glowMat.emissiveColor = new BABYLON.Color3(0.2, 0.8, 0.4);
+                glowMat.alpha = 0.25;
+                glowMat.disableLighting = true;
+                glowMat.backFaceCulling = false;
+                bullet.material = glowMat;
+
+                // Add glow aura to GlowLayer
+                if (sunGlowLayer) {
+                    sunGlowLayer.addIncludedOnlyMesh(bullet);
+                }
+
+                // Solid defined core on top
+                const core = BABYLON.MeshBuilder.CreateSphere('bulletCore', { diameter: 0.12 }, scene);
+                core.parent = bullet;
+                core.position.z = -0.05; // Slightly in front
+                const coreMat = new BABYLON.StandardMaterial('coreMat', scene);
+                coreMat.emissiveColor = new BABYLON.Color3(0.4, 1, 0.6);
+                coreMat.diffuseColor = new BABYLON.Color3(0.2, 0.7, 0.4);
+                coreMat.disableLighting = true;
+                core.material = coreMat;
             } else {
-                bullet = BABYLON.MeshBuilder.CreateCapsule('bullet', { height: 0.5, radius: 0.1 }, scene);
+                // Enemy bullet: subtle glow capsule + bright core
+                bullet = BABYLON.MeshBuilder.CreateCapsule('bullet', { height: 0.4, radius: 0.08 }, scene);
                 bullet.rotation.z = Math.atan2(velocityX, -velocityY);
 
-                const enemyBulletMat = new BABYLON.StandardMaterial('enemyBulletMat', scene);
-                enemyBulletMat.emissiveColor = new BABYLON.Color3(1, 0.3, 0.8);
-                enemyBulletMat.diffuseColor = new BABYLON.Color3(1, 0.5, 1);
-                enemyBulletMat.alpha = 0.9;
-                bullet.material = enemyBulletMat;
+                const glowMat = new BABYLON.StandardMaterial('enemyBulletGlowMat', scene);
+                glowMat.emissiveColor = new BABYLON.Color3(1, 0.3, 0.5);
+                glowMat.alpha = 0.3;
+                glowMat.disableLighting = true;
+                glowMat.backFaceCulling = false;
+                bullet.material = glowMat;
 
-                const core = BABYLON.MeshBuilder.CreateSphere('bulletCore', { diameter: 0.15 }, scene);
+                // Add to glow layer
+                if (sunGlowLayer) {
+                    sunGlowLayer.addIncludedOnlyMesh(bullet);
+                }
+
+                // Solid core
+                const core = BABYLON.MeshBuilder.CreateSphere('bulletCore', { diameter: 0.08 }, scene);
                 core.parent = bullet;
                 core.position.y = 0;
+                core.position.z = -0.05;
                 const coreMat = new BABYLON.StandardMaterial('coreMat', scene);
-                coreMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                coreMat.emissiveColor = new BABYLON.Color3(1, 0.7, 0.85);
+                coreMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
                 coreMat.disableLighting = true;
                 core.material = coreMat;
             }
@@ -2260,6 +3299,10 @@
             bullet.velocityX = velocityX;
             bullet.velocityY = velocityY;
             bullet.isPlayer = isPlayer;
+
+            // Render on top of suns/planets
+            bullet.renderingGroupId = 2;
+            bullet.getChildMeshes().forEach(m => m.renderingGroupId = 2);
 
             return bullet;
         }
@@ -2489,8 +3532,11 @@
 
             // Update beam visual if active
             if (gameState.beamMesh) {
-                gameState.beamMesh.alpha -= 0.05;
-                if (gameState.beamMesh.alpha <= 0) {
+                gameState.beamMesh.material.alpha -= 0.05;
+                if (gameState.beamMesh.material.alpha <= 0) {
+                    if (sunGlowLayer) {
+                        sunGlowLayer.removeIncludedOnlyMesh(gameState.beamMesh);
+                    }
                     gameState.beamMesh.dispose();
                     gameState.beamMesh = null;
                 }
@@ -2501,6 +3547,9 @@
         function fireBeamLaser(px, py) {
             // Create beam visual
             if (gameState.beamMesh) {
+                if (sunGlowLayer) {
+                    sunGlowLayer.removeIncludedOnlyMesh(gameState.beamMesh);
+                }
                 gameState.beamMesh.dispose();
             }
 
@@ -2515,6 +3564,12 @@
             beamMat.alpha = 0.8;
             beamMat.backFaceCulling = false;
             beam.material = beamMat;
+            beam.renderingGroupId = 2;
+
+            // Add beam to glow layer for dramatic effect
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(beam);
+            }
 
             gameState.beamMesh = beam;
             beam.alpha = 0.8;
@@ -2552,8 +3607,17 @@
                 5: { count: 12 }
             };
 
-            const config = waveConfig[Math.min(gameState.wave, 5)] || waveConfig[5];
-            gameState.enemiesInWave = config.count + Math.floor(Math.max(0, gameState.wave - 5) * 2);
+            // Use levelWave for difficulty within level, apply enemy multiplier from level config
+            const waveNum = Math.min(gameState.levelWave + 1, 5);
+            const config = waveConfig[waveNum] || waveConfig[5];
+            let enemyCount = config.count + Math.floor(Math.max(0, gameState.level - 1) * 2);
+
+            // Apply level threat multiplier
+            if (gameState.levelConfig) {
+                enemyCount = Math.floor(enemyCount * gameState.levelConfig.enemyMultiplier);
+            }
+
+            gameState.enemiesInWave = enemyCount;
             gameState.enemiesSpawned = 0;
         }
 
@@ -2650,9 +3714,12 @@
                     const enemy = gameState.enemies[j];
                     const dx = bullet.position.x - enemy.position.x;
                     const dy = bullet.position.y - enemy.position.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    // Use elliptical hitbox - wider for wings
+                    const hitX = dx / (enemy.hitboxWidth || 0.9);
+                    const hitY = dy / (enemy.hitboxHeight || 0.6);
+                    const dist = Math.sqrt(hitX * hitX + hitY * hitY);
 
-                    if (dist < 0.5) {
+                    if (dist < 1.0) {
                         enemy.health--;
 
                         createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
@@ -2772,9 +3839,11 @@
 
         // Update HUD
         function updateHUD() {
-            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('creditsHud').textContent = gameState.credits;
             document.getElementById('health').textContent = Math.max(0, gameState.health);
-            document.getElementById('wave').textContent = gameState.wave;
+            document.getElementById('level').textContent = gameState.level;
+            document.getElementById('wave').textContent = gameState.levelWave;
+            document.getElementById('totalWaves').textContent = gameState.levelConfig ? gameState.levelConfig.waveCount : 3;
 
             // Update base shields
             const shieldsPercent = Math.max(0, gameState.baseShields);
@@ -2785,7 +3854,7 @@
         // Game over
         function gameOver() {
             gameState.isPlaying = false;
-            document.getElementById('finalScore').textContent = gameState.score;
+            document.getElementById('finalCredits').textContent = gameState.credits;
             document.getElementById('gameOver').style.display = 'block';
             document.getElementById('harvestBar').style.display = 'none';
             document.getElementById('planetInfo').style.display = 'none';
@@ -2815,11 +3884,11 @@
             gameState.planets = [];
 
             gameState.suns.forEach(s => {
-                if (s.glow) {
-                    if (s.glow.material && s.glow.material.diffuseTexture) {
-                        s.glow.material.diffuseTexture.dispose();
-                    }
-                    s.glow.dispose();
+                if (s.coronas) {
+                    s.coronas.forEach(c => c.dispose());
+                }
+                if (s.sunMesh) {
+                    s.sunMesh.dispose();
                 }
                 s.dispose();
             });
@@ -2874,10 +3943,25 @@
                 gameState.beamMesh = null;
             }
             gameState.isDocked = false;
-            gameState.wavesUntilStarbase = 1;
-            gameState.credits = 0;
+            gameState.credits = settings.debugMode ? 1000 : 0;
             gameState.ownedWeapons = ['basic'];
             gameState.equippedWeapon = 'basic';
+
+            // Reset level/river navigation state
+            gameState.level = 1;
+            gameState.levelWave = 0;
+            gameState.stationsVisited = 0;
+            // Generate initial level config
+            gameState.levelConfig = generateLevelConfig(1);
+            // Clean up any existing warp gates
+            gameState.warpGates.forEach(gate => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(gate);
+                gate.dispose();
+            });
+            gameState.warpGates = [];
+            gameState.gateChoices = null;
+            gameState.showingGates = false;
+            document.getElementById('warpGatePanel').style.display = 'none';
             document.getElementById('dockingScreen').style.display = 'none';
 
             initResources();
@@ -2893,18 +3977,193 @@
             spawnWave();
         }
 
-        // Settings UI
-        const settingsBtn = document.getElementById('settingsBtn');
+        // =====================
+        // SAVE/LOAD SYSTEM
+        // =====================
+        const SAVE_KEY = 'spacerun_save';
+
+        function getSaveableState() {
+            return {
+                score: gameState.score,
+                health: gameState.health,
+                wave: gameState.wave,
+                level: gameState.level,
+                levelWave: gameState.levelWave,
+                levelConfig: gameState.levelConfig,
+                stationsVisited: gameState.stationsVisited,
+                currentZone: gameState.currentZone,
+                credits: gameState.credits,
+                ownedWeapons: gameState.ownedWeapons,
+                equippedWeapon: gameState.equippedWeapon,
+                baseShields: gameState.baseShields,
+                resources: gameState.resources,
+                distanceTraveled: gameState.distanceTraveled,
+                wavesUntilStarbase: gameState.wavesUntilStarbase,
+                savedAt: Date.now()
+            };
+        }
+
+        function saveGame() {
+            try {
+                const saveData = getSaveableState();
+                localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+                return true;
+            } catch (e) {
+                console.error('Failed to save game:', e);
+                return false;
+            }
+        }
+
+        function loadGame() {
+            try {
+                const saveStr = localStorage.getItem(SAVE_KEY);
+                if (!saveStr) return null;
+                return JSON.parse(saveStr);
+            } catch (e) {
+                console.error('Failed to load game:', e);
+                return null;
+            }
+        }
+
+        function hasSavedGame() {
+            return localStorage.getItem(SAVE_KEY) !== null;
+        }
+
+        function deleteSave() {
+            localStorage.removeItem(SAVE_KEY);
+        }
+
+        function applySavedState(saveData) {
+            if (!saveData) return;
+
+            gameState.score = saveData.score || 0;
+            gameState.health = saveData.health || 100;
+            gameState.wave = saveData.wave || 1;
+            gameState.level = saveData.level || 1;
+            gameState.levelWave = saveData.levelWave || 0;
+            gameState.levelConfig = saveData.levelConfig || generateLevelConfig(1);
+            gameState.stationsVisited = saveData.stationsVisited || 0;
+            gameState.currentZone = saveData.currentZone || 0;
+            gameState.credits = saveData.credits || 0;
+            gameState.ownedWeapons = saveData.ownedWeapons || ['basic'];
+            gameState.equippedWeapon = saveData.equippedWeapon || 'basic';
+            gameState.baseShields = saveData.baseShields || 100;
+            gameState.resources = saveData.resources || {};
+            gameState.distanceTraveled = saveData.distanceTraveled || 0;
+            gameState.wavesUntilStarbase = saveData.wavesUntilStarbase || 1;
+
+            // Update zone background
+            if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
+                backgroundMaterialA.diffuseTexture.dispose();
+                const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+                const textureA = new BABYLON.Texture(getBackgroundPath(gameState.currentZone), scene);
+                textureA.uScale = bgSize / 20;
+                textureA.vScale = bgSize * 2 / 20;
+                textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+                textureA.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+                textureA.vOffset = 0;
+                backgroundMaterialA.diffuseTexture = textureA;
+                backgroundMaterialA.emissiveTexture = textureA;
+            }
+
+            updateHUD();
+        }
+
+        function showSavedNotification() {
+            const notification = document.getElementById('savedNotification');
+            notification.style.display = 'block';
+            // Reset animation
+            notification.style.animation = 'none';
+            notification.offsetHeight; // Trigger reflow
+            notification.style.animation = 'fadeInOut 2s ease-in-out';
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 2000);
+        }
+
+        // Auto-save on visibility change (tab hidden/app paused)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && gameState.isPlaying && !gameState.isDocked) {
+                saveGame();
+                console.log('Auto-saved on pause');
+            }
+        });
+
+        // =====================
+        // SYSTEM MENU UI
+        // =====================
+        const systemBtn = document.getElementById('systemBtn');
+        const systemMenu = document.getElementById('systemMenu');
         const settingsPanel = document.getElementById('settingsPanel');
         const closeSettings = document.getElementById('closeSettings');
+        const confirmDialog = document.getElementById('confirmDialog');
 
-        settingsBtn.addEventListener('click', () => {
-            settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
-            gameState.isPaused = settingsPanel.style.display === 'block';
+        systemBtn.addEventListener('click', () => {
+            const isVisible = systemMenu.style.display === 'block';
+            systemMenu.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                gameState.isPaused = true;
+            }
+        });
+
+        // Close system menu when clicking elsewhere
+        document.addEventListener('click', (e) => {
+            if (!systemBtn.contains(e.target) && !systemMenu.contains(e.target) &&
+                !settingsPanel.contains(e.target) && !confirmDialog.contains(e.target)) {
+                systemMenu.style.display = 'none';
+                if (settingsPanel.style.display !== 'block' && confirmDialog.style.display !== 'block') {
+                    gameState.isPaused = false;
+                }
+            }
+        });
+
+        // Settings menu item
+        document.getElementById('menuSettings').addEventListener('click', () => {
+            systemMenu.style.display = 'none';
+            settingsPanel.style.display = 'block';
+            gameState.isPaused = true;
         });
 
         closeSettings.addEventListener('click', () => {
             settingsPanel.style.display = 'none';
+            gameState.isPaused = false;
+        });
+
+        // Save & Quit menu item
+        document.getElementById('menuSaveQuit').addEventListener('click', () => {
+            systemMenu.style.display = 'none';
+            saveGame();
+            showSavedNotification();
+
+            // Return to start screen after delay
+            setTimeout(() => {
+                gameState.isPlaying = false;
+                gameState.isPaused = false;
+                document.getElementById('hud').style.display = 'none';
+                document.getElementById('shieldsDisplay').style.display = 'none';
+                systemBtn.style.display = 'none';
+                document.getElementById('startScreen').style.display = 'flex';
+                document.getElementById('startBtn').textContent = 'Continue';
+            }, 500);
+        });
+
+        // New Game menu item
+        document.getElementById('menuNewGame').addEventListener('click', () => {
+            systemMenu.style.display = 'none';
+            confirmDialog.style.display = 'block';
+            gameState.isPaused = true;
+        });
+
+        // Confirm New Game
+        document.getElementById('confirmNewGame').addEventListener('click', () => {
+            confirmDialog.style.display = 'none';
+            deleteSave();
+            resetGame();
+        });
+
+        // Cancel New Game
+        document.getElementById('cancelNewGame').addEventListener('click', () => {
+            confirmDialog.style.display = 'none';
             gameState.isPaused = false;
         });
 
@@ -2926,6 +4185,14 @@
         setupSlider('fireRate', 'fireRate', 'x');
         setupSlider('scrollSpeed', 'scrollSpeed', 'x');
 
+        // Debug mode checkbox
+        const debugModeCheckbox = document.getElementById('debugMode');
+        debugModeCheckbox.checked = settings.debugMode;
+        debugModeCheckbox.addEventListener('change', () => {
+            settings.debugMode = debugModeCheckbox.checked;
+            localStorage.setItem('debugMode', settings.debugMode);
+        });
+
         // Start game
         const startScreen = document.getElementById('startScreen');
         const startBtn = document.getElementById('startBtn');
@@ -2940,7 +4207,7 @@
             });
 
             startScreen.style.display = 'none';
-            document.getElementById('settingsBtn').style.display = 'flex';
+            document.getElementById('systemBtn').style.display = 'flex';
             document.getElementById('hud').style.display = 'block';
             document.getElementById('shieldsDisplay').style.display = 'flex';
 
@@ -2948,6 +4215,24 @@
             await createPlayerShip();
             // Stars hidden - using background textures instead
             initResources();
+
+            // Check for saved game
+            const savedGame = loadGame();
+            if (savedGame) {
+                applySavedState(savedGame);
+            } else {
+                // Debug mode: start with 1000 credits
+                if (settings.debugMode) {
+                    gameState.credits = 1000;
+                }
+
+                // Initialize first level
+                gameState.level = 1;
+                gameState.levelWave = 0;
+                gameState.levelConfig = generateLevelConfig(1);
+                gameState.wavesUntilStarbase = gameState.levelConfig.waveCount;
+            }
+
             spawnWave();
 
             // Initialize solar system spawning
@@ -2962,10 +4247,17 @@
                 if (!gameState.isPlaying || gameState.isPaused) return;
 
                 const currentTime = performance.now();
-                const deltaTime = Math.min(currentTime - gameState.lastFrameTime, 50);
+                let deltaTime = Math.min(currentTime - gameState.lastFrameTime, 50);
                 gameState.lastFrameTime = currentTime;
 
-                const scrollMultiplier = updatePlayerPosition(deltaTime);
+                // Apply speed-up multiplier when button is pressed
+                const speedMultiplier = gameState.speedUp ? 8 : 1;
+                deltaTime *= speedMultiplier;
+
+                // Update speed-up button visibility
+                updateSpeedUpButton();
+
+                const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
                 updateBackgrounds(scrollMultiplier, deltaTime);
                 firePlayerWeapons(currentTime);
 
@@ -2975,11 +4267,13 @@
                     gameState.spawnTimer = 0;
                 }
 
-                // Spawn solar systems with spacing
-                // Check if we need to spawn a new solar system
-                // nextSolarSystemY tracks when the next system should appear at the top
+                // Spawn solar systems with spacing - apply speed multiplier
+                // Don't spawn when warp gates are showing or about to show (last wave)
+                const isLastWave = gameState.levelConfig && gameState.levelWave >= gameState.levelConfig.waveCount - 1;
+                const shouldSpawnSolarSystems = !gameState.showingGates && !isLastWave;
+
                 gameState.nextSolarSystemY -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
-                if (gameState.nextSolarSystemY < orthoHeight + 10) {
+                if (gameState.nextSolarSystemY < orthoHeight + 10 && shouldSpawnSolarSystems) {
                     createSolarSystem();
                 }
 
@@ -2987,18 +4281,34 @@
                 updateSuns(scrollMultiplier);
                 applySunLighting();
 
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase) {
+                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates) {
                     gameState.wave++;
-                    gameState.wavesUntilStarbase--;
+                    gameState.levelWave++;
                     updateHUD();
 
-                    // Spawn starbase after every few waves
-                    if (gameState.wavesUntilStarbase <= 0) {
-                        createStarbase();
+                    const config = gameState.levelConfig;
+
+                    // Check if level complete (all waves done)
+                    if (gameState.levelWave >= config.waveCount) {
+                        // Level complete - spawn warp gates for next level choice
+                        createWarpGates();
                     } else {
-                        spawnWave();
+                        // Check if a station should appear after this wave
+                        const shouldSpawnStation = config.stationWaves &&
+                            config.stationWaves.includes(gameState.levelWave) &&
+                            gameState.stationsVisited < config.stations.length;
+
+                        if (shouldSpawnStation) {
+                            createStarbase();
+                            gameState.stationsVisited++;
+                        } else {
+                            spawnWave();
+                        }
                     }
                 }
+
+                // Update warp gates
+                updateWarpGates(scrollMultiplier, deltaTime);
 
                 updateEnemies(deltaTime, currentTime, scrollMultiplier);
                 updateBullets();
@@ -3022,8 +4332,60 @@
 
         document.getElementById('departBtn').addEventListener('click', () => {
             departStarbase();
+            saveGame();
+            showSavedNotification();
             spawnWave();
         });
+
+        // Speed-up button handlers
+        const speedUpBtn = document.getElementById('speedUpBtn');
+        speedUpBtn.addEventListener('mousedown', () => {
+            if (!speedUpBtn.disabled) {
+                gameState.speedUp = true;
+                speedUpBtn.classList.add('active');
+            }
+        });
+        speedUpBtn.addEventListener('mouseup', () => {
+            gameState.speedUp = false;
+            speedUpBtn.classList.remove('active');
+        });
+        speedUpBtn.addEventListener('mouseleave', () => {
+            gameState.speedUp = false;
+            speedUpBtn.classList.remove('active');
+        });
+        speedUpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!speedUpBtn.disabled) {
+                gameState.speedUp = true;
+                speedUpBtn.classList.add('active');
+            }
+        });
+        speedUpBtn.addEventListener('touchend', () => {
+            gameState.speedUp = false;
+            speedUpBtn.classList.remove('active');
+        });
+
+        // Update speed-up button visibility
+        function updateSpeedUpButton() {
+            const btn = document.getElementById('speedUpBtn');
+            if (!gameState.isPlaying || gameState.isPaused || gameState.isDocked) {
+                btn.style.display = 'none';
+                return;
+            }
+
+            // Hide when enemies are on screen or near warp gates
+            const hasEnemies = gameState.enemies.length > 0;
+            const nearGates = gameState.showingGates && gameState.warpGates.some(gate =>
+                gate.position.y < orthoHeight
+            );
+
+            if (hasEnemies || nearGates) {
+                btn.style.display = 'none';
+                gameState.speedUp = false;
+            } else {
+                btn.style.display = 'block';
+            }
+        }
 
         window.addEventListener('resize', () => {
             engine.resize();
