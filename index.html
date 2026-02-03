@@ -323,38 +323,7 @@
             text-shadow: 0 0 4px rgba(255, 102, 68, 0.5);
         }
 
-        /* Docking/Starbase screen */
-        #dockingScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(5, 10, 20, 0.95);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            z-index: 200;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            color: white;
-            overflow-y: auto;
-        }
-
-        #dockingScreen h2 {
-            color: #44aaff;
-            font-size: 24px;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        #dockingCredits {
-            color: #ffdd44;
-            font-size: 18px;
-            margin-bottom: 20px;
-        }
-
+        /* Upgrade items (used in station outfitter) */
         .upgrade-section {
             width: 100%;
             max-width: 350px;
@@ -437,23 +406,6 @@
         .upgrade-btn.equipped {
             background: #335;
             color: #88aacc;
-        }
-
-        #departBtn {
-            padding: 15px 50px;
-            background: #ff8844;
-            border: none;
-            border-radius: 10px;
-            color: white;
-            font-size: 18px;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-top: 20px;
-        }
-
-        #departBtn:hover {
-            background: #ffaa66;
         }
 
         #gameOver {
@@ -928,6 +880,235 @@
         .confirm-btn.cancel:hover {
             background: #556677;
         }
+
+        /* Station Interior View */
+        #stationInterior {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a15;
+            display: none;
+            flex-direction: column;
+            z-index: 200;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
+        }
+
+        #stationHub {
+            width: 100%;
+            height: 55%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+            border-bottom: 2px solid #335;
+        }
+
+        #stationHubOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, transparent 60%, rgba(10, 10, 20, 0.9) 100%);
+        }
+
+        #stationHeader {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            width: 100%;
+            padding: 0 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        #stationName {
+            color: #44aaff;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(68, 170, 255, 0.5);
+        }
+
+        #stationCredits {
+            color: #ffdd44;
+            font-size: 16px;
+            text-shadow: 0 0 8px rgba(255, 221, 68, 0.5);
+        }
+
+        #stationNav {
+            width: 100%;
+            padding: 10px 5px;
+            background: rgba(15, 15, 30, 0.95);
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #335;
+        }
+
+        .station-nav-btn {
+            padding: 8px 12px;
+            background: rgba(30, 40, 60, 0.8);
+            border: 1px solid #335;
+            border-radius: 5px;
+            color: #88aacc;
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s ease;
+        }
+
+        .station-nav-btn:hover {
+            background: rgba(50, 70, 100, 0.8);
+            border-color: #446;
+        }
+
+        .station-nav-btn.active {
+            background: rgba(68, 136, 255, 0.3);
+            border-color: #4488ff;
+            color: #4488ff;
+        }
+
+        .station-nav-btn.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .station-nav-btn.disabled:hover {
+            background: rgba(30, 40, 60, 0.8);
+            border-color: #335;
+        }
+
+        #stationContent {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: rgba(10, 10, 20, 0.98);
+        }
+
+        .station-section {
+            display: none;
+        }
+
+        .station-section.active {
+            display: block;
+        }
+
+        .station-section h3 {
+            color: #88aadd;
+            font-size: 14px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #334;
+            padding-bottom: 8px;
+        }
+
+        /* Bar Section - Rumors */
+        .rumor-item {
+            background: rgba(30, 40, 60, 0.6);
+            border: 1px solid #334;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .rumor-source {
+            color: #ffaa44;
+            font-size: 11px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .rumor-text {
+            color: #ccd;
+            font-size: 13px;
+            line-height: 1.5;
+            font-style: italic;
+        }
+
+        .tip-item {
+            background: rgba(40, 60, 40, 0.5);
+            border: 1px solid #4a6;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .tip-label {
+            color: #6c8;
+            font-size: 10px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tip-text {
+            color: #afa;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        /* Outfitter Section - Weapons & Equipment */
+        .outfitter-category {
+            margin-bottom: 20px;
+        }
+
+        .outfitter-category h4 {
+            color: #6a8;
+            font-size: 12px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        /* Future Section Placeholders */
+        .coming-soon {
+            text-align: center;
+            padding: 40px 20px;
+            color: #668;
+        }
+
+        .coming-soon-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .coming-soon-text {
+            font-size: 14px;
+            color: #88a;
+        }
+
+        /* Depart Button */
+        #stationDepartBtn {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            padding: 12px 30px;
+            background: #ff8844;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            z-index: 10;
+            box-shadow: 0 0 15px rgba(255, 136, 68, 0.4);
+        }
+
+        #stationDepartBtn:hover {
+            background: #ffaa66;
+            box-shadow: 0 0 20px rgba(255, 136, 68, 0.6);
+        }
     </style>
 </head>
 <body>
@@ -1026,16 +1207,70 @@
         <div class="planet-stat hazard"><span id="hazardIcon">⚠</span><span id="hazardValue"></span></div>
     </div>
 
-    <div id="dockingScreen">
-        <h2>⚓ Starbase</h2>
-        <div id="dockingCredits">Credits: <span id="creditsDisplay">0</span></div>
-
-        <div class="upgrade-section">
-            <h3>Weapons</h3>
-            <div id="weaponsList"></div>
+    <!-- Station Interior View -->
+    <div id="stationInterior">
+        <div id="stationHub">
+            <div id="stationHubOverlay"></div>
+            <div id="stationHeader">
+                <div id="stationName">Starbase</div>
+                <div id="stationCredits"><span id="creditsDisplay">0</span> CR</div>
+            </div>
         </div>
 
-        <button id="departBtn">Depart</button>
+        <div id="stationNav">
+            <button class="station-nav-btn active" data-section="bar">Bar</button>
+            <button class="station-nav-btn" data-section="missions">Missions</button>
+            <button class="station-nav-btn" data-section="outfitter">Outfitter</button>
+            <button class="station-nav-btn" data-section="shipyard">Shipyard</button>
+            <button class="station-nav-btn" data-section="trading">Trading</button>
+        </div>
+
+        <div id="stationContent">
+            <!-- Bar Section -->
+            <div id="sectionBar" class="station-section active">
+                <h3>Station Bar</h3>
+                <div id="barRumors"></div>
+                <div id="barTips"></div>
+            </div>
+
+            <!-- Missions Section -->
+            <div id="sectionMissions" class="station-section">
+                <h3>Mission Board</h3>
+                <div class="coming-soon">
+                    <div class="coming-soon-icon">📋</div>
+                    <div class="coming-soon-text">Mission contracts coming soon...</div>
+                </div>
+            </div>
+
+            <!-- Outfitter Section -->
+            <div id="sectionOutfitter" class="station-section">
+                <h3>Outfitter</h3>
+                <div class="outfitter-category">
+                    <h4>Weapons</h4>
+                    <div id="weaponsList"></div>
+                </div>
+            </div>
+
+            <!-- Shipyard Section -->
+            <div id="sectionShipyard" class="station-section">
+                <h3>Shipyard</h3>
+                <div class="coming-soon">
+                    <div class="coming-soon-icon">🚀</div>
+                    <div class="coming-soon-text">Ship upgrades coming soon...</div>
+                </div>
+            </div>
+
+            <!-- Trading Post Section -->
+            <div id="sectionTrading" class="station-section">
+                <h3>Trading Post</h3>
+                <div class="coming-soon">
+                    <div class="coming-soon-icon">📦</div>
+                    <div class="coming-soon-text">Commodity trading coming soon...</div>
+                </div>
+            </div>
+        </div>
+
+        <button id="stationDepartBtn">Depart</button>
     </div>
 
     <div id="warpGatePanel">
@@ -2293,19 +2528,121 @@
             }
         }
 
-        // Open docking screen
+        // Station interior images mapping
+        const STATION_INTERIORS = {
+            hub: 'assets/interiors/interior_starbase.png',
+            bar: 'assets/interiors/interior_bar.png',
+            missions: 'assets/interiors/interior_missions.png',
+            outfitter: 'assets/interiors/interior_outfitter.png',
+            shipyard: 'assets/interiors/interior_shipyard.png',
+            trading: 'assets/interiors/interior_trading.png'
+        };
+
+        // Station names by type
+        const STATION_NAMES = {
+            Trade: ['Merchant\'s Haven', 'Trade Hub Alpha', 'Commerce Station', 'The Exchange'],
+            Armory: ['Weapons Depot', 'Arsenal Station', 'Military Outpost', 'The Armory'],
+            Repair: ['Dry Dock', 'Repair Bay', 'Mechanic\'s Rest', 'Service Station'],
+            Fuel: ['Fuel Depot', 'Refueling Station', 'Gas Giant Outpost', 'Energy Hub']
+        };
+
+        // Rumors and tips for the bar
+        const BAR_RUMORS = [
+            { source: 'Grizzled Pilot', text: 'The warp gates with lower threat levels might have less loot, but you\'ll live longer to spend it.' },
+            { source: 'Merchant Captain', text: 'I heard the Outfitter in this sector got a shipment of beam lasers. Pricey, but worth every credit.' },
+            { source: 'Former Pirate', text: 'Those gas giants are goldmines for hydrogen. Just watch out for the radiation.' },
+            { source: 'Station Bartender', text: 'Business has been slow since the raiders moved into the outer sectors.' },
+            { source: 'Nervous Trader', text: 'The extreme threat zones... I\'ve seen ships go in. Never seen them come out.' },
+            { source: 'Old Spacer', text: 'Back in my day, we didn\'t have fancy tri-shot cannons. Just grit and basic pulse weapons.' },
+            { source: 'Dock Worker', text: 'Watch your shields when you\'re near those suns. The radiation will cook you alive.' },
+            { source: 'Retired Commander', text: 'The beam laser cuts through multiple enemies in a line. Slow to fire, but devastating.' },
+            { source: 'Smuggler', text: 'Ocean planets are swimming in water. Good money if you can harvest it.' },
+            { source: 'Mysterious Figure', text: 'There are rumors of ancient alien shipyards in the deep sectors... someday.' }
+        ];
+
+        const BAR_TIPS = [
+            'Harvest planets by flying close to them. Bigger planets take longer but yield more resources.',
+            'Each weapon has different strengths. Rapid Fire is great for swarms, Beam Laser for lines of enemies.',
+            'Watch the threat indicator on warp gates - higher threat means more enemies but potentially better rewards.',
+            'Station types vary: Armory for weapons, Trade for goods, Repair for your ship, Fuel for... fuel.',
+            'Your base shields protect you from escaped enemies. Keep an eye on that bar!',
+            'Magma planets can drop Gold - rare and valuable.',
+            'The speed-up button (WARP) makes travel faster when there are no enemies around.'
+        ];
+
+        // Current station type (set when docking)
+        let currentStationType = 'Trade';
+
+        // Open station interior screen
         function openDockingScreen() {
             gameState.isDocked = true;
             gameState.isPaused = true;
             gameState.harvestProgress = 0;
             document.getElementById('harvestBar').style.display = 'none';
 
-            updateDockingScreen();
-            document.getElementById('dockingScreen').style.display = 'flex';
+            // Determine station type from level config
+            if (gameState.levelConfig && gameState.levelConfig.stations.length > 0) {
+                const stationIndex = Math.min(gameState.stationsVisited, gameState.levelConfig.stations.length - 1);
+                currentStationType = gameState.levelConfig.stations[stationIndex] || 'Trade';
+            }
+
+            updateStationInterior();
+            document.getElementById('stationInterior').style.display = 'flex';
+
+            // Switch to bar section by default
+            switchStationSection('bar');
         }
 
-        // Update docking screen with current state
-        function updateDockingScreen() {
+        // Update station interior with current state
+        function updateStationInterior() {
+            // Set station name
+            const nameList = STATION_NAMES[currentStationType] || STATION_NAMES.Trade;
+            const stationName = nameList[Math.floor(Math.random() * nameList.length)];
+            document.getElementById('stationName').textContent = stationName;
+
+            // Set credits
+            document.getElementById('creditsDisplay').textContent = gameState.credits;
+
+            // Set hub background image
+            document.getElementById('stationHub').style.backgroundImage = `url('${STATION_INTERIORS.hub}')`;
+
+            // Populate bar section with rumors and tips
+            populateBarSection();
+
+            // Populate weapons in outfitter
+            updateWeaponsList();
+        }
+
+        // Populate bar section with random rumors and tips
+        function populateBarSection() {
+            const rumorsContainer = document.getElementById('barRumors');
+            const tipsContainer = document.getElementById('barTips');
+
+            // Pick 2-3 random rumors
+            const shuffledRumors = [...BAR_RUMORS].sort(() => Math.random() - 0.5);
+            const selectedRumors = shuffledRumors.slice(0, 2 + Math.floor(Math.random() * 2));
+
+            rumorsContainer.innerHTML = selectedRumors.map(rumor => `
+                <div class="rumor-item">
+                    <div class="rumor-source">${rumor.source}</div>
+                    <div class="rumor-text">"${rumor.text}"</div>
+                </div>
+            `).join('');
+
+            // Pick 1-2 random tips
+            const shuffledTips = [...BAR_TIPS].sort(() => Math.random() - 0.5);
+            const selectedTips = shuffledTips.slice(0, 1 + Math.floor(Math.random() * 2));
+
+            tipsContainer.innerHTML = selectedTips.map(tip => `
+                <div class="tip-item">
+                    <div class="tip-label">Pilot Tip</div>
+                    <div class="tip-text">${tip}</div>
+                </div>
+            `).join('');
+        }
+
+        // Update weapons list in outfitter
+        function updateWeaponsList() {
             document.getElementById('creditsDisplay').textContent = gameState.credits;
 
             const weaponsList = document.getElementById('weaponsList');
@@ -2341,6 +2678,32 @@
             });
         }
 
+        // Switch station section
+        function switchStationSection(sectionName) {
+            // Update nav buttons
+            document.querySelectorAll('.station-nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.section === sectionName) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Update sections
+            document.querySelectorAll('.station-section').forEach(section => {
+                section.classList.remove('active');
+            });
+
+            const sectionId = 'section' + sectionName.charAt(0).toUpperCase() + sectionName.slice(1);
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.add('active');
+            }
+
+            // Update hub background based on section
+            const bgImage = STATION_INTERIORS[sectionName] || STATION_INTERIORS.hub;
+            document.getElementById('stationHub').style.backgroundImage = `url('${bgImage}')`;
+        }
+
         // Buy weapon
         function buyWeapon(weaponId) {
             const weapon = WEAPONS[weaponId];
@@ -2348,7 +2711,7 @@
                 gameState.credits -= weapon.cost;
                 gameState.ownedWeapons.push(weaponId);
                 gameState.equippedWeapon = weaponId;
-                updateDockingScreen();
+                updateWeaponsList();
             }
         }
 
@@ -2356,26 +2719,52 @@
         function equipWeapon(weaponId) {
             if (gameState.ownedWeapons.includes(weaponId)) {
                 gameState.equippedWeapon = weaponId;
-                updateDockingScreen();
+                updateWeaponsList();
             }
         }
 
-        // Close docking screen and depart
+        // Close station interior and depart
         function departStarbase() {
             gameState.isDocked = false;
             gameState.isPaused = false;
-            document.getElementById('dockingScreen').style.display = 'none';
+            document.getElementById('stationInterior').style.display = 'none';
+
+            // Increment stations visited counter
+            gameState.stationsVisited++;
 
             // Remove starbase
             if (gameState.starbase) {
                 gameState.starbase.dispose();
                 gameState.starbase = null;
             }
+
+            // Spawn next wave
+            spawnWave();
+
+            // Save game after departing
+            saveGame();
+            showSavedNotification();
+        }
+
+        // Initialize station navigation
+        function initStationNav() {
+            document.querySelectorAll('.station-nav-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const section = btn.dataset.section;
+                    if (!btn.classList.contains('disabled')) {
+                        switchStationSection(section);
+                    }
+                });
+            });
+
+            // Depart button
+            document.getElementById('stationDepartBtn').addEventListener('click', departStarbase);
         }
 
         // Make functions available globally for onclick
         window.buyWeapon = buyWeapon;
         window.equipWeapon = equipWeapon;
+        window.switchStationSection = switchStationSection;
 
         // ========== RIVER NAVIGATION - WARP GATES ==========
 
@@ -3980,7 +4369,7 @@
             gameState.gateChoices = null;
             gameState.showingGates = false;
             document.getElementById('warpGatePanel').style.display = 'none';
-            document.getElementById('dockingScreen').style.display = 'none';
+            document.getElementById('stationInterior').style.display = 'none';
 
             initResources();
 
@@ -4348,12 +4737,8 @@
             gameState.isPlaying = true;
         });
 
-        document.getElementById('departBtn').addEventListener('click', () => {
-            departStarbase();
-            saveGame();
-            showSavedNotification();
-            spawnWave();
-        });
+        // Initialize station interior navigation
+        initStationNav();
 
         // Speed-up button handlers
         const speedUpBtn = document.getElementById('speedUpBtn');
