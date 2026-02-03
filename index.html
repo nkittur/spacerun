@@ -2656,15 +2656,16 @@
                 lootMat.specularPower = 32;
                 lootMesh.material = lootMat;
 
-                // Small glowing indicator point - this goes in glow layer
-                const glowPoint = BABYLON.MeshBuilder.CreateSphere('glowPoint', { diameter: size * 0.25 }, scene);
+                // Small glowing indicator at corner - this goes in glow layer
+                const glowPoint = BABYLON.MeshBuilder.CreateSphere('glowPoint', { diameter: size * 0.15 }, scene);
                 glowPoint.parent = lootMesh;
-                glowPoint.position.set(0, 0, size * 0.55);
+                const cornerOffset = size * 0.45;
+                glowPoint.position.set(cornerOffset, cornerOffset, cornerOffset);
                 glowPoint.renderingGroupId = 2;
 
                 const glowMat = new BABYLON.StandardMaterial('glowMat', scene);
                 glowMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
-                glowMat.emissiveColor = new BABYLON.Color3(r, g, b);
+                glowMat.emissiveColor = new BABYLON.Color3(r * 0.5, g * 0.5, b * 0.5);
                 glowMat.disableLighting = true;
                 glowPoint.material = glowMat;
 
@@ -2707,10 +2708,10 @@
                 loot.rotation.y += loot.rotSpeed * 0.8;
                 loot.rotation.z += loot.rotSpeed * 0.3;
 
-                // Animate glow indicator with pulse
+                // Animate glow indicator with subtle pulse (50% intensity)
                 const age = (now - loot.spawnTime) / 1000;
                 if (loot.glowMat) {
-                    const pulse = 0.6 + 0.4 * Math.sin(age * 3 + loot.pulsePhase);
+                    const pulse = 0.3 + 0.2 * Math.sin(age * 3 + loot.pulsePhase);
                     loot.glowMat.emissiveColor = new BABYLON.Color3(
                         loot.baseColor.r * pulse,
                         loot.baseColor.g * pulse,
