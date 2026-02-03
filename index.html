@@ -2180,54 +2180,14 @@
             return planet;
         }
 
-        // Check if a position is too close to where warp gates will spawn
-        // Since objects scroll down with gates, we primarily check X position (horizontal overlap)
-        function isInGateZone(x, y, objectRadius = 0) {
-            // Only check during reward zone (gates coming soon) or when gates are showing
-            if (gameState.currentLevelZone !== 'reward' &&
-                gameState.currentLevelZone !== 'gate' &&
-                !gameState.showingGates) return false;
-
-            // Gate dimensions and positions
-            const gateSize = 7;
-            const gateSpacing = gateSize + 1;
-            const leftGateX = -gateSpacing / 2;  // -4
-            const rightGateX = gateSpacing / 2;  // +4
-            const safeMargin = 2; // Extra margin around gates
-
-            // Check horizontal distance to gate centers (X axis primarily)
-            const gateHalfWidth = gateSize / 2 + objectRadius + safeMargin;
-
-            // Check if X position overlaps with left gate zone
-            if (Math.abs(x - leftGateX) < gateHalfWidth) return true;
-
-            // Check if X position overlaps with right gate zone
-            if (Math.abs(x - rightGateX) < gateHalfWidth) return true;
-
-            return false;
-        }
-
         // Create a solar system (sun with orbiting planets)
         function createSolarSystem() {
             if (!scene) return;
 
-            // Check if we need to avoid gate zones (during reward zone)
-            const avoidGates = gameState.currentLevelZone === 'reward' || gameState.currentLevelZone === 'gate';
-
-            // Center of solar system
-            let centerX, centerY;
-            centerY = orthoHeight + 8; // Start above screen
-
-            if (avoidGates) {
-                // For reward zones, spawn on the far left or right to avoid gate area
-                // Gates are centered at X = ±4 with size 7, so they span roughly -7.5 to 7.5
-                // Spawn system well outside this area
-                const side = Math.random() > 0.5 ? 1 : -1;
-                centerX = side * (orthoWidth * 0.5 + 4 + Math.random() * 3);
-            } else {
-                // Normal spawning during wave zone
-                centerX = (Math.random() - 0.5) * (orthoWidth * 1.2);
-            }
+            // Center of solar system - no gate avoidance needed
+            // Reward zone spawns systems BEFORE gates exist
+            const centerX = (Math.random() - 0.5) * (orthoWidth * 1.2);
+            const centerY = orthoHeight + 8; // Start above screen
 
             // Create sun at center
             const sun = createSun(centerX, centerY);
@@ -2241,22 +2201,10 @@
 
             for (let i = 0; i < planetCount; i++) {
                 const orbitRadius = minOrbitRadius + 2 + i * 2 + Math.random() * 1.5;
-                let angle = Math.random() * Math.PI * 2;
+                const angle = Math.random() * Math.PI * 2;
 
-                let px = centerX + Math.cos(angle) * orbitRadius;
-                let py = centerY + Math.sin(angle) * orbitRadius * 0.4; // Flatten orbits
-
-                // If avoiding gates, keep planets on the same side as the sun
-                if (avoidGates) {
-                    // Ensure planet stays on same side as sun (away from gates)
-                    const sunSide = centerX > 0 ? 1 : -1;
-                    if ((px > 0 ? 1 : -1) !== sunSide) {
-                        // Planet is on wrong side, flip it
-                        angle += Math.PI;
-                        px = centerX + Math.cos(angle) * orbitRadius;
-                        py = centerY + Math.sin(angle) * orbitRadius * 0.4;
-                    }
-                }
+                const px = centerX + Math.cos(angle) * orbitRadius;
+                const py = centerY + Math.sin(angle) * orbitRadius * 0.4; // Flatten orbits
 
                 const planet = createPlanetAt(px, py);
                 if (planet) {
@@ -2464,8 +2412,8 @@
             const leftGateX = -gateSpacing / 2;
             const rightGateX = gateSpacing / 2;
 
-            // Note: Solar systems avoid gate zones during spawning (see isInGateZone)
-            // so no clearing is needed here
+            // Note: Gates spawn AFTER reward zone, so solar systems have already
+            // scrolled past - no clearing needed
 
             // Generate two different level options
             const nextLevel = gameState.level + 1;
