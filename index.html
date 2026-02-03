@@ -2724,6 +2724,92 @@
                 indicator.material = indicatorMat;
                 indicator.renderingGroupId = 2;
 
+                // Add faintly glowing edges in element color
+                const edgeMat = new BABYLON.StandardMaterial('edgeMat', scene);
+                edgeMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                edgeMat.emissiveColor = new BABYLON.Color3(r * 0.25, g * 0.25, b * 0.25);
+                edgeMat.disableLighting = true;
+
+                const edgeThick = size * 0.025;
+                const halfW = size * 0.5;
+                const halfH = size * 0.35;
+                const halfD = size * 0.45;
+
+                // 4 vertical edges
+                const vertEdgePositions = [
+                    { x: halfW, z: halfD },
+                    { x: -halfW, z: halfD },
+                    { x: halfW, z: -halfD },
+                    { x: -halfW, z: -halfD }
+                ];
+                vertEdgePositions.forEach((pos, idx) => {
+                    const edge = BABYLON.MeshBuilder.CreateBox('edge' + idx, {
+                        width: edgeThick,
+                        height: halfH * 2,
+                        depth: edgeThick
+                    }, scene);
+                    edge.position.set(pos.x, 0, pos.z);
+                    edge.parent = lootMesh;
+                    edge.material = edgeMat;
+                    edge.renderingGroupId = 2;
+                });
+
+                // 4 horizontal edges on top
+                const topEdgesX = [
+                    { x: halfW, z: 0 },
+                    { x: -halfW, z: 0 }
+                ];
+                const topEdgesZ = [
+                    { x: 0, z: halfD },
+                    { x: 0, z: -halfD }
+                ];
+                topEdgesX.forEach((pos, idx) => {
+                    const edge = BABYLON.MeshBuilder.CreateBox('topEdgeX' + idx, {
+                        width: edgeThick,
+                        height: edgeThick,
+                        depth: halfD * 2
+                    }, scene);
+                    edge.position.set(pos.x, halfH, pos.z);
+                    edge.parent = lootMesh;
+                    edge.material = edgeMat;
+                    edge.renderingGroupId = 2;
+                });
+                topEdgesZ.forEach((pos, idx) => {
+                    const edge = BABYLON.MeshBuilder.CreateBox('topEdgeZ' + idx, {
+                        width: halfW * 2,
+                        height: edgeThick,
+                        depth: edgeThick
+                    }, scene);
+                    edge.position.set(pos.x, halfH, pos.z);
+                    edge.parent = lootMesh;
+                    edge.material = edgeMat;
+                    edge.renderingGroupId = 2;
+                });
+
+                // 4 horizontal edges on bottom
+                topEdgesX.forEach((pos, idx) => {
+                    const edge = BABYLON.MeshBuilder.CreateBox('botEdgeX' + idx, {
+                        width: edgeThick,
+                        height: edgeThick,
+                        depth: halfD * 2
+                    }, scene);
+                    edge.position.set(pos.x, -halfH, pos.z);
+                    edge.parent = lootMesh;
+                    edge.material = edgeMat;
+                    edge.renderingGroupId = 2;
+                });
+                topEdgesZ.forEach((pos, idx) => {
+                    const edge = BABYLON.MeshBuilder.CreateBox('botEdgeZ' + idx, {
+                        width: halfW * 2,
+                        height: edgeThick,
+                        depth: edgeThick
+                    }, scene);
+                    edge.position.set(pos.x, -halfH, pos.z);
+                    edge.parent = lootMesh;
+                    edge.material = edgeMat;
+                    edge.renderingGroupId = 2;
+                });
+
                 lootMesh.velocityX = offsetX * 0.02;
                 lootMesh.velocityY = offsetY * 0.02;
                 lootMesh.rotSpeed = (Math.random() - 0.5) * 0.06;
