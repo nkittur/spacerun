@@ -361,6 +361,23 @@
             background: rgba(40, 60, 80, 0.5);
         }
 
+        .upgrade-item.on-sale {
+            border-color: #44ff44;
+            background: rgba(30, 60, 30, 0.6);
+        }
+
+        .upgrade-item.hardpoint-slot {
+            border-color: #6688aa;
+            background: rgba(40, 50, 70, 0.7);
+        }
+
+        /* Weapon quality colors */
+        .quality-poor { color: #888888; }
+        .quality-common { color: #ffffff; }
+        .quality-good { color: #44ff44; }
+        .quality-excellent { color: #4488ff; }
+        .quality-superior { color: #ff44ff; }
+
         .upgrade-info {
             flex: 1;
         }
@@ -1486,10 +1503,13 @@
             isDocked: false,
             wavesUntilStarbase: 1,
             credits: 0,
-            ownedWeapons: ['basic'],
-            equippedWeapon: 'basic',
+            ownedWeapons: [],  // Now stores full weapon objects
+            equippedWeapons: [], // Weapons equipped on hardpoints
             beamActive: false,
             beamMesh: null,
+            // Fleet and hardpoint system
+            fleet: [],  // Array of ships with hardpoints
+            stationWeapons: [],  // Weapons available at current station
             // River navigation - level system
             level: 1,
             levelWave: 0,           // Current wave within level (0 = not started)
@@ -1520,35 +1540,300 @@
             gate: 10     // Y distance for gate zone
         };
 
-        // Weapon definitions
+        // Weapon size categories (smaller can mount on larger hardpoints)
+        const WEAPON_SIZES = ['light', 'medium', 'heavy', 'assault'];
+        const WEAPON_SIZE_ORDER = { light: 0, medium: 1, heavy: 2, assault: 3 };
+
+        // Weapon type definitions
+        const WEAPON_TYPES = {
+            bullet: { name: 'Projectile', speedMult: 1.0 },
+            beam: { name: 'Beam', speedMult: 0 },  // Instant hit
+            spread: { name: 'Spread', speedMult: 0.9 }
+        };
+
+        // Base weapon templates for generation
+        const WEAPON_TEMPLATES = {
+            // Light weapons
+            pulse_cannon: {
+                baseName: 'Pulse Cannon',
+                type: 'bullet',
+                size: 'light',
+                baseDamage: 8,
+                baseFireRate: 300,
+                spread: 0,
+                projectiles: 1,
+                baseCost: 100
+            },
+            light_laser: {
+                baseName: 'Light Laser',
+                type: 'beam',
+                size: 'light',
+                baseDamage: 12,
+                baseFireRate: 800,
+                spread: 0.3,
+                projectiles: 1,
+                baseCost: 150
+            },
+            scatter_gun: {
+                baseName: 'Scatter Gun',
+                type: 'spread',
+                size: 'light',
+                baseDamage: 5,
+                baseFireRate: 450,
+                spread: 0.4,
+                projectiles: 3,
+                baseCost: 180
+            },
+            // Medium weapons
+            plasma_cannon: {
+                baseName: 'Plasma Cannon',
+                type: 'bullet',
+                size: 'medium',
+                baseDamage: 18,
+                baseFireRate: 400,
+                spread: 0,
+                projectiles: 1,
+                baseCost: 300
+            },
+            twin_laser: {
+                baseName: 'Twin Laser',
+                type: 'beam',
+                size: 'medium',
+                baseDamage: 22,
+                baseFireRate: 900,
+                spread: 0.5,
+                projectiles: 2,
+                baseCost: 400
+            },
+            burst_rifle: {
+                baseName: 'Burst Rifle',
+                type: 'spread',
+                size: 'medium',
+                baseDamage: 10,
+                baseFireRate: 350,
+                spread: 0.25,
+                projectiles: 3,
+                baseCost: 350
+            },
+            // Heavy weapons
+            mass_driver: {
+                baseName: 'Mass Driver',
+                type: 'bullet',
+                size: 'heavy',
+                baseDamage: 45,
+                baseFireRate: 600,
+                spread: 0,
+                projectiles: 1,
+                baseCost: 600
+            },
+            heavy_beam: {
+                baseName: 'Heavy Beam',
+                type: 'beam',
+                size: 'heavy',
+                baseDamage: 55,
+                baseFireRate: 1200,
+                spread: 0.8,
+                projectiles: 1,
+                baseCost: 750
+            },
+            flak_cannon: {
+                baseName: 'Flak Cannon',
+                type: 'spread',
+                size: 'heavy',
+                baseDamage: 20,
+                baseFireRate: 500,
+                spread: 0.6,
+                projectiles: 5,
+                baseCost: 650
+            },
+            // Assault weapons
+            railgun: {
+                baseName: 'Railgun',
+                type: 'bullet',
+                size: 'assault',
+                baseDamage: 100,
+                baseFireRate: 1000,
+                spread: 0,
+                projectiles: 1,
+                baseCost: 1200
+            },
+            siege_laser: {
+                baseName: 'Siege Laser',
+                type: 'beam',
+                size: 'assault',
+                baseDamage: 120,
+                baseFireRate: 1500,
+                spread: 1.2,
+                projectiles: 1,
+                baseCost: 1500
+            },
+            devastator: {
+                baseName: 'Devastator',
+                type: 'spread',
+                size: 'assault',
+                baseDamage: 40,
+                baseFireRate: 700,
+                spread: 0.8,
+                projectiles: 7,
+                baseCost: 1300
+            }
+        };
+
+        // Weapon quality prefixes
+        const WEAPON_PREFIXES = {
+            poor: { namePre: 'Worn', statMult: 0.7, costMult: 0.5 },
+            common: { namePre: '', statMult: 1.0, costMult: 1.0 },
+            good: { namePre: 'Tuned', statMult: 1.15, costMult: 1.5 },
+            excellent: { namePre: 'Enhanced', statMult: 1.3, costMult: 2.0 },
+            superior: { namePre: 'Superior', statMult: 1.5, costMult: 3.0 }
+        };
+
+        // Generate a random weapon based on zone level
+        function generateWeapon(zoneLevel, maxSize = 'assault') {
+            // Determine available sizes based on maxSize
+            const maxSizeIdx = WEAPON_SIZE_ORDER[maxSize];
+            const availableSizes = WEAPON_SIZES.filter(s => WEAPON_SIZE_ORDER[s] <= maxSizeIdx);
+
+            // Higher zones unlock heavier weapons, but still random
+            const sizeWeights = availableSizes.map((size, idx) => {
+                const sizeIdx = WEAPON_SIZE_ORDER[size];
+                // Unlock chance based on zone level
+                if (sizeIdx > Math.floor(zoneLevel / 2)) return 0.1; // Rare at low levels
+                return 1.0;
+            });
+            const totalWeight = sizeWeights.reduce((a, b) => a + b, 0);
+            let roll = Math.random() * totalWeight;
+            let selectedSize = availableSizes[0];
+            for (let i = 0; i < availableSizes.length; i++) {
+                roll -= sizeWeights[i];
+                if (roll <= 0) {
+                    selectedSize = availableSizes[i];
+                    break;
+                }
+            }
+
+            // Get templates for this size
+            const sizeTemplates = Object.entries(WEAPON_TEMPLATES)
+                .filter(([_, t]) => t.size === selectedSize);
+            const [templateId, template] = sizeTemplates[Math.floor(Math.random() * sizeTemplates.length)];
+
+            // Determine quality based on zone level
+            const qualityRoll = Math.random() + (zoneLevel * 0.05);
+            let quality;
+            if (qualityRoll < 0.3) quality = 'poor';
+            else if (qualityRoll < 0.6) quality = 'common';
+            else if (qualityRoll < 0.8) quality = 'good';
+            else if (qualityRoll < 0.95) quality = 'excellent';
+            else quality = 'superior';
+
+            const prefix = WEAPON_PREFIXES[quality];
+
+            // Generate stats with some randomness
+            const variance = 0.9 + Math.random() * 0.2; // 90-110% variance
+            const levelBonus = 1 + (zoneLevel * 0.1); // 10% per zone level
+
+            const damage = Math.round(template.baseDamage * prefix.statMult * variance * levelBonus);
+            const fireRate = Math.round(template.baseFireRate / (prefix.statMult * 0.9 + 0.1)); // Lower is better
+            const cost = Math.round(template.baseCost * prefix.costMult * levelBonus);
+
+            // Generate unique ID
+            const weaponId = `${templateId}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+
+            const weaponName = prefix.namePre ? `${prefix.namePre} ${template.baseName}` : template.baseName;
+
+            return {
+                id: weaponId,
+                templateId: templateId,
+                name: weaponName,
+                desc: generateWeaponDesc(template, damage, fireRate),
+                type: template.type,
+                size: template.size,
+                damage: damage,
+                fireRate: fireRate,
+                spread: template.spread,
+                projectiles: template.projectiles,
+                cost: cost,
+                quality: quality
+            };
+        }
+
+        // Generate weapon description
+        function generateWeaponDesc(template, damage, fireRate) {
+            const typeDesc = WEAPON_TYPES[template.type].name;
+            const sizeDesc = template.size.charAt(0).toUpperCase() + template.size.slice(1);
+            let desc = `${sizeDesc} ${typeDesc}. `;
+            if (template.projectiles > 1) {
+                desc += `Fires ${template.projectiles} shots. `;
+            }
+            if (template.type === 'beam') {
+                desc += `Hits all enemies in line.`;
+            }
+            return desc.trim();
+        }
+
+        // Generate station weapons (3 weapons, one on sale)
+        function generateStationWeapons(zoneLevel, maxSize = 'assault') {
+            const weapons = [];
+            for (let i = 0; i < 3; i++) {
+                weapons.push(generateWeapon(zoneLevel, maxSize));
+            }
+
+            // Mark one random weapon as on sale (50% off)
+            const saleIndex = Math.floor(Math.random() * 3);
+            weapons[saleIndex].onSale = true;
+            weapons[saleIndex].originalCost = weapons[saleIndex].cost;
+            weapons[saleIndex].cost = Math.floor(weapons[saleIndex].cost * 0.5);
+
+            return weapons;
+        }
+
+        // Ship definitions with hardpoints
+        const SHIP_DEFINITIONS = {
+            starter: {
+                name: 'Scout',
+                model: 'Bob',
+                hardpoints: [
+                    { size: 'light', position: { x: -0.3, y: 0.3 }, equipped: null },
+                    { size: 'medium', position: { x: 0.3, y: 0.3 }, equipped: null }
+                ]
+            }
+        };
+
+        // Get player's heaviest hardpoint across fleet
+        function getPlayerMaxHardpointSize() {
+            if (!gameState.fleet || gameState.fleet.length === 0) {
+                return 'medium'; // Default for starter ship
+            }
+
+            let maxSize = 'light';
+            gameState.fleet.forEach(ship => {
+                ship.hardpoints.forEach(hp => {
+                    if (WEAPON_SIZE_ORDER[hp.size] > WEAPON_SIZE_ORDER[maxSize]) {
+                        maxSize = hp.size;
+                    }
+                });
+            });
+            return maxSize;
+        }
+
+        // Check if weapon can mount on hardpoint
+        function canMountWeapon(weapon, hardpoint) {
+            return WEAPON_SIZE_ORDER[weapon.size] <= WEAPON_SIZE_ORDER[hardpoint.size];
+        }
+
+        // Legacy weapon definitions (for backward compatibility with owned weapons)
         const WEAPONS = {
             basic: {
+                id: 'basic',
                 name: 'Pulse Cannon',
                 desc: 'Standard single-shot weapon',
-                cost: 0,
+                type: 'bullet',
+                size: 'light',
+                damage: 10,
                 fireRate: 300,
-                damage: 1
-            },
-            trishot: {
-                name: 'Tri-Shot',
-                desc: 'Fires 3 bullets in a spread',
-                cost: 500,
-                fireRate: 400,
-                damage: 1
-            },
-            rapid: {
-                name: 'Rapid Fire',
-                desc: 'Very fast firing rate',
-                cost: 750,
-                fireRate: 100,
-                damage: 1
-            },
-            beam: {
-                name: 'Beam Laser',
-                desc: 'Hits all enemies in a line, fires slowly',
-                cost: 1000,
-                fireRate: 1500,
-                damage: 2
+                spread: 0,
+                projectiles: 1,
+                cost: 0
             }
         };
 
@@ -2731,6 +3016,9 @@
                 currentStationType = gameState.levelConfig.stations[stationIndex] || 'Trade';
             }
 
+            // Generate weapons for sale at this station
+            generateStationInventory();
+
             updateStationInterior();
             document.getElementById('stationInterior').style.display = 'flex';
 
@@ -2786,6 +3074,25 @@
             `).join('');
         }
 
+        // Generate weapons for station when docking
+        function generateStationInventory() {
+            const zoneLevel = gameState.level || 1;
+            const maxSize = getPlayerMaxHardpointSize();
+            gameState.stationWeapons = generateStationWeapons(zoneLevel, maxSize);
+        }
+
+        // Get quality color class
+        function getQualityClass(quality) {
+            const classes = {
+                poor: 'quality-poor',
+                common: 'quality-common',
+                good: 'quality-good',
+                excellent: 'quality-excellent',
+                superior: 'quality-superior'
+            };
+            return classes[quality] || 'quality-common';
+        }
+
         // Update weapons list in outfitter
         function updateWeaponsList() {
             document.getElementById('creditsDisplay').textContent = gameState.credits;
@@ -2793,34 +3100,128 @@
             const weaponsList = document.getElementById('weaponsList');
             weaponsList.innerHTML = '';
 
-            Object.keys(WEAPONS).forEach(weaponId => {
-                const weapon = WEAPONS[weaponId];
-                const owned = gameState.ownedWeapons.includes(weaponId);
-                const equipped = gameState.equippedWeapon === weaponId;
-                const canAfford = gameState.credits >= weapon.cost;
+            // First show current ship hardpoints
+            const hardpointSection = document.createElement('div');
+            hardpointSection.className = 'hardpoint-section';
+            hardpointSection.innerHTML = '<h3 style="color: #88ccff; margin: 0 0 10px 0;">Your Ship - Hardpoints</h3>';
 
-                const item = document.createElement('div');
-                item.className = 'upgrade-item' + (owned ? ' owned' : '') + (equipped ? ' equipped' : '');
+            if (gameState.fleet && gameState.fleet.length > 0) {
+                const ship = gameState.fleet[0];
+                ship.hardpoints.forEach((hp, idx) => {
+                    const item = document.createElement('div');
+                    item.className = 'upgrade-item hardpoint-slot';
+                    const sizeLabel = hp.size.charAt(0).toUpperCase() + hp.size.slice(1);
+                    const equippedWeapon = hp.equipped;
 
-                let btnHtml = '';
-                if (equipped) {
-                    btnHtml = '<button class="upgrade-btn equipped" disabled>Equipped</button>';
-                } else if (owned) {
-                    btnHtml = `<button class="upgrade-btn equip" onclick="equipWeapon('${weaponId}')">Equip</button>`;
-                } else {
-                    btnHtml = `<button class="upgrade-btn buy" ${canAfford ? '' : 'disabled'} onclick="buyWeapon('${weaponId}')">${weapon.cost} cr</button>`;
-                }
+                    let weaponInfo = '<span style="color: #666;">Empty</span>';
+                    let unequipBtn = '';
+                    if (equippedWeapon) {
+                        const qClass = getQualityClass(equippedWeapon.quality);
+                        weaponInfo = `<span class="${qClass}">${equippedWeapon.name}</span> <span style="color: #888;">(DMG: ${equippedWeapon.damage}, ROF: ${(1000/equippedWeapon.fireRate).toFixed(1)}/s)</span>`;
+                        unequipBtn = `<button class="upgrade-btn unequip" onclick="unequipWeapon(${idx})">Remove</button>`;
+                    }
 
-                item.innerHTML = `
-                    <div class="upgrade-info">
-                        <div class="upgrade-name">${weapon.name}</div>
-                        <div class="upgrade-desc">${weapon.desc}</div>
-                    </div>
-                    ${btnHtml}
-                `;
+                    item.innerHTML = `
+                        <div class="upgrade-info">
+                            <div class="upgrade-name">[${sizeLabel}] Hardpoint ${idx + 1}</div>
+                            <div class="upgrade-desc">${weaponInfo}</div>
+                        </div>
+                        ${unequipBtn}
+                    `;
+                    hardpointSection.appendChild(item);
+                });
+            }
+            weaponsList.appendChild(hardpointSection);
 
-                weaponsList.appendChild(item);
-            });
+            // Inventory section - owned weapons not currently equipped
+            const inventorySection = document.createElement('div');
+            inventorySection.className = 'inventory-section';
+            inventorySection.innerHTML = '<h3 style="color: #aaffaa; margin: 15px 0 10px 0;">Inventory</h3>';
+
+            const equippedIds = (gameState.fleet && gameState.fleet[0])
+                ? gameState.fleet[0].hardpoints.filter(hp => hp.equipped).map(hp => hp.equipped.id)
+                : [];
+
+            const inventoryWeapons = gameState.ownedWeapons.filter(w => !equippedIds.includes(w.id));
+
+            if (inventoryWeapons.length === 0) {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.style.color = '#666';
+                emptyMsg.style.padding = '10px';
+                emptyMsg.textContent = 'No unequipped weapons';
+                inventorySection.appendChild(emptyMsg);
+            } else {
+                inventoryWeapons.forEach(weapon => {
+                    const item = document.createElement('div');
+                    const qClass = getQualityClass(weapon.quality);
+                    item.className = 'upgrade-item';
+
+                    // Find which hardpoints this can mount on
+                    const compatibleHardpoints = (gameState.fleet && gameState.fleet[0])
+                        ? gameState.fleet[0].hardpoints
+                            .map((hp, idx) => ({ hp, idx }))
+                            .filter(({ hp }) => canMountWeapon(weapon, hp))
+                            .map(({ idx }) => idx)
+                        : [];
+
+                    let mountBtns = compatibleHardpoints.map(idx =>
+                        `<button class="upgrade-btn equip" onclick="mountWeapon('${weapon.id}', ${idx})">Mount HP${idx + 1}</button>`
+                    ).join(' ');
+
+                    if (compatibleHardpoints.length === 0) {
+                        mountBtns = '<span style="color: #ff6666; font-size: 11px;">No compatible hardpoint</span>';
+                    }
+
+                    item.innerHTML = `
+                        <div class="upgrade-info">
+                            <div class="upgrade-name ${qClass}">${weapon.name} <span style="color: #888; font-size: 11px;">[${weapon.size}]</span></div>
+                            <div class="upgrade-desc">${weapon.desc}</div>
+                            <div style="font-size: 11px; color: #aaa;">DMG: ${weapon.damage} | ROF: ${(1000/weapon.fireRate).toFixed(1)}/s | Type: ${weapon.type}</div>
+                        </div>
+                        <div class="mount-buttons">${mountBtns}</div>
+                    `;
+                    inventorySection.appendChild(item);
+                });
+            }
+            weaponsList.appendChild(inventorySection);
+
+            // Station weapons for sale
+            const shopSection = document.createElement('div');
+            shopSection.className = 'shop-section';
+            shopSection.innerHTML = '<h3 style="color: #ffcc44; margin: 15px 0 10px 0;">Weapons For Sale</h3>';
+
+            if (!gameState.stationWeapons || gameState.stationWeapons.length === 0) {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.style.color = '#666';
+                emptyMsg.style.padding = '10px';
+                emptyMsg.textContent = 'No weapons available';
+                shopSection.appendChild(emptyMsg);
+            } else {
+                gameState.stationWeapons.forEach((weapon, idx) => {
+                    const canAfford = gameState.credits >= weapon.cost;
+                    const qClass = getQualityClass(weapon.quality);
+
+                    const item = document.createElement('div');
+                    item.className = 'upgrade-item' + (weapon.onSale ? ' on-sale' : '');
+
+                    let priceHtml = `${weapon.cost} cr`;
+                    if (weapon.onSale) {
+                        priceHtml = `<span style="text-decoration: line-through; color: #888;">${weapon.originalCost}</span> <span style="color: #44ff44;">${weapon.cost} cr (50% OFF!)</span>`;
+                    }
+
+                    item.innerHTML = `
+                        <div class="upgrade-info">
+                            <div class="upgrade-name ${qClass}">${weapon.name} <span style="color: #888; font-size: 11px;">[${weapon.size}]</span></div>
+                            <div class="upgrade-desc">${weapon.desc}</div>
+                            <div style="font-size: 11px; color: #aaa;">DMG: ${weapon.damage} | ROF: ${(1000/weapon.fireRate).toFixed(1)}/s | Type: ${weapon.type}</div>
+                            <div style="font-size: 12px; margin-top: 3px;">${priceHtml}</div>
+                        </div>
+                        <button class="upgrade-btn buy" ${canAfford ? '' : 'disabled'} onclick="buyStationWeapon(${idx})">Buy</button>
+                    `;
+                    shopSection.appendChild(item);
+                });
+            }
+            weaponsList.appendChild(shopSection);
         }
 
         // Switch station section
@@ -2849,23 +3250,71 @@
             document.getElementById('stationHub').style.backgroundImage = `url('${bgImage}')`;
         }
 
-        // Buy weapon
-        function buyWeapon(weaponId) {
-            const weapon = WEAPONS[weaponId];
-            if (gameState.credits >= weapon.cost && !gameState.ownedWeapons.includes(weaponId)) {
-                gameState.credits -= weapon.cost;
-                gameState.ownedWeapons.push(weaponId);
-                gameState.equippedWeapon = weaponId;
-                updateWeaponsList();
-            }
+        // Buy weapon from station
+        function buyStationWeapon(stationIdx) {
+            const weapon = gameState.stationWeapons[stationIdx];
+            if (!weapon || gameState.credits < weapon.cost) return;
+
+            gameState.credits -= weapon.cost;
+            gameState.ownedWeapons.push(weapon);
+            gameState.stationWeapons.splice(stationIdx, 1);  // Remove from station inventory
+            updateWeaponsList();
         }
 
-        // Equip weapon
-        function equipWeapon(weaponId) {
-            if (gameState.ownedWeapons.includes(weaponId)) {
-                gameState.equippedWeapon = weaponId;
-                updateWeaponsList();
+        // Mount weapon to hardpoint
+        function mountWeapon(weaponId, hardpointIdx) {
+            if (!gameState.fleet || gameState.fleet.length === 0) return;
+
+            const ship = gameState.fleet[0];
+            const hardpoint = ship.hardpoints[hardpointIdx];
+            const weapon = gameState.ownedWeapons.find(w => w.id === weaponId);
+
+            if (!weapon || !hardpoint) return;
+            if (!canMountWeapon(weapon, hardpoint)) return;
+
+            // If hardpoint has a weapon, put it back in inventory (already there since we track by id)
+            // Just update the equipped reference
+            hardpoint.equipped = weapon;
+
+            // Update equippedWeapons array for firing
+            syncEquippedWeapons();
+            updateWeaponsList();
+        }
+
+        // Unequip weapon from hardpoint
+        function unequipWeapon(hardpointIdx) {
+            if (!gameState.fleet || gameState.fleet.length === 0) return;
+
+            const ship = gameState.fleet[0];
+            const hardpoint = ship.hardpoints[hardpointIdx];
+
+            if (!hardpoint || !hardpoint.equipped) return;
+
+            hardpoint.equipped = null;
+
+            // Update equippedWeapons array for firing
+            syncEquippedWeapons();
+            updateWeaponsList();
+        }
+
+        // Sync equippedWeapons array from fleet hardpoints
+        function syncEquippedWeapons() {
+            if (!gameState.fleet || gameState.fleet.length === 0) {
+                gameState.equippedWeapons = [WEAPONS.basic];
+                return;
             }
+
+            const ship = gameState.fleet[0];
+            gameState.equippedWeapons = ship.hardpoints.map(hp => hp.equipped);
+        }
+
+        // Legacy functions for backward compatibility
+        function buyWeapon(weaponId) {
+            // Legacy - not used with new system
+        }
+
+        function equipWeapon(weaponId) {
+            // Legacy - not used with new system
         }
 
         // Close station interior and depart
@@ -2909,6 +3358,9 @@
         // Make functions available globally for onclick
         window.buyWeapon = buyWeapon;
         window.equipWeapon = equipWeapon;
+        window.buyStationWeapon = buyStationWeapon;
+        window.mountWeapon = mountWeapon;
+        window.unequipWeapon = unequipWeapon;
         window.switchStationSection = switchStationSection;
 
         // ========== RIVER NAVIGATION - WARP GATES ==========
@@ -3827,49 +4279,57 @@
             enemy.position.z = 0;
             enemy.type = type;
 
+            // Health scaling based on game level
+            const levelHealthMult = 1 + (gameState.level - 1) * 0.15;
+
             // Set stats based on enemy type
             switch (type) {
                 case 'light':
                     // Light attacker: fast, agile, low health, rapid fire
-                    enemy.health = 2;
+                    enemy.maxHealth = Math.round(20 * levelHealthMult);
+                    enemy.health = enemy.maxHealth;
                     enemy.speed = 0.1;
                     enemy.hitboxWidth = 0.7;
                     enemy.hitboxHeight = 0.5;
                     enemy.fireRate = 2000;
-                    enemy.damage = 1;
+                    enemy.damage = 5;
                     break;
                 case 'heavy':
                     // Heavy attacker: slow, tanky, high damage
-                    enemy.health = 8;
+                    enemy.maxHealth = Math.round(100 * levelHealthMult);
+                    enemy.health = enemy.maxHealth;
                     enemy.speed = 0.02;
                     enemy.hitboxWidth = 1.2;
                     enemy.hitboxHeight = 0.8;
                     enemy.fireRate = 2500;
-                    enemy.damage = 2;
+                    enemy.damage = 15;
                     break;
                 case 'shooter':
-                    enemy.health = 5;
+                    enemy.maxHealth = Math.round(50 * levelHealthMult);
+                    enemy.health = enemy.maxHealth;
                     enemy.speed = 0.03;
                     enemy.hitboxWidth = 0.9;
                     enemy.hitboxHeight = 0.6;
                     enemy.fireRate = 1500;
-                    enemy.damage = 1;
+                    enemy.damage = 8;
                     break;
                 case 'fast':
-                    enemy.health = 2;
+                    enemy.maxHealth = Math.round(15 * levelHealthMult);
+                    enemy.health = enemy.maxHealth;
                     enemy.speed = 0.08;
                     enemy.hitboxWidth = 0.9;
                     enemy.hitboxHeight = 0.6;
                     enemy.fireRate = 3000;
-                    enemy.damage = 1;
+                    enemy.damage = 5;
                     break;
                 default: // basic
-                    enemy.health = 3;
+                    enemy.maxHealth = Math.round(30 * levelHealthMult);
+                    enemy.health = enemy.maxHealth;
                     enemy.speed = 0.03;
                     enemy.hitboxWidth = 0.9;
                     enemy.hitboxHeight = 0.6;
                     enemy.fireRate = 3000;
-                    enemy.damage = 1;
+                    enemy.damage = 8;
             }
 
             enemy.lastFireTime = 0;
@@ -3884,7 +4344,7 @@
         }
 
         // Create bullet
-        function createBullet(isPlayer, x, y, velocityX = 0, velocityY = 0.2) {
+        function createBullet(isPlayer, x, y, velocityX = 0, velocityY = 0.2, damage = 10) {
             let bullet;
 
             if (isPlayer) {
@@ -3946,6 +4406,7 @@
             bullet.velocityX = velocityX;
             bullet.velocityY = velocityY;
             bullet.isPlayer = isPlayer;
+            bullet.damage = damage;
 
             // Render on top of suns/planets
             bullet.renderingGroupId = 2;
@@ -4151,38 +4612,82 @@
             return Math.max(0.1, normalizedY + 0.2);
         }
 
-        // Fire weapons
+        // Fire weapons from all equipped hardpoints
         function firePlayerWeapons(currentTime) {
             if (!playerShip) return;
+            if (gameState.enemies.length === 0) return;
 
-            const weapon = WEAPONS[gameState.equippedWeapon];
-            const fireInterval = weapon.fireRate / settings.fireRate;
+            // Get equipped weapons from fleet (or use default starter weapon)
+            const equippedWeapons = gameState.equippedWeapons.length > 0
+                ? gameState.equippedWeapons
+                : [WEAPONS.basic];
 
-            if (currentTime - gameState.lastFireTime > fireInterval && gameState.enemies.length > 0) {
-                const px = playerShip.position.x;
-                const py = playerShip.position.y + 0.5;
+            equippedWeapons.forEach((weapon, idx) => {
+                if (!weapon) return;
 
-                if (gameState.equippedWeapon === 'basic') {
-                    const bullet = createBullet(true, px, py, 0, 0.35);
-                    gameState.playerBullets.push(bullet);
-                } else if (gameState.equippedWeapon === 'trishot') {
-                    // 3-way spread
-                    const bullet1 = createBullet(true, px, py, 0, 0.35);
-                    const bullet2 = createBullet(true, px - 0.3, py, -0.08, 0.33);
-                    const bullet3 = createBullet(true, px + 0.3, py, 0.08, 0.33);
-                    gameState.playerBullets.push(bullet1, bullet2, bullet3);
-                } else if (gameState.equippedWeapon === 'rapid') {
-                    const bullet = createBullet(true, px, py, 0, 0.4);
-                    gameState.playerBullets.push(bullet);
-                } else if (gameState.equippedWeapon === 'beam') {
-                    // Beam laser - create visual beam and damage all enemies in line
-                    fireBeamLaser(px, py);
+                // Track fire time per weapon slot
+                if (!gameState.weaponFireTimes) gameState.weaponFireTimes = {};
+                const lastFire = gameState.weaponFireTimes[idx] || 0;
+                const fireInterval = weapon.fireRate / settings.fireRate;
+
+                if (currentTime - lastFire > fireInterval) {
+                    // Calculate hardpoint position offset
+                    const hardpointOffset = gameState.fleet.length > 0 && gameState.fleet[0].hardpoints[idx]
+                        ? gameState.fleet[0].hardpoints[idx].position
+                        : { x: (idx === 0 ? -0.3 : 0.3), y: 0.3 };
+
+                    const px = playerShip.position.x + hardpointOffset.x;
+                    const py = playerShip.position.y + hardpointOffset.y + 0.2;
+
+                    // Fire based on weapon type
+                    if (weapon.type === 'beam') {
+                        fireBeamLaser(px, py, weapon);
+                    } else if (weapon.type === 'spread' || weapon.projectiles > 1) {
+                        // Spread/multi-projectile weapon
+                        const count = weapon.projectiles || 3;
+                        const spreadAngle = weapon.spread || 0.3;
+                        const angleStep = count > 1 ? (spreadAngle * 2) / (count - 1) : 0;
+                        const startAngle = -spreadAngle;
+
+                        for (let i = 0; i < count; i++) {
+                            const angle = count > 1 ? startAngle + (angleStep * i) : 0;
+                            const vx = Math.sin(angle) * 0.35;
+                            const vy = Math.cos(angle) * 0.35;
+                            const bullet = createBullet(true, px + (vx * 0.3), py, vx * 0.3, vy, weapon.damage);
+                            gameState.playerBullets.push(bullet);
+                        }
+                    } else {
+                        // Single projectile bullet weapon
+                        const bullet = createBullet(true, px, py, 0, 0.35, weapon.damage);
+                        gameState.playerBullets.push(bullet);
+                    }
+
+                    gameState.weaponFireTimes[idx] = currentTime;
                 }
+            });
 
-                gameState.lastFireTime = currentTime;
+            // Update beam visuals if active
+            updateBeamVisuals();
+        }
+
+        // Update beam visual effects
+        function updateBeamVisuals() {
+            if (gameState.beamMeshes) {
+                for (let i = gameState.beamMeshes.length - 1; i >= 0; i--) {
+                    const beam = gameState.beamMeshes[i];
+                    if (beam && beam.material) {
+                        beam.material.alpha -= 0.05;
+                        if (beam.material.alpha <= 0) {
+                            if (sunGlowLayer) {
+                                sunGlowLayer.removeIncludedOnlyMesh(beam);
+                            }
+                            beam.dispose();
+                            gameState.beamMeshes.splice(i, 1);
+                        }
+                    }
+                }
             }
-
-            // Update beam visual if active
+            // Legacy single beam support
             if (gameState.beamMesh) {
                 gameState.beamMesh.material.alpha -= 0.05;
                 if (gameState.beamMesh.material.alpha <= 0) {
@@ -4196,17 +4701,14 @@
         }
 
         // Fire beam laser
-        function fireBeamLaser(px, py) {
-            // Create beam visual
-            if (gameState.beamMesh) {
-                if (sunGlowLayer) {
-                    sunGlowLayer.removeIncludedOnlyMesh(gameState.beamMesh);
-                }
-                gameState.beamMesh.dispose();
-            }
+        function fireBeamLaser(px, py, weapon = null) {
+            if (!gameState.beamMeshes) gameState.beamMeshes = [];
+
+            const beamDamage = weapon ? weapon.damage : 20;
+            const beamWidth = weapon ? (0.3 + weapon.spread * 0.5) : 0.5;
 
             const beamHeight = orthoHeight * 2;
-            const beam = BABYLON.MeshBuilder.CreatePlane('beam', { width: 0.3, height: beamHeight }, scene);
+            const beam = BABYLON.MeshBuilder.CreatePlane('beam', { width: beamWidth * 0.6, height: beamHeight }, scene);
             beam.position.x = px;
             beam.position.y = py + beamHeight / 2;
             beam.position.z = -0.1;
@@ -4223,20 +4725,18 @@
                 sunGlowLayer.addIncludedOnlyMesh(beam);
             }
 
-            gameState.beamMesh = beam;
-            beam.alpha = 0.8;
+            gameState.beamMeshes.push(beam);
 
             // Damage all enemies in the beam's path
-            const beamWidth = 0.5;
             for (let i = gameState.enemies.length - 1; i >= 0; i--) {
                 const enemy = gameState.enemies[i];
                 if (Math.abs(enemy.position.x - px) < beamWidth) {
-                    enemy.health -= WEAPONS.beam.damage;
+                    enemy.health -= beamDamage;
                     flashShip(enemy.mesh || enemy);
 
                     if (enemy.health <= 0) {
                         createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
-                        createLoot(enemy.position.x, enemy.position.y);
+                        createLoot(enemy.position.x, enemy.position.y, enemy.type);
                         gameState.score += 50;
                         gameState.credits += 10 + Math.floor(Math.random() * 15);
                         updateHUD();
@@ -4343,14 +4843,14 @@
                                 const rotatedVx = vx * cos - vy * sin;
                                 const rotatedVy = vx * sin + vy * cos;
                                 const bullet = createBullet(false, enemy.position.x, enemy.position.y - 0.3,
-                                    rotatedVx, rotatedVy);
+                                    rotatedVx, rotatedVy, enemy.damage);
                                 gameState.enemyBullets.push(bullet);
                             });
                         } else {
                             // Normal single shot for other types
                             const bulletSpeed = enemy.type === 'light' ? 0.12 : 0.1;
                             const bullet = createBullet(false, enemy.position.x, enemy.position.y - 0.3,
-                                (dx / dist) * bulletSpeed, (dy / dist) * bulletSpeed);
+                                (dx / dist) * bulletSpeed, (dy / dist) * bulletSpeed, enemy.damage);
                             gameState.enemyBullets.push(bullet);
                         }
                     }
@@ -4400,7 +4900,7 @@
                     const dist = Math.sqrt(hitX * hitX + hitY * hitY);
 
                     if (dist < 1.0) {
-                        enemy.health--;
+                        enemy.health -= bullet.damage;
 
                         createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
 
@@ -4447,7 +4947,7 @@
                         createExplosion(bullet.position.x, bullet.position.y, 'small', 'orange');
                         flashShip(playerShipMesh);
 
-                        gameState.health -= 10;
+                        gameState.health -= (bullet.damage || 10);
                         updateHUD();
                         bullet.dispose();
                         gameState.enemyBullets.splice(i, 1);
@@ -4624,8 +5124,25 @@
             }
             gameState.isDocked = false;
             gameState.credits = settings.debugMode ? 1000 : 0;
-            gameState.ownedWeapons = ['basic'];
-            gameState.equippedWeapon = 'basic';
+
+            // Initialize fleet with starter ship and basic weapon
+            const starterWeapon = { ...WEAPONS.basic };
+            gameState.fleet = [{
+                name: SHIP_DEFINITIONS.starter.name,
+                model: SHIP_DEFINITIONS.starter.model,
+                hardpoints: SHIP_DEFINITIONS.starter.hardpoints.map((hp, idx) => ({
+                    ...hp,
+                    equipped: idx === 0 ? starterWeapon : null  // Basic weapon on first hardpoint
+                }))
+            }];
+            gameState.ownedWeapons = [starterWeapon];
+            gameState.equippedWeapons = [starterWeapon, null];  // First hardpoint has weapon, second empty
+            gameState.stationWeapons = [];
+            gameState.weaponFireTimes = {};
+            if (gameState.beamMeshes) {
+                gameState.beamMeshes.forEach(b => b.dispose());
+            }
+            gameState.beamMeshes = [];
 
             // Reset level/river navigation state
             gameState.level = 1;
