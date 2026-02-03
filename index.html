@@ -2682,10 +2682,16 @@
                 const emissiveTex = new BABYLON.DynamicTexture('emissiveTex', canvas, scene);
                 emissiveTex.update();
 
-                // Dark metallic base material with emissive edge texture
+                // Metal texture for base appearance
+                const metalTex = new BABYLON.Texture('assets/stellar objects/metal_texture_small.jpg', scene);
+                metalTex.uScale = 2;
+                metalTex.vScale = 2;
+
+                // Metallic material with texture and emissive edge strips
                 const lootMat = new BABYLON.StandardMaterial('lootMat', scene);
-                lootMat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.1);
-                lootMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+                lootMat.diffuseTexture = metalTex;
+                lootMat.diffuseColor = new BABYLON.Color3(r * 0.4, g * 0.4, b * 0.4);
+                lootMat.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
                 lootMat.specularPower = 64;
                 lootMat.emissiveTexture = emissiveTex;
                 lootMesh.material = lootMat;
@@ -2705,7 +2711,7 @@
                 lootMesh.spawnTime = performance.now();
                 lootMesh.lootMat = lootMat;
                 lootMesh.emissiveTex = emissiveTex;
-                lootMesh.texCanvas = canvas;
+                lootMesh.metalTex = metalTex;
 
                 gameState.loot.push(lootMesh);
             }
@@ -2745,6 +2751,7 @@
 
                     if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(loot);
                     if (loot.emissiveTex) loot.emissiveTex.dispose();
+                    if (loot.metalTex) loot.metalTex.dispose();
                     loot.dispose();
                     gameState.loot.splice(i, 1);
                     continue;
@@ -2753,6 +2760,7 @@
                 if (loot.position.y < -orthoHeight - 2) {
                     if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(loot);
                     if (loot.emissiveTex) loot.emissiveTex.dispose();
+                    if (loot.metalTex) loot.metalTex.dispose();
                     loot.dispose();
                     gameState.loot.splice(i, 1);
                 }
