@@ -1263,6 +1263,8 @@
             warpGates: [],          // Active warp gates
             gateChoices: null,      // The two gate options
             showingGates: false,    // Whether gates are currently displayed
+            awaitingGates: false,   // Spawning reward systems before gates appear
+            gateSpawnTimer: 0,      // Timer for delayed gate spawning
             speedUp: false          // Speed-up button pressed
         };
 
@@ -2168,13 +2170,50 @@
             return planet;
         }
 
+        // Check if a position is too close to where warp gates will spawn
+        // Since objects scroll down with gates, we primarily check X position (horizontal overlap)
+        function isInGateZone(x, y, objectRadius = 0) {
+            if (!gameState.awaitingGates && !gameState.showingGates) return false;
+
+            // Gate dimensions and positions
+            const gateSize = 7;
+            const gateSpacing = gateSize + 1;
+            const leftGateX = -gateSpacing / 2;  // -4
+            const rightGateX = gateSpacing / 2;  // +4
+            const safeMargin = 2; // Extra margin around gates
+
+            // Check horizontal distance to gate centers (X axis primarily)
+            const gateHalfWidth = gateSize / 2 + objectRadius + safeMargin;
+
+            // Check if X position overlaps with left gate zone
+            if (Math.abs(x - leftGateX) < gateHalfWidth) return true;
+
+            // Check if X position overlaps with right gate zone
+            if (Math.abs(x - rightGateX) < gateHalfWidth) return true;
+
+            return false;
+        }
+
         // Create a solar system (sun with orbiting planets)
         function createSolarSystem() {
             if (!scene) return;
 
-            // Center of solar system
-            const centerX = (Math.random() - 0.5) * (orthoWidth * 1.2);
-            const centerY = orthoHeight + 8; // Start above screen
+            // Center of solar system - avoid gate zones when awaiting gates
+            let centerX, centerY;
+            let attempts = 0;
+            const maxAttempts = 10;
+
+            do {
+                centerX = (Math.random() - 0.5) * (orthoWidth * 1.2);
+                centerY = orthoHeight + 8; // Start above screen
+                attempts++;
+            } while (gameState.awaitingGates && isInGateZone(centerX, centerY, 6) && attempts < maxAttempts);
+
+            // If we're awaiting gates and couldn't find a safe spot, spawn to the far side
+            if (gameState.awaitingGates && attempts >= maxAttempts) {
+                // Spawn on far left or right to avoid gate area
+                centerX = (Math.random() > 0.5 ? 1 : -1) * (orthoWidth * 0.6 + 3);
+            }
 
             // Create sun at center
             const sun = createSun(centerX, centerY);
@@ -2188,10 +2227,18 @@
 
             for (let i = 0; i < planetCount; i++) {
                 const orbitRadius = minOrbitRadius + 2 + i * 2 + Math.random() * 1.5;
-                const angle = Math.random() * Math.PI * 2;
+                let angle = Math.random() * Math.PI * 2;
 
-                const px = centerX + Math.cos(angle) * orbitRadius;
-                const py = centerY + Math.sin(angle) * orbitRadius * 0.4; // Flatten orbits
+                let px = centerX + Math.cos(angle) * orbitRadius;
+                let py = centerY + Math.sin(angle) * orbitRadius * 0.4; // Flatten orbits
+
+                // If awaiting gates, adjust planet position to avoid gate zones
+                if (gameState.awaitingGates && isInGateZone(px, py, 2)) {
+                    // Try opposite side of orbit
+                    angle += Math.PI;
+                    px = centerX + Math.cos(angle) * orbitRadius;
+                    py = centerY + Math.sin(angle) * orbitRadius * 0.4;
+                }
 
                 const planet = createPlanetAt(px, py);
                 if (planet) {
@@ -2392,31 +2439,15 @@
         function createWarpGates() {
             if (!scene || gameState.showingGates) return;
 
-            // Clear any planets/suns above the player to make room for gates
-            const clearThreshold = playerShip ? playerShip.position.y + 3 : 0;
+            // Gate dimensions for positioning
+            const gateSize = 7;
+            const gateSpacing = gateSize + 1;
+            const gateY = orthoHeight + gateSize / 2;
+            const leftGateX = -gateSpacing / 2;
+            const rightGateX = gateSpacing / 2;
 
-            // Remove planets above threshold
-            for (let i = gameState.planets.length - 1; i >= 0; i--) {
-                if (gameState.planets[i].position.y > clearThreshold) {
-                    gameState.planets[i].dispose();
-                    gameState.planets.splice(i, 1);
-                }
-            }
-
-            // Remove suns above threshold (with their coronas)
-            for (let i = gameState.suns.length - 1; i >= 0; i--) {
-                if (gameState.suns[i].position.y > clearThreshold) {
-                    const sun = gameState.suns[i];
-                    if (sun.coronas) {
-                        sun.coronas.forEach(c => c.dispose());
-                    }
-                    if (sun.sunMesh) {
-                        sun.sunMesh.dispose();
-                    }
-                    sun.dispose();
-                    gameState.suns.splice(i, 1);
-                }
-            }
+            // Note: Solar systems avoid gate zones during spawning (see isInGateZone)
+            // so no clearing is needed here
 
             // Generate two different level options
             const nextLevel = gameState.level + 1;
@@ -2428,18 +2459,14 @@
             // Update UI with gate signatures
             updateGateUI();
 
-            // Create the gate meshes - large gates taking up most of screen width
-            const gateSize = 7;  // Much larger gates
-            const gateY = orthoHeight + gateSize / 2;
-            const gateSpacing = gateSize + 1;  // Small gap between gates
-
+            // Create the gate meshes using dimensions from above
             // Left gate (orange)
-            const leftGate = createGateMesh('warpGateLeft', -gateSpacing / 2, gateY, gateSize, [1, 0.5, 0.2]);
+            const leftGate = createGateMesh('warpGateLeft', leftGateX, gateY, gateSize, [1, 0.5, 0.2]);
             leftGate.gateId = 'left';
             gameState.warpGates.push(leftGate);
 
             // Right gate (green)
-            const rightGate = createGateMesh('warpGateRight', gateSpacing / 2, gateY, gateSize, [0.2, 1, 0.5]);
+            const rightGate = createGateMesh('warpGateRight', rightGateX, gateY, gateSize, [0.2, 1, 0.5]);
             rightGate.gateId = 'right';
             gameState.warpGates.push(rightGate);
 
@@ -4406,8 +4433,11 @@
 
                     // Check if level complete (all waves done)
                     if (gameState.levelWave >= config.waveCount) {
-                        // Level complete - spawn warp gates for next level choice
-                        createWarpGates();
+                        // Level complete - first spawn reward solar systems, then gates
+                        gameState.awaitingGates = true;
+                        gameState.gateSpawnTimer = 2500; // Delay before gates appear (ms)
+                        // Spawn a reward solar system immediately
+                        createSolarSystem();
                     } else {
                         // Check if a station should appear after this wave
                         const shouldSpawnStation = config.stationWaves &&
@@ -4420,6 +4450,15 @@
                         } else {
                             spawnWave();
                         }
+                    }
+                }
+
+                // Handle delayed gate spawning (after reward systems)
+                if (gameState.awaitingGates && !gameState.showingGates) {
+                    gameState.gateSpawnTimer -= deltaTime;
+                    if (gameState.gateSpawnTimer <= 0) {
+                        createWarpGates();
+                        gameState.awaitingGates = false;
                     }
                 }
 
