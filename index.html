@@ -2211,21 +2211,22 @@
         function createSolarSystem() {
             if (!scene) return;
 
-            // Center of solar system - avoid gate zones when awaiting gates
+            // Check if we need to avoid gate zones (during reward zone)
+            const avoidGates = gameState.currentLevelZone === 'reward' || gameState.currentLevelZone === 'gate';
+
+            // Center of solar system
             let centerX, centerY;
-            let attempts = 0;
-            const maxAttempts = 10;
+            centerY = orthoHeight + 8; // Start above screen
 
-            do {
+            if (avoidGates) {
+                // For reward zones, spawn on the far left or right to avoid gate area
+                // Gates are centered at X = ±4 with size 7, so they span roughly -7.5 to 7.5
+                // Spawn system well outside this area
+                const side = Math.random() > 0.5 ? 1 : -1;
+                centerX = side * (orthoWidth * 0.5 + 4 + Math.random() * 3);
+            } else {
+                // Normal spawning during wave zone
                 centerX = (Math.random() - 0.5) * (orthoWidth * 1.2);
-                centerY = orthoHeight + 8; // Start above screen
-                attempts++;
-            } while (gameState.awaitingGates && isInGateZone(centerX, centerY, 6) && attempts < maxAttempts);
-
-            // If we're awaiting gates and couldn't find a safe spot, spawn to the far side
-            if (gameState.awaitingGates && attempts >= maxAttempts) {
-                // Spawn on far left or right to avoid gate area
-                centerX = (Math.random() > 0.5 ? 1 : -1) * (orthoWidth * 0.6 + 3);
             }
 
             // Create sun at center
@@ -2245,12 +2246,16 @@
                 let px = centerX + Math.cos(angle) * orbitRadius;
                 let py = centerY + Math.sin(angle) * orbitRadius * 0.4; // Flatten orbits
 
-                // If awaiting gates, adjust planet position to avoid gate zones
-                if (gameState.awaitingGates && isInGateZone(px, py, 2)) {
-                    // Try opposite side of orbit
-                    angle += Math.PI;
-                    px = centerX + Math.cos(angle) * orbitRadius;
-                    py = centerY + Math.sin(angle) * orbitRadius * 0.4;
+                // If avoiding gates, keep planets on the same side as the sun
+                if (avoidGates) {
+                    // Ensure planet stays on same side as sun (away from gates)
+                    const sunSide = centerX > 0 ? 1 : -1;
+                    if ((px > 0 ? 1 : -1) !== sunSide) {
+                        // Planet is on wrong side, flip it
+                        angle += Math.PI;
+                        px = centerX + Math.cos(angle) * orbitRadius;
+                        py = centerY + Math.sin(angle) * orbitRadius * 0.4;
+                    }
                 }
 
                 const planet = createPlanetAt(px, py);
