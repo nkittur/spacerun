@@ -2014,7 +2014,33 @@
         let sunGlowLayer = null;
         let renderPipeline = null;
 
-        // Create a sun with geometry-based corona (not post-process glow)
+        // Create a radial gradient texture for sun corona (circular glow)
+        function createCoronaTexture(tint, size = 256) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Create radial gradient from center (opaque) to edge (transparent)
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const radius = size / 2;
+
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+            gradient.addColorStop(0, `rgba(${Math.floor(tint[0]*255)}, ${Math.floor(tint[1]*255)}, ${Math.floor(tint[2]*255)}, 0.6)`);
+            gradient.addColorStop(0.3, `rgba(${Math.floor(tint[0]*255)}, ${Math.floor(tint[1]*255)}, ${Math.floor(tint[2]*255)}, 0.3)`);
+            gradient.addColorStop(0.6, `rgba(${Math.floor(tint[0]*255)}, ${Math.floor(tint[1]*255)}, ${Math.floor(tint[2]*255)}, 0.1)`);
+            gradient.addColorStop(1, `rgba(${Math.floor(tint[0]*255)}, ${Math.floor(tint[1]*255)}, ${Math.floor(tint[2]*255)}, 0)`);
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+
+            const texture = new BABYLON.DynamicTexture('coronaTexture', canvas, scene, false);
+            texture.hasAlpha = true;
+            return texture;
+        }
+
+        // Create a sun with smooth radial corona glow
         function createSun(x, y) {
             if (!scene) return null;
 
@@ -2034,31 +2060,25 @@
             sunNode.position.y = y;
             sunNode.position.z = 3; // Far behind everything except background
 
-            // Create corona (glow aura) - multiple layers for soft glow effect
-            const coronaSizes = [2.5, 2.0, 1.6];
-            const coronaAlphas = [0.08, 0.12, 0.2];
-            sunNode.coronas = [];
+            // Create single corona with radial gradient texture
+            const coronaSize = sunSize * 2.5;
+            const corona = BABYLON.MeshBuilder.CreatePlane('corona', { size: coronaSize }, scene);
+            corona.parent = sunNode;
+            corona.position.z = 0.1; // Slightly behind sun
 
-            coronaSizes.forEach((sizeMult, i) => {
-                const corona = BABYLON.MeshBuilder.CreatePlane('corona' + i, { size: sunSize * sizeMult }, scene);
-                corona.parent = sunNode;
-                corona.position.z = 0.1 * (i + 1); // Slightly behind sun
+            const coronaTexture = createCoronaTexture(sunType.tint);
+            const coronaMat = new BABYLON.StandardMaterial('coronaMat', scene);
+            coronaMat.diffuseTexture = coronaTexture;
+            coronaMat.emissiveTexture = coronaTexture;
+            coronaMat.opacityTexture = coronaTexture;
+            coronaMat.useAlphaFromDiffuseTexture = true;
+            coronaMat.disableLighting = true;
+            coronaMat.backFaceCulling = false;
+            coronaMat.disableDepthWrite = true;
+            corona.material = coronaMat;
+            corona.renderingGroupId = 1;
 
-                const coronaMat = new BABYLON.StandardMaterial('coronaMat' + i, scene);
-                coronaMat.emissiveColor = new BABYLON.Color3(
-                    sunType.tint[0],
-                    sunType.tint[1],
-                    sunType.tint[2]
-                );
-                coronaMat.alpha = coronaAlphas[i];
-                coronaMat.disableLighting = true;
-                coronaMat.backFaceCulling = false;
-                coronaMat.disableDepthWrite = true;
-                corona.material = coronaMat;
-                corona.renderingGroupId = 1;
-
-                sunNode.coronas.push(corona);
-            });
+            sunNode.coronas = [corona];
 
             // Create the sun mesh
             const sun = BABYLON.MeshBuilder.CreatePlane('sun', { size: sunSize }, scene);
@@ -2082,8 +2102,6 @@
             mat.disableDepthWrite = true;
             sun.material = mat;
             sun.renderingGroupId = 1;
-
-            // Do NOT add sun to GlowLayer - use geometry corona instead
 
             sunNode.size = sunSize;
             sunNode.glowSize = sunSize * 4;
