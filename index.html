@@ -3473,6 +3473,10 @@
         }
 
         document.addEventListener('touchstart', (e) => {
+            // Allow buttons and inputs to work normally
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
+                e.target.closest('button') || e.target.closest('#systemMenu') ||
+                e.target.closest('#settingsPanel') || e.target.closest('#confirmDialog')) return;
             if (gameState.isPlaying && !gameState.isPaused && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
@@ -3481,6 +3485,7 @@
         }, { passive: false });
 
         document.addEventListener('touchmove', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
             if (gameState.isPlaying && !gameState.isPaused && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
