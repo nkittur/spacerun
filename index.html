@@ -2286,6 +2286,13 @@
             });
             sunGlowLayer.intensity = 0.7; // Reduced intensity
 
+            // Separate glow layer for loot with subtle glow
+            lootGlowLayer = new BABYLON.GlowLayer('lootGlow', scene, {
+                mainTextureFixedSize: 256,
+                blurKernelSize: 16
+            });
+            lootGlowLayer.intensity = 0.4;
+
             // DefaultRenderingPipeline for global bloom
             renderPipeline = new BABYLON.DefaultRenderingPipeline(
                 'defaultPipeline',
@@ -2622,7 +2629,15 @@
             }
 
             for (let i = 0; i < pieceCount; i++) {
-                const size = 0.28 + Math.random() * 0.08;
+                // Assign a resource type and amount first (to determine size)
+                const resourceType = enemyResources[Math.floor(Math.random() * enemyResources.length)];
+                const resourceInfo = RESOURCES[resourceType];
+                const resourceAmount = Math.floor(Math.random() * 3) + 1;
+
+                // Size varies by quantity: 1=small, 2=medium, 3=large
+                const baseSize = 0.22;
+                const sizeBonus = resourceAmount * 0.06;
+                const size = baseSize + sizeBonus + Math.random() * 0.04;
 
                 // Tech crate cube
                 const lootMesh = BABYLON.MeshBuilder.CreateBox('loot', { size: size }, scene);
@@ -2638,56 +2653,29 @@
                 lootMesh.rotation.y = Math.random() * Math.PI * 2;
                 lootMesh.rotation.z = Math.random() * Math.PI * 2;
 
-                // Assign a resource type
-                const resourceType = enemyResources[Math.floor(Math.random() * enemyResources.length)];
-                const resourceInfo = RESOURCES[resourceType];
-
                 // Parse hex color
                 const hex = resourceInfo.color;
                 const r = parseInt(hex.slice(1,3), 16) / 255;
                 const g = parseInt(hex.slice(3,5), 16) / 255;
                 const b = parseInt(hex.slice(5,7), 16) / 255;
 
-                // Create simple emissive texture with just corner dots
-                const texSize = 32;
-                const canvas = document.createElement('canvas');
-                canvas.width = texSize;
-                canvas.height = texSize;
-                const ctx = canvas.getContext('2d');
-
-                // Black background
-                ctx.fillStyle = '#000000';
-                ctx.fillRect(0, 0, texSize, texSize);
-
-                // Just small corner dots in element color
-                const glowColor = `rgb(${Math.floor(r * 255)}, ${Math.floor(g * 255)}, ${Math.floor(b * 255)})`;
-                ctx.fillStyle = glowColor;
-                const dotSize = 4;
-                ctx.fillRect(1, 1, dotSize, dotSize);
-                ctx.fillRect(texSize - dotSize - 1, 1, dotSize, dotSize);
-                ctx.fillRect(1, texSize - dotSize - 1, dotSize, dotSize);
-                ctx.fillRect(texSize - dotSize - 1, texSize - dotSize - 1, dotSize, dotSize);
-
-                const emissiveTex = new BABYLON.DynamicTexture('emissiveTex', canvas, scene);
-                emissiveTex.update();
-
                 // Metal texture for base appearance
                 const metalTex = new BABYLON.Texture('assets/stellar objects/metal_texture_small.jpg', scene);
                 metalTex.uScale = 1;
                 metalTex.vScale = 1;
 
-                // Bright metallic material with texture
+                // Bright metallic material with subtle element-colored glow
                 const lootMat = new BABYLON.StandardMaterial('lootMat', scene);
                 lootMat.diffuseTexture = metalTex;
-                lootMat.diffuseColor = new BABYLON.Color3(0.3 + r * 0.4, 0.3 + g * 0.4, 0.3 + b * 0.4);
+                lootMat.diffuseColor = new BABYLON.Color3(0.5 + r * 0.3, 0.5 + g * 0.3, 0.5 + b * 0.3);
                 lootMat.specularColor = new BABYLON.Color3(0.6, 0.6, 0.6);
                 lootMat.specularPower = 32;
-                lootMat.emissiveTexture = emissiveTex;
+                lootMat.emissiveColor = new BABYLON.Color3(r * 0.15, g * 0.15, b * 0.15);
                 lootMesh.material = lootMat;
 
-                // Add to glow layer for corner glow
-                if (sunGlowLayer) {
-                    sunGlowLayer.addIncludedOnlyMesh(lootMesh);
+                // Add to loot glow layer for subtle element-colored glow
+                if (lootGlowLayer) {
+                    lootGlowLayer.addIncludedOnlyMesh(lootMesh);
                 }
 
                 lootMesh.velocityX = offsetX * 0.02;
@@ -2696,10 +2684,9 @@
                 lootMesh.pulsePhase = Math.random() * Math.PI * 2;
                 lootMesh.baseColor = { r, g, b };
                 lootMesh.resourceType = resourceType;
-                lootMesh.resourceAmount = Math.floor(Math.random() * 3) + 1;
+                lootMesh.resourceAmount = resourceAmount;
                 lootMesh.spawnTime = performance.now();
                 lootMesh.lootMat = lootMat;
-                lootMesh.emissiveTex = emissiveTex;
                 lootMesh.metalTex = metalTex;
 
                 gameState.loot.push(lootMesh);
@@ -2738,8 +2725,7 @@
 
                     createExplosion(loot.position.x, loot.position.y, 'small', 'blue');
 
-                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(loot);
-                    if (loot.emissiveTex) loot.emissiveTex.dispose();
+                    if (lootGlowLayer) lootGlowLayer.removeIncludedOnlyMesh(loot);
                     if (loot.metalTex) loot.metalTex.dispose();
                     loot.dispose();
                     gameState.loot.splice(i, 1);
@@ -2747,8 +2733,7 @@
                 }
 
                 if (loot.position.y < -orthoHeight - 2) {
-                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(loot);
-                    if (loot.emissiveTex) loot.emissiveTex.dispose();
+                    if (lootGlowLayer) lootGlowLayer.removeIncludedOnlyMesh(loot);
                     if (loot.metalTex) loot.metalTex.dispose();
                     loot.dispose();
                     gameState.loot.splice(i, 1);
@@ -2758,6 +2743,7 @@
 
         // Global glow layer for suns (initialized in setupScene)
         let sunGlowLayer = null;
+        let lootGlowLayer = null;
         let renderPipeline = null;
 
         // Create a radial gradient texture for sun corona (circular glow)
