@@ -1281,8 +1281,8 @@
 
         // Level zone heights in world Y units (1 screen height ≈ orthoHeight*2 ≈ 20 units)
         const LEVEL_ZONE_HEIGHTS = {
-            reward: 25,  // Y distance for reward/exploration zone (~1.25 screens)
-            gate: 15     // Y distance for gate zone
+            reward: 12,  // Y distance for reward/exploration zone (~0.6 screens)
+            gate: 10     // Y distance for gate zone
         };
 
         // Weapon definitions
@@ -1698,10 +1698,9 @@
                 backgroundMaterialB.diffuseTexture.vOffset += scrollSpeed * deltaTime;
             }
 
-            // Start transition when zone distance is reached
-            if (gameState.distanceTraveled >= ZONE_DISTANCE && gameState.transitionPhase === 0) {
-                startZoneTransition();
-            }
+            // Background transitions only happen when entering a new level through warp gates
+            // (handled in startNewLevel -> changeToNewZone)
+            // No automatic distance-based transitions within a level
 
             // Handle transition animation
             if (gameState.transitionPhase > 0) {
