@@ -2624,7 +2624,7 @@
             for (let i = 0; i < pieceCount; i++) {
                 const size = 0.28 + Math.random() * 0.08;
 
-                // Simple flat cube
+                // Solid crisp cube - NOT in glow layer
                 const lootMesh = BABYLON.MeshBuilder.CreateBox('loot', { size: size }, scene);
 
                 const offsetX = (Math.random() - 0.5) * 1.5;
@@ -2648,16 +2648,28 @@
                 const g = parseInt(hex.slice(3,5), 16) / 255;
                 const b = parseInt(hex.slice(5,7), 16) / 255;
 
-                // Dark material with emissive glow
+                // Dark solid material with subtle self-illumination (no glow layer)
                 const lootMat = new BABYLON.StandardMaterial('lootMat', scene);
-                lootMat.diffuseColor = new BABYLON.Color3(r * 0.15, g * 0.15, b * 0.15);
-                lootMat.emissiveColor = new BABYLON.Color3(r * 0.5, g * 0.5, b * 0.5);
-                lootMat.specularColor = new BABYLON.Color3(0, 0, 0);
+                lootMat.diffuseColor = new BABYLON.Color3(r * 0.3, g * 0.3, b * 0.3);
+                lootMat.emissiveColor = new BABYLON.Color3(r * 0.15, g * 0.15, b * 0.15);
+                lootMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                lootMat.specularPower = 32;
                 lootMesh.material = lootMat;
 
-                // Add to glow layer for actual glow effect
+                // Small glowing indicator point - this goes in glow layer
+                const glowPoint = BABYLON.MeshBuilder.CreateSphere('glowPoint', { diameter: size * 0.25 }, scene);
+                glowPoint.parent = lootMesh;
+                glowPoint.position.set(0, 0, size * 0.55);
+                glowPoint.renderingGroupId = 2;
+
+                const glowMat = new BABYLON.StandardMaterial('glowMat', scene);
+                glowMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                glowMat.emissiveColor = new BABYLON.Color3(r, g, b);
+                glowMat.disableLighting = true;
+                glowPoint.material = glowMat;
+
                 if (sunGlowLayer) {
-                    sunGlowLayer.addIncludedOnlyMesh(lootMesh);
+                    sunGlowLayer.addIncludedOnlyMesh(glowPoint);
                 }
 
                 lootMesh.velocityX = offsetX * 0.02;
@@ -2668,7 +2680,8 @@
                 lootMesh.resourceType = resourceType;
                 lootMesh.resourceAmount = Math.floor(Math.random() * 3) + 1;
                 lootMesh.spawnTime = performance.now();
-                lootMesh.lootMat = lootMat;
+                lootMesh.glowMat = glowMat;
+                lootMesh.glowPoint = glowPoint;
 
                 gameState.loot.push(lootMesh);
             }
@@ -2694,11 +2707,11 @@
                 loot.rotation.y += loot.rotSpeed * 0.8;
                 loot.rotation.z += loot.rotSpeed * 0.3;
 
-                // Animate glow with subtle pulse
+                // Animate glow indicator with pulse
                 const age = (now - loot.spawnTime) / 1000;
-                if (loot.lootMat) {
-                    const pulse = 0.4 + 0.2 * Math.sin(age * 2 + loot.pulsePhase);
-                    loot.lootMat.emissiveColor = new BABYLON.Color3(
+                if (loot.glowMat) {
+                    const pulse = 0.6 + 0.4 * Math.sin(age * 3 + loot.pulsePhase);
+                    loot.glowMat.emissiveColor = new BABYLON.Color3(
                         loot.baseColor.r * pulse,
                         loot.baseColor.g * pulse,
                         loot.baseColor.b * pulse
@@ -2717,14 +2730,16 @@
 
                     createExplosion(loot.position.x, loot.position.y, 'small', 'blue');
 
-                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(loot);
+                    if (sunGlowLayer && loot.glowPoint) sunGlowLayer.removeIncludedOnlyMesh(loot.glowPoint);
+                    loot.getChildMeshes().forEach(m => m.dispose());
                     loot.dispose();
                     gameState.loot.splice(i, 1);
                     continue;
                 }
 
                 if (loot.position.y < -orthoHeight - 2) {
-                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(loot);
+                    if (sunGlowLayer && loot.glowPoint) sunGlowLayer.removeIncludedOnlyMesh(loot.glowPoint);
+                    loot.getChildMeshes().forEach(m => m.dispose());
                     loot.dispose();
                     gameState.loot.splice(i, 1);
                 }
