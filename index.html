@@ -596,6 +596,22 @@
             font-size: 10px;
         }
 
+        /* Star system icons */
+        .star-icons {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .star-icon {
+            text-shadow: 0 0 6px currentColor;
+        }
+
+        .feature-icon {
+            font-size: 10px;
+            opacity: 0.9;
+        }
+
         /* Warp/Lightspeed Animation */
         #warpOverlay {
             position: absolute;
@@ -1456,6 +1472,10 @@
         <div class="gate-preview left" id="gateLeftPreview">
             <div class="gate-hud">
                 <div class="hud-row">
+                    <span class="hud-label">SYS</span>
+                    <div class="star-icons" id="gateLeftStars"></div>
+                </div>
+                <div class="hud-row">
                     <span class="hud-label">THR</span>
                     <div class="threat-bar" id="gateLeftThreat"></div>
                 </div>
@@ -1471,6 +1491,10 @@
         </div>
         <div class="gate-preview right" id="gateRightPreview">
             <div class="gate-hud">
+                <div class="hud-row">
+                    <span class="hud-label">SYS</span>
+                    <div class="star-icons" id="gateRightStars"></div>
+                </div>
                 <div class="hud-row">
                     <span class="hud-label">THR</span>
                     <div class="threat-bar" id="gateRightThreat"></div>
@@ -1518,7 +1542,9 @@
             Oxygen: { color: '#aaffaa', symbol: 'O' },
             Sulfur: { color: '#dddd44', symbol: 'S' },
             Nitrogen: { color: '#aaaaff', symbol: 'N' },
-            Gold: { color: '#ffdd00', symbol: 'Au' }
+            Gold: { color: '#ffdd00', symbol: 'Au' },
+            Biologics: { color: '#44ff88', symbol: 'Bio' },
+            Artifacts: { color: '#ff44ff', symbol: 'Art' }
         };
 
         // Planet types with their resources and image paths
@@ -1628,6 +1654,297 @@
             BlueSun: { folder: 'Blue Sun', prefix: 'Sun_Blue', tint: [0.7, 0.8, 1.0] }
         };
 
+        // ========== STELLAR ASTRONOMY SYSTEM ==========
+        // Star classifications with astronomical properties
+        const STELLAR_CLASSES = {
+            // Young, hot blue stars - lots of gas giants, no life, no ruins
+            BlueGiant: {
+                sunType: 'BlueSun',
+                age: 'young',           // < 100 million years
+                temperature: 'hot',      // 10,000-30,000K
+                size: 'giant',
+                icon: '🔵',
+                iconSize: 'large',
+                color: '#6699ff',
+                planetCount: [3, 6],     // Many planets forming
+                lifeChance: 0,           // Too young for life
+                ruinsChance: 0,          // No ancient civilizations
+                gasGiantChance: 0.7,     // Lots of gas giants
+                richPlanetChance: 0.3,   // Some rich minerals
+                planetTypes: ['BlueGiant', 'GreenGiant', 'OrangeGiant', 'Rocky', 'Barren']
+            },
+            // Main sequence yellow star - balanced, good for life
+            YellowDwarf: {
+                sunType: 'YellowSun',
+                age: 'medium',          // 1-10 billion years
+                temperature: 'medium',   // 5,000-6,000K
+                size: 'medium',
+                icon: '🟡',
+                iconSize: 'medium',
+                color: '#ffdd44',
+                planetCount: [2, 5],
+                lifeChance: 0.4,         // Good chance of life
+                ruinsChance: 0.15,       // Some ancient ruins
+                gasGiantChance: 0.3,
+                richPlanetChance: 0.25,
+                planetTypes: ['Rocky', 'Cratered', 'Lush', 'Tropical', 'Ocean', 'Frozen', 'YellowGiant']
+            },
+            // Old red giant - expanded, dying star - ancient ruins common
+            RedGiant: {
+                sunType: 'RedSun',
+                age: 'old',             // 10+ billion years
+                temperature: 'cool',     // 3,000-4,000K
+                size: 'giant',
+                icon: '🔴',
+                iconSize: 'large',
+                color: '#ff6644',
+                planetCount: [1, 4],     // Some planets consumed
+                lifeChance: 0.1,         // Life rare (star expanding)
+                ruinsChance: 0.5,        // High chance of ancient ruins
+                gasGiantChance: 0.2,
+                richPlanetChance: 0.4,   // Concentrated minerals
+                planetTypes: ['Magma', 'Cratered', 'Barren', 'Lunar', 'RedGiant', 'Arid']
+            },
+            // Young orange star - forming system
+            OrangeDwarf: {
+                sunType: 'RedSun',
+                age: 'young',
+                temperature: 'cool',
+                size: 'small',
+                icon: '🟠',
+                iconSize: 'small',
+                color: '#ff9944',
+                planetCount: [2, 4],
+                lifeChance: 0.2,
+                ruinsChance: 0,          // Too young for ruins
+                gasGiantChance: 0.4,
+                richPlanetChance: 0.2,
+                planetTypes: ['OrangeGiant', 'Rocky', 'Icy', 'Frozen', 'Barren']
+            },
+            // Stable old star - evolved life, ancient civilizations
+            RedDwarf: {
+                sunType: 'RedSun',
+                age: 'ancient',         // 10+ billion years, long-lived
+                temperature: 'cool',
+                size: 'small',
+                icon: '🔸',
+                iconSize: 'small',
+                color: '#cc4422',
+                planetCount: [1, 3],
+                lifeChance: 0.3,         // Life had time to evolve
+                ruinsChance: 0.6,        // Very high ruins chance
+                gasGiantChance: 0.1,
+                richPlanetChance: 0.5,   // Asteroid mining concentrated
+                planetTypes: ['Cratered', 'Lunar', 'Frozen', 'Glacial', 'Dry']
+            },
+            // Hot white star - harsh radiation
+            WhiteStar: {
+                sunType: 'BlueSun',
+                age: 'medium',
+                temperature: 'hot',
+                size: 'medium',
+                icon: '⚪',
+                iconSize: 'medium',
+                color: '#eeeeff',
+                planetCount: [1, 3],
+                lifeChance: 0.05,        // Radiation harsh
+                ruinsChance: 0.2,        // Some ancient outposts
+                gasGiantChance: 0.5,
+                richPlanetChance: 0.35,
+                planetTypes: ['Barren', 'Cratered', 'BlueGiant', 'Icy']
+            }
+        };
+
+        // Special planet features
+        const PLANET_FEATURES = {
+            life: {
+                name: 'Life',
+                icon: '🌿',
+                description: 'Biological life detected',
+                resources: { Biologics: [30, 60] },
+                validPlanets: ['Lush', 'Tropical', 'Ocean']
+            },
+            ruins: {
+                name: 'Ancient Ruins',
+                icon: '🏛️',
+                description: 'Ancient alien structures',
+                resources: { Artifacts: [10, 30] },
+                validPlanets: ['Rocky', 'Cratered', 'Barren', 'Lunar', 'Arid', 'Dry']
+            },
+            fuelRich: {
+                name: 'Fuel Deposits',
+                icon: '⛽',
+                description: 'Rich in hydrogen fuel',
+                resources: { Hydrogen: [40, 80] },
+                validPlanets: ['BlueGiant', 'GreenGiant', 'OrangeGiant', 'RedGiant', 'YellowGiant']
+            },
+            mineralRich: {
+                name: 'Rich Deposits',
+                icon: '💎',
+                description: 'Concentrated mineral veins',
+                resources: { Gold: [15, 35], Titanium: [20, 40] },
+                validPlanets: ['Magma', 'Cratered', 'Rocky', 'Lunar']
+            }
+        };
+
+        // Planet hazards - cause damage during harvesting without proper equipment
+        const PLANET_HAZARDS = {
+            heat: {
+                name: 'Extreme Heat',
+                icon: '🔥',
+                description: 'Intense thermal radiation',
+                damagePerTick: 2,
+                validPlanets: ['Magma', 'Arid', 'Dry'],
+                starAffinity: ['BlueGiant', 'WhiteStar'] // More common near hot stars
+            },
+            gravity: {
+                name: 'High Gravity',
+                icon: '⬇️',
+                description: 'Crushing gravitational force',
+                damagePerTick: 3,
+                fuelMultiplier: 1.5, // Costs more fuel
+                validPlanets: ['BlueGiant', 'GreenGiant', 'OrangeGiant', 'RedGiant', 'YellowGiant'],
+                starAffinity: ['RedGiant', 'BlueGiant']
+            },
+            toxic: {
+                name: 'Toxic Atmosphere',
+                icon: '☠️',
+                description: 'Corrosive gases',
+                damagePerTick: 1,
+                validPlanets: ['GreenGiant', 'OrangeGiant', 'Magma'],
+                starAffinity: ['OrangeDwarf', 'RedDwarf']
+            },
+            radiation: {
+                name: 'High Radiation',
+                icon: '☢️',
+                description: 'Intense stellar radiation',
+                damagePerTick: 2,
+                validPlanets: ['Barren', 'Cratered', 'Lunar', 'Rocky'],
+                starAffinity: ['BlueGiant', 'WhiteStar']
+            }
+        };
+
+        // Base fuel costs per planet type (gas giants cost more due to gravity)
+        const PLANET_FUEL_COSTS = {
+            // Gas giants - expensive
+            BlueGiant: 15, GreenGiant: 12, OrangeGiant: 12, RedGiant: 18, YellowGiant: 12,
+            // Rocky planets - moderate
+            Rocky: 5, Cratered: 5, Barren: 4, Lunar: 3, Magma: 8,
+            // Ice planets - moderate
+            Frozen: 5, Icy: 5, Glacial: 6,
+            // Life planets - moderate
+            Lush: 6, Tropical: 6, Ocean: 7,
+            // Arid planets - cheap
+            Arid: 4, Dry: 3
+        };
+
+        // Generate star system for a level
+        function generateStarSystem() {
+            const starTypes = Object.keys(STELLAR_CLASSES);
+            const weights = [0.1, 0.35, 0.15, 0.15, 0.15, 0.1]; // Weighted distribution
+
+            // Weighted random selection
+            const roll = Math.random();
+            let cumulative = 0;
+            let selectedType = starTypes[0];
+            for (let i = 0; i < starTypes.length; i++) {
+                cumulative += weights[i];
+                if (roll < cumulative) {
+                    selectedType = starTypes[i];
+                    break;
+                }
+            }
+
+            const starClass = STELLAR_CLASSES[selectedType];
+            const [minPlanets, maxPlanets] = starClass.planetCount;
+            const planetCount = minPlanets + Math.floor(Math.random() * (maxPlanets - minPlanets + 1));
+
+            // Generate planet data for this system
+            const planets = [];
+            for (let i = 0; i < planetCount; i++) {
+                const planetType = starClass.planetTypes[Math.floor(Math.random() * starClass.planetTypes.length)];
+                const planet = { type: planetType, features: [], hazards: [] };
+
+                // Calculate base fuel cost
+                planet.fuelCost = PLANET_FUEL_COSTS[planetType] || 5;
+
+                // Check for life
+                if (starClass.lifeChance > 0 && Math.random() < starClass.lifeChance) {
+                    if (PLANET_FEATURES.life.validPlanets.includes(planetType)) {
+                        planet.features.push('life');
+                    }
+                }
+
+                // Check for ruins (only on old/ancient stars)
+                if (starClass.ruinsChance > 0 && Math.random() < starClass.ruinsChance) {
+                    if (PLANET_FEATURES.ruins.validPlanets.includes(planetType)) {
+                        planet.features.push('ruins');
+                    }
+                }
+
+                // Check for fuel-rich gas giants
+                if (Math.random() < starClass.gasGiantChance * 0.5) {
+                    if (PLANET_FEATURES.fuelRich.validPlanets.includes(planetType)) {
+                        planet.features.push('fuelRich');
+                    }
+                }
+
+                // Check for mineral-rich planets
+                if (Math.random() < starClass.richPlanetChance) {
+                    if (PLANET_FEATURES.mineralRich.validPlanets.includes(planetType)) {
+                        planet.features.push('mineralRich');
+                    }
+                }
+
+                // Check for hazards
+                Object.keys(PLANET_HAZARDS).forEach(hazardKey => {
+                    const hazard = PLANET_HAZARDS[hazardKey];
+                    if (hazard.validPlanets.includes(planetType)) {
+                        // Base 30% chance, increased if star has affinity
+                        let chance = 0.3;
+                        if (hazard.starAffinity && hazard.starAffinity.includes(selectedType)) {
+                            chance = 0.6;
+                        }
+                        if (Math.random() < chance) {
+                            planet.hazards.push(hazardKey);
+                            // Gravity hazard increases fuel cost
+                            if (hazardKey === 'gravity' && hazard.fuelMultiplier) {
+                                planet.fuelCost = Math.ceil(planet.fuelCost * hazard.fuelMultiplier);
+                            }
+                        }
+                    }
+                });
+
+                planets.push(planet);
+            }
+
+            return {
+                starType: selectedType,
+                starClass: starClass,
+                planets: planets
+            };
+        }
+
+        // Get star icons HTML for gate preview
+        function getStarSystemIcons(starSystem) {
+            if (!starSystem) return '';
+            const star = starSystem.starClass;
+            let html = `<span class="star-icon" style="color: ${star.color}; font-size: ${star.iconSize === 'large' ? '16px' : star.iconSize === 'medium' ? '14px' : '12px'}">${star.icon}</span>`;
+
+            // Add feature icons for planets
+            const featureSet = new Set();
+            starSystem.planets.forEach(p => p.features.forEach(f => featureSet.add(f)));
+
+            featureSet.forEach(feature => {
+                const f = PLANET_FEATURES[feature];
+                if (f) {
+                    html += `<span class="feature-icon" title="${f.name}">${f.icon}</span>`;
+                }
+            });
+
+            return html;
+        }
+
         // Game State
         let gameState = {
             score: 0,
@@ -1651,6 +1968,8 @@
             harvestingPlanet: null,
             harvestProgress: 0,
             resources: {},
+            fuel: 100,           // Fuel for planet landings (0 = game over)
+            maxFuel: 100,        // Maximum fuel capacity
             baseShields: 100,
             escapedEnemies: 0,
             pendingNotifications: {},
@@ -2256,6 +2575,9 @@
                 }
             }
 
+            // Generate star system for this level
+            const starSystem = generateStarSystem();
+
             return {
                 waveCount,
                 threatLevel,
@@ -2264,7 +2586,8 @@
                 stations,
                 stationWaves,  // Which wave numbers trigger station spawns
                 stationDisplay,
-                levelNum
+                levelNum,
+                starSystem     // Star and planet information
             };
         }
 
@@ -3771,11 +4094,13 @@
             };
 
             // Left gate
+            document.getElementById('gateLeftStars').innerHTML = getStarSystemIcons(gameState.gateChoices.left.starSystem);
             document.getElementById('gateLeftThreat').innerHTML = getThreatBar(gameState.gateChoices.left);
             document.getElementById('gateLeftWaves').textContent = gameState.gateChoices.left.waveCount;
             document.getElementById('gateLeftStations').innerHTML = getStationIcons(gameState.gateChoices.left);
 
             // Right gate
+            document.getElementById('gateRightStars').innerHTML = getStarSystemIcons(gameState.gateChoices.right.starSystem);
             document.getElementById('gateRightThreat').innerHTML = getThreatBar(gameState.gateChoices.right);
             document.getElementById('gateRightWaves').textContent = gameState.gateChoices.right.waveCount;
             document.getElementById('gateRightStations').innerHTML = getStationIcons(gameState.gateChoices.right);
