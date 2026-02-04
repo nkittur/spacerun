@@ -1614,7 +1614,7 @@
 
         // Level zone heights in world Y units (1 screen height ≈ orthoHeight*2 ≈ 20 units)
         const LEVEL_ZONE_HEIGHTS = {
-            reward: 12,  // Y distance for reward/exploration zone (~0.6 screens)
+            reward: 6,   // Y distance for reward/exploration zone (~0.3 screens)
             gate: 10     // Y distance for gate zone
         };
 
@@ -4728,7 +4728,15 @@
             playerShip.targetX = Math.max(-maxX, Math.min(maxX, playerShip.targetX));
 
             const minY = -orthoHeight + 1;
-            const maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight);
+            let maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight);
+
+            // Clamp Y to stay below gates - player must go through one
+            if (gameState.showingGates && gameState.warpGates.length > 0) {
+                const gate = gameState.warpGates[0];
+                const gateBlockY = gate.position.y - gate.enterRadius * 0.8;
+                maxY = Math.min(maxY, gateBlockY);
+            }
+
             playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
 
             const lerpFactor = 0.15 * settings.shipSpeed;
@@ -5789,13 +5797,10 @@
                 return;
             }
 
-            // Hide when enemies are on screen or near warp gates
+            // Hide when enemies are on screen
             const hasEnemies = gameState.enemies.length > 0;
-            const nearGates = gameState.showingGates && gameState.warpGates.some(gate =>
-                gate.position.y < orthoHeight
-            );
 
-            if (hasEnemies || nearGates) {
+            if (hasEnemies) {
                 btn.style.display = 'none';
                 gameState.speedUp = false;
             } else {
