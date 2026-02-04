@@ -432,6 +432,16 @@
             color: white;
         }
 
+        .upgrade-btn.sell {
+            background: #aa6644;
+            color: white;
+        }
+
+        .upgrade-btn.unequip {
+            background: #886644;
+            color: white;
+        }
+
         .upgrade-btn.equipped {
             background: #335;
             color: #88aacc;
@@ -2097,10 +2107,15 @@
             const enemyMultiplier = { 'Low': 0.7, 'Medium': 1.0, 'High': 1.3, 'Extreme': 1.6 }[threatLevel];
 
             // Stations (0-2, random types)
-            const stationCount = Math.floor(Math.random() * 3);
+            // Level 1 always gets an Armory station for the outfitter
             const stations = [];
-            for (let i = 0; i < stationCount; i++) {
-                stations.push(STATION_TYPES[Math.floor(Math.random() * STATION_TYPES.length)]);
+            if (levelNum === 1) {
+                stations.push('Armory');
+            } else {
+                const stationCount = Math.floor(Math.random() * 3);
+                for (let i = 0; i < stationCount; i++) {
+                    stations.push(STATION_TYPES[Math.floor(Math.random() * STATION_TYPES.length)]);
+                }
             }
 
             // Format stations for display
@@ -3248,11 +3263,11 @@
                     const qClass = getQualityClass(weapon.quality);
                     item.className = 'upgrade-item';
 
-                    // Find which hardpoints this can mount on
+                    // Find EMPTY hardpoints this can mount on
                     const compatibleHardpoints = (gameState.fleet && gameState.fleet[0])
                         ? gameState.fleet[0].hardpoints
                             .map((hp, idx) => ({ hp, idx }))
-                            .filter(({ hp }) => canMountWeapon(weapon, hp))
+                            .filter(({ hp }) => !hp.equipped && canMountWeapon(weapon, hp))
                             .map(({ idx }) => idx)
                         : [];
 
@@ -3261,8 +3276,20 @@
                     ).join(' ');
 
                     if (compatibleHardpoints.length === 0) {
-                        mountBtns = '<span style="color: #ff6666; font-size: 11px;">No compatible hardpoint</span>';
+                        // Check if there are compatible slots but they're full
+                        const hasCompatibleSlots = (gameState.fleet && gameState.fleet[0])
+                            ? gameState.fleet[0].hardpoints.some(hp => canMountWeapon(weapon, hp))
+                            : false;
+                        if (hasCompatibleSlots) {
+                            mountBtns = '<span style="color: #ffaa44; font-size: 11px;">All compatible hardpoints full</span>';
+                        } else {
+                            mountBtns = '<span style="color: #ff6666; font-size: 11px;">No compatible hardpoint</span>';
+                        }
                     }
+
+                    // Add sell button - sell for 50% of original cost
+                    const sellPrice = Math.floor((weapon.originalCost || weapon.cost || 50) * 0.5);
+                    const sellBtn = `<button class="upgrade-btn sell" onclick="sellWeapon('${weapon.id}')">Sell ${sellPrice}cr</button>`;
 
                     const lvl = weapon.level || 1;
                     const projInfo = weapon.projectiles > 1 ? ` x${weapon.projectiles}` : '';
@@ -3274,7 +3301,7 @@
                             <div class="upgrade-desc">${weapon.desc}</div>
                             <div style="font-size: 11px; color: #aaa;">DMG: ${weapon.damage}${projInfo} | ROF: ${(1000/weapon.fireRate).toFixed(1)}/s | ${typeLabel}</div>
                         </div>
-                        <div class="mount-buttons">${mountBtns}</div>
+                        <div class="mount-buttons">${mountBtns} ${sellBtn}</div>
                     `;
                     inventorySection.appendChild(item);
                 });
@@ -3396,6 +3423,28 @@
             updateWeaponsList();
         }
 
+        // Sell weapon from inventory
+        function sellWeapon(weaponId) {
+            const weaponIdx = gameState.ownedWeapons.findIndex(w => w.id === weaponId);
+            if (weaponIdx === -1) return;
+
+            const weapon = gameState.ownedWeapons[weaponIdx];
+
+            // Can't sell if it's equipped
+            const isEquipped = gameState.fleet && gameState.fleet[0] &&
+                gameState.fleet[0].hardpoints.some(hp => hp.equipped && hp.equipped.id === weaponId);
+            if (isEquipped) return;
+
+            // Sell for 50% of cost
+            const sellPrice = Math.floor((weapon.originalCost || weapon.cost || 50) * 0.5);
+            gameState.credits += sellPrice;
+
+            // Remove from inventory
+            gameState.ownedWeapons.splice(weaponIdx, 1);
+
+            updateWeaponsList();
+        }
+
         // Sync equippedWeapons array from fleet hardpoints
         function syncEquippedWeapons() {
             if (!gameState.fleet || gameState.fleet.length === 0) {
@@ -3460,6 +3509,7 @@
         window.buyStationWeapon = buyStationWeapon;
         window.mountWeapon = mountWeapon;
         window.unequipWeapon = unequipWeapon;
+        window.sellWeapon = sellWeapon;
         window.switchStationSection = switchStationSection;
 
         // ========== RIVER NAVIGATION - WARP GATES ==========
