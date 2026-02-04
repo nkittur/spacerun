@@ -1018,8 +1018,11 @@
         #stationContent {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 15px;
             background: rgba(10, 10, 20, 0.98);
+            -webkit-overflow-scrolling: touch;
+            max-height: calc(45% - 60px);
         }
 
         .station-section {
@@ -2664,19 +2667,13 @@
                 metalTex.uScale = 1;
                 metalTex.vScale = 1;
 
-                // Bright metallic material with subtle element-colored glow
+                // Reflective metallic material colored by composition (no glow)
                 const lootMat = new BABYLON.StandardMaterial('lootMat', scene);
                 lootMat.diffuseTexture = metalTex;
-                lootMat.diffuseColor = new BABYLON.Color3(0.5 + r * 0.3, 0.5 + g * 0.3, 0.5 + b * 0.3);
-                lootMat.specularColor = new BABYLON.Color3(0.6, 0.6, 0.6);
-                lootMat.specularPower = 32;
-                lootMat.emissiveColor = new BABYLON.Color3(r * 0.15, g * 0.15, b * 0.15);
+                lootMat.diffuseColor = new BABYLON.Color3(0.4 + r * 0.5, 0.4 + g * 0.5, 0.4 + b * 0.5);
+                lootMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+                lootMat.specularPower = 16;
                 lootMesh.material = lootMat;
-
-                // Add to loot glow layer for subtle element-colored glow
-                if (lootGlowLayer) {
-                    lootGlowLayer.addIncludedOnlyMesh(lootMesh);
-                }
 
                 lootMesh.velocityX = offsetX * 0.02;
                 lootMesh.velocityY = offsetY * 0.02;
@@ -2725,7 +2722,6 @@
 
                     createExplosion(loot.position.x, loot.position.y, 'small', 'blue');
 
-                    if (lootGlowLayer) lootGlowLayer.removeIncludedOnlyMesh(loot);
                     if (loot.metalTex) loot.metalTex.dispose();
                     loot.dispose();
                     gameState.loot.splice(i, 1);
@@ -2733,7 +2729,6 @@
                 }
 
                 if (loot.position.y < -orthoHeight - 2) {
-                    if (lootGlowLayer) lootGlowLayer.removeIncludedOnlyMesh(loot);
                     if (loot.metalTex) loot.metalTex.dispose();
                     loot.dispose();
                     gameState.loot.splice(i, 1);
@@ -3572,6 +3567,7 @@
 
             gate.size = size;
             gate.enterRadius = size * 0.4;
+            gate.tintColor = color;
 
             return gate;
         }
@@ -3618,6 +3614,10 @@
         function updateWarpGates(scrollMultiplier, deltaTime) {
             if (!gameState.showingGates || gameState.warpGates.length === 0) return;
 
+            // Find reference gate for Y position check
+            const leftGate = gameState.warpGates.find(g => g.gateId === 'left');
+            const rightGate = gameState.warpGates.find(g => g.gateId === 'right');
+
             for (let i = gameState.warpGates.length - 1; i >= 0; i--) {
                 const gate = gameState.warpGates[i];
 
@@ -3636,32 +3636,79 @@
                     preview.style.top = screenPos.y + 'px';
                     preview.style.transform = 'translate(-50%, 0)';
                 }
+            }
 
-                // Check collision with player
-                if (playerShip) {
-                    const dx = gate.position.x - playerShip.position.x;
-                    const dy = gate.position.y - playerShip.position.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
+            // Check if player has committed to a gate (halfway across screen and past gate Y)
+            if (playerShip && leftGate) {
+                const gateY = leftGate.position.y;
+                const gateRadius = leftGate.enterRadius;
 
-                    if (dist < gate.enterRadius) {
-                        // Player entered this gate!
-                        enterWarpGate(gate.gateId);
+                // Player must be past the gate vertically (above it, since Y increases upward)
+                if (playerShip.position.y > gateY - gateRadius * 0.5) {
+                    // Determine which half of the screen player is on
+                    const playerX = playerShip.position.x;
+                    const halfScreen = orthoWidth * 0.3; // 30% from center = committed
+
+                    if (playerX < -halfScreen) {
+                        // Player committed to left gate
+                        enterWarpGate('left');
+                        return;
+                    } else if (playerX > halfScreen) {
+                        // Player committed to right gate
+                        enterWarpGate('right');
                         return;
                     }
                 }
 
-                // Remove if off screen (player missed both gates - shouldn't happen normally)
-                if (gate.position.y < -orthoHeight - gate.size) {
-                    // Force player into a random gate
-                    enterWarpGate(Math.random() < 0.5 ? 'left' : 'right');
-                    return;
-                }
+                // Tint background based on which side player is leaning toward
+                updateGateBackgroundTint(playerShip.position.x, leftGate, rightGate);
+            }
+
+            // Remove if off screen (player stayed in center too long)
+            if (leftGate && leftGate.position.y < -orthoHeight - leftGate.size) {
+                // Force player into gate based on their X position
+                enterWarpGate(playerShip.position.x < 0 ? 'left' : 'right');
+                return;
+            }
+        }
+
+        // Tint background subtly based on gate choice
+        function updateGateBackgroundTint(playerX, leftGate, rightGate) {
+            // Calculate how far player is toward each side
+            const maxOffset = orthoWidth * 0.5;
+            const normalizedX = Math.max(-1, Math.min(1, playerX / maxOffset));
+
+            // Get colors for each gate
+            const leftColor = leftGate ? leftGate.tintColor : [1, 0.5, 0.2];
+            const rightColor = rightGate ? rightGate.tintColor : [0.2, 1, 0.5];
+
+            // Blend based on position (subtle effect)
+            const intensity = Math.abs(normalizedX) * 0.15;
+            let r, g, b;
+            if (normalizedX < 0) {
+                r = leftColor[0] * intensity;
+                g = leftColor[1] * intensity;
+                b = leftColor[2] * intensity;
+            } else {
+                r = rightColor[0] * intensity;
+                g = rightColor[1] * intensity;
+                b = rightColor[2] * intensity;
+            }
+
+            // Apply to ambient light or scene clear color
+            if (scene) {
+                scene.ambientColor = new BABYLON.Color3(0.05 + r, 0.05 + g, 0.1 + b);
             }
         }
 
         // Handle entering a warp gate
         function enterWarpGate(gateId) {
             const chosenConfig = gameState.gateChoices[gateId];
+
+            // Reset ambient color
+            if (scene) {
+                scene.ambientColor = new BABYLON.Color3(0.05, 0.05, 0.1);
+            }
 
             // Clean up gates
             gameState.warpGates.forEach(gate => {
@@ -4670,7 +4717,8 @@
                 playerShip.targetY += worldDeltaY;
             }
 
-            const maxX = orthoWidth - 1;
+            // Allow wider movement when gates are showing so player can commit to a side
+            const maxX = gameState.showingGates ? orthoWidth + 2 : orthoWidth - 1;
             playerShip.targetX = Math.max(-maxX, Math.min(maxX, playerShip.targetX));
 
             const minY = -orthoHeight + 1;
