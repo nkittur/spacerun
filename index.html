@@ -5540,10 +5540,12 @@
         });
 
         // Confirm New Game
-        document.getElementById('confirmNewGame').addEventListener('click', () => {
+        document.getElementById('confirmNewGame').addEventListener('click', async () => {
             confirmDialog.style.display = 'none';
             deleteSave();
-            resetGame();
+            await resetGame();
+            gameState.isPaused = false;
+            gameState.isPlaying = true;
         });
 
         // Cancel New Game
