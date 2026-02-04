@@ -4588,10 +4588,11 @@
         }
 
         document.addEventListener('touchstart', (e) => {
-            // Allow buttons and inputs to work normally
+            // Allow buttons, inputs, and station interior to work normally
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
                 e.target.closest('button') || e.target.closest('#systemMenu') ||
-                e.target.closest('#settingsPanel') || e.target.closest('#confirmDialog')) return;
+                e.target.closest('#settingsPanel') || e.target.closest('#confirmDialog') ||
+                e.target.closest('#stationInterior')) return;
             if (gameState.isPlaying && !gameState.isPaused && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
@@ -4600,7 +4601,9 @@
         }, { passive: false });
 
         document.addEventListener('touchmove', (e) => {
-            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+            // Allow station interior scrolling
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
+                e.target.closest('#stationInterior')) return;
             if (gameState.isPlaying && !gameState.isPaused && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
@@ -5368,6 +5371,20 @@
             return localStorage.getItem(SAVE_KEY) !== null;
         }
 
+        // Check if game should remain paused (used to prevent accidental unpause)
+        // Add new conditions here as features are added (tutorials, planet landing, etc.)
+        function shouldRemainPaused() {
+            // Check if docked at station
+            if (gameState.isDocked) return true;
+            // Check if any modal dialogs are open
+            if (document.getElementById('settingsPanel').style.display === 'block') return true;
+            if (document.getElementById('confirmDialog').style.display === 'block') return true;
+            // Check if station interior is visible
+            if (document.getElementById('stationInterior').style.display !== 'none') return true;
+            // Future: add checks for tutorials, planet landing screens, etc.
+            return false;
+        }
+
         function deleteSave() {
             localStorage.removeItem(SAVE_KEY);
         }
@@ -5451,7 +5468,8 @@
             if (!systemBtn.contains(e.target) && !systemMenu.contains(e.target) &&
                 !settingsPanel.contains(e.target) && !confirmDialog.contains(e.target)) {
                 systemMenu.style.display = 'none';
-                if (settingsPanel.style.display !== 'block' && confirmDialog.style.display !== 'block') {
+                // Only unpause if nothing else requires pause
+                if (!shouldRemainPaused()) {
                     gameState.isPaused = false;
                 }
             }
@@ -5466,7 +5484,10 @@
 
         closeSettings.addEventListener('click', () => {
             settingsPanel.style.display = 'none';
-            gameState.isPaused = false;
+            // Only unpause if nothing else requires pause
+            if (!shouldRemainPaused()) {
+                gameState.isPaused = false;
+            }
         });
 
         // Save & Quit menu item
@@ -5506,7 +5527,10 @@
         // Cancel New Game
         document.getElementById('cancelNewGame').addEventListener('click', () => {
             confirmDialog.style.display = 'none';
-            gameState.isPaused = false;
+            // Only unpause if nothing else requires pause
+            if (!shouldRemainPaused()) {
+                gameState.isPaused = false;
+            }
         });
 
         function setupSlider(id, settingKey, suffix = '', multiplier = 1) {
