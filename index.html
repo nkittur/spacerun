@@ -5337,6 +5337,7 @@
                 credits: gameState.credits,
                 ownedWeapons: gameState.ownedWeapons,
                 equippedWeapon: gameState.equippedWeapon,
+                fleet: gameState.fleet,
                 baseShields: gameState.baseShields,
                 resources: gameState.resources,
                 distanceTraveled: gameState.distanceTraveled,
@@ -5404,6 +5405,27 @@
             gameState.credits = saveData.credits || 0;
             gameState.ownedWeapons = saveData.ownedWeapons || ['basic'];
             gameState.equippedWeapon = saveData.equippedWeapon || 'basic';
+
+            // Restore fleet, or create default if not present (backward compatibility)
+            if (saveData.fleet && saveData.fleet.length > 0) {
+                gameState.fleet = saveData.fleet;
+            } else {
+                // Create default fleet for old saves
+                const starterWeapon = { ...WEAPONS.basic, id: 'basic_' + Date.now() };
+                gameState.fleet = [{
+                    name: SHIP_DEFINITIONS.starter.name,
+                    model: SHIP_DEFINITIONS.starter.model,
+                    hardpoints: SHIP_DEFINITIONS.starter.hardpoints.map((hp, idx) => ({
+                        ...hp,
+                        equipped: idx === 0 ? starterWeapon : null
+                    }))
+                }];
+                // Also ensure ownedWeapons has the starter weapon
+                if (!gameState.ownedWeapons || gameState.ownedWeapons.length === 0) {
+                    gameState.ownedWeapons = [starterWeapon];
+                }
+            }
+
             gameState.baseShields = saveData.baseShields || 100;
             gameState.resources = saveData.resources || {};
             gameState.distanceTraveled = saveData.distanceTraveled || 0;
@@ -5605,6 +5627,18 @@
                 if (settings.debugMode) {
                     gameState.credits = 1000;
                 }
+
+                // Initialize fleet with starter ship and basic weapon
+                const starterWeapon = { ...WEAPONS.basic, id: 'basic_' + Date.now() };
+                gameState.fleet = [{
+                    name: SHIP_DEFINITIONS.starter.name,
+                    model: SHIP_DEFINITIONS.starter.model,
+                    hardpoints: SHIP_DEFINITIONS.starter.hardpoints.map((hp, idx) => ({
+                        ...hp,
+                        equipped: idx === 0 ? starterWeapon : null
+                    }))
+                }];
+                gameState.ownedWeapons = [starterWeapon];
 
                 // Initialize first level
                 gameState.level = 1;
