@@ -951,6 +951,82 @@
             background: #556677;
         }
 
+        /* Weapon Mount Dialog */
+        #weaponMountDialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 40, 0.98);
+            border: 2px solid #44aaff;
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            z-index: 260;
+            display: none;
+            min-width: 300px;
+            max-width: 90%;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(68, 170, 255, 0.5);
+        }
+
+        #weaponMountDialog h3 {
+            margin-bottom: 10px;
+            color: #44aaff;
+            font-size: 16px;
+        }
+
+        #weaponMountDialog .weapon-info {
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #aaccff;
+        }
+
+        #weaponMountDialog .mount-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        #weaponMountDialog .mount-option {
+            padding: 10px 15px;
+            background: rgba(40, 60, 100, 0.8);
+            border: 1px solid #446;
+            border-radius: 8px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        #weaponMountDialog .mount-option:hover {
+            background: rgba(68, 136, 255, 0.4);
+            border-color: #4488ff;
+        }
+
+        #weaponMountDialog .mount-option .current-weapon {
+            color: #ff8866;
+            font-size: 11px;
+        }
+
+        #weaponMountDialog .inventory-btn {
+            padding: 10px 20px;
+            background: #335;
+            border: 1px solid #557;
+            border-radius: 8px;
+            color: #aaccff;
+            font-size: 12px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        #weaponMountDialog .inventory-btn:hover {
+            background: #446;
+        }
+
         /* Station Interior View */
         #stationInterior {
             position: absolute;
@@ -1233,6 +1309,13 @@
             <button class="confirm-btn danger" id="confirmNewGame">New Game</button>
             <button class="confirm-btn cancel" id="cancelNewGame">Cancel</button>
         </div>
+    </div>
+
+    <div id="weaponMountDialog">
+        <h3>Mount Weapon</h3>
+        <div class="weapon-info" id="mountWeaponInfo"></div>
+        <div class="mount-options" id="mountOptions"></div>
+        <button class="inventory-btn" id="mountToInventory">Keep in Inventory</button>
     </div>
 
     <div id="settingsPanel">
@@ -3315,12 +3398,94 @@
         function buyStationWeapon(stationIdx) {
             const weapon = gameState.stationWeapons[stationIdx];
             if (!weapon || gameState.credits < weapon.cost) return;
+            if (!gameState.fleet || gameState.fleet.length === 0) return;
 
+            const ship = gameState.fleet[0];
+
+            // Find compatible hardpoints
+            const emptyCompatible = ship.hardpoints
+                .map((hp, idx) => ({ hp, idx }))
+                .filter(({ hp }) => !hp.equipped && canMountWeapon(weapon, hp));
+
+            const occupiedCompatible = ship.hardpoints
+                .map((hp, idx) => ({ hp, idx }))
+                .filter(({ hp }) => hp.equipped && canMountWeapon(weapon, hp));
+
+            // Deduct credits and add to inventory
             gameState.credits -= weapon.cost;
             gameState.ownedWeapons.push(weapon);
-            gameState.stationWeapons.splice(stationIdx, 1);  // Remove from station inventory
+            gameState.stationWeapons.splice(stationIdx, 1);
+
+            if (emptyCompatible.length > 0) {
+                // Auto-mount to first empty compatible hardpoint
+                const targetIdx = emptyCompatible[0].idx;
+                ship.hardpoints[targetIdx].equipped = weapon;
+                syncEquippedWeapons();
+                updateWeaponsList();
+            } else if (occupiedCompatible.length > 0) {
+                // Show dialog to choose which weapon to replace
+                showWeaponMountDialog(weapon, occupiedCompatible);
+            } else {
+                // No compatible hardpoints, just keep in inventory
+                updateWeaponsList();
+            }
+        }
+
+        // Show dialog for choosing where to mount weapon
+        function showWeaponMountDialog(weapon, occupiedHardpoints) {
+            const dialog = document.getElementById('weaponMountDialog');
+            const infoDiv = document.getElementById('mountWeaponInfo');
+            const optionsDiv = document.getElementById('mountOptions');
+
+            // Store pending weapon for mounting
+            gameState.pendingMountWeapon = weapon;
+
+            // Show weapon info
+            const qClass = getQualityClass(weapon.quality);
+            infoDiv.innerHTML = `<span class="${qClass}">${weapon.name}</span> [${weapon.size}]`;
+
+            // Build options for each occupied hardpoint
+            optionsDiv.innerHTML = occupiedHardpoints.map(({ hp, idx }) => {
+                const current = hp.equipped;
+                const currentQClass = getQualityClass(current.quality);
+                return `
+                    <button class="mount-option" onclick="confirmMountReplace(${idx})">
+                        <div>Hardpoint ${idx + 1} [${hp.size}]</div>
+                        <div class="current-weapon">Replace: <span class="${currentQClass}">${current.name}</span></div>
+                    </button>
+                `;
+            }).join('');
+
+            dialog.style.display = 'block';
+        }
+
+        // Confirm mounting weapon, replacing existing
+        function confirmMountReplace(hardpointIdx) {
+            if (!gameState.pendingMountWeapon) return;
+            if (!gameState.fleet || gameState.fleet.length === 0) return;
+
+            const ship = gameState.fleet[0];
+            const hardpoint = ship.hardpoints[hardpointIdx];
+
+            // Replace the weapon (old one stays in ownedWeapons)
+            hardpoint.equipped = gameState.pendingMountWeapon;
+
+            gameState.pendingMountWeapon = null;
+            document.getElementById('weaponMountDialog').style.display = 'none';
+            syncEquippedWeapons();
             updateWeaponsList();
         }
+
+        // Close mount dialog, keep weapon in inventory
+        function closeMountDialog() {
+            gameState.pendingMountWeapon = null;
+            document.getElementById('weaponMountDialog').style.display = 'none';
+            updateWeaponsList();
+        }
+
+        // Expose functions globally
+        window.confirmMountReplace = confirmMountReplace;
+        window.closeMountDialog = closeMountDialog;
 
         // Mount weapon to hardpoint
         function mountWeapon(weaponId, hardpointIdx) {
@@ -3436,6 +3601,9 @@
 
             // Depart button
             document.getElementById('stationDepartBtn').addEventListener('click', departStarbase);
+
+            // Weapon mount dialog - inventory button
+            document.getElementById('mountToInventory').addEventListener('click', closeMountDialog);
         }
 
         // Make functions available globally for onclick
@@ -3641,37 +3809,20 @@
                 }
             }
 
-            // Check if player has committed to a gate (halfway across screen and past gate Y)
+            // Check if player has reached gate height - screen split horizontally
             if (playerShip && leftGate) {
                 const gateY = leftGate.position.y;
-                const gateRadius = leftGate.enterRadius;
 
-                // Player must be past the gate vertically (above it, since Y increases upward)
-                if (playerShip.position.y > gateY - gateRadius * 0.5) {
-                    // Determine which half of the screen player is on
-                    const playerX = playerShip.position.x;
-                    const halfScreen = orthoWidth * 0.3; // 30% from center = committed
-
-                    if (playerX < -halfScreen) {
-                        // Player committed to left gate
-                        enterWarpGate('left');
-                        return;
-                    } else if (playerX > halfScreen) {
-                        // Player committed to right gate
-                        enterWarpGate('right');
-                        return;
-                    }
+                // When player reaches gate vertical position, force entry based on X position
+                // Left half of screen = left gate, right half = right gate
+                if (playerShip.position.y >= gateY) {
+                    const gateChoice = playerShip.position.x < 0 ? 'left' : 'right';
+                    enterWarpGate(gateChoice);
+                    return;
                 }
 
-                // Tint background based on which side player is leaning toward
+                // Tint background based on which side player is on
                 updateGateBackgroundTint(playerShip.position.x, leftGate, rightGate);
-            }
-
-            // Remove if off screen (player stayed in center too long)
-            if (leftGate && leftGate.position.y < -orthoHeight - leftGate.size) {
-                // Force player into gate based on their X position
-                enterWarpGate(playerShip.position.x < 0 ? 'left' : 'right');
-                return;
             }
         }
 
@@ -4728,15 +4879,7 @@
             playerShip.targetX = Math.max(-maxX, Math.min(maxX, playerShip.targetX));
 
             const minY = -orthoHeight + 1;
-            let maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight);
-
-            // Clamp Y to stay below gates - player must go through one
-            if (gameState.showingGates && gameState.warpGates.length > 0) {
-                const gate = gameState.warpGates[0];
-                const gateBlockY = gate.position.y - gate.enterRadius * 0.8;
-                maxY = Math.min(maxY, gateBlockY);
-            }
-
+            const maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight);
             playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
 
             const lerpFactor = 0.15 * settings.shipSpeed;
@@ -5388,6 +5531,7 @@
             // Check if any modal dialogs are open
             if (document.getElementById('settingsPanel').style.display === 'block') return true;
             if (document.getElementById('confirmDialog').style.display === 'block') return true;
+            if (document.getElementById('weaponMountDialog').style.display === 'block') return true;
             // Check if station interior is visible
             if (document.getElementById('stationInterior').style.display !== 'none') return true;
             // Future: add checks for tutorials, planet landing screens, etc.
