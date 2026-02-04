@@ -239,19 +239,44 @@
         /* Harvest progress bar - positioned on planet */
         #harvestBar {
             position: absolute;
-            height: 6px;
-            background: rgba(0, 0, 0, 0.6);
-            overflow: hidden;
+            background: rgba(0, 0, 0, 0.7);
+            overflow: visible;
             display: none;
             z-index: 60;
-            border-radius: 3px;
+            border-radius: 4px;
+            padding: 3px;
         }
 
         #harvestBarFill {
-            height: 100%;
+            height: 6px;
             width: 0%;
             background: #44ffaa;
             transition: width 0.1s linear;
+            border-radius: 2px;
+        }
+
+        #harvestIcons {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin-top: 3px;
+            font-size: 12px;
+        }
+
+        #harvestIcons .feature-icon {
+            text-shadow: 0 0 4px currentColor;
+        }
+
+        #harvestIcons .hazard-icon {
+            text-shadow: 0 0 4px #ff4444;
+        }
+
+        #harvestFuelCost {
+            font-size: 9px;
+            color: #ffaa44;
+            text-align: center;
+            margin-top: 2px;
+            font-family: monospace;
         }
 
         /* Targeting corners overlay */
@@ -1389,7 +1414,11 @@
 
     <div id="collectNotifications"></div>
 
-    <div id="harvestBar"><div id="harvestBarFill"></div></div>
+    <div id="harvestBar">
+        <div id="harvestBarFill"></div>
+        <div id="harvestIcons"></div>
+        <div id="harvestFuelCost"></div>
+    </div>
     <div id="targetingOverlay">
         <div class="targeting-corner top-left"></div>
         <div class="targeting-corner top-right"></div>
@@ -3214,12 +3243,22 @@
         }
 
         // Create a planet at specific position
-        function createPlanetAt(x, y) {
+        // planetInfo is optional - if provided, uses pre-generated features/hazards from star system
+        function createPlanetAt(x, y, planetInfo) {
             if (!scene) return null;
 
-            const typeKeys = Object.keys(PLANET_TYPES);
-            const typeKey = typeKeys[Math.floor(Math.random() * typeKeys.length)];
-            const planetType = PLANET_TYPES[typeKey];
+            let typeKey, planetType;
+
+            if (planetInfo && planetInfo.type) {
+                // Use pre-generated planet info from star system
+                typeKey = planetInfo.type;
+                planetType = PLANET_TYPES[typeKey];
+            } else {
+                // Random planet type (legacy behavior)
+                const typeKeys = Object.keys(PLANET_TYPES);
+                typeKey = typeKeys[Math.floor(Math.random() * typeKeys.length)];
+                planetType = PLANET_TYPES[typeKey];
+            }
 
             const variant = Math.floor(Math.random() * 5) + 1;
             const variantStr = variant.toString().padStart(2, '0');
@@ -3259,12 +3298,45 @@
             planet.size = planetSize;
             planet.harvestRadius = planetSize * 0.8;
 
+            // Features and hazards from star system (or generate random)
+            if (planetInfo) {
+                planet.features = planetInfo.features || [];
+                planet.hazards = planetInfo.hazards || [];
+                planet.fuelCost = planetInfo.fuelCost || PLANET_FUEL_COSTS[typeKey] || 5;
+            } else {
+                // Legacy: generate random features/hazards
+                planet.features = [];
+                planet.hazards = [];
+                planet.fuelCost = PLANET_FUEL_COSTS[typeKey] || 5;
+
+                // Random chance for features based on planet type
+                if (PLANET_FEATURES.life.validPlanets.includes(typeKey) && Math.random() < 0.3) {
+                    planet.features.push('life');
+                }
+                if (PLANET_FEATURES.ruins.validPlanets.includes(typeKey) && Math.random() < 0.2) {
+                    planet.features.push('ruins');
+                }
+                if (PLANET_FEATURES.fuelRich.validPlanets.includes(typeKey) && Math.random() < 0.3) {
+                    planet.features.push('fuelRich');
+                }
+                if (PLANET_FEATURES.mineralRich.validPlanets.includes(typeKey) && Math.random() < 0.25) {
+                    planet.features.push('mineralRich');
+                }
+
+                // Random hazards
+                Object.keys(PLANET_HAZARDS).forEach(hazardKey => {
+                    if (PLANET_HAZARDS[hazardKey].validPlanets.includes(typeKey) && Math.random() < 0.3) {
+                        planet.hazards.push(hazardKey);
+                    }
+                });
+            }
+
             // Richness affects loot multiplier (1-5 scale)
             planet.richness = Math.floor(Math.random() * 5) + 1;
-            // Hazardousness affects harvest time (1-5 scale, higher = longer)
-            planet.hazard = Math.floor(Math.random() * 5) + 1;
-            // Base harvest time is 4 seconds, hazard adds 1s per level
-            planet.harvestTime = 3000 + planet.hazard * 1000; // 4s to 8s
+
+            // Calculate harvest time based on hazards
+            let hazardLevel = planet.hazards.length;
+            planet.harvestTime = 3000 + hazardLevel * 1500; // 3s base + 1.5s per hazard
 
             return planet;
         }
@@ -4523,6 +4595,9 @@
                 corners.forEach(c => c.style.display = 'none');
                 harvestBar.style.display = 'none';
                 planetInfo.style.display = 'none';
+                // Clear icons
+                document.getElementById('harvestIcons').innerHTML = '';
+                document.getElementById('harvestFuelCost').textContent = '';
                 return;
             }
 
@@ -4564,6 +4639,49 @@
 
             // Hide planet info - richness shown through targeting color
             planetInfo.style.display = 'none';
+        }
+
+        // Update harvest icons display for targeted planet
+        function updateHarvestIcons(planet) {
+            const iconsContainer = document.getElementById('harvestIcons');
+            const fuelCostElement = document.getElementById('harvestFuelCost');
+
+            if (!planet) {
+                iconsContainer.innerHTML = '';
+                fuelCostElement.textContent = '';
+                return;
+            }
+
+            let iconsHtml = '';
+
+            // Add feature icons
+            if (planet.features && planet.features.length > 0) {
+                planet.features.forEach(featureKey => {
+                    const feature = PLANET_FEATURES[featureKey];
+                    if (feature) {
+                        iconsHtml += `<span class="feature-icon" title="${feature.name}">${feature.icon}</span>`;
+                    }
+                });
+            }
+
+            // Add hazard icons
+            if (planet.hazards && planet.hazards.length > 0) {
+                planet.hazards.forEach(hazardKey => {
+                    const hazard = PLANET_HAZARDS[hazardKey];
+                    if (hazard) {
+                        iconsHtml += `<span class="hazard-icon" title="${hazard.name}">${hazard.icon}</span>`;
+                    }
+                });
+            }
+
+            iconsContainer.innerHTML = iconsHtml;
+
+            // Show fuel cost
+            if (planet.fuelCost) {
+                fuelCostElement.textContent = `⛽ ${planet.fuelCost}`;
+            } else {
+                fuelCostElement.textContent = '';
+            }
         }
 
         // Update planets
@@ -4620,6 +4738,9 @@
                 if (gameState.harvestingPlanet !== nearPlanet) {
                     gameState.harvestingPlanet = nearPlanet;
                     gameState.harvestProgress = 0;
+
+                    // Update icons display when targeting new planet
+                    updateHarvestIcons(nearPlanet);
                 }
 
                 // Harvest time based on hazardousness
