@@ -3345,9 +3345,8 @@
         function createSolarSystem() {
             if (!scene) return;
 
-            // Center of solar system - no gate avoidance needed
-            // Reward zone spawns systems BEFORE gates exist
-            const centerX = (Math.random() - 0.5) * (orthoWidth * 1.2);
+            // Center sun within visible screen area
+            const centerX = (Math.random() - 0.5) * (orthoWidth * 0.6);
             const centerY = orthoHeight + 8; // Start above screen
 
             // Create sun at center
@@ -3356,16 +3355,24 @@
                 gameState.suns.push(sun);
             }
 
-            // Create 2-5 planets orbiting the sun
+            // Create 2-5 planets spread across screen width
             const planetCount = 2 + Math.floor(Math.random() * 4);
-            const minOrbitRadius = sun ? sun.size * 0.8 : 3;
+            const planetMargin = 4; // Margin for planet size + targeting UI
+            const screenWidth = (orthoWidth - planetMargin) * 2;
 
             for (let i = 0; i < planetCount; i++) {
-                const orbitRadius = minOrbitRadius + 2 + i * 2 + Math.random() * 1.5;
-                const angle = Math.random() * Math.PI * 2;
+                // Spread planets evenly across screen width
+                const spreadX = -orthoWidth + planetMargin + (screenWidth * (i + 0.5) / planetCount);
+                // Add small random offset but keep on screen
+                const px = Math.max(-orthoWidth + planetMargin, Math.min(orthoWidth - planetMargin,
+                    spreadX + (Math.random() - 0.5) * 2));
 
-                const px = centerX + Math.cos(angle) * orbitRadius;
-                const py = centerY + Math.sin(angle) * orbitRadius * 0.4; // Flatten orbits
+                // Vary Y position around the sun
+                const py = centerY + (Math.random() - 0.5) * 6;
+
+                // Calculate orbit properties from position
+                const orbitRadius = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow((py - centerY) / 0.4, 2));
+                const angle = Math.atan2((py - centerY) / 0.4, px - centerX);
 
                 const planet = createPlanetAt(px, py);
                 if (planet) {
@@ -4035,7 +4042,8 @@
         function createSolarSystemAt(spawnY) {
             if (!scene) return;
 
-            const centerX = (Math.random() - 0.5) * (orthoWidth * 1.2);
+            // Center sun within visible screen area
+            const centerX = (Math.random() - 0.5) * (orthoWidth * 0.6);
             const centerY = spawnY;
 
             // Create sun at center
@@ -4044,16 +4052,24 @@
                 gameState.suns.push(sun);
             }
 
-            // Create 2-5 planets orbiting the sun
+            // Create 2-5 planets spread across screen width
             const planetCount = 2 + Math.floor(Math.random() * 4);
-            const minOrbitRadius = sun ? sun.size * 0.8 : 3;
+            const planetMargin = 4; // Margin for planet size + targeting UI
+            const screenWidth = (orthoWidth - planetMargin) * 2;
 
             for (let i = 0; i < planetCount; i++) {
-                const orbitRadius = minOrbitRadius + 2 + i * 2 + Math.random() * 1.5;
-                const angle = Math.random() * Math.PI * 2;
+                // Spread planets evenly across screen width
+                const spreadX = -orthoWidth + planetMargin + (screenWidth * (i + 0.5) / planetCount);
+                // Add small random offset but keep on screen
+                const px = Math.max(-orthoWidth + planetMargin, Math.min(orthoWidth - planetMargin,
+                    spreadX + (Math.random() - 0.5) * 2));
 
-                const px = centerX + Math.cos(angle) * orbitRadius;
-                const py = centerY + Math.sin(angle) * orbitRadius * 0.4;
+                // Vary Y position around the sun
+                const py = centerY + (Math.random() - 0.5) * 6;
+
+                // Calculate orbit properties from position
+                const orbitRadius = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow((py - centerY) / 0.4, 2));
+                const angle = Math.atan2((py - centerY) / 0.4, px - centerX);
 
                 const planet = createPlanetAt(px, py);
                 if (planet) {
