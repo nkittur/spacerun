@@ -1601,7 +1601,7 @@
         </div>
         <div class="setting-group">
             <label>Ship Speed</label>
-            <input type="range" id="shipSpeed" min="0.5" max="2" step="0.1" value="1">
+            <input type="range" id="shipSpeed" min="0.1" max="2" step="0.1" value="1">
             <div class="setting-value" id="shipSpeedValue">1.0x</div>
         </div>
         <div class="setting-group">
@@ -1618,6 +1618,12 @@
             <label>
                 <input type="checkbox" id="debugMode">
                 Debug Mode (1000 credits at start)
+            </label>
+        </div>
+        <div class="setting-group checkbox-group">
+            <label>
+                <input type="checkbox" id="godMode">
+                God Mode (invulnerable, fast, warp anytime)
             </label>
         </div>
         <button id="closeSettings">Close</button>
@@ -1922,7 +1928,8 @@
             playerColor: 'Blue',
             enemyShip: 'Spitfire',
             enemyColor: 'Red',
-            debugMode: localStorage.getItem('debugMode') === 'true'
+            debugMode: localStorage.getItem('debugMode') === 'true',
+            godMode: localStorage.getItem('godMode') === 'true'
         };
 
         // Loaded model templates
@@ -5978,8 +5985,9 @@
         function updatePlayerPosition(deltaTime) {
             if (!playerShip) return 0.3;
 
-            // Keyboard movement (includes speed upgrade bonus)
-            const keySpeed = 0.015 * settings.shipSpeed * getSpeedMultiplier() * deltaTime;
+            // Keyboard movement (includes speed upgrade bonus and god mode)
+            const godModeSpeedMult = settings.godMode ? 3.0 : 1.0;
+            const keySpeed = 0.03 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * deltaTime;
             if (keyState.left) playerShip.targetX -= keySpeed;
             if (keyState.right) playerShip.targetX += keySpeed;
             if (keyState.up) playerShip.targetY += keySpeed;
@@ -6011,7 +6019,8 @@
             const maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight);
             playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
 
-            const lerpFactor = 0.15 * settings.shipSpeed * getSpeedMultiplier();
+            // Base speed 0.3 for sluggish starter feel, god mode triples speed
+            const lerpFactor = 0.3 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult;
             const prevX = playerShip.position.x;
             playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
             playerShip.position.y += (playerShip.targetY - playerShip.position.y) * lerpFactor;
@@ -6391,15 +6400,18 @@
                         createExplosion(bullet.position.x, bullet.position.y, 'small', 'orange');
                         flashShip(playerShipMesh);
 
-                        gameState.health -= (bullet.damage || 10);
-                        updateHUD();
+                        // God mode: invulnerable to damage
+                        if (!settings.godMode) {
+                            gameState.health -= (bullet.damage || 10);
+                            updateHUD();
+
+                            if (gameState.health <= 0) {
+                                createExplosion(playerShip.position.x, playerShip.position.y, 'large', 'blue');
+                                gameOver();
+                            }
+                        }
                         bullet.dispose();
                         gameState.enemyBullets.splice(i, 1);
-
-                        if (gameState.health <= 0) {
-                            createExplosion(playerShip.position.x, playerShip.position.y, 'large', 'blue');
-                            gameOver();
-                        }
                         continue;
                     }
                 }
@@ -6446,17 +6458,20 @@
 
                     flashShip(playerShipMesh);
 
-                    gameState.health -= 25;
-                    updateHUD();
+                    // God mode: invulnerable to collision damage
+                    if (!settings.godMode) {
+                        gameState.health -= 25;
+                        updateHUD();
+
+                        if (gameState.health <= 0) {
+                            createExplosion(playerShip.position.x, playerShip.position.y, 'large', 'blue');
+                            gameOver();
+                        }
+                    }
 
                     enemy.getChildMeshes().forEach(m => m.dispose());
                     enemy.dispose();
                     gameState.enemies.splice(i, 1);
-
-                    if (gameState.health <= 0) {
-                        createExplosion(playerShip.position.x, playerShip.position.y, 'large', 'blue');
-                        gameOver();
-                    }
                 }
             }
         }
@@ -6921,6 +6936,14 @@
             localStorage.setItem('debugMode', settings.debugMode);
         });
 
+        // God mode checkbox (invulnerable, fast, warp anytime)
+        const godModeCheckbox = document.getElementById('godMode');
+        godModeCheckbox.checked = settings.godMode;
+        godModeCheckbox.addEventListener('change', () => {
+            settings.godMode = godModeCheckbox.checked;
+            localStorage.setItem('godMode', settings.godMode);
+        });
+
         // Start game
         const startScreen = document.getElementById('startScreen');
         const newGameBtn = document.getElementById('newGameBtn');
@@ -7127,10 +7150,10 @@
                 return;
             }
 
-            // Hide when enemies are on screen
+            // Hide when enemies are on screen (unless god mode)
             const hasEnemies = gameState.enemies.length > 0;
 
-            if (hasEnemies) {
+            if (hasEnemies && !settings.godMode) {
                 btn.style.display = 'none';
                 gameState.speedUp = false;
             } else {
