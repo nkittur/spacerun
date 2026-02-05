@@ -5670,11 +5670,12 @@
 
             playerShip.velocityX = playerShip.position.x - prevX;
 
-            const targetTilt = -playerShip.velocityX * 8;
-            const maxTilt = Math.PI / 6;
+            // Banking effect - tilt ship based on horizontal movement
+            const targetTilt = -playerShip.velocityX * 15;
+            const maxTilt = Math.PI / 4; // 45 degrees max bank
             const clampedTilt = Math.max(-maxTilt, Math.min(maxTilt, targetTilt));
 
-            playerShip.currentTilt += (clampedTilt - playerShip.currentTilt) * 0.15;
+            playerShip.currentTilt += (clampedTilt - playerShip.currentTilt) * 0.2;
 
             if (playerShipMesh) {
                 playerShipMesh.rotation.y = playerShip.currentTilt;
