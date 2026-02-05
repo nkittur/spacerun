@@ -3509,31 +3509,27 @@
 
             // Create 2-4 planets with collision avoidance
             const planetCount = 2 + Math.floor(Math.random() * 3);
-            const placedPlanets = []; // Track placed planet positions and sizes
-            const minPlanetSpacing = 4.5; // Minimum center-to-center distance
-            const minSunDistance = sunSize + 3; // Keep planets away from sun
+            const placedPlanets = []; // Track placed planet positions
+            const minPlanetSpacing = 4; // Minimum center-to-center distance
+            const minSunDistanceX = sunSize * 0.8; // Horizontal distance from sun center
             const planetMargin = 3; // Screen edge margin
 
             for (let i = 0; i < planetCount; i++) {
                 let attempts = 0;
                 let placed = false;
 
-                while (!placed && attempts < 30) {
-                    // Distribute planets across screen in zones to prevent bunching
-                    // Divide screen into horizontal zones based on planet index
+                while (!placed && attempts < 50) {
+                    // Distribute planets across screen in zones
                     const zoneWidth = (orthoWidth * 2 - planetMargin * 2) / planetCount;
                     const zoneStart = -orthoWidth + planetMargin + (i * zoneWidth);
                     const px = zoneStart + Math.random() * zoneWidth;
 
-                    // Distribute Y positions in bands to prevent vertical bunching
-                    const yRange = 8;
-                    const yBandSize = yRange / planetCount;
-                    const yBandStart = -yRange / 2 + (i * yBandSize);
-                    const py = centerY + yBandStart + Math.random() * yBandSize;
+                    // Spread Y positions across a range, offset by zone index
+                    const ySpread = 6;
+                    const py = centerY + (Math.random() - 0.5) * ySpread + (i - planetCount/2) * 1.5;
 
-                    // Check distance from sun
-                    const sunDist = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow(py - centerY, 2));
-                    if (sunDist < minSunDistance) {
+                    // Check horizontal distance from sun (avoid overlapping sun visually)
+                    if (Math.abs(px - centerX) < minSunDistanceX) {
                         attempts++;
                         continue;
                     }
@@ -4302,30 +4298,27 @@
 
             // Create 2-4 planets with collision avoidance
             const planetCount = 2 + Math.floor(Math.random() * 3);
-            const placedPlanets = []; // Track placed planet positions and sizes
-            const minPlanetSpacing = 4.5; // Minimum center-to-center distance
-            const minSunDistance = sunSize + 3; // Keep planets away from sun
+            const placedPlanets = []; // Track placed planet positions
+            const minPlanetSpacing = 4; // Minimum center-to-center distance
+            const minSunDistanceX = sunSize * 0.8; // Horizontal distance from sun center
             const planetMargin = 3; // Screen edge margin
 
             for (let i = 0; i < planetCount; i++) {
                 let attempts = 0;
                 let placed = false;
 
-                while (!placed && attempts < 30) {
-                    // Distribute planets across screen in zones to prevent bunching
+                while (!placed && attempts < 50) {
+                    // Distribute planets across screen in zones
                     const zoneWidth = (orthoWidth * 2 - planetMargin * 2) / planetCount;
                     const zoneStart = -orthoWidth + planetMargin + (i * zoneWidth);
                     const px = zoneStart + Math.random() * zoneWidth;
 
-                    // Distribute Y positions in bands to prevent vertical bunching
-                    const yRange = 8;
-                    const yBandSize = yRange / planetCount;
-                    const yBandStart = -yRange / 2 + (i * yBandSize);
-                    const py = centerY + yBandStart + Math.random() * yBandSize;
+                    // Spread Y positions across a range, offset by zone index
+                    const ySpread = 6;
+                    const py = centerY + (Math.random() - 0.5) * ySpread + (i - planetCount/2) * 1.5;
 
-                    // Check distance from sun
-                    const sunDist = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow(py - centerY, 2));
-                    if (sunDist < minSunDistance) {
+                    // Check horizontal distance from sun (avoid overlapping sun visually)
+                    if (Math.abs(px - centerX) < minSunDistanceX) {
                         attempts++;
                         continue;
                     }
