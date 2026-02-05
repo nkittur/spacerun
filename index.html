@@ -5743,12 +5743,17 @@
             updateBeamVisuals();
         }
 
-        // Update beam visual effects
+        // Update beam visual effects and continuous collision detection
         function updateBeamVisuals() {
             if (gameState.beamMeshes) {
                 for (let i = gameState.beamMeshes.length - 1; i >= 0; i--) {
                     const beam = gameState.beamMeshes[i];
                     if (beam && beam.material) {
+                        // Continuous collision detection while beam is active
+                        if (beam.beamDamage && beam.material.alpha > 0.3) {
+                            checkBeamCollisions(beam);
+                        }
+
                         beam.material.alpha -= 0.05;
                         if (beam.material.alpha <= 0) {
                             if (sunGlowLayer) {
@@ -5773,6 +5778,42 @@
             }
         }
 
+        // Check beam collisions with enemies
+        function checkBeamCollisions(beam) {
+            const px = beam.position.x;
+            const beamWidth = beam.beamWidth || 0.5;
+            const beamDamage = beam.beamDamage || 20;
+            const playerY = playerShip ? playerShip.position.y : -7;
+
+            for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+                const enemy = gameState.enemies[i];
+                // Skip if already hit by this beam
+                if (beam.hitEnemies && beam.hitEnemies.has(enemy.uniqueId)) continue;
+
+                // Check if enemy is in beam path (X within width, Y above player)
+                if (Math.abs(enemy.position.x - px) < beamWidth && enemy.position.y > playerY) {
+                    // Mark as hit
+                    if (!beam.hitEnemies) beam.hitEnemies = new Set();
+                    beam.hitEnemies.add(enemy.uniqueId);
+
+                    enemy.health -= beamDamage;
+                    flashShip(enemy.mesh || enemy);
+
+                    if (enemy.health <= 0) {
+                        createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
+                        createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                        gameState.score += 50;
+                        gameState.credits += 10 + Math.floor(Math.random() * 15);
+                        updateHUD();
+
+                        enemy.getChildMeshes().forEach(m => m.dispose());
+                        enemy.dispose();
+                        gameState.enemies.splice(i, 1);
+                    }
+                }
+            }
+        }
+
         // Fire beam laser
         function fireBeamLaser(px, py, weapon = null) {
             if (!gameState.beamMeshes) gameState.beamMeshes = [];
@@ -5793,6 +5834,11 @@
             beam.material = beamMat;
             beam.renderingGroupId = 2;
 
+            // Store beam properties for continuous collision detection
+            beam.beamDamage = beamDamage;
+            beam.beamWidth = beamWidth;
+            beam.hitEnemies = new Set();
+
             // Add beam to glow layer for dramatic effect
             if (sunGlowLayer) {
                 sunGlowLayer.addIncludedOnlyMesh(beam);
@@ -5800,26 +5846,8 @@
 
             gameState.beamMeshes.push(beam);
 
-            // Damage all enemies in the beam's path
-            for (let i = gameState.enemies.length - 1; i >= 0; i--) {
-                const enemy = gameState.enemies[i];
-                if (Math.abs(enemy.position.x - px) < beamWidth) {
-                    enemy.health -= beamDamage;
-                    flashShip(enemy.mesh || enemy);
-
-                    if (enemy.health <= 0) {
-                        createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
-                        createLoot(enemy.position.x, enemy.position.y, enemy.type);
-                        gameState.score += 50;
-                        gameState.credits += 10 + Math.floor(Math.random() * 15);
-                        updateHUD();
-
-                        enemy.getChildMeshes().forEach(m => m.dispose());
-                        enemy.dispose();
-                        gameState.enemies.splice(i, 1);
-                    }
-                }
-            }
+            // Initial collision check
+            checkBeamCollisions(beam);
         }
 
         // Spawn wave
