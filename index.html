@@ -156,7 +156,7 @@
             margin-bottom: 3px;
         }
 
-        #shieldsDisplay {
+        #fuelDisplay {
             position: absolute;
             top: 10px;
             right: 60px;
@@ -170,19 +170,19 @@
             gap: 8px;
         }
 
-        #shieldsBar {
+        #fuelBar {
             width: 100px;
             height: 12px;
             background: rgba(0, 0, 0, 0.5);
-            border: 1px solid #44aaff;
+            border: 1px solid #ffaa44;
             border-radius: 6px;
             overflow: hidden;
         }
 
-        #shieldsBarFill {
+        #fuelBarFill {
             height: 100%;
             width: 100%;
-            background: linear-gradient(90deg, #44aaff, #88ddff);
+            background: linear-gradient(90deg, #ff8800, #ffcc44);
             transition: width 0.3s ease;
         }
 
@@ -269,6 +269,16 @@
 
         #harvestIcons .hazard-icon {
             text-shadow: 0 0 4px #ff4444;
+        }
+
+        #harvestIcons .resource-preview {
+            font-size: 10px;
+            color: #88ccff;
+            font-family: monospace;
+            background: rgba(0, 40, 80, 0.6);
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-right: 4px;
         }
 
         #harvestFuelCost {
@@ -1218,6 +1228,97 @@
             padding-bottom: 8px;
         }
 
+        /* Shipyard Section - Services */
+        .service-panel {
+            background: rgba(30, 40, 60, 0.8);
+            border: 1px solid #446;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .service-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .service-icon {
+            font-size: 18px;
+        }
+
+        .service-title {
+            color: #ffaa44;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .fuel-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: #aab;
+        }
+
+        .fuel-bar-small {
+            flex: 1;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid #ffaa44;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        #shipyardFuelBarFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff8800, #ffcc44);
+            transition: width 0.3s ease;
+        }
+
+        .refuel-options {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .refuel-btn {
+            background: linear-gradient(180deg, #335, #223);
+            border: 1px solid #557;
+            color: #aaccff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .refuel-btn:hover:not(:disabled) {
+            background: linear-gradient(180deg, #446, #334);
+            border-color: #77a;
+            color: #ccddff;
+        }
+
+        .refuel-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .refuel-btn.full-tank {
+            background: linear-gradient(180deg, #553, #332);
+            border-color: #775;
+            color: #ffcc88;
+        }
+
+        .refuel-btn.full-tank:hover:not(:disabled) {
+            background: linear-gradient(180deg, #664, #443);
+            border-color: #997;
+        }
+
         /* Bar Section - Rumors */
         .rumor-item {
             background: rgba(30, 40, 60, 0.6);
@@ -1406,10 +1507,10 @@
         <div>Level: <span id="level">1</span> | Wave: <span id="wave">1</span>/<span id="totalWaves">3</span></div>
     </div>
 
-    <div id="shieldsDisplay" style="display: none;">
-        <span>Base:</span>
-        <div id="shieldsBar"><div id="shieldsBarFill"></div></div>
-        <span id="shieldsValue">100</span>
+    <div id="fuelDisplay" style="display: none;">
+        <span>⛽</span>
+        <div id="fuelBar"><div id="fuelBarFill"></div></div>
+        <span id="fuelValue">100</span>
     </div>
 
     <div id="collectNotifications"></div>
@@ -1478,7 +1579,25 @@
             <!-- Shipyard Section -->
             <div id="sectionShipyard" class="station-section">
                 <h3>Shipyard</h3>
-                <div class="coming-soon">
+                <div class="service-panel">
+                    <div class="service-header">
+                        <span class="service-icon">⛽</span>
+                        <span class="service-title">Refueling Service</span>
+                    </div>
+                    <div class="fuel-status">
+                        <span>Fuel: <span id="shipyardFuelCurrent">100</span> / <span id="shipyardFuelMax">100</span></span>
+                        <div class="fuel-bar-small">
+                            <div id="shipyardFuelBarFill"></div>
+                        </div>
+                    </div>
+                    <div class="refuel-options">
+                        <button class="refuel-btn" data-amount="10" data-cost="5">+10 ⛽ (5 CR)</button>
+                        <button class="refuel-btn" data-amount="25" data-cost="10">+25 ⛽ (10 CR)</button>
+                        <button class="refuel-btn" data-amount="50" data-cost="18">+50 ⛽ (18 CR)</button>
+                        <button class="refuel-btn full-tank" data-amount="full" data-cost="0">Fill Tank</button>
+                    </div>
+                </div>
+                <div class="coming-soon" style="margin-top: 15px;">
                     <div class="coming-soon-icon">🚀</div>
                     <div class="coming-soon-text">Ship upgrades coming soon...</div>
                 </div>
@@ -1581,80 +1700,80 @@
             // Gaseous planets - yield gases
             BlueGiant: {
                 category: 'Gaseous', folder: 'Blue Giant', prefix: 'BlueGiant',
-                resources: { Hydrogen: [30, 50], Helium: [20, 40] }, harvests: 2, tint: [0.7, 0.8, 1.0]
+                resources: { Hydrogen: [1, 3], Helium: [1, 2] }, harvests: 2, tint: [0.7, 0.8, 1.0]
             },
             GreenGiant: {
                 category: 'Gaseous', folder: 'Green Giant', prefix: 'GreenGiant',
-                resources: { Hydrogen: [25, 45], Nitrogen: [15, 30] }, harvests: 2, tint: [0.7, 1.0, 0.8]
+                resources: { Hydrogen: [1, 2], Nitrogen: [1, 2] }, harvests: 2, tint: [0.7, 1.0, 0.8]
             },
             OrangeGiant: {
                 category: 'Gaseous', folder: 'Orange Giant', prefix: 'OrgangeGiant',
-                resources: { Helium: [35, 55], Hydrogen: [20, 35] }, harvests: 2, tint: [1.0, 0.8, 0.6]
+                resources: { Helium: [1, 3], Hydrogen: [1, 2] }, harvests: 2, tint: [1.0, 0.8, 0.6]
             },
             RedGiant: {
                 category: 'Gaseous', folder: 'Red Giant', prefix: 'RedGiant',
-                resources: { Hydrogen: [40, 60], Helium: [25, 40] }, harvests: 3, tint: [1.0, 0.7, 0.7]
+                resources: { Hydrogen: [2, 3], Helium: [1, 2] }, harvests: 3, tint: [1.0, 0.7, 0.7]
             },
             YellowGiant: {
                 category: 'Gaseous', folder: 'Yellow Giant', prefix: 'YellowGiant',
-                resources: { Helium: [30, 50], Hydrogen: [25, 40] }, harvests: 2, tint: [1.0, 1.0, 0.8]
+                resources: { Helium: [1, 3], Hydrogen: [1, 2] }, harvests: 2, tint: [1.0, 1.0, 0.8]
             },
             // Rocky planets - yield metals
             Rocky: {
                 category: 'Solid', folder: 'Rocky', prefix: 'Rocky',
-                resources: { Iron: [15, 30], Silicon: [10, 20] }, harvests: 2, tint: [0.9, 0.8, 0.7]
+                resources: { Iron: [1, 2], Silicon: [1, 2] }, harvests: 2, tint: [0.9, 0.8, 0.7]
             },
             Cratered: {
                 category: 'Solid', folder: 'Cratered', prefix: 'Cratered',
-                resources: { Iron: [20, 35], Titanium: [10, 20] }, harvests: 2, tint: [0.8, 0.8, 0.8]
+                resources: { Iron: [1, 3], Titanium: [1, 2] }, harvests: 2, tint: [0.8, 0.8, 0.8]
             },
             Barren: {
                 category: 'Solid', folder: 'Barren', prefix: 'Barren',
-                resources: { Silicon: [15, 25], Copper: [10, 20] }, harvests: 1, tint: [0.9, 0.85, 0.8]
+                resources: { Silicon: [1, 2], Copper: [1, 2] }, harvests: 1, tint: [0.9, 0.85, 0.8]
             },
             Lunar: {
                 category: 'Solid', folder: 'Lunar', prefix: 'Lunar',
-                resources: { Titanium: [15, 30], Iron: [10, 20] }, harvests: 1, tint: [0.85, 0.85, 0.9]
+                resources: { Titanium: [1, 2], Iron: [1, 2] }, harvests: 1, tint: [0.85, 0.85, 0.9]
             },
             // Ice planets - yield water and gases
             Frozen: {
                 category: 'Solid', folder: 'Frozen', prefix: 'Frozen',
-                resources: { Water: [25, 45], Nitrogen: [15, 25] }, harvests: 2, tint: [0.8, 0.9, 1.0]
+                resources: { Water: [1, 3], Nitrogen: [1, 2] }, harvests: 2, tint: [0.8, 0.9, 1.0]
             },
             Icy: {
                 category: 'Solid', folder: 'Icy', prefix: 'Icy',
-                resources: { Water: [30, 50], Oxygen: [10, 20] }, harvests: 2, tint: [0.85, 0.95, 1.0]
+                resources: { Water: [2, 3], Oxygen: [1, 2] }, harvests: 2, tint: [0.85, 0.95, 1.0]
             },
             Glacial: {
                 category: 'Solid', folder: 'Glacial', prefix: 'Glacial',
-                resources: { Water: [35, 55], Nitrogen: [15, 30] }, harvests: 3, tint: [0.75, 0.9, 1.0]
+                resources: { Water: [2, 3], Nitrogen: [1, 2] }, harvests: 3, tint: [0.75, 0.9, 1.0]
             },
             // Volcanic - yield rare metals
             Magma: {
                 category: 'Solid', folder: 'Magma', prefix: 'Magma',
-                resources: { Iron: [25, 45], Sulfur: [20, 35], Gold: [5, 15] }, harvests: 2, tint: [1.0, 0.7, 0.5]
+                resources: { Iron: [1, 3], Sulfur: [1, 2], Gold: [1, 1] }, harvests: 2, tint: [1.0, 0.7, 0.5]
             },
             // Life planets - yield organics
             Lush: {
                 category: 'Solid', folder: 'Lush', prefix: 'Lush',
-                resources: { Carbon: [20, 40], Oxygen: [25, 45], Water: [15, 25] }, harvests: 3, tint: [0.8, 1.0, 0.8]
+                resources: { Carbon: [1, 2], Oxygen: [1, 3], Water: [1, 2] }, harvests: 3, tint: [0.8, 1.0, 0.8]
             },
             Tropical: {
                 category: 'Solid', folder: 'Tropical', prefix: 'Tropical',
-                resources: { Carbon: [25, 45], Oxygen: [20, 35], Water: [20, 35] }, harvests: 3, tint: [0.85, 1.0, 0.85]
+                resources: { Carbon: [1, 3], Oxygen: [1, 2], Water: [1, 2] }, harvests: 3, tint: [0.85, 1.0, 0.85]
             },
             Ocean: {
                 category: 'Solid', folder: 'Ocean', prefix: 'Ocean',
-                resources: { Water: [50, 80], Oxygen: [15, 30] }, harvests: 4, tint: [0.7, 0.85, 1.0]
+                resources: { Water: [2, 3], Oxygen: [1, 2] }, harvests: 4, tint: [0.7, 0.85, 1.0]
             },
             // Arid planets
             Arid: {
                 category: 'Solid', folder: 'Arid', prefix: 'Arid',
-                resources: { Silicon: [20, 35], Copper: [15, 25] }, harvests: 1, tint: [1.0, 0.9, 0.7]
+                resources: { Silicon: [1, 2], Copper: [1, 2] }, harvests: 1, tint: [1.0, 0.9, 0.7]
             },
             Dry: {
                 category: 'Solid', folder: 'Dry', prefix: 'Dry',
-                resources: { Silicon: [15, 30], Iron: [10, 20] }, harvests: 1, tint: [0.95, 0.85, 0.7]
+                resources: { Silicon: [1, 2], Iron: [1, 2] }, harvests: 1, tint: [0.95, 0.85, 0.7]
             }
         };
 
@@ -1790,28 +1909,28 @@
                 name: 'Life',
                 icon: '🌿',
                 description: 'Biological life detected',
-                resources: { Biologics: [30, 60] },
+                resources: { Biologics: [1, 3] },
                 validPlanets: ['Lush', 'Tropical', 'Ocean']
             },
             ruins: {
                 name: 'Ancient Ruins',
                 icon: '🏛️',
                 description: 'Ancient alien structures',
-                resources: { Artifacts: [10, 30] },
+                resources: { Artifacts: [1, 2] },
                 validPlanets: ['Rocky', 'Cratered', 'Barren', 'Lunar', 'Arid', 'Dry']
             },
             fuelRich: {
                 name: 'Fuel Deposits',
                 icon: '⛽',
                 description: 'Rich in hydrogen fuel',
-                resources: { Hydrogen: [40, 80] },
+                resources: { Hydrogen: [2, 3] },
                 validPlanets: ['BlueGiant', 'GreenGiant', 'OrangeGiant', 'RedGiant', 'YellowGiant']
             },
             mineralRich: {
                 name: 'Rich Deposits',
                 icon: '💎',
                 description: 'Concentrated mineral veins',
-                resources: { Gold: [15, 35], Titanium: [20, 40] },
+                resources: { Gold: [1, 2], Titanium: [1, 2] },
                 validPlanets: ['Magma', 'Cratered', 'Rocky', 'Lunar']
             }
         };
@@ -3569,6 +3688,64 @@
 
             // Populate weapons in outfitter
             updateWeaponsList();
+
+            // Update shipyard fuel display
+            updateShipyardFuel();
+        }
+
+        // Update shipyard fuel display
+        function updateShipyardFuel() {
+            const fuelPercent = (gameState.fuel / gameState.maxFuel) * 100;
+            document.getElementById('shipyardFuelCurrent').textContent = gameState.fuel;
+            document.getElementById('shipyardFuelMax').textContent = gameState.maxFuel;
+            document.getElementById('shipyardFuelBarFill').style.width = `${fuelPercent}%`;
+
+            // Update refuel buttons state
+            const refuelBtns = document.querySelectorAll('.refuel-btn');
+            refuelBtns.forEach(btn => {
+                const amount = btn.dataset.amount;
+                const cost = parseInt(btn.dataset.cost);
+
+                if (amount === 'full') {
+                    // Calculate cost to fill tank (0.4 CR per fuel unit)
+                    const fuelNeeded = gameState.maxFuel - gameState.fuel;
+                    const fillCost = Math.ceil(fuelNeeded * 0.4);
+                    btn.textContent = `Fill Tank (${fillCost} CR)`;
+                    btn.dataset.cost = fillCost;
+                    btn.disabled = fuelNeeded <= 0 || gameState.credits < fillCost;
+                } else {
+                    const fuelAmount = parseInt(amount);
+                    const wouldOverfill = gameState.fuel + fuelAmount > gameState.maxFuel;
+                    btn.disabled = wouldOverfill || gameState.credits < cost;
+                }
+            });
+
+            // Update credits display
+            document.getElementById('creditsDisplay').textContent = gameState.credits;
+        }
+
+        // Handle refuel button click
+        function handleRefuel(amount, cost) {
+            if (gameState.credits < cost) return;
+
+            let fuelToAdd;
+            if (amount === 'full') {
+                fuelToAdd = gameState.maxFuel - gameState.fuel;
+            } else {
+                fuelToAdd = parseInt(amount);
+            }
+
+            // Don't overfill
+            fuelToAdd = Math.min(fuelToAdd, gameState.maxFuel - gameState.fuel);
+
+            if (fuelToAdd <= 0) return;
+
+            gameState.credits -= cost;
+            gameState.fuel = Math.min(gameState.maxFuel, gameState.fuel + fuelToAdd);
+
+            // Update displays
+            updateShipyardFuel();
+            updateHUD();
         }
 
         // Populate bar section with random rumors and tips
@@ -4006,6 +4183,15 @@
 
             // Weapon mount dialog - inventory button
             document.getElementById('mountToInventory').addEventListener('click', closeMountDialog);
+
+            // Refuel buttons
+            document.querySelectorAll('.refuel-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const amount = btn.dataset.amount;
+                    const cost = parseInt(btn.dataset.cost);
+                    handleRefuel(amount, cost);
+                });
+            });
         }
 
         // Make functions available globally for onclick
@@ -4657,6 +4843,13 @@
             planetInfo.style.display = 'none';
         }
 
+        // Resource abbreviations for preview
+        const RESOURCE_ABBREV = {
+            Hydrogen: 'H₂', Helium: 'He', Nitrogen: 'N₂', Water: 'H₂O', Oxygen: 'O₂',
+            Iron: 'Fe', Silicon: 'Si', Copper: 'Cu', Titanium: 'Ti', Sulfur: 'S', Gold: 'Au',
+            Biologics: '🧬', Artifacts: '🏺'
+        };
+
         // Update harvest icons display for targeted planet
         function updateHarvestIcons(planet) {
             const iconsContainer = document.getElementById('harvestIcons');
@@ -4669,6 +4862,13 @@
             }
 
             let iconsHtml = '';
+
+            // Show resource preview from planet type
+            if (planet.planetData && planet.planetData.resources) {
+                const resourceNames = Object.keys(planet.planetData.resources);
+                const resourcePreviews = resourceNames.map(r => RESOURCE_ABBREV[r] || r.slice(0, 2)).join(' ');
+                iconsHtml += `<span class="resource-preview" title="Resources: ${resourceNames.join(', ')}">${resourcePreviews}</span>`;
+            }
 
             // Add feature icons
             if (planet.features && planet.features.length > 0) {
@@ -5615,21 +5815,8 @@
                 }
 
                 if (enemy.position.y < -orthoHeight - 2) {
-                    // Enemy escaped - damage base shields
+                    // Enemy escaped - just clean up (defense missions handle this differently)
                     gameState.escapedEnemies++;
-                    gameState.baseShields -= 10;
-                    updateHUD();
-
-                    // Show warning flash
-                    const shieldsBar = document.getElementById('shieldsBarFill');
-                    shieldsBar.style.background = '#ff4444';
-                    setTimeout(() => {
-                        shieldsBar.style.background = 'linear-gradient(90deg, #44aaff, #88ddff)';
-                    }, 200);
-
-                    if (gameState.baseShields <= 0) {
-                        gameOver();
-                    }
 
                     enemy.getChildMeshes().forEach(m => m.dispose());
                     enemy.dispose();
@@ -5781,10 +5968,20 @@
             document.getElementById('wave').textContent = gameState.levelWave;
             document.getElementById('totalWaves').textContent = gameState.levelConfig ? gameState.levelConfig.waveCount : 3;
 
-            // Update base shields
-            const shieldsPercent = Math.max(0, gameState.baseShields);
-            document.getElementById('shieldsBarFill').style.width = `${shieldsPercent}%`;
-            document.getElementById('shieldsValue').textContent = Math.max(0, gameState.baseShields);
+            // Update fuel bar
+            const fuelPercent = Math.max(0, (gameState.fuel / gameState.maxFuel) * 100);
+            document.getElementById('fuelBarFill').style.width = `${fuelPercent}%`;
+            document.getElementById('fuelValue').textContent = Math.max(0, gameState.fuel);
+
+            // Color fuel bar based on level
+            const fuelBar = document.getElementById('fuelBarFill');
+            if (fuelPercent <= 20) {
+                fuelBar.style.background = 'linear-gradient(90deg, #ff4444, #ff6666)';
+            } else if (fuelPercent <= 40) {
+                fuelBar.style.background = 'linear-gradient(90deg, #ffaa00, #ffcc44)';
+            } else {
+                fuelBar.style.background = 'linear-gradient(90deg, #ff8800, #ffcc44)';
+            }
         }
 
         // Game over
@@ -5952,6 +6149,8 @@
                 equippedWeapon: gameState.equippedWeapon,
                 fleet: gameState.fleet,
                 baseShields: gameState.baseShields,
+                fuel: gameState.fuel,
+                maxFuel: gameState.maxFuel,
                 resources: gameState.resources,
                 distanceTraveled: gameState.distanceTraveled,
                 wavesUntilStarbase: gameState.wavesUntilStarbase,
@@ -6041,6 +6240,8 @@
             }
 
             gameState.baseShields = saveData.baseShields || 100;
+            gameState.fuel = saveData.fuel !== undefined ? saveData.fuel : 100;
+            gameState.maxFuel = saveData.maxFuel || 100;
             gameState.resources = saveData.resources || {};
             gameState.distanceTraveled = saveData.distanceTraveled || 0;
             gameState.wavesUntilStarbase = saveData.wavesUntilStarbase || 1;
@@ -6137,7 +6338,7 @@
                 gameState.isPlaying = false;
                 gameState.isPaused = false;
                 document.getElementById('hud').style.display = 'none';
-                document.getElementById('shieldsDisplay').style.display = 'none';
+                document.getElementById('fuelDisplay').style.display = 'none';
                 systemBtn.style.display = 'none';
                 document.getElementById('startScreen').style.display = 'flex';
                 document.getElementById('titleButtons').style.display = 'flex';
@@ -6228,7 +6429,7 @@
             startScreen.style.display = 'none';
             document.getElementById('systemBtn').style.display = 'flex';
             document.getElementById('hud').style.display = 'block';
-            document.getElementById('shieldsDisplay').style.display = 'flex';
+            document.getElementById('fuelDisplay').style.display = 'flex';
 
             if (loadSave) {
                 const savedGame = loadGame();
