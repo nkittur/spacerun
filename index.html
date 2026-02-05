@@ -3427,6 +3427,140 @@
             requestAnimationFrame(animateExplosion);
         }
 
+        // Create hazard visual effects around player ship
+        function createHazardEffect(hazardType, x, y) {
+            if (!scene) return;
+
+            const effectConfigs = {
+                heat: {
+                    color: { r: 1, g: 0.3, b: 0 },
+                    particleCount: 8,
+                    size: 0.15,
+                    duration: 400,
+                    behavior: 'rise' // Flames rise up
+                },
+                gravity: {
+                    color: { r: 0.5, g: 0.3, b: 1 },
+                    particleCount: 6,
+                    size: 0.2,
+                    duration: 300,
+                    behavior: 'crush' // Lines compress down
+                },
+                toxic: {
+                    color: { r: 0.2, g: 1, b: 0.3 },
+                    particleCount: 10,
+                    size: 0.12,
+                    duration: 500,
+                    behavior: 'bubble' // Bubbles float around
+                },
+                radiation: {
+                    color: { r: 1, g: 1, b: 0.3 },
+                    particleCount: 12,
+                    size: 0.08,
+                    duration: 250,
+                    behavior: 'spark' // Sparks scatter
+                }
+            };
+
+            const config = effectConfigs[hazardType];
+            if (!config) return;
+
+            const particles = [];
+
+            for (let i = 0; i < config.particleCount; i++) {
+                const particle = BABYLON.MeshBuilder.CreateSphere('hazardParticle', {
+                    diameter: config.size * (0.5 + Math.random() * 0.5)
+                }, scene);
+
+                // Position around player ship
+                const offsetX = (Math.random() - 0.5) * 1.2;
+                const offsetY = (Math.random() - 0.5) * 0.8;
+                particle.position.x = x + offsetX;
+                particle.position.y = y + offsetY;
+                particle.position.z = -0.15;
+
+                // Set velocity based on behavior
+                switch (config.behavior) {
+                    case 'rise':
+                        particle.velocityX = (Math.random() - 0.5) * 0.02;
+                        particle.velocityY = 0.03 + Math.random() * 0.03;
+                        break;
+                    case 'crush':
+                        particle.velocityX = (Math.random() - 0.5) * 0.01;
+                        particle.velocityY = -0.04 - Math.random() * 0.02;
+                        particle.position.y = y + 0.5 + Math.random() * 0.3;
+                        break;
+                    case 'bubble':
+                        particle.velocityX = (Math.random() - 0.5) * 0.015;
+                        particle.velocityY = 0.01 + Math.random() * 0.02;
+                        break;
+                    case 'spark':
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = 0.05 + Math.random() * 0.05;
+                        particle.velocityX = Math.cos(angle) * speed;
+                        particle.velocityY = Math.sin(angle) * speed;
+                        break;
+                }
+
+                const mat = new BABYLON.StandardMaterial('hazardMat' + i, scene);
+                const colorVar = 0.7 + Math.random() * 0.3;
+                mat.emissiveColor = new BABYLON.Color3(
+                    config.color.r * colorVar,
+                    config.color.g * colorVar,
+                    config.color.b * colorVar
+                );
+                mat.disableLighting = true;
+                mat.alpha = 0.8;
+                particle.material = mat;
+
+                if (sunGlowLayer) {
+                    sunGlowLayer.addIncludedOnlyMesh(particle);
+                }
+
+                particle.renderingGroupId = 2;
+                particle.startTime = performance.now();
+                particle.duration = config.duration * (0.7 + Math.random() * 0.6);
+                particles.push(particle);
+            }
+
+            const animateHazard = () => {
+                const now = performance.now();
+                let allDone = true;
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    const elapsed = now - p.startTime;
+                    const progress = elapsed / p.duration;
+
+                    if (progress >= 1) {
+                        if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(p);
+                        p.dispose();
+                        particles.splice(i, 1);
+                    } else {
+                        allDone = false;
+                        p.position.x += p.velocityX;
+                        p.position.y += p.velocityY;
+
+                        // Behavior-specific updates
+                        if (config.behavior === 'crush') {
+                            p.velocityY *= 1.05; // Accelerate downward
+                        } else if (config.behavior === 'spark') {
+                            p.velocityX *= 0.92;
+                            p.velocityY *= 0.92;
+                        }
+
+                        const scale = 1 - progress * 0.6;
+                        p.scaling.setAll(scale);
+                        if (p.material) p.material.alpha = 0.8 * (1 - progress);
+                    }
+                }
+
+                if (!allDone) requestAnimationFrame(animateHazard);
+            };
+
+            requestAnimationFrame(animateHazard);
+        }
+
         // Flash effect for ships when hit
         function flashShip(meshOrNode, duration = 150) {
             if (!meshOrNode) return;
@@ -5443,12 +5577,14 @@
                     if (nearPlanet.lastHazardTick >= 500) {
                         nearPlanet.lastHazardTick = 0;
 
-                        // Sum up damage from all hazards
+                        // Sum up damage from all hazards and create visual effects
                         let totalDamage = 0;
                         nearPlanet.hazards.forEach(hazardKey => {
                             const hazard = PLANET_HAZARDS[hazardKey];
                             if (hazard && hazard.damagePerTick) {
                                 totalDamage += hazard.damagePerTick;
+                                // Create visual effect for this hazard type
+                                createHazardEffect(hazardKey, playerShip.position.x, playerShip.position.y);
                             }
                         });
 
