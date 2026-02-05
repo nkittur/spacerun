@@ -1344,6 +1344,145 @@
             border-color: #997;
         }
 
+        .refuel-label {
+            width: 100%;
+            font-size: 11px;
+            color: #8899aa;
+            margin-bottom: 4px;
+        }
+
+        .hydrogen-refuel {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #334;
+        }
+
+        .hydrogen-btn {
+            background: linear-gradient(180deg, #354, #243);
+            border: 1px solid #5a7;
+            color: #aaddff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .hydrogen-btn:hover:not(:disabled) {
+            background: linear-gradient(180deg, #465, #354);
+            border-color: #7c9;
+            color: #ccffee;
+        }
+
+        .hydrogen-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .hydrogen-stock {
+            color: #aaddff;
+            font-size: 12px;
+            margin-left: auto;
+            padding: 4px 8px;
+            background: rgba(60, 100, 80, 0.3);
+            border-radius: 4px;
+        }
+
+        /* Trading Panel */
+        .trading-panel {
+            background: rgba(25, 35, 50, 0.9);
+            border: 1px solid #445;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .trading-header {
+            font-size: 14px;
+            color: #aaccff;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #334;
+        }
+
+        .trading-inventory {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .trade-item {
+            background: rgba(30, 40, 60, 0.7);
+            border: 1px solid #445;
+            border-radius: 6px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .trade-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .trade-item-symbol {
+            font-size: 18px;
+        }
+
+        .trade-item-name {
+            color: #aaccff;
+            font-size: 13px;
+        }
+
+        .trade-item-stock {
+            margin-left: auto;
+            color: #88aa88;
+            font-size: 12px;
+        }
+
+        .trade-item-value {
+            color: #ffcc44;
+            font-size: 11px;
+        }
+
+        .trade-item-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .sell-btn {
+            background: linear-gradient(180deg, #453, #342);
+            border: 1px solid #685;
+            color: #ccdd88;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sell-btn:hover:not(:disabled) {
+            background: linear-gradient(180deg, #564, #453);
+            border-color: #8a6;
+        }
+
+        .sell-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .trading-footer {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #334;
+            color: #ffcc44;
+            font-size: 14px;
+        }
+
         /* Ship Upgrades */
         .upgrades-panel {
             margin-top: 15px;
@@ -1719,10 +1858,18 @@
                         </div>
                     </div>
                     <div class="refuel-options">
+                        <div class="refuel-label">Refuel with Credits:</div>
                         <button class="refuel-btn" data-amount="10" data-cost="5">+10 ⛽ (5 CR)</button>
                         <button class="refuel-btn" data-amount="25" data-cost="10">+25 ⛽ (10 CR)</button>
                         <button class="refuel-btn" data-amount="50" data-cost="18">+50 ⛽ (18 CR)</button>
                         <button class="refuel-btn full-tank" data-amount="full" data-cost="0">Fill Tank</button>
+                    </div>
+                    <div class="refuel-options hydrogen-refuel">
+                        <div class="refuel-label">Convert Hydrogen to Fuel:</div>
+                        <button class="hydrogen-btn" data-hydrogen="5" data-fuel="10">5 H₂ → 10 ⛽</button>
+                        <button class="hydrogen-btn" data-hydrogen="10" data-fuel="25">10 H₂ → 25 ⛽</button>
+                        <button class="hydrogen-btn" data-hydrogen="20" data-fuel="55">20 H₂ → 55 ⛽</button>
+                        <span class="hydrogen-stock" id="hydrogenStock">H₂: 0</span>
                     </div>
                 </div>
                 <div class="service-panel upgrades-panel">
@@ -1737,9 +1884,14 @@
             <!-- Trading Post Section -->
             <div id="sectionTrading" class="station-section">
                 <h3>Trading Post</h3>
-                <div class="coming-soon">
-                    <div class="coming-soon-icon">📦</div>
-                    <div class="coming-soon-text">Commodity trading coming soon...</div>
+                <div class="trading-panel">
+                    <div class="trading-header">Sell Resources for Credits</div>
+                    <div id="tradingInventory" class="trading-inventory">
+                        <!-- Populated dynamically -->
+                    </div>
+                    <div class="trading-footer">
+                        <span>Your Credits: <span id="tradingCredits">0</span> CR</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1816,103 +1968,94 @@
                           'Insurgent', 'Omen', 'Pancake', 'Spitfire', 'Striker', 'Zenith'];
         const colorVariants = ['Blue', 'Green', 'Orange', 'Purple', 'Red'];
 
-        // Resource types with colors for display
+        // Simplified resource types
         const RESOURCES = {
-            Iron: { color: '#aaaaaa', symbol: 'Fe' },
-            Copper: { color: '#dd8844', symbol: 'Cu' },
-            Silicon: { color: '#88aacc', symbol: 'Si' },
-            Titanium: { color: '#ccccee', symbol: 'Ti' },
-            Hydrogen: { color: '#aaddff', symbol: 'H' },
-            Helium: { color: '#ffddaa', symbol: 'He' },
-            Water: { color: '#4488ff', symbol: 'H2O' },
-            Carbon: { color: '#444444', symbol: 'C' },
-            Oxygen: { color: '#aaffaa', symbol: 'O' },
-            Sulfur: { color: '#dddd44', symbol: 'S' },
-            Nitrogen: { color: '#aaaaff', symbol: 'N' },
-            Gold: { color: '#ffdd00', symbol: 'Au' },
-            Biologics: { color: '#44ff88', symbol: 'Bio' },
-            Artifacts: { color: '#ff44ff', symbol: 'Art' }
+            Metal: { color: '#aaaaaa', symbol: '⚙️', tradeValue: 1 },
+            Hydrogen: { color: '#aaddff', symbol: 'H₂', tradeValue: 1 },
+            Organics: { color: '#44ff88', symbol: '🧬', tradeValue: 5 },
+            Crystals: { color: '#ff44ff', symbol: '💎', tradeValue: 8 },
+            Exotic: { color: '#ffaa00', symbol: '✧', tradeValue: 25 }
         };
 
         // Planet types with their resources and image paths
         const PLANET_TYPES = {
-            // Gaseous planets - yield gases
+            // Gas giants - yield Hydrogen (fuel), occasionally Crystals
             BlueGiant: {
                 category: 'Gaseous', folder: 'Blue Giant', prefix: 'BlueGiant',
-                resources: { Hydrogen: [1, 3], Helium: [1, 2] }, harvests: 2, tint: [0.7, 0.8, 1.0]
+                resources: { Hydrogen: [2, 4] }, harvests: 2, tint: [0.7, 0.8, 1.0]
             },
             GreenGiant: {
                 category: 'Gaseous', folder: 'Green Giant', prefix: 'GreenGiant',
-                resources: { Hydrogen: [1, 2], Nitrogen: [1, 2] }, harvests: 2, tint: [0.7, 1.0, 0.8]
+                resources: { Hydrogen: [2, 3], Crystals: [0, 1] }, harvests: 2, tint: [0.7, 1.0, 0.8]
             },
             OrangeGiant: {
                 category: 'Gaseous', folder: 'Orange Giant', prefix: 'OrgangeGiant',
-                resources: { Helium: [1, 3], Hydrogen: [1, 2] }, harvests: 2, tint: [1.0, 0.8, 0.6]
+                resources: { Hydrogen: [2, 4] }, harvests: 2, tint: [1.0, 0.8, 0.6]
             },
             RedGiant: {
                 category: 'Gaseous', folder: 'Red Giant', prefix: 'RedGiant',
-                resources: { Hydrogen: [2, 3], Helium: [1, 2] }, harvests: 3, tint: [1.0, 0.7, 0.7]
+                resources: { Hydrogen: [3, 5] }, harvests: 3, tint: [1.0, 0.7, 0.7]
             },
             YellowGiant: {
                 category: 'Gaseous', folder: 'Yellow Giant', prefix: 'YellowGiant',
-                resources: { Helium: [1, 3], Hydrogen: [1, 2] }, harvests: 2, tint: [1.0, 1.0, 0.8]
+                resources: { Hydrogen: [2, 4], Crystals: [0, 1] }, harvests: 2, tint: [1.0, 1.0, 0.8]
             },
-            // Rocky planets - yield metals
+            // Rocky planets - yield Metal
             Rocky: {
                 category: 'Solid', folder: 'Rocky', prefix: 'Rocky',
-                resources: { Iron: [1, 2], Silicon: [1, 2] }, harvests: 2, tint: [0.9, 0.8, 0.7]
+                resources: { Metal: [2, 4] }, harvests: 2, tint: [0.9, 0.8, 0.7]
             },
             Cratered: {
                 category: 'Solid', folder: 'Cratered', prefix: 'Cratered',
-                resources: { Iron: [1, 3], Titanium: [1, 2] }, harvests: 2, tint: [0.8, 0.8, 0.8]
+                resources: { Metal: [2, 5] }, harvests: 2, tint: [0.8, 0.8, 0.8]
             },
             Barren: {
                 category: 'Solid', folder: 'Barren', prefix: 'Barren',
-                resources: { Silicon: [1, 2], Copper: [1, 2] }, harvests: 1, tint: [0.9, 0.85, 0.8]
+                resources: { Metal: [1, 3] }, harvests: 1, tint: [0.9, 0.85, 0.8]
             },
             Lunar: {
                 category: 'Solid', folder: 'Lunar', prefix: 'Lunar',
-                resources: { Titanium: [1, 2], Iron: [1, 2] }, harvests: 1, tint: [0.85, 0.85, 0.9]
+                resources: { Metal: [2, 3] }, harvests: 1, tint: [0.85, 0.85, 0.9]
             },
-            // Ice planets - yield water and gases
+            // Ice planets - have atmosphere, yield some Hydrogen
             Frozen: {
                 category: 'Solid', folder: 'Frozen', prefix: 'Frozen',
-                resources: { Water: [1, 3], Nitrogen: [1, 2] }, harvests: 2, tint: [0.8, 0.9, 1.0]
+                resources: { Hydrogen: [1, 2] }, harvests: 2, tint: [0.8, 0.9, 1.0]
             },
             Icy: {
                 category: 'Solid', folder: 'Icy', prefix: 'Icy',
-                resources: { Water: [2, 3], Oxygen: [1, 2] }, harvests: 2, tint: [0.85, 0.95, 1.0]
+                resources: { Hydrogen: [1, 3] }, harvests: 2, tint: [0.85, 0.95, 1.0]
             },
             Glacial: {
                 category: 'Solid', folder: 'Glacial', prefix: 'Glacial',
-                resources: { Water: [2, 3], Nitrogen: [1, 2] }, harvests: 3, tint: [0.75, 0.9, 1.0]
+                resources: { Hydrogen: [2, 3] }, harvests: 3, tint: [0.75, 0.9, 1.0]
             },
-            // Volcanic - yield rare metals
+            // Volcanic/Magma - yield Metal and Crystals (hazardous)
             Magma: {
                 category: 'Solid', folder: 'Magma', prefix: 'Magma',
-                resources: { Iron: [1, 3], Sulfur: [1, 2], Gold: [1, 1] }, harvests: 2, tint: [1.0, 0.7, 0.5]
+                resources: { Metal: [2, 4], Crystals: [1, 2] }, harvests: 2, tint: [1.0, 0.7, 0.5]
             },
-            // Life planets - yield organics
+            // Life planets - yield Organics
             Lush: {
                 category: 'Solid', folder: 'Lush', prefix: 'Lush',
-                resources: { Carbon: [1, 2], Oxygen: [1, 3], Water: [1, 2] }, harvests: 3, tint: [0.8, 1.0, 0.8]
+                resources: { Organics: [2, 4] }, harvests: 3, tint: [0.8, 1.0, 0.8]
             },
             Tropical: {
                 category: 'Solid', folder: 'Tropical', prefix: 'Tropical',
-                resources: { Carbon: [1, 3], Oxygen: [1, 2], Water: [1, 2] }, harvests: 3, tint: [0.85, 1.0, 0.85]
+                resources: { Organics: [2, 5] }, harvests: 3, tint: [0.85, 1.0, 0.85]
             },
             Ocean: {
                 category: 'Solid', folder: 'Ocean', prefix: 'Ocean',
-                resources: { Water: [2, 3], Oxygen: [1, 2] }, harvests: 4, tint: [0.7, 0.85, 1.0]
+                resources: { Organics: [1, 3], Hydrogen: [1, 2] }, harvests: 4, tint: [0.7, 0.85, 1.0]
             },
-            // Arid planets
+            // Arid planets - yield Metal
             Arid: {
                 category: 'Solid', folder: 'Arid', prefix: 'Arid',
-                resources: { Silicon: [1, 2], Copper: [1, 2] }, harvests: 1, tint: [1.0, 0.9, 0.7]
+                resources: { Metal: [1, 3] }, harvests: 1, tint: [1.0, 0.9, 0.7]
             },
             Dry: {
                 category: 'Solid', folder: 'Dry', prefix: 'Dry',
-                resources: { Silicon: [1, 2], Iron: [1, 2] }, harvests: 1, tint: [0.95, 0.85, 0.7]
+                resources: { Metal: [1, 2] }, harvests: 1, tint: [0.95, 0.85, 0.7]
             }
         };
 
@@ -2049,28 +2192,28 @@
                 name: 'Life',
                 icon: '🌿',
                 description: 'Biological life detected',
-                resources: { Biologics: [1, 3] },
+                resources: { Organics: [2, 5] },
                 validPlanets: ['Lush', 'Tropical', 'Ocean']
             },
             ruins: {
                 name: 'Ancient Ruins',
                 icon: '🏛️',
                 description: 'Ancient alien structures',
-                resources: { Artifacts: [1, 2] },
+                resources: { Crystals: [1, 3], Exotic: [0, 1] },
                 validPlanets: ['Rocky', 'Cratered', 'Barren', 'Lunar', 'Arid', 'Dry']
             },
             fuelRich: {
                 name: 'Fuel Deposits',
                 icon: '⛽',
                 description: 'Rich in hydrogen fuel',
-                resources: { Hydrogen: [2, 3] },
+                resources: { Hydrogen: [3, 6] },
                 validPlanets: ['BlueGiant', 'GreenGiant', 'OrangeGiant', 'RedGiant', 'YellowGiant']
             },
             mineralRich: {
                 name: 'Rich Deposits',
                 icon: '💎',
                 description: 'Concentrated mineral veins',
-                resources: { Gold: [1, 2], Titanium: [1, 2] },
+                resources: { Metal: [3, 6], Crystals: [1, 2] },
                 validPlanets: ['Magma', 'Cratered', 'Rocky', 'Lunar']
             }
         };
@@ -2772,7 +2915,7 @@
                 maxLevel: 5,
                 effectPerLevel: 25,  // +25 max health per level
                 effectUnit: 'HP',
-                baseCost: { Iron: 8, Titanium: 4 },
+                baseCost: { Metal: 10 },
                 costMultiplier: 1.6
             },
             engine: {
@@ -2782,7 +2925,7 @@
                 maxLevel: 4,
                 effectPerLevel: 10,  // +10% speed per level
                 effectUnit: '%',
-                baseCost: { Hydrogen: 12, Helium: 8 },
+                baseCost: { Metal: 8, Crystals: 2 },
                 costMultiplier: 1.8
             },
             fuelTank: {
@@ -2792,7 +2935,7 @@
                 maxLevel: 5,
                 effectPerLevel: 20,  // +20 max fuel per level
                 effectUnit: 'fuel',
-                baseCost: { Titanium: 6, Copper: 8 },
+                baseCost: { Metal: 8 },
                 costMultiplier: 1.5
             },
             shields: {
@@ -2802,7 +2945,7 @@
                 maxLevel: 3,
                 effectPerLevel: 15,  // +15 max shields per level
                 effectUnit: 'shields',
-                baseCost: { Silicon: 10, Gold: 3 },
+                baseCost: { Metal: 12, Crystals: 5 },
                 costMultiplier: 2.0
             },
             hardpoint: {
@@ -2812,7 +2955,7 @@
                 maxLevel: 2,
                 effectPerLevel: 1,  // +1 hardpoint per level
                 effectUnit: 'slot',
-                baseCost: { Titanium: 15, Gold: 5, Artifacts: 2 },
+                baseCost: { Metal: 20, Crystals: 8, Exotic: 1 },
                 costMultiplier: 3.0,
                 hardpointSizes: ['light', 'medium']  // Size of hardpoint added at each level
             }
@@ -3588,17 +3731,57 @@
         function createLoot(x, y, enemyType) {
             if (!scene) return;
 
-            // Enemies drop ship materials
-            const enemyResources = ['Iron', 'Copper', 'Titanium', 'Silicon'];
-            // Loot based on enemy type: heavy drops most, light drops least
+            // Enemies drop Metal primarily, with Crystals from tougher enemies
+            // and Exotic from very advanced enemies
+            let enemyResources;
             let pieceCount;
+            let creditsBonus = 0;
+
             switch (enemyType) {
-                case 'heavy': pieceCount = 4; break;
-                case 'shooter': pieceCount = 3; break;
-                case 'basic': pieceCount = 2; break;
-                case 'light': pieceCount = 1; break;
-                case 'fast': pieceCount = 1; break;
-                default: pieceCount = 2;
+                case 'heavy':
+                    pieceCount = 4;
+                    enemyResources = ['Metal', 'Metal', 'Crystals'];  // More metal, some crystals
+                    creditsBonus = 15;
+                    break;
+                case 'shooter':
+                    pieceCount = 3;
+                    enemyResources = ['Metal', 'Metal', 'Crystals'];
+                    creditsBonus = 10;
+                    break;
+                case 'basic':
+                    pieceCount = 2;
+                    enemyResources = ['Metal'];
+                    creditsBonus = 5;
+                    break;
+                case 'light':
+                    pieceCount = 1;
+                    enemyResources = ['Metal'];
+                    creditsBonus = 3;
+                    break;
+                case 'fast':
+                    pieceCount = 1;
+                    enemyResources = ['Metal'];
+                    creditsBonus = 3;
+                    break;
+                case 'boss':
+                    pieceCount = 6;
+                    enemyResources = ['Metal', 'Crystals', 'Crystals', 'Exotic'];
+                    creditsBonus = 50;
+                    break;
+                case 'elite':
+                    pieceCount = 5;
+                    enemyResources = ['Metal', 'Crystals', 'Exotic'];
+                    creditsBonus = 30;
+                    break;
+                default:
+                    pieceCount = 2;
+                    enemyResources = ['Metal'];
+                    creditsBonus = 5;
+            }
+
+            // Add credits bonus
+            if (creditsBonus > 0) {
+                gameState.credits = (gameState.credits || 0) + creditsBonus;
             }
 
             for (let i = 0; i < pieceCount; i++) {
@@ -4196,6 +4379,23 @@
                 }
             });
 
+            // Update hydrogen stock display and buttons
+            const hydrogenStock = gameState.resources?.Hydrogen || 0;
+            const hydrogenStockEl = document.getElementById('hydrogenStock');
+            if (hydrogenStockEl) {
+                hydrogenStockEl.textContent = `H₂: ${hydrogenStock}`;
+            }
+
+            // Update hydrogen refuel buttons state
+            const hydrogenBtns = document.querySelectorAll('.hydrogen-btn');
+            hydrogenBtns.forEach(btn => {
+                const hydrogenCost = parseInt(btn.dataset.hydrogen);
+                const fuelGained = parseInt(btn.dataset.fuel);
+                const tankFull = gameState.fuel >= gameState.maxFuel;
+                const notEnoughHydrogen = hydrogenStock < hydrogenCost;
+                btn.disabled = tankFull || notEnoughHydrogen;
+            });
+
             // Update credits display
             document.getElementById('creditsDisplay').textContent = gameState.credits;
         }
@@ -4223,6 +4423,82 @@
             updateShipyardFuel();
             updateHUD();
         }
+
+        // Handle hydrogen to fuel conversion
+        function handleHydrogenRefuel(hydrogenCost, fuelGained) {
+            const hydrogenAvailable = gameState.resources.Hydrogen || 0;
+            if (hydrogenAvailable < hydrogenCost) return;
+
+            // Don't overfill
+            const fuelToAdd = Math.min(fuelGained, gameState.maxFuel - gameState.fuel);
+            if (fuelToAdd <= 0) return;
+
+            // Consume hydrogen (proportionally if tank almost full)
+            const hydrogenUsed = Math.ceil(hydrogenCost * (fuelToAdd / fuelGained));
+            gameState.resources.Hydrogen -= hydrogenUsed;
+            gameState.fuel = Math.min(gameState.maxFuel, gameState.fuel + fuelToAdd);
+
+            // Update displays
+            updateShipyardFuel();
+            updateHUD();
+        }
+
+        // Update trading UI
+        function updateTradingUI() {
+            const container = document.getElementById('tradingInventory');
+            const creditsDisplay = document.getElementById('tradingCredits');
+            if (!container) return;
+
+            if (!gameState.resources) gameState.resources = {};
+
+            // Build trade items for each resource
+            container.innerHTML = Object.entries(RESOURCES).map(([resourceName, resourceInfo]) => {
+                const stock = gameState.resources[resourceName] || 0;
+                const tradeValue = resourceInfo.tradeValue || 1;
+
+                return `
+                    <div class="trade-item">
+                        <div class="trade-item-header">
+                            <span class="trade-item-symbol">${resourceInfo.symbol}</span>
+                            <span class="trade-item-name">${resourceName}</span>
+                            <span class="trade-item-stock">×${stock}</span>
+                        </div>
+                        <div class="trade-item-value">Value: ${tradeValue} CR each</div>
+                        <div class="trade-item-actions">
+                            <button class="sell-btn" onclick="sellResource('${resourceName}', 1)" ${stock < 1 ? 'disabled' : ''}>Sell 1</button>
+                            <button class="sell-btn" onclick="sellResource('${resourceName}', 5)" ${stock < 5 ? 'disabled' : ''}>Sell 5</button>
+                            <button class="sell-btn" onclick="sellResource('${resourceName}', ${stock})" ${stock < 1 ? 'disabled' : ''}>Sell All</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Update credits display
+            if (creditsDisplay) {
+                creditsDisplay.textContent = gameState.credits || 0;
+            }
+        }
+
+        // Handle selling resources
+        function sellResource(resourceName, amount) {
+            const stock = gameState.resources[resourceName] || 0;
+            const sellAmount = Math.min(amount, stock);
+            if (sellAmount <= 0) return;
+
+            const resourceInfo = RESOURCES[resourceName];
+            const tradeValue = resourceInfo?.tradeValue || 1;
+            const creditsGained = sellAmount * tradeValue;
+
+            gameState.resources[resourceName] -= sellAmount;
+            gameState.credits = (gameState.credits || 0) + creditsGained;
+
+            // Update displays
+            updateTradingUI();
+            updateHUD();
+        }
+
+        // Make sellResource available globally
+        window.sellResource = sellResource;
 
         // Update the ship upgrades UI
         function updateUpgradesUI() {
@@ -4510,6 +4786,11 @@
             // Update hub background based on section
             const bgImage = STATION_INTERIORS[sectionName] || STATION_INTERIORS.hub;
             document.getElementById('stationHub').style.backgroundImage = `url('${bgImage}')`;
+
+            // Update section-specific UIs
+            if (sectionName === 'trading') {
+                updateTradingUI();
+            }
         }
 
         // Buy weapon from station
@@ -4729,6 +5010,15 @@
                     const amount = btn.dataset.amount;
                     const cost = parseInt(btn.dataset.cost);
                     handleRefuel(amount, cost);
+                });
+            });
+
+            // Hydrogen refuel buttons
+            document.querySelectorAll('.hydrogen-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const hydrogen = parseInt(btn.dataset.hydrogen);
+                    const fuel = parseInt(btn.dataset.fuel);
+                    handleHydrogenRefuel(hydrogen, fuel);
                 });
             });
         }
@@ -5451,9 +5741,11 @@
 
         // Resource abbreviations for preview
         const RESOURCE_ABBREV = {
-            Hydrogen: 'H₂', Helium: 'He', Nitrogen: 'N₂', Water: 'H₂O', Oxygen: 'O₂',
-            Iron: 'Fe', Silicon: 'Si', Copper: 'Cu', Titanium: 'Ti', Sulfur: 'S', Gold: 'Au',
-            Biologics: '🧬', Artifacts: '🏺'
+            Metal: '⚙️',
+            Hydrogen: 'H₂',
+            Organics: '🧬',
+            Crystals: '💎',
+            Exotic: '✧'
         };
 
         // Update harvest icons display for targeted planet
