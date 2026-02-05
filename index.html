@@ -5010,10 +5010,16 @@
             });
             gameState.enemies = [];
 
-            // Clear bullets
-            gameState.playerBullets.forEach(b => b.dispose());
+            // Clear bullets (including child meshes like cores/glows)
+            gameState.playerBullets.forEach(b => {
+                b.getChildMeshes().forEach(m => m.dispose());
+                b.dispose();
+            });
             gameState.playerBullets = [];
-            gameState.enemyBullets.forEach(b => b.dispose());
+            gameState.enemyBullets.forEach(b => {
+                b.getChildMeshes().forEach(m => m.dispose());
+                b.dispose();
+            });
             gameState.enemyBullets = [];
 
             // Clear loot
@@ -5045,13 +5051,18 @@
                 gameState.starbase = null;
             }
 
-            // Clear beam lasers
+            // Clear all beam lasers (both array and legacy single beam)
             if (gameState.beamMeshes) {
                 gameState.beamMeshes.forEach(beam => {
                     if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(beam);
                     beam.dispose();
                 });
                 gameState.beamMeshes = [];
+            }
+            if (gameState.beamMesh) {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(gameState.beamMesh);
+                gameState.beamMesh.dispose();
+                gameState.beamMesh = null;
             }
 
             // Reset spawn timers
@@ -6120,7 +6131,7 @@
 
         // Check beam collisions with enemies
         function checkBeamCollisions(beam) {
-            const px = beam.position.x;
+            const beamX = beam.position.x;
             const beamWidth = beam.beamWidth || 0.5;
             const beamDamage = beam.beamDamage || 20;
             const playerY = playerShip ? playerShip.position.y : -7;
@@ -6130,8 +6141,12 @@
                 // Skip if already hit by this beam
                 if (beam.hitEnemies && beam.hitEnemies.has(enemy.uniqueId)) continue;
 
-                // Check if enemy is in beam path (X within width, Y above player)
-                if (Math.abs(enemy.position.x - px) < beamWidth && enemy.position.y > playerY) {
+                // Account for BOTH beam width and enemy hitbox width
+                const enemyHalfWidth = (enemy.hitboxWidth || 0.9) / 2;
+                const collisionDistance = beamWidth + enemyHalfWidth;
+
+                // Check if enemy overlaps beam path (X within combined width, Y above player)
+                if (Math.abs(enemy.position.x - beamX) < collisionDistance && enemy.position.y > playerY) {
                     // Mark as hit
                     if (!beam.hitEnemies) beam.hitEnemies = new Set();
                     beam.hitEnemies.add(enemy.uniqueId);
