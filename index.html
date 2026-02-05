@@ -2644,8 +2644,7 @@
                 name: 'Scout',
                 model: 'Bob',
                 hardpoints: [
-                    { size: 'light', position: { x: -0.3, y: 0.3 }, equipped: null },
-                    { size: 'medium', position: { x: 0.3, y: 0.3 }, equipped: null }
+                    { size: 'medium', position: { x: 0, y: 0.3 }, equipped: null }
                 ]
             }
         };
@@ -6238,7 +6237,7 @@
                 }))
             }];
             gameState.ownedWeapons = [starterWeapon];
-            gameState.equippedWeapons = [starterWeapon, null];  // First hardpoint has weapon, second empty
+            gameState.equippedWeapons = [starterWeapon];  // Single medium hardpoint
             gameState.stationWeapons = [];
             gameState.weaponFireTimes = {};
             if (gameState.beamMeshes) {
