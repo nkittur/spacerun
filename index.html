@@ -6445,6 +6445,11 @@
             systemMenu.style.display = isVisible ? 'none' : 'block';
             if (!isVisible) {
                 gameState.isPaused = true;
+            } else {
+                // Menu is being closed - unpause if nothing else requires pause
+                if (!shouldRemainPaused()) {
+                    gameState.isPaused = false;
+                }
             }
         });
 
