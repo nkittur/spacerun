@@ -2291,7 +2291,9 @@
             gateChoices: null,      // The two gate options
             showingGates: false,    // Whether gates are currently displayed
             levelEndSpawned: false, // Whether end-of-level content (reward + gates) has been spawned
-            speedUp: false          // Speed-up button pressed
+            speedUp: false,         // Speed-up button pressed
+            inExploration: false,   // Between waves - no combat, just exploration
+            explorationDistance: 0  // Distance traveled in current exploration zone
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -5987,7 +5989,7 @@
 
             // Keyboard movement (includes speed upgrade bonus and god mode)
             const godModeSpeedMult = settings.godMode ? 3.0 : 1.0;
-            const keySpeed = 0.03 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * deltaTime;
+            const keySpeed = 0.008 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * deltaTime;
             if (keyState.left) playerShip.targetX -= keySpeed;
             if (keyState.right) playerShip.targetX += keySpeed;
             if (keyState.up) playerShip.targetY += keySpeed;
@@ -6019,8 +6021,8 @@
             const maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight);
             playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
 
-            // Base speed 0.3 for sluggish starter feel, god mode triples speed
-            const lerpFactor = 0.3 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult;
+            // Base speed 0.08 for sluggish starter feel, god mode triples speed
+            const lerpFactor = 0.08 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult;
             const prevX = playerShip.position.x;
             playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
             playerShip.position.y += (playerShip.targetY - playerShip.position.y) * lerpFactor;
@@ -6674,6 +6676,10 @@
                 maxHealth: gameState.maxHealth,
                 shields: gameState.shields,
                 maxShields: gameState.maxShields,
+                inExploration: gameState.inExploration,
+                explorationDistance: gameState.explorationDistance,
+                enemiesInWave: gameState.enemiesInWave,
+                enemiesSpawned: gameState.enemiesSpawned,
                 savedAt: Date.now()
             };
         }
@@ -6786,6 +6792,12 @@
 
             // Apply upgrade effects (recalculates stats from upgrade levels)
             applyAllUpgrades();
+
+            // Restore exploration/combat state
+            gameState.inExploration = saveData.inExploration || false;
+            gameState.explorationDistance = saveData.explorationDistance || 0;
+            gameState.enemiesInWave = saveData.enemiesInWave || 0;
+            gameState.enemiesSpawned = saveData.enemiesSpawned || 0;
 
             // Update zone background
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
@@ -7010,7 +7022,11 @@
                 gameState.wavesUntilStarbase = gameState.levelConfig.waveCount;
             }
 
-            spawnWave();
+            // Only spawn wave if not in exploration mode and no enemies already pending
+            // This preserves state when continuing a saved game
+            if (!gameState.inExploration && gameState.enemiesInWave === 0) {
+                spawnWave();
+            }
 
             // Initialize solar system spawning
             gameState.nextSolarSystemY = orthoHeight + 15;
@@ -7057,7 +7073,8 @@
                 updateSuns(scrollMultiplier);
                 applySunLighting();
 
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned) {
+                // Wave completion - enter exploration mode between waves
+                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration) {
                     gameState.wave++;
                     gameState.levelWave++;
                     updateHUD();
@@ -7067,7 +7084,6 @@
                     // Check if level complete (all waves done)
                     if (gameState.levelWave >= config.waveCount) {
                         // Level complete - generate reward zone and gates
-                        // Both are spawned at specific Y positions, scrolling reveals them naturally
                         generateLevelEndContent();
                     } else {
                         // Check if a station should appear after this wave
@@ -7079,8 +7095,26 @@
                             createStarbase();
                             gameState.stationsVisited++;
                         } else {
-                            spawnWave();
+                            // Enter exploration mode - travel through space before next wave
+                            gameState.inExploration = true;
+                            gameState.explorationDistance = 0;
+                            gameState.enemiesInWave = 0;
+                            gameState.enemiesSpawned = 0;
                         }
+                    }
+                }
+
+                // Exploration mode - travel some distance before next wave starts
+                if (gameState.inExploration) {
+                    // Track distance traveled during exploration
+                    gameState.explorationDistance += scrollMultiplier * 0.1;
+
+                    // After enough distance (about 1-2 screen heights), start next wave
+                    const explorationRequired = 15 + Math.random() * 10; // Random variation
+                    if (gameState.explorationDistance >= explorationRequired) {
+                        gameState.inExploration = false;
+                        gameState.explorationDistance = 0;
+                        spawnWave();
                     }
                 }
 
