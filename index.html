@@ -1344,6 +1344,103 @@
             border-color: #997;
         }
 
+        /* Ship Upgrades */
+        .upgrades-panel {
+            margin-top: 15px;
+        }
+
+        .upgrade-item {
+            background: rgba(30, 40, 60, 0.7);
+            border: 1px solid #445;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .upgrade-item.maxed {
+            border-color: #4a4;
+            background: rgba(40, 60, 40, 0.5);
+        }
+
+        .upgrade-icon {
+            font-size: 24px;
+            width: 32px;
+            text-align: center;
+        }
+
+        .upgrade-info {
+            flex: 1;
+        }
+
+        .upgrade-name {
+            color: #aaccff;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .upgrade-level {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .upgrade-effect {
+            color: #8c8;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .upgrade-cost {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .upgrade-cost-item {
+            font-size: 10px;
+            padding: 2px 5px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+
+        .upgrade-cost-item.affordable {
+            color: #8f8;
+        }
+
+        .upgrade-cost-item.expensive {
+            color: #f88;
+        }
+
+        .upgrade-btn {
+            padding: 8px 14px;
+            background: linear-gradient(180deg, #446, #223);
+            border: 1px solid #668;
+            border-radius: 6px;
+            color: #aaccff;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .upgrade-btn:hover:not(:disabled) {
+            background: linear-gradient(180deg, #557, #334);
+            border-color: #88a;
+        }
+
+        .upgrade-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .upgrade-btn.maxed {
+            background: linear-gradient(180deg, #353, #232);
+            border-color: #4a4;
+            color: #8c8;
+        }
+
         /* Bar Section - Rumors */
         .rumor-item {
             background: rgba(30, 40, 60, 0.6);
@@ -1622,9 +1719,12 @@
                         <button class="refuel-btn full-tank" data-amount="full" data-cost="0">Fill Tank</button>
                     </div>
                 </div>
-                <div class="coming-soon" style="margin-top: 15px;">
-                    <div class="coming-soon-icon">🚀</div>
-                    <div class="coming-soon-text">Ship upgrades coming soon...</div>
+                <div class="service-panel upgrades-panel">
+                    <div class="service-header">
+                        <span class="service-icon">🔧</span>
+                        <span class="service-title">Ship Upgrades</span>
+                    </div>
+                    <div id="upgradesList"></div>
                 </div>
             </div>
 
@@ -2130,6 +2230,10 @@
         let gameState = {
             score: 0,
             health: 100,
+            maxHealth: 100,      // Base max health (upgradeable)
+            shields: 0,          // Current shields (from upgrade)
+            maxShields: 0,       // Max shields (from upgrade)
+            shipUpgrades: {},    // Upgrade levels by upgrade ID
             wave: 1,
             isPlaying: false,
             pauseReasons: new Set(),  // Track what's causing pause (robust pause management)
@@ -2648,6 +2752,174 @@
                 ]
             }
         };
+
+        // Ship upgrade definitions
+        // Cost formula: baseCost * (costMultiplier ^ currentLevel)
+        const SHIP_UPGRADES = {
+            hull: {
+                name: 'Hull Reinforcement',
+                icon: '🛡️',
+                description: 'Increases maximum health',
+                maxLevel: 5,
+                effectPerLevel: 25,  // +25 max health per level
+                effectUnit: 'HP',
+                baseCost: { Iron: 8, Titanium: 4 },
+                costMultiplier: 1.6
+            },
+            engine: {
+                name: 'Engine Boost',
+                icon: '🚀',
+                description: 'Increases ship speed',
+                maxLevel: 4,
+                effectPerLevel: 10,  // +10% speed per level
+                effectUnit: '%',
+                baseCost: { Hydrogen: 12, Helium: 8 },
+                costMultiplier: 1.8
+            },
+            fuelTank: {
+                name: 'Fuel Tank Expansion',
+                icon: '⛽',
+                description: 'Increases maximum fuel capacity',
+                maxLevel: 5,
+                effectPerLevel: 20,  // +20 max fuel per level
+                effectUnit: 'fuel',
+                baseCost: { Titanium: 6, Copper: 8 },
+                costMultiplier: 1.5
+            },
+            shields: {
+                name: 'Shield Generator',
+                icon: '💠',
+                description: 'Adds regenerating shields',
+                maxLevel: 3,
+                effectPerLevel: 15,  // +15 max shields per level
+                effectUnit: 'shields',
+                baseCost: { Silicon: 10, Gold: 3 },
+                costMultiplier: 2.0
+            },
+            hardpoint: {
+                name: 'Hardpoint Installation',
+                icon: '🔧',
+                description: 'Adds a new weapon hardpoint',
+                maxLevel: 2,
+                effectPerLevel: 1,  // +1 hardpoint per level
+                effectUnit: 'slot',
+                baseCost: { Titanium: 15, Gold: 5, Artifacts: 2 },
+                costMultiplier: 3.0,
+                hardpointSizes: ['light', 'medium']  // Size of hardpoint added at each level
+            }
+        };
+
+        // Calculate upgrade cost at given level
+        function getUpgradeCost(upgradeId, currentLevel) {
+            const upgrade = SHIP_UPGRADES[upgradeId];
+            if (!upgrade) return null;
+
+            const cost = {};
+            for (const [resource, baseAmount] of Object.entries(upgrade.baseCost)) {
+                cost[resource] = Math.ceil(baseAmount * Math.pow(upgrade.costMultiplier, currentLevel));
+            }
+            return cost;
+        }
+
+        // Check if player can afford upgrade
+        function canAffordUpgrade(upgradeId, currentLevel) {
+            const cost = getUpgradeCost(upgradeId, currentLevel);
+            if (!cost) return false;
+
+            for (const [resource, amount] of Object.entries(cost)) {
+                if ((gameState.resources[resource] || 0) < amount) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Apply upgrade and deduct resources
+        function purchaseUpgrade(upgradeId) {
+            if (!gameState.shipUpgrades) gameState.shipUpgrades = {};
+            const currentLevel = gameState.shipUpgrades[upgradeId] || 0;
+            const upgrade = SHIP_UPGRADES[upgradeId];
+
+            if (!upgrade || currentLevel >= upgrade.maxLevel) return false;
+            if (!canAffordUpgrade(upgradeId, currentLevel)) return false;
+
+            // Deduct resources
+            const cost = getUpgradeCost(upgradeId, currentLevel);
+            for (const [resource, amount] of Object.entries(cost)) {
+                gameState.resources[resource] -= amount;
+            }
+
+            // Apply upgrade
+            gameState.shipUpgrades[upgradeId] = currentLevel + 1;
+
+            // Apply specific upgrade effects
+            applyUpgradeEffects(upgradeId, currentLevel + 1);
+
+            return true;
+        }
+
+        // Apply upgrade effects to game state
+        function applyUpgradeEffects(upgradeId, level) {
+            const upgrade = SHIP_UPGRADES[upgradeId];
+
+            switch (upgradeId) {
+                case 'hull':
+                    // Max health is base 100 + 25 per level
+                    gameState.maxHealth = 100 + level * upgrade.effectPerLevel;
+                    break;
+
+                case 'fuelTank':
+                    // Max fuel is base 100 + 20 per level
+                    gameState.maxFuel = 100 + level * upgrade.effectPerLevel;
+                    break;
+
+                case 'shields':
+                    // Initialize shields if not present
+                    gameState.maxShields = level * upgrade.effectPerLevel;
+                    if (gameState.shields === undefined) gameState.shields = 0;
+                    break;
+
+                case 'hardpoint':
+                    // Add new hardpoint to ship
+                    if (gameState.fleet && gameState.fleet.length > 0) {
+                        const ship = gameState.fleet[0];
+                        const hpSize = upgrade.hardpointSizes[level - 1] || 'light';
+                        const xOffset = (ship.hardpoints.length % 2 === 0) ? -0.4 : 0.4;
+                        ship.hardpoints.push({
+                            size: hpSize,
+                            position: { x: xOffset, y: 0.2 },
+                            equipped: null
+                        });
+                        syncEquippedWeapons();
+                    }
+                    break;
+
+                // Engine/speed is applied dynamically in movement code
+            }
+        }
+
+        // Get current speed multiplier from upgrades
+        function getSpeedMultiplier() {
+            const level = (gameState.shipUpgrades && gameState.shipUpgrades.engine) || 0;
+            return 1 + level * 0.1;  // +10% per level
+        }
+
+        // Apply all saved upgrades (called on game load)
+        function applyAllUpgrades() {
+            if (!gameState.shipUpgrades) return;
+
+            // Reset to base values first
+            gameState.maxHealth = 100;
+            gameState.maxFuel = 100;
+            gameState.maxShields = 0;
+
+            // Apply each upgrade
+            for (const [upgradeId, level] of Object.entries(gameState.shipUpgrades)) {
+                if (level > 0 && upgradeId !== 'hardpoint') {
+                    applyUpgradeEffects(upgradeId, level);
+                }
+            }
+        }
 
         // Get player's heaviest hardpoint across fleet
         function getPlayerMaxHardpointSize() {
@@ -3749,6 +4021,9 @@
 
             // Update shipyard fuel display
             updateShipyardFuel();
+
+            // Update ship upgrades display
+            updateUpgradesUI();
         }
 
         // Update shipyard fuel display
@@ -3805,6 +4080,69 @@
             updateShipyardFuel();
             updateHUD();
         }
+
+        // Update the ship upgrades UI
+        function updateUpgradesUI() {
+            const container = document.getElementById('upgradesList');
+            if (!container) return;
+
+            if (!gameState.shipUpgrades) gameState.shipUpgrades = {};
+
+            container.innerHTML = Object.entries(SHIP_UPGRADES).map(([upgradeId, upgrade]) => {
+                const currentLevel = gameState.shipUpgrades[upgradeId] || 0;
+                const isMaxed = currentLevel >= upgrade.maxLevel;
+                const cost = isMaxed ? null : getUpgradeCost(upgradeId, currentLevel);
+                const canAfford = !isMaxed && canAffordUpgrade(upgradeId, currentLevel);
+
+                // Build cost display
+                let costHtml = '';
+                if (cost) {
+                    costHtml = Object.entries(cost).map(([resource, amount]) => {
+                        const has = gameState.resources[resource] || 0;
+                        const affordable = has >= amount;
+                        return `<span class="upgrade-cost-item ${affordable ? 'affordable' : 'expensive'}">${RESOURCES[resource]?.symbol || resource}: ${amount}</span>`;
+                    }).join('');
+                }
+
+                // Effect description
+                let effectText = '';
+                if (isMaxed) {
+                    effectText = `MAX: +${currentLevel * upgrade.effectPerLevel} ${upgrade.effectUnit}`;
+                } else {
+                    const nextEffect = (currentLevel + 1) * upgrade.effectPerLevel;
+                    effectText = `Next: +${nextEffect} ${upgrade.effectUnit}`;
+                }
+
+                return `
+                    <div class="upgrade-item ${isMaxed ? 'maxed' : ''}">
+                        <div class="upgrade-icon">${upgrade.icon}</div>
+                        <div class="upgrade-info">
+                            <div class="upgrade-name">${upgrade.name}</div>
+                            <div class="upgrade-level">Level ${currentLevel}/${upgrade.maxLevel}</div>
+                            <div class="upgrade-effect">${effectText}</div>
+                            ${!isMaxed ? `<div class="upgrade-cost">${costHtml}</div>` : ''}
+                        </div>
+                        <button class="upgrade-btn ${isMaxed ? 'maxed' : ''}"
+                                onclick="handleUpgradePurchase('${upgradeId}')"
+                                ${!canAfford || isMaxed ? 'disabled' : ''}>
+                            ${isMaxed ? 'MAXED' : 'Upgrade'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Handle upgrade purchase button click
+        function handleUpgradePurchase(upgradeId) {
+            if (purchaseUpgrade(upgradeId)) {
+                updateUpgradesUI();
+                updateHUD();
+                updateShipyardFuel();  // In case fuel tank was upgraded
+            }
+        }
+
+        // Expose to global scope for onclick handlers
+        window.handleUpgradePurchase = handleUpgradePurchase;
 
         // Populate bar section with random rumors and tips
         function populateBarSection() {
@@ -5629,8 +5967,8 @@
         function updatePlayerPosition(deltaTime) {
             if (!playerShip) return 0.3;
 
-            // Keyboard movement
-            const keySpeed = 0.015 * settings.shipSpeed * deltaTime;
+            // Keyboard movement (includes speed upgrade bonus)
+            const keySpeed = 0.015 * settings.shipSpeed * getSpeedMultiplier() * deltaTime;
             if (keyState.left) playerShip.targetX -= keySpeed;
             if (keyState.right) playerShip.targetX += keySpeed;
             if (keyState.up) playerShip.targetY += keySpeed;
@@ -5662,7 +6000,7 @@
             const maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight);
             playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
 
-            const lerpFactor = 0.15 * settings.shipSpeed;
+            const lerpFactor = 0.15 * settings.shipSpeed * getSpeedMultiplier();
             const prevX = playerShip.position.x;
             playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
             playerShip.position.y += (playerShip.targetY - playerShip.position.y) * lerpFactor;
@@ -6302,6 +6640,10 @@
                 resources: gameState.resources,
                 distanceTraveled: gameState.distanceTraveled,
                 wavesUntilStarbase: gameState.wavesUntilStarbase,
+                shipUpgrades: gameState.shipUpgrades,
+                maxHealth: gameState.maxHealth,
+                shields: gameState.shields,
+                maxShields: gameState.maxShields,
                 savedAt: Date.now()
             };
         }
@@ -6405,6 +6747,15 @@
             gameState.resources = saveData.resources || {};
             gameState.distanceTraveled = saveData.distanceTraveled || 0;
             gameState.wavesUntilStarbase = saveData.wavesUntilStarbase || 1;
+
+            // Load ship upgrades
+            gameState.shipUpgrades = saveData.shipUpgrades || {};
+            gameState.maxHealth = saveData.maxHealth || 100;
+            gameState.shields = saveData.shields || 0;
+            gameState.maxShields = saveData.maxShields || 0;
+
+            // Apply upgrade effects (recalculates stats from upgrade levels)
+            applyAllUpgrades();
 
             // Update zone background
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
