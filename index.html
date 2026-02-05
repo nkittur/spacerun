@@ -2910,7 +2910,7 @@
             textureA.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
             backgroundMaterialA.diffuseTexture = textureA;
             backgroundMaterialA.emissiveTexture = textureA;
-            backgroundMaterialA.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+            backgroundMaterialA.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
             backgroundMaterialA.disableLighting = true;
             backgroundMaterialA.backFaceCulling = false;
             backgroundMeshA.material = backgroundMaterialA;
@@ -2956,7 +2956,7 @@
             }
             backgroundMaterialB.diffuseTexture = texture;
             backgroundMaterialB.emissiveTexture = texture;
-            backgroundMaterialB.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+            backgroundMaterialB.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
         }
 
         // Start transition to next zone (via starfield)
@@ -4557,6 +4557,11 @@
         function enterWarpGate(gateId) {
             const chosenConfig = gameState.gateChoices[gateId];
 
+            // Consume fuel for warp jump (higher level = more fuel)
+            const warpFuelCost = 10 + (chosenConfig.levelNum - 1) * 2;
+            gameState.fuel = Math.max(0, gameState.fuel - warpFuelCost);
+            updateHUD();
+
             // Reset ambient color
             if (scene) {
                 scene.ambientColor = new BABYLON.Color3(0.05, 0.05, 0.1);
@@ -4699,6 +4704,15 @@
             if (gameState.starbase) {
                 gameState.starbase.dispose();
                 gameState.starbase = null;
+            }
+
+            // Clear beam lasers
+            if (gameState.beamMeshes) {
+                gameState.beamMeshes.forEach(beam => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(beam);
+                    beam.dispose();
+                });
+                gameState.beamMeshes = [];
             }
 
             // Reset spawn timers
@@ -5071,6 +5085,10 @@
                     // Harvest complete!
                     nearPlanet.harvestsRemaining--;
                     gameState.harvestProgress = 0;
+
+                    // Consume fuel for landing
+                    const fuelCost = nearPlanet.fuelCost || 5;
+                    gameState.fuel = Math.max(0, gameState.fuel - fuelCost);
 
                     // Give resources - multiply by richness
                     const resources = nearPlanet.planetData.resources;
