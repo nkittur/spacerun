@@ -2132,7 +2132,7 @@
             health: 100,
             wave: 1,
             isPlaying: false,
-            isPaused: false,
+            pauseReasons: new Set(),  // Track what's causing pause (robust pause management)
             enemies: [],
             playerBullets: [],
             enemyBullets: [],
@@ -3708,7 +3708,7 @@
         // Open station interior screen
         function openDockingScreen() {
             gameState.isDocked = true;
-            gameState.isPaused = true;
+            requestPause('docked');
             gameState.harvestProgress = 0;
             document.getElementById('harvestBar').style.display = 'none';
 
@@ -4205,7 +4205,7 @@
         // Close station interior and depart
         function departStarbase() {
             gameState.isDocked = false;
-            gameState.isPaused = false;
+            releasePause('docked');
             document.getElementById('stationInterior').style.display = 'none';
 
             // Increment stations visited counter
@@ -4581,7 +4581,7 @@
             document.getElementById('warpGatePanel').style.display = 'none';
 
             // Pause game during warp
-            gameState.isPaused = true;
+            requestPause('warpAnimation');
 
             // Show warp animation
             playWarpAnimation(() => {
@@ -4590,7 +4590,7 @@
                 // Save game progress when entering new level
                 saveGame();
                 showSavedNotification();
-                gameState.isPaused = false;
+                releasePause('warpAnimation');
             });
         }
 
@@ -5524,7 +5524,7 @@
                 e.target.closest('button') || e.target.closest('#systemMenu') ||
                 e.target.closest('#settingsPanel') || e.target.closest('#confirmDialog') ||
                 e.target.closest('#stationInterior')) return;
-            if (gameState.isPlaying && !gameState.isPaused && e.touches.length > 0) {
+            if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
                 handleInputStart(touch.clientX, touch.clientY);
@@ -5535,7 +5535,7 @@
             // Allow station interior scrolling
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
                 e.target.closest('#stationInterior')) return;
-            if (gameState.isPlaying && !gameState.isPaused && e.touches.length > 0) {
+            if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
                 handleInputMove(touch.clientX, touch.clientY);
@@ -5548,14 +5548,14 @@
 
         document.addEventListener('mousedown', (e) => {
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
-            if (gameState.isPlaying && !gameState.isPaused) {
+            if (gameState.isPlaying && !isPaused()) {
                 e.preventDefault();
                 handleInputStart(e.clientX, e.clientY);
             }
         });
 
         document.addEventListener('mousemove', (e) => {
-            if (inputState.isPressed && gameState.isPlaying && !gameState.isPaused) {
+            if (inputState.isPressed && gameState.isPlaying && !isPaused()) {
                 handleInputMove(e.clientX, e.clientY);
             }
         });
@@ -5570,7 +5570,7 @@
 
         // Keyboard input
         document.addEventListener('keydown', (e) => {
-            if (!gameState.isPlaying || gameState.isPaused) return;
+            if (!gameState.isPlaying || isPaused()) return;
 
             switch(e.key) {
                 case 'ArrowLeft':
@@ -6332,19 +6332,31 @@
             return localStorage.getItem(SAVE_KEY) !== null;
         }
 
-        // Check if game should remain paused (used to prevent accidental unpause)
-        // Add new conditions here as features are added (tutorials, planet landing, etc.)
-        function shouldRemainPaused() {
-            // Check if docked at station
-            if (gameState.isDocked) return true;
-            // Check if any modal dialogs are open
-            if (document.getElementById('settingsPanel').style.display === 'block') return true;
-            if (document.getElementById('confirmDialog').style.display === 'block') return true;
-            if (document.getElementById('weaponMountDialog').style.display === 'block') return true;
-            // Check if station interior is visible
-            if (document.getElementById('stationInterior').style.display !== 'none') return true;
-            // Future: add checks for tutorials, planet landing screens, etc.
-            return false;
+        // =====================
+        // PAUSE MANAGEMENT SYSTEM
+        // =====================
+        // Uses a Set to track what's requesting pause - game runs only when Set is empty
+        // This is more robust than a boolean because:
+        // - Each feature manages its own pause state independently
+        // - No timing issues with DOM state checks
+        // - Easy to debug (can see what's causing pause)
+        // - Easy to extend (new features just add their reason)
+
+        function requestPause(reason) {
+            gameState.pauseReasons.add(reason);
+        }
+
+        function releasePause(reason) {
+            gameState.pauseReasons.delete(reason);
+        }
+
+        function isPaused() {
+            return gameState.pauseReasons.size > 0;
+        }
+
+        // For debugging: see what's currently pausing the game
+        function getPauseReasons() {
+            return Array.from(gameState.pauseReasons);
         }
 
         function deleteSave() {
@@ -6444,12 +6456,9 @@
             const isVisible = systemMenu.style.display === 'block';
             systemMenu.style.display = isVisible ? 'none' : 'block';
             if (!isVisible) {
-                gameState.isPaused = true;
+                requestPause('systemMenu');
             } else {
-                // Menu is being closed - unpause if nothing else requires pause
-                if (!shouldRemainPaused()) {
-                    gameState.isPaused = false;
-                }
+                releasePause('systemMenu');
             }
         });
 
@@ -6458,38 +6467,34 @@
             if (!systemBtn.contains(e.target) && !systemMenu.contains(e.target) &&
                 !settingsPanel.contains(e.target) && !confirmDialog.contains(e.target)) {
                 systemMenu.style.display = 'none';
-                // Only unpause if nothing else requires pause
-                if (!shouldRemainPaused()) {
-                    gameState.isPaused = false;
-                }
+                releasePause('systemMenu');
             }
         });
 
         // Settings menu item
         document.getElementById('menuSettings').addEventListener('click', () => {
             systemMenu.style.display = 'none';
+            releasePause('systemMenu');
             settingsPanel.style.display = 'block';
-            gameState.isPaused = true;
+            requestPause('settings');
         });
 
         closeSettings.addEventListener('click', () => {
             settingsPanel.style.display = 'none';
-            // Only unpause if nothing else requires pause
-            if (!shouldRemainPaused()) {
-                gameState.isPaused = false;
-            }
+            releasePause('settings');
         });
 
         // Save & Quit menu item
         document.getElementById('menuSaveQuit').addEventListener('click', () => {
             systemMenu.style.display = 'none';
+            releasePause('systemMenu');
             saveGame();
             showSavedNotification();
 
             // Return to start screen after delay
             setTimeout(() => {
                 gameState.isPlaying = false;
-                gameState.isPaused = false;
+                gameState.pauseReasons.clear();  // Clear all pause reasons
                 document.getElementById('hud').style.display = 'none';
                 document.getElementById('fuelDisplay').style.display = 'none';
                 systemBtn.style.display = 'none';
@@ -6503,26 +6508,25 @@
         // New Game menu item
         document.getElementById('menuNewGame').addEventListener('click', () => {
             systemMenu.style.display = 'none';
+            releasePause('systemMenu');
             confirmDialog.style.display = 'block';
-            gameState.isPaused = true;
+            requestPause('confirmDialog');
         });
 
         // Confirm New Game
         document.getElementById('confirmNewGame').addEventListener('click', async () => {
             confirmDialog.style.display = 'none';
+            releasePause('confirmDialog');
             deleteSave();
             await resetGame();
-            gameState.isPaused = false;
+            gameState.pauseReasons.clear();  // Clear all pause reasons for fresh start
             gameState.isPlaying = true;
         });
 
         // Cancel New Game
         document.getElementById('cancelNewGame').addEventListener('click', () => {
             confirmDialog.style.display = 'none';
-            // Only unpause if nothing else requires pause
-            if (!shouldRemainPaused()) {
-                gameState.isPaused = false;
-            }
+            releasePause('confirmDialog');
         });
 
         function setupSlider(id, settingKey, suffix = '', multiplier = 1) {
@@ -6628,7 +6632,7 @@
             gameState.spawnTimer = 0;
 
             scene.registerBeforeRender(() => {
-                if (!gameState.isPlaying || gameState.isPaused) return;
+                if (!gameState.isPlaying || isPaused()) return;
 
                 const currentTime = performance.now();
                 let deltaTime = Math.min(currentTime - gameState.lastFrameTime, 50);
@@ -6752,7 +6756,7 @@
         // Update speed-up button visibility
         function updateSpeedUpButton() {
             const btn = document.getElementById('speedUpBtn');
-            if (!gameState.isPlaying || gameState.isPaused || gameState.isDocked) {
+            if (!gameState.isPlaying || isPaused() || gameState.isDocked) {
                 btn.style.display = 'none';
                 return;
             }
