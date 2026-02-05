@@ -5434,6 +5434,37 @@
                 // Harvest time based on hazardousness
                 gameState.harvestProgress += deltaTime / nearPlanet.harvestTime;
 
+                // Apply hazard damage during harvesting (unless god mode)
+                if (nearPlanet.hazards && nearPlanet.hazards.length > 0 && !settings.godMode) {
+                    // Damage tick every 500ms worth of deltaTime
+                    if (!nearPlanet.lastHazardTick) nearPlanet.lastHazardTick = 0;
+                    nearPlanet.lastHazardTick += deltaTime;
+
+                    if (nearPlanet.lastHazardTick >= 500) {
+                        nearPlanet.lastHazardTick = 0;
+
+                        // Sum up damage from all hazards
+                        let totalDamage = 0;
+                        nearPlanet.hazards.forEach(hazardKey => {
+                            const hazard = PLANET_HAZARDS[hazardKey];
+                            if (hazard && hazard.damagePerTick) {
+                                totalDamage += hazard.damagePerTick;
+                            }
+                        });
+
+                        if (totalDamage > 0) {
+                            gameState.health -= totalDamage;
+                            flashShip(playerShipMesh);
+                            updateHUD();
+
+                            if (gameState.health <= 0) {
+                                createExplosion(playerShip.position.x, playerShip.position.y, 'large', 'blue');
+                                gameOver();
+                            }
+                        }
+                    }
+                }
+
                 harvestBar.style.display = 'block';
                 harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
 
@@ -5988,8 +6019,9 @@
             if (!playerShip) return 0.3;
 
             // Keyboard movement (includes speed upgrade bonus and god mode)
+            // Base speed halved for more sluggish starter ship feel
             const godModeSpeedMult = settings.godMode ? 3.0 : 1.0;
-            const keySpeed = 0.008 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * deltaTime;
+            const keySpeed = 0.004 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * deltaTime;
             if (keyState.left) playerShip.targetX -= keySpeed;
             if (keyState.right) playerShip.targetX += keySpeed;
             if (keyState.up) playerShip.targetY += keySpeed;
@@ -6021,8 +6053,8 @@
             const maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight);
             playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
 
-            // Base speed 0.08 for sluggish starter feel, god mode triples speed
-            const lerpFactor = 0.08 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult;
+            // Base speed 0.04 for very sluggish starter feel, god mode triples speed
+            const lerpFactor = 0.04 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult;
             const prevX = playerShip.position.x;
             playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
             playerShip.position.y += (playerShip.targetY - playerShip.position.y) * lerpFactor;
