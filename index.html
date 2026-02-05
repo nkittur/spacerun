@@ -3497,41 +3497,70 @@
             if (!scene) return;
 
             // Center sun within visible screen area
-            const centerX = (Math.random() - 0.5) * (orthoWidth * 0.6);
+            const centerX = (Math.random() - 0.5) * (orthoWidth * 0.4);
             const centerY = orthoHeight + 8; // Start above screen
 
             // Create sun at center
             const sun = createSun(centerX, centerY);
+            const sunSize = sun ? sun.size : 4;
             if (sun) {
                 gameState.suns.push(sun);
             }
 
-            // Create 2-5 planets spread across screen width
-            const planetCount = 2 + Math.floor(Math.random() * 4);
-            const planetMargin = 4; // Margin for planet size + targeting UI
-            const screenWidth = (orthoWidth - planetMargin) * 2;
+            // Create 2-4 planets with collision avoidance
+            const planetCount = 2 + Math.floor(Math.random() * 3);
+            const placedPlanets = []; // Track placed planet positions and sizes
+            const minPlanetSpacing = 4.5; // Minimum center-to-center distance
+            const minSunDistance = sunSize + 3; // Keep planets away from sun
+            const planetMargin = 3; // Screen edge margin
 
             for (let i = 0; i < planetCount; i++) {
-                // Spread planets evenly across screen width
-                const spreadX = -orthoWidth + planetMargin + (screenWidth * (i + 0.5) / planetCount);
-                // Add small random offset but keep on screen
-                const px = Math.max(-orthoWidth + planetMargin, Math.min(orthoWidth - planetMargin,
-                    spreadX + (Math.random() - 0.5) * 2));
+                let attempts = 0;
+                let placed = false;
 
-                // Vary Y position around the sun
-                const py = centerY + (Math.random() - 0.5) * 6;
+                while (!placed && attempts < 30) {
+                    // Distribute planets across screen in zones to prevent bunching
+                    // Divide screen into horizontal zones based on planet index
+                    const zoneWidth = (orthoWidth * 2 - planetMargin * 2) / planetCount;
+                    const zoneStart = -orthoWidth + planetMargin + (i * zoneWidth);
+                    const px = zoneStart + Math.random() * zoneWidth;
 
-                // Calculate orbit properties from position
-                const orbitRadius = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow((py - centerY) / 0.4, 2));
-                const angle = Math.atan2((py - centerY) / 0.4, px - centerX);
+                    // Distribute Y positions in bands to prevent vertical bunching
+                    const yRange = 8;
+                    const yBandSize = yRange / planetCount;
+                    const yBandStart = -yRange / 2 + (i * yBandSize);
+                    const py = centerY + yBandStart + Math.random() * yBandSize;
 
-                const planet = createPlanetAt(px, py);
-                if (planet) {
-                    planet.orbitCenterX = centerX;
-                    planet.orbitRadius = orbitRadius;
-                    planet.orbitAngle = angle;
-                    planet.orbitSpeed = 0.0003 + Math.random() * 0.0002;
-                    gameState.planets.push(planet);
+                    // Check distance from sun
+                    const sunDist = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow(py - centerY, 2));
+                    if (sunDist < minSunDistance) {
+                        attempts++;
+                        continue;
+                    }
+
+                    // Check distance from all placed planets
+                    let validPosition = true;
+                    for (const other of placedPlanets) {
+                        const dist = Math.sqrt(Math.pow(px - other.x, 2) + Math.pow(py - other.y, 2));
+                        if (dist < minPlanetSpacing) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+
+                    if (validPosition) {
+                        const planet = createPlanetAt(px, py);
+                        if (planet) {
+                            placedPlanets.push({ x: px, y: py, size: planet.size });
+                            planet.orbitCenterX = centerX;
+                            planet.orbitRadius = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow((py - centerY) / 0.4, 2));
+                            planet.orbitAngle = Math.atan2((py - centerY) / 0.4, px - centerX);
+                            planet.orbitSpeed = 0.0002 + Math.random() * 0.0001;
+                            gameState.planets.push(planet);
+                            placed = true;
+                        }
+                    }
+                    attempts++;
                 }
             }
 
@@ -4261,41 +4290,69 @@
             if (!scene) return;
 
             // Center sun within visible screen area
-            const centerX = (Math.random() - 0.5) * (orthoWidth * 0.6);
+            const centerX = (Math.random() - 0.5) * (orthoWidth * 0.4);
             const centerY = spawnY;
 
             // Create sun at center
             const sun = createSun(centerX, centerY);
+            const sunSize = sun ? sun.size : 4;
             if (sun) {
                 gameState.suns.push(sun);
             }
 
-            // Create 2-5 planets spread across screen width
-            const planetCount = 2 + Math.floor(Math.random() * 4);
-            const planetMargin = 4; // Margin for planet size + targeting UI
-            const screenWidth = (orthoWidth - planetMargin) * 2;
+            // Create 2-4 planets with collision avoidance
+            const planetCount = 2 + Math.floor(Math.random() * 3);
+            const placedPlanets = []; // Track placed planet positions and sizes
+            const minPlanetSpacing = 4.5; // Minimum center-to-center distance
+            const minSunDistance = sunSize + 3; // Keep planets away from sun
+            const planetMargin = 3; // Screen edge margin
 
             for (let i = 0; i < planetCount; i++) {
-                // Spread planets evenly across screen width
-                const spreadX = -orthoWidth + planetMargin + (screenWidth * (i + 0.5) / planetCount);
-                // Add small random offset but keep on screen
-                const px = Math.max(-orthoWidth + planetMargin, Math.min(orthoWidth - planetMargin,
-                    spreadX + (Math.random() - 0.5) * 2));
+                let attempts = 0;
+                let placed = false;
 
-                // Vary Y position around the sun
-                const py = centerY + (Math.random() - 0.5) * 6;
+                while (!placed && attempts < 30) {
+                    // Distribute planets across screen in zones to prevent bunching
+                    const zoneWidth = (orthoWidth * 2 - planetMargin * 2) / planetCount;
+                    const zoneStart = -orthoWidth + planetMargin + (i * zoneWidth);
+                    const px = zoneStart + Math.random() * zoneWidth;
 
-                // Calculate orbit properties from position
-                const orbitRadius = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow((py - centerY) / 0.4, 2));
-                const angle = Math.atan2((py - centerY) / 0.4, px - centerX);
+                    // Distribute Y positions in bands to prevent vertical bunching
+                    const yRange = 8;
+                    const yBandSize = yRange / planetCount;
+                    const yBandStart = -yRange / 2 + (i * yBandSize);
+                    const py = centerY + yBandStart + Math.random() * yBandSize;
 
-                const planet = createPlanetAt(px, py);
-                if (planet) {
-                    planet.orbitCenterX = centerX;
-                    planet.orbitRadius = orbitRadius;
-                    planet.orbitAngle = angle;
-                    planet.orbitSpeed = 0.0003 + Math.random() * 0.0002;
-                    gameState.planets.push(planet);
+                    // Check distance from sun
+                    const sunDist = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow(py - centerY, 2));
+                    if (sunDist < minSunDistance) {
+                        attempts++;
+                        continue;
+                    }
+
+                    // Check distance from all placed planets
+                    let validPosition = true;
+                    for (const other of placedPlanets) {
+                        const dist = Math.sqrt(Math.pow(px - other.x, 2) + Math.pow(py - other.y, 2));
+                        if (dist < minPlanetSpacing) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+
+                    if (validPosition) {
+                        const planet = createPlanetAt(px, py);
+                        if (planet) {
+                            placedPlanets.push({ x: px, y: py, size: planet.size });
+                            planet.orbitCenterX = centerX;
+                            planet.orbitRadius = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow((py - centerY) / 0.4, 2));
+                            planet.orbitAngle = Math.atan2((py - centerY) / 0.4, px - centerX);
+                            planet.orbitSpeed = 0.0002 + Math.random() * 0.0001;
+                            gameState.planets.push(planet);
+                            placed = true;
+                        }
+                    }
+                    attempts++;
                 }
             }
         }
