@@ -8600,6 +8600,7 @@
             arenaConfig.healthScale = parseFloat(document.getElementById('arenaHealthScale').value) || 1;
             arenaConfig.shipModel = document.getElementById('arenaShipModel').value;
             arenaConfig.shipColor = document.getElementById('arenaShipColor').value;
+            updateArenaEnemies();
 
             // Hide config panel
             document.getElementById('arenaConfig').style.display = 'none';
@@ -8649,8 +8650,8 @@
             gameState.maxShields = arenaConfig.upgrades.shields * 15;
             gameState.shields = gameState.maxShields;
 
-            // Speed bonus from engine upgrade
-            gameState.arenaSpeedBonus = 1 + arenaConfig.upgrades.engine * 0.1;
+            // Set up ship upgrades for arena (used by updatePlayerPosition)
+            gameState.shipUpgrades = { engine: arenaConfig.upgrades.engine };
 
             // Set up fleet with arena weapons
             gameState.fleet = [{
@@ -8693,25 +8694,8 @@
                 const deltaTime = Math.min(currentTime - lastFrameTime, 50);
                 lastFrameTime = currentTime;
 
-                // Player movement with arena speed bonus
-                if (playerShip) {
-                    const targetX = (inputState.pointerX / gameWidth) * orthoWidth * 2 - orthoWidth;
-                    const targetY = (1 - inputState.pointerY / gameHeight) * orthoHeight * 2 - orthoHeight;
-
-                    const baseSpeed = 0.15 * gameState.arenaSpeedBonus;
-                    playerShip.position.x += (targetX - playerShip.position.x) * baseSpeed;
-                    playerShip.position.y += (targetY - playerShip.position.y) * baseSpeed;
-
-                    // Clamp to screen
-                    playerShip.position.x = Math.max(-orthoWidth + 0.5, Math.min(orthoWidth - 0.5, playerShip.position.x));
-                    playerShip.position.y = Math.max(-orthoHeight + 1, Math.min(orthoHeight - 1, playerShip.position.y));
-
-                    // Ship tilt
-                    const velocityX = targetX - playerShip.position.x;
-                    const targetTilt = -velocityX * 0.15;
-                    const maxTilt = Math.PI / 5;
-                    playerShipMesh.rotation.y += (Math.max(-maxTilt, Math.min(maxTilt, targetTilt)) - playerShipMesh.rotation.y) * 0.1;
-                }
+                // Player movement (reuse standard movement function)
+                updatePlayerPosition(deltaTime);
 
                 // Fire weapons
                 if (gameState.enemies.length > 0) {
