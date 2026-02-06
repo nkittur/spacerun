@@ -8581,6 +8581,7 @@
 
         // Show arena config
         document.getElementById('arenaModeBtn').addEventListener('click', () => {
+            document.getElementById('startScreen').style.display = 'none';
             document.getElementById('arenaConfig').style.display = 'block';
             initArenaConfig();
         });
@@ -8588,6 +8589,7 @@
         // Hide arena config
         document.getElementById('arenaBackBtn').addEventListener('click', () => {
             document.getElementById('arenaConfig').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
         });
 
         // Start arena mode
