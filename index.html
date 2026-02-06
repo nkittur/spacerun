@@ -1488,6 +1488,37 @@
             margin-top: 15px;
         }
 
+        .resource-inventory {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px;
+            background: rgba(20, 30, 50, 0.8);
+            border: 1px solid #334;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .resource-inventory-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: rgba(40, 50, 70, 0.7);
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .resource-inventory-symbol {
+            font-size: 14px;
+        }
+
+        .resource-inventory-amount {
+            font-weight: bold;
+            min-width: 24px;
+            text-align: right;
+        }
+
         .upgrade-item {
             background: rgba(30, 40, 60, 0.7);
             border: 1px solid #445;
@@ -1876,6 +1907,9 @@
                     <div class="service-header">
                         <span class="service-icon">🔧</span>
                         <span class="service-title">Ship Upgrades</span>
+                    </div>
+                    <div class="resource-inventory" id="upgradeResourceInventory">
+                        <!-- Populated dynamically -->
                     </div>
                     <div id="upgradesList"></div>
                 </div>
@@ -4106,8 +4140,8 @@
                 gameState.suns.push(sun);
             }
 
-            // Create 2-4 planets with collision avoidance
-            const planetCount = 2 + Math.floor(Math.random() * 3);
+            // Create 4-7 planets with collision avoidance
+            const planetCount = 4 + Math.floor(Math.random() * 4);
             const placedPlanets = []; // Track placed planet positions
             const minPlanetSpacing = 4; // Minimum center-to-center distance
             const minSunDistanceX = sunSize * 0.8; // Horizontal distance from sun center
@@ -4506,6 +4540,20 @@
             if (!container) return;
 
             if (!gameState.shipUpgrades) gameState.shipUpgrades = {};
+
+            // Update resource inventory display
+            const inventoryContainer = document.getElementById('upgradeResourceInventory');
+            if (inventoryContainer) {
+                inventoryContainer.innerHTML = Object.entries(RESOURCES).map(([resourceName, resource]) => {
+                    const amount = gameState.resources[resourceName] || 0;
+                    return `
+                        <div class="resource-inventory-item" style="color: ${resource.color}">
+                            <span class="resource-inventory-symbol">${resource.symbol}</span>
+                            <span class="resource-inventory-amount">${amount}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
 
             container.innerHTML = Object.entries(SHIP_UPGRADES).map(([upgradeId, upgrade]) => {
                 const currentLevel = gameState.shipUpgrades[upgradeId] || 0;
@@ -5068,8 +5116,8 @@
                 gameState.suns.push(sun);
             }
 
-            // Create 2-4 planets with collision avoidance
-            const planetCount = 2 + Math.floor(Math.random() * 3);
+            // Create 4-7 planets with collision avoidance
+            const planetCount = 4 + Math.floor(Math.random() * 4);
             const placedPlanets = []; // Track placed planet positions
             const minPlanetSpacing = 4; // Minimum center-to-center distance
             const minSunDistanceX = sunSize * 0.8; // Horizontal distance from sun center
