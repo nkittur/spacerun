@@ -6652,9 +6652,9 @@
                     exhaustScale = 0.6;
                     break;
                 case 'challenger':
-                    shipModel = 'Challenger';
-                    shipColor = 'Purple';
-                    exhaustColor = new BABYLON.Color3(0.8, 0.2, 1.0); // Purple exhaust
+                    shipModel = 'Executioner';
+                    shipColor = 'Red';
+                    exhaustColor = new BABYLON.Color3(1.0, 0.2, 0.2); // Red exhaust
                     exhaustScale = 0.6;
                     break;
                 default:
@@ -6736,14 +6736,14 @@
                     enemy.damage = 5;
                     break;
                 case 'challenger':
-                    // Challenger: flies at top, fires charging lasers downward
+                    // Challenger (Executioner): flies at top, fires charging lasers downward
                     enemy.maxHealth = Math.round(80 * levelHealthMult);
                     enemy.health = enemy.maxHealth;
-                    enemy.speed = 0.04; // Horizontal tracking speed
+                    enemy.speed = 0.008; // Very slow horizontal movement
                     enemy.hitboxWidth = 1.9; // Larger hitbox for scaled up mesh
                     enemy.hitboxHeight = 1.4;
                     enemy.fireRate = 4000; // Time between laser attacks
-                    enemy.damage = 25; // Laser damage
+                    enemy.damage = Math.round(70 * levelHealthMult); // Laser damage - brings same-level player to 30% HP
                     break;
                 default: // basic
                     enemy.maxHealth = Math.round(30 * levelHealthMult);
@@ -6771,6 +6771,9 @@
                 enemy.laserChargeDuration = 1500; // 1.5 seconds to charge
                 enemy.laserPreviewMesh = null;
                 enemy.uniqueId = 'challenger_' + Math.random().toString(36).substr(2, 9);
+                enemy.laserCleanupTime = 0; // Track when laser was cleaned up
+                enemy.randomTargetX = x; // Random movement target
+                enemy.movementCooldownUntil = 0; // Don't move until this time
             }
 
             return enemy;
@@ -7305,7 +7308,7 @@
                 previewBeam.position.z = -0.05;
 
                 const previewMat = new BABYLON.StandardMaterial('laserPreviewMat', scene);
-                previewMat.emissiveColor = new BABYLON.Color3(0.8, 0.2, 0.5); // Purple/magenta to match Challenger
+                previewMat.emissiveColor = new BABYLON.Color3(1.0, 0.2, 0.1); // Red to match Executioner
                 previewMat.alpha = 0.25;
                 previewMat.disableLighting = true;
                 previewMat.backFaceCulling = false;
@@ -7335,9 +7338,9 @@
                     const baseAlpha = 0.25 + growthPhase * 0.4;
                     enemy.laserPreviewMesh.material.alpha = baseAlpha + pulse;
 
-                    // Color brightens as it reaches full charge
-                    const brightness = 0.8 + growthPhase * 0.2;
-                    enemy.laserPreviewMesh.material.emissiveColor = new BABYLON.Color3(brightness, 0.2 + growthPhase * 0.1, 0.5 + growthPhase * 0.3);
+                    // Color brightens as it reaches full charge (red theme)
+                    const brightness = 1.0;
+                    enemy.laserPreviewMesh.material.emissiveColor = new BABYLON.Color3(brightness, 0.2 + growthPhase * 0.3, 0.1 + growthPhase * 0.1);
 
                     // Keep preview attached to enemy's current position (enemy is frozen anyway)
                     enemy.laserPreviewMesh.position.x = enemy.position.x;
@@ -7371,9 +7374,9 @@
             laser.position.y = enemy.position.y - beamHeight / 2 - 0.5;
             laser.position.z = -0.1;
 
-            // Bright purple/magenta laser to match Challenger's color
+            // Bright red/orange laser to match Executioner's color
             const laserMat = new BABYLON.StandardMaterial('challengerLaserMat', scene);
-            laserMat.emissiveColor = new BABYLON.Color3(1, 0.3, 0.8);
+            laserMat.emissiveColor = new BABYLON.Color3(1, 0.4, 0.1);
             laserMat.alpha = 0.95;
             laserMat.disableLighting = true;
             laserMat.backFaceCulling = false;
@@ -7428,6 +7431,10 @@
                         if (sunGlowLayer) {
                             sunGlowLayer.removeIncludedOnlyMesh(laser);
                         }
+                        // Set movement cooldown on source enemy (0.5s delay after laser cleanup)
+                        if (laser.sourceEnemy) {
+                            laser.sourceEnemy.movementCooldownUntil = performance.now() + 500;
+                        }
                         laser.dispose();
                         gameState.challengerLasers.splice(i, 1);
                     }
@@ -7445,15 +7452,28 @@
                 const prevX = enemy.position.x;
 
                 if (enemy.movementPattern === 'challenger') {
-                    // Challenger: stay at top of screen, follow player's X position
+                    // Challenger (Executioner): stay at top of screen, move very slowly
                     const targetY = orthoHeight - 2; // Stay near top of visible area
                     enemy.position.y += (targetY - enemy.position.y) * 0.05; // Smooth approach to target Y
 
-                    // Freeze horizontal movement when charging laser (so laser stays attached)
-                    if (playerShip && !enemy.laserCharging) {
-                        // Smoothly track player's X position with some lag
-                        const targetX = playerShip.position.x;
-                        const dx = targetX - enemy.position.x;
+                    // Freeze horizontal movement when charging laser or during movement cooldown
+                    const canMove = !enemy.laserCharging && currentTime > enemy.movementCooldownUntil;
+
+                    if (canMove) {
+                        // Only track player 20% of the time, otherwise move randomly
+                        if (Math.random() < 0.002) { // ~20% of frames when we'd pick a new target
+                            // Decide whether to track player or pick random target
+                            if (Math.random() < 0.2 && playerShip) {
+                                // Track player (20% chance)
+                                enemy.randomTargetX = playerShip.position.x;
+                            } else {
+                                // Pick a random target position within screen bounds
+                                enemy.randomTargetX = (Math.random() * 2 - 1) * (orthoWidth - 1);
+                            }
+                        }
+
+                        // Move slowly toward the target
+                        const dx = enemy.randomTargetX - enemy.position.x;
                         enemy.position.x += dx * enemy.speed;
                     }
                 } else if (enemy.movementPattern === 'sine') {
