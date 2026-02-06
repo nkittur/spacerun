@@ -6750,7 +6750,7 @@
                     // Challenger (Executioner): flies at top, fires charging lasers downward
                     enemy.maxHealth = Math.round(80 * levelHealthMult);
                     enemy.health = enemy.maxHealth;
-                    enemy.speed = 0.025; // Faster lateral movement between attacks
+                    enemy.speed = 0.01; // Slower lateral movement between attacks
                     enemy.hitboxWidth = 1.9; // Larger hitbox for scaled up mesh
                     enemy.hitboxHeight = 1.4;
                     enemy.fireRate = 2000; // Time between laser attacks (50% faster)
@@ -7403,7 +7403,10 @@
             laser.laserDamage = enemy.damage;
             laser.laserWidth = beamWidth;
             laser.sourceEnemy = enemy;
-            laser.hasHitPlayer = false;
+            laser.lastDamageTime = 0; // Track continuous damage ticks
+            laser.damageInterval = 100; // Deal damage every 100ms
+            laser.totalDamageTicks = 10; // Total damage will be dealt over ~10 ticks
+            laser.damagePerTick = enemy.damage / laser.totalDamageTicks;
 
             gameState.challengerLasers.push(laser);
         }
@@ -7412,21 +7415,23 @@
         function updateChallengerLasers() {
             if (!gameState.challengerLasers) return;
 
+            const currentTime = performance.now();
+
             for (let i = gameState.challengerLasers.length - 1; i >= 0; i--) {
                 const laser = gameState.challengerLasers[i];
 
                 if (laser && laser.material) {
-                    // Check collision with player
-                    if (playerShip && !laser.hasHitPlayer) {
+                    // Check collision with player - continuous damage while in beam
+                    if (playerShip && currentTime - laser.lastDamageTime >= laser.damageInterval) {
                         const dx = Math.abs(playerShip.position.x - laser.position.x);
                         if (dx < laser.laserWidth / 2 + 0.4) {
-                            // Player hit by laser!
-                            laser.hasHitPlayer = true;
-                            createExplosion(playerShip.position.x, playerShip.position.y, 'medium', 'red');
+                            // Player hit by laser - deal damage tick
+                            laser.lastDamageTime = currentTime;
+                            createExplosion(playerShip.position.x, playerShip.position.y, 'small', 'red');
                             flashShip(playerShipMesh);
 
                             if (!settings.godMode) {
-                                gameState.health -= laser.laserDamage;
+                                gameState.health -= laser.damagePerTick;
                                 updateHUD();
 
                                 if (gameState.health <= 0) {
@@ -7437,8 +7442,8 @@
                         }
                     }
 
-                    // Fade out the laser
-                    laser.material.alpha -= 0.06;
+                    // Fade out the laser more slowly (lasts about 1 second)
+                    laser.material.alpha -= 0.015;
                     if (laser.material.alpha <= 0) {
                         if (sunGlowLayer) {
                             sunGlowLayer.removeIncludedOnlyMesh(laser);
