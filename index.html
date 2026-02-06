@@ -2424,6 +2424,7 @@
             enemies: [],
             playerBullets: [],
             enemyBullets: [],
+            challengerLasers: [],
             loot: [],
             planets: [],
             suns: [],
@@ -5503,6 +5504,12 @@
             });
             gameState.enemyBullets = [];
 
+            // Clear challenger lasers
+            if (gameState.challengerLasers) {
+                gameState.challengerLasers.forEach(l => l.dispose());
+                gameState.challengerLasers = [];
+            }
+
             // Clear loot
             gameState.loot.forEach(l => {
                 l.getChildMeshes().forEach(m => m.dispose());
@@ -6189,6 +6196,12 @@
                     exhaustColor = new BABYLON.Color3(1.0, 0.6, 0.2); // Orange exhaust
                     exhaustScale = 0.6;
                     break;
+                case 'challenger':
+                    shipModel = 'Challenger';
+                    shipColor = 'Red';
+                    exhaustColor = new BABYLON.Color3(1.0, 0.2, 0.2); // Red exhaust
+                    exhaustScale = 0.5;
+                    break;
                 default:
                     shipModel = settings.enemyShip;
                     shipColor = settings.enemyColor;
@@ -6262,6 +6275,16 @@
                     enemy.fireRate = 3000;
                     enemy.damage = 5;
                     break;
+                case 'challenger':
+                    // Challenger: flies at top, fires charging lasers downward
+                    enemy.maxHealth = Math.round(80 * levelHealthMult);
+                    enemy.health = enemy.maxHealth;
+                    enemy.speed = 0.04; // Horizontal tracking speed
+                    enemy.hitboxWidth = 1.4;
+                    enemy.hitboxHeight = 1.0;
+                    enemy.fireRate = 4000; // Time between laser attacks
+                    enemy.damage = 25; // Laser damage
+                    break;
                 default: // basic
                     enemy.maxHealth = Math.round(30 * levelHealthMult);
                     enemy.health = enemy.maxHealth;
@@ -6273,12 +6296,22 @@
             }
 
             enemy.lastFireTime = 0;
-            enemy.movementPattern = type === 'light' ? 'sine' : (Math.random() > 0.5 ? 'sine' : 'straight');
+            enemy.movementPattern = type === 'challenger' ? 'challenger' :
+                (type === 'light' ? 'sine' : (Math.random() > 0.5 ? 'sine' : 'straight'));
             enemy.startX = x;
             enemy.time = Math.random() * Math.PI * 2;
             enemy.mesh = enemyMesh;
             enemy.prevX = x;
             enemy.currentTilt = 0;
+
+            // Challenger-specific properties for charging laser
+            if (type === 'challenger') {
+                enemy.laserCharging = false;
+                enemy.laserChargeStart = 0;
+                enemy.laserChargeDuration = 1500; // 1.5 seconds to charge
+                enemy.laserPreviewMesh = null;
+                enemy.uniqueId = 'challenger_' + Math.random().toString(36).substr(2, 9);
+            }
 
             return enemy;
         }
@@ -6688,6 +6721,11 @@
                         gameState.credits += 10 + Math.floor(Math.random() * 15);
                         updateHUD();
 
+                        // Clean up challenger's laser preview if it exists
+                        if (enemy.laserPreviewMesh) {
+                            enemy.laserPreviewMesh.dispose();
+                        }
+
                         enemy.getChildMeshes().forEach(m => m.dispose());
                         enemy.dispose();
                         gameState.enemies.splice(i, 1);
@@ -6763,12 +6801,19 @@
 
             // Enemy types with weighted spawning based on wave progression
             // Light (Dispatcher) and Heavy (Imperial) unlock at higher waves
+            // Challenger (top-flying laser enemy) unlocks at wave 4+
             const baseTypes = ['basic', 'basic', 'fast', 'shooter'];
             const advancedTypes = ['basic', 'fast', 'shooter', 'light', 'light', 'heavy'];
 
             // Use advanced types after wave 2, mixing in light and heavy attackers
-            const types = gameState.wave >= 3 ? advancedTypes : baseTypes;
-            const type = types[Math.floor(Math.random() * Math.min(types.length, 1 + gameState.wave))];
+            let types = gameState.wave >= 3 ? advancedTypes : baseTypes;
+            let type = types[Math.floor(Math.random() * Math.min(types.length, 1 + gameState.wave))];
+
+            // Chance to spawn a challenger at wave 4+ (10% chance, max 1 per wave)
+            const challengerCount = gameState.enemies.filter(e => e.type === 'challenger').length;
+            if (gameState.wave >= 4 && challengerCount === 0 && Math.random() < 0.1) {
+                type = 'challenger';
+            }
 
             const maxX = orthoWidth - 1;
             const x = (Math.random() - 0.5) * maxX * 1.5;
@@ -6777,6 +6822,153 @@
             const enemy = await createEnemy(type, x, y);
             gameState.enemies.push(enemy);
             gameState.enemiesSpawned++;
+        }
+
+        // Update challenger's charging laser attack
+        function updateChallengerLaser(enemy, currentTime) {
+            if (!playerShip) return;
+
+            // Start charging if not already charging and fire rate timer is up
+            if (!enemy.laserCharging && currentTime - enemy.lastFireTime > enemy.fireRate) {
+                enemy.laserCharging = true;
+                enemy.laserChargeStart = currentTime;
+                enemy.laserTargetX = enemy.position.x; // Lock target position when charging starts
+
+                // Create the preview beam (thin red line that will grow)
+                const beamHeight = orthoHeight * 2 + 4;
+                const previewBeam = BABYLON.MeshBuilder.CreatePlane('laserPreview', {
+                    width: 0.1,
+                    height: beamHeight
+                }, scene);
+                previewBeam.position.x = enemy.position.x;
+                previewBeam.position.y = enemy.position.y - beamHeight / 2 - 0.5;
+                previewBeam.position.z = -0.05;
+
+                const previewMat = new BABYLON.StandardMaterial('laserPreviewMat', scene);
+                previewMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+                previewMat.alpha = 0.2;
+                previewMat.disableLighting = true;
+                previewMat.backFaceCulling = false;
+                previewBeam.material = previewMat;
+                previewBeam.renderingGroupId = 2;
+
+                enemy.laserPreviewMesh = previewBeam;
+            }
+
+            // Update charging laser preview
+            if (enemy.laserCharging && enemy.laserPreviewMesh) {
+                const chargeProgress = (currentTime - enemy.laserChargeStart) / enemy.laserChargeDuration;
+
+                if (chargeProgress < 1) {
+                    // Update preview intensity based on charge progress
+                    // Width grows from 0.1 to 0.6, alpha increases
+                    const newWidth = 0.1 + chargeProgress * 0.5;
+                    const beamHeight = orthoHeight * 2 + 4;
+
+                    // Update mesh scaling for width effect
+                    enemy.laserPreviewMesh.scaling.x = 1 + chargeProgress * 5;
+
+                    // Update material alpha (pulsing effect as it charges)
+                    const pulse = Math.sin(currentTime * 0.02) * 0.1;
+                    enemy.laserPreviewMesh.material.alpha = 0.2 + chargeProgress * 0.5 + pulse;
+
+                    // Color shifts from dim red to bright red/white
+                    const intensity = 0.3 + chargeProgress * 0.7;
+                    enemy.laserPreviewMesh.material.emissiveColor = new BABYLON.Color3(1, chargeProgress * 0.3, chargeProgress * 0.3);
+
+                    // Keep preview at enemy's locked target X
+                    enemy.laserPreviewMesh.position.x = enemy.laserTargetX;
+                    enemy.laserPreviewMesh.position.y = enemy.position.y - beamHeight / 2 - 0.5;
+                } else {
+                    // Charge complete - fire the laser!
+                    fireChallengerLaser(enemy);
+
+                    // Cleanup preview
+                    enemy.laserPreviewMesh.dispose();
+                    enemy.laserPreviewMesh = null;
+                    enemy.laserCharging = false;
+                    enemy.lastFireTime = currentTime;
+                }
+            }
+        }
+
+        // Fire the challenger's damaging laser beam
+        function fireChallengerLaser(enemy) {
+            if (!gameState.challengerLasers) gameState.challengerLasers = [];
+
+            const beamHeight = orthoHeight * 2 + 4;
+            const beamWidth = 0.8;
+
+            // Create the actual damaging laser beam
+            const laser = BABYLON.MeshBuilder.CreatePlane('challengerLaser', {
+                width: beamWidth,
+                height: beamHeight
+            }, scene);
+            laser.position.x = enemy.laserTargetX;
+            laser.position.y = enemy.position.y - beamHeight / 2 - 0.5;
+            laser.position.z = -0.1;
+
+            const laserMat = new BABYLON.StandardMaterial('challengerLaserMat', scene);
+            laserMat.emissiveColor = new BABYLON.Color3(1, 0.2, 0.2);
+            laserMat.alpha = 0.9;
+            laserMat.disableLighting = true;
+            laserMat.backFaceCulling = false;
+            laser.material = laserMat;
+            laser.renderingGroupId = 2;
+
+            // Add to glow layer
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(laser);
+            }
+
+            laser.laserDamage = enemy.damage;
+            laser.laserWidth = beamWidth;
+            laser.sourceEnemy = enemy;
+            laser.hasHitPlayer = false;
+
+            gameState.challengerLasers.push(laser);
+        }
+
+        // Update challenger lasers (fade out and collision)
+        function updateChallengerLasers() {
+            if (!gameState.challengerLasers) return;
+
+            for (let i = gameState.challengerLasers.length - 1; i >= 0; i--) {
+                const laser = gameState.challengerLasers[i];
+
+                if (laser && laser.material) {
+                    // Check collision with player
+                    if (playerShip && !laser.hasHitPlayer) {
+                        const dx = Math.abs(playerShip.position.x - laser.position.x);
+                        if (dx < laser.laserWidth / 2 + 0.4) {
+                            // Player hit by laser!
+                            laser.hasHitPlayer = true;
+                            createExplosion(playerShip.position.x, playerShip.position.y, 'medium', 'red');
+                            flashShip(playerShipMesh);
+
+                            if (!settings.godMode) {
+                                gameState.health -= laser.laserDamage;
+                                updateHUD();
+
+                                if (gameState.health <= 0) {
+                                    createExplosion(playerShip.position.x, playerShip.position.y, 'large', 'blue');
+                                    gameOver();
+                                }
+                            }
+                        }
+                    }
+
+                    // Fade out the laser
+                    laser.material.alpha -= 0.06;
+                    if (laser.material.alpha <= 0) {
+                        if (sunGlowLayer) {
+                            sunGlowLayer.removeIncludedOnlyMesh(laser);
+                        }
+                        laser.dispose();
+                        gameState.challengerLasers.splice(i, 1);
+                    }
+                }
+            }
         }
 
         // Update enemies
@@ -6788,13 +6980,25 @@
 
                 const prevX = enemy.position.x;
 
-                if (enemy.movementPattern === 'sine') {
+                if (enemy.movementPattern === 'challenger') {
+                    // Challenger: stay at top of screen, follow player's X position
+                    const targetY = orthoHeight - 2; // Stay near top of visible area
+                    enemy.position.y += (targetY - enemy.position.y) * 0.05; // Smooth approach to target Y
+
+                    if (playerShip) {
+                        // Smoothly track player's X position with some lag
+                        const targetX = playerShip.position.x;
+                        const dx = targetX - enemy.position.x;
+                        enemy.position.x += dx * enemy.speed;
+                    }
+                } else if (enemy.movementPattern === 'sine') {
                     // Light enemies weave more aggressively, heavy enemies barely weave
                     const waveAmplitude = enemy.type === 'light' ? 3 : enemy.type === 'heavy' ? 1 : 2;
                     enemy.position.x = enemy.startX + Math.sin(enemy.time) * waveAmplitude;
+                    enemy.position.y -= enemy.speed * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                } else {
+                    enemy.position.y -= enemy.speed * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 }
-
-                enemy.position.y -= enemy.speed * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
                 const velocityX = enemy.position.x - prevX;
                 const targetTilt = -velocityX * 8;
@@ -6806,8 +7010,12 @@
                     enemy.mesh.rotation.y = enemy.currentTilt;
                 }
 
-                // All enemy types except 'fast' can shoot
-                if (enemy.type !== 'fast' &&
+                // Challenger has special laser attack handled separately
+                if (enemy.type === 'challenger') {
+                    updateChallengerLaser(enemy, currentTime);
+                }
+                // All enemy types except 'fast' and 'challenger' can shoot bullets
+                else if (enemy.type !== 'fast' &&
                     currentTime - enemy.lastFireTime > enemy.fireRate && playerShip) {
 
                     const dx = playerShip.position.x - enemy.position.x;
@@ -6842,7 +7050,11 @@
                     enemy.lastFireTime = currentTime;
                 }
 
-                if (enemy.position.y < -orthoHeight - 2) {
+                // Challengers don't escape - they stay at top until destroyed
+                if (enemy.type === 'challenger') {
+                    // Clamp to screen bounds
+                    enemy.position.x = Math.max(-orthoWidth + 1, Math.min(orthoWidth - 1, enemy.position.x));
+                } else if (enemy.position.y < -orthoHeight - 2) {
                     // Enemy escaped - just clean up (defense missions handle this differently)
                     gameState.escapedEnemies++;
 
@@ -6884,10 +7096,16 @@
                             createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
                             createLoot(enemy.position.x, enemy.position.y, enemy.type);
 
-                            const points = enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
+                            const points = enemy.type === 'challenger' ? 50 :
+                                enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
                             gameState.score += points * gameState.wave;
                             gameState.credits += 10 + Math.floor(Math.random() * 15);
                             updateHUD();
+
+                            // Clean up challenger's laser preview if it exists
+                            if (enemy.laserPreviewMesh) {
+                                enemy.laserPreviewMesh.dispose();
+                            }
 
                             enemy.getChildMeshes().forEach(m => m.dispose());
                             enemy.dispose();
@@ -7044,6 +7262,12 @@
             gameState.playerBullets = [];
             gameState.enemyBullets.forEach(b => b.dispose());
             gameState.enemyBullets = [];
+
+            // Clear challenger lasers
+            if (gameState.challengerLasers) {
+                gameState.challengerLasers.forEach(l => l.dispose());
+                gameState.challengerLasers = [];
+            }
 
             gameState.loot.forEach(l => {
                 l.getChildMeshes().forEach(m => m.dispose());
@@ -7643,6 +7867,7 @@
 
                 updateEnemies(deltaTime, currentTime, scrollMultiplier);
                 updateBullets();
+                updateChallengerLasers();
                 updateLoot(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
                 updateStarbase(scrollMultiplier, deltaTime);
