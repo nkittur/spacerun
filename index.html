@@ -6669,7 +6669,18 @@
 
             // Scale up Challenger to make it bigger and more imposing
             if (type === 'challenger') {
-                enemyMesh.scaling.scaleInPlace(1.4);
+                enemyMesh.scaling.scaleInPlace(2.1); // 50% bigger than before
+
+                // Make Executioner darker and redder - reduce washout from lighting
+                const executionerMeshes = enemyMesh.getChildMeshes(false) || [];
+                executionerMeshes.push(enemyMesh);
+                executionerMeshes.forEach(mesh => {
+                    if (mesh.material) {
+                        mesh.material.emissiveColor = new BABYLON.Color3(0.15, 0.02, 0.02); // Dark red emissive
+                        mesh.material.ambientColor = new BABYLON.Color3(0.1, 0.02, 0.02); // Dark red ambient
+                        mesh.material.specularColor = new BABYLON.Color3(0.3, 0.05, 0.05); // Subtle red specular
+                    }
+                });
             }
 
             // Exclude enemy ship from GlowLayer to prevent bloom washout
@@ -6773,6 +6784,7 @@
                 enemy.uniqueId = 'challenger_' + Math.random().toString(36).substr(2, 9);
                 enemy.laserCleanupTime = 0; // Track when laser was cleaned up
                 enemy.randomTargetX = x; // Random movement target
+                enemy.randomTargetYOffset = 0; // Random Y offset for wobble movement
                 enemy.movementCooldownUntil = 0; // Don't move until this time
             }
 
@@ -7452,15 +7464,16 @@
                 const prevX = enemy.position.x;
 
                 if (enemy.movementPattern === 'challenger') {
-                    // Challenger (Executioner): stay at top of screen, move very slowly
-                    const targetY = orthoHeight - 2; // Stay near top of visible area
-                    enemy.position.y += (targetY - enemy.position.y) * 0.05; // Smooth approach to target Y
+                    // Challenger (Executioner): stay at top of screen, move very slowly with Y wobble
+                    const baseTargetY = orthoHeight - 2; // Base position near top of visible area
+                    const targetY = baseTargetY + enemy.randomTargetYOffset; // Apply random Y offset
+                    enemy.position.y += (targetY - enemy.position.y) * 0.03; // Smooth approach to target Y
 
                     // Freeze horizontal movement when charging laser or during movement cooldown
                     const canMove = !enemy.laserCharging && currentTime > enemy.movementCooldownUntil;
 
                     if (canMove) {
-                        // Only track player 20% of the time, otherwise move randomly
+                        // Periodically pick new random targets for X and Y
                         if (Math.random() < 0.002) { // ~20% of frames when we'd pick a new target
                             // Decide whether to track player or pick random target
                             if (Math.random() < 0.2 && playerShip) {
@@ -7470,6 +7483,12 @@
                                 // Pick a random target position within screen bounds
                                 enemy.randomTargetX = (Math.random() * 2 - 1) * (orthoWidth - 1);
                             }
+                        }
+
+                        // Pick new random Y offset occasionally (independent of X targeting)
+                        if (Math.random() < 0.003) {
+                            // Random Y offset between -1.5 and +1.5 units
+                            enemy.randomTargetYOffset = (Math.random() * 2 - 1) * 1.5;
                         }
 
                         // Move slowly toward the target
