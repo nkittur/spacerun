@@ -7321,19 +7321,23 @@
                 const beamHeight = orthoHeight * 2 + 4;
 
                 if (chargeProgress < 1) {
-                    // Keep the preview thin and pulsing - don't grow until firing
                     // Pulsing effect to indicate charging (faster pulse as it charges)
                     const pulseSpeed = 0.015 + chargeProgress * 0.01;
                     const pulse = Math.sin(currentTime * pulseSpeed) * 0.15;
 
-                    // Preview stays thin (no scaling growth)
-                    enemy.laserPreviewMesh.scaling.x = 1;
+                    // Preview grows to full laser width (1.0) in the last 30% of charge
+                    // This gives the player a clear warning of the danger zone
+                    const growthPhase = Math.max(0, (chargeProgress - 0.7) / 0.3); // 0 to 1 in last 30%
+                    const targetScale = 10; // Scale from 0.1 width to 1.0 width (10x)
+                    enemy.laserPreviewMesh.scaling.x = 1 + growthPhase * (targetScale - 1);
 
-                    // Alpha pulses but stays relatively dim
-                    enemy.laserPreviewMesh.material.alpha = 0.25 + pulse;
+                    // Alpha increases as beam grows, pulses throughout
+                    const baseAlpha = 0.25 + growthPhase * 0.4;
+                    enemy.laserPreviewMesh.material.alpha = baseAlpha + pulse;
 
-                    // Color stays dim purple/red to match Challenger's color
-                    enemy.laserPreviewMesh.material.emissiveColor = new BABYLON.Color3(0.8, 0.2, 0.5);
+                    // Color brightens as it reaches full charge
+                    const brightness = 0.8 + growthPhase * 0.2;
+                    enemy.laserPreviewMesh.material.emissiveColor = new BABYLON.Color3(brightness, 0.2 + growthPhase * 0.1, 0.5 + growthPhase * 0.3);
 
                     // Keep preview attached to enemy's current position (enemy is frozen anyway)
                     enemy.laserPreviewMesh.position.x = enemy.position.x;
