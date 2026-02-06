@@ -6653,9 +6653,9 @@
                     break;
                 case 'challenger':
                     shipModel = 'Challenger';
-                    shipColor = 'Red';
-                    exhaustColor = new BABYLON.Color3(1.0, 0.2, 0.2); // Red exhaust
-                    exhaustScale = 0.5;
+                    shipColor = 'Purple';
+                    exhaustColor = new BABYLON.Color3(0.8, 0.2, 1.0); // Purple exhaust
+                    exhaustScale = 0.6;
                     break;
                 default:
                     shipModel = settings.enemyShip;
@@ -6666,6 +6666,11 @@
 
             const enemyMesh = await loadShipModel(shipModel, shipColor, scene, 'down');
             enemyMesh.parent = enemy;
+
+            // Scale up Challenger to make it bigger and more imposing
+            if (type === 'challenger') {
+                enemyMesh.scaling.scaleInPlace(1.4);
+            }
 
             // Exclude enemy ship from GlowLayer to prevent bloom washout
             // Set rendering group to render on top of suns/planets
@@ -6735,8 +6740,8 @@
                     enemy.maxHealth = Math.round(80 * levelHealthMult);
                     enemy.health = enemy.maxHealth;
                     enemy.speed = 0.04; // Horizontal tracking speed
-                    enemy.hitboxWidth = 1.4;
-                    enemy.hitboxHeight = 1.0;
+                    enemy.hitboxWidth = 1.9; // Larger hitbox for scaled up mesh
+                    enemy.hitboxHeight = 1.4;
                     enemy.fireRate = 4000; // Time between laser attacks
                     enemy.damage = 25; // Laser damage
                     break;
@@ -7300,8 +7305,8 @@
                 previewBeam.position.z = -0.05;
 
                 const previewMat = new BABYLON.StandardMaterial('laserPreviewMat', scene);
-                previewMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
-                previewMat.alpha = 0.2;
+                previewMat.emissiveColor = new BABYLON.Color3(0.8, 0.2, 0.5); // Purple/magenta to match Challenger
+                previewMat.alpha = 0.25;
                 previewMat.disableLighting = true;
                 previewMat.backFaceCulling = false;
                 previewBeam.material = previewMat;
@@ -7313,26 +7318,25 @@
             // Update charging laser preview
             if (enemy.laserCharging && enemy.laserPreviewMesh) {
                 const chargeProgress = (currentTime - enemy.laserChargeStart) / enemy.laserChargeDuration;
+                const beamHeight = orthoHeight * 2 + 4;
 
                 if (chargeProgress < 1) {
-                    // Update preview intensity based on charge progress
-                    // Width grows from 0.1 to 0.6, alpha increases
-                    const newWidth = 0.1 + chargeProgress * 0.5;
-                    const beamHeight = orthoHeight * 2 + 4;
+                    // Keep the preview thin and pulsing - don't grow until firing
+                    // Pulsing effect to indicate charging (faster pulse as it charges)
+                    const pulseSpeed = 0.015 + chargeProgress * 0.01;
+                    const pulse = Math.sin(currentTime * pulseSpeed) * 0.15;
 
-                    // Update mesh scaling for width effect
-                    enemy.laserPreviewMesh.scaling.x = 1 + chargeProgress * 5;
+                    // Preview stays thin (no scaling growth)
+                    enemy.laserPreviewMesh.scaling.x = 1;
 
-                    // Update material alpha (pulsing effect as it charges)
-                    const pulse = Math.sin(currentTime * 0.02) * 0.1;
-                    enemy.laserPreviewMesh.material.alpha = 0.2 + chargeProgress * 0.5 + pulse;
+                    // Alpha pulses but stays relatively dim
+                    enemy.laserPreviewMesh.material.alpha = 0.25 + pulse;
 
-                    // Color shifts from dim red to bright red/white
-                    const intensity = 0.3 + chargeProgress * 0.7;
-                    enemy.laserPreviewMesh.material.emissiveColor = new BABYLON.Color3(1, chargeProgress * 0.3, chargeProgress * 0.3);
+                    // Color stays dim purple/red to match Challenger's color
+                    enemy.laserPreviewMesh.material.emissiveColor = new BABYLON.Color3(0.8, 0.2, 0.5);
 
-                    // Keep preview at enemy's locked target X
-                    enemy.laserPreviewMesh.position.x = enemy.laserTargetX;
+                    // Keep preview attached to enemy's current position (enemy is frozen anyway)
+                    enemy.laserPreviewMesh.position.x = enemy.position.x;
                     enemy.laserPreviewMesh.position.y = enemy.position.y - beamHeight / 2 - 0.5;
                 } else {
                     // Charge complete - fire the laser!
@@ -7352,20 +7356,21 @@
             if (!gameState.challengerLasers) gameState.challengerLasers = [];
 
             const beamHeight = orthoHeight * 2 + 4;
-            const beamWidth = 0.8;
+            const beamWidth = 1.0; // Thicker than the preview to show power
 
-            // Create the actual damaging laser beam
+            // Create the actual damaging laser beam at enemy's current position
             const laser = BABYLON.MeshBuilder.CreatePlane('challengerLaser', {
                 width: beamWidth,
                 height: beamHeight
             }, scene);
-            laser.position.x = enemy.laserTargetX;
+            laser.position.x = enemy.position.x; // Fire from current position
             laser.position.y = enemy.position.y - beamHeight / 2 - 0.5;
             laser.position.z = -0.1;
 
+            // Bright purple/magenta laser to match Challenger's color
             const laserMat = new BABYLON.StandardMaterial('challengerLaserMat', scene);
-            laserMat.emissiveColor = new BABYLON.Color3(1, 0.2, 0.2);
-            laserMat.alpha = 0.9;
+            laserMat.emissiveColor = new BABYLON.Color3(1, 0.3, 0.8);
+            laserMat.alpha = 0.95;
             laserMat.disableLighting = true;
             laserMat.backFaceCulling = false;
             laser.material = laserMat;
@@ -7440,7 +7445,8 @@
                     const targetY = orthoHeight - 2; // Stay near top of visible area
                     enemy.position.y += (targetY - enemy.position.y) * 0.05; // Smooth approach to target Y
 
-                    if (playerShip) {
+                    // Freeze horizontal movement when charging laser (so laser stays attached)
+                    if (playerShip && !enemy.laserCharging) {
                         // Smoothly track player's X position with some lag
                         const targetX = playerShip.position.x;
                         const dx = targetX - enemy.position.x;
