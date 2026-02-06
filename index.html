@@ -6750,10 +6750,10 @@
                     // Challenger (Executioner): flies at top, fires charging lasers downward
                     enemy.maxHealth = Math.round(80 * levelHealthMult);
                     enemy.health = enemy.maxHealth;
-                    enemy.speed = 0.008; // Very slow horizontal movement
+                    enemy.speed = 0.025; // Faster lateral movement between attacks
                     enemy.hitboxWidth = 1.9; // Larger hitbox for scaled up mesh
                     enemy.hitboxHeight = 1.4;
-                    enemy.fireRate = 4000; // Time between laser attacks
+                    enemy.fireRate = 2000; // Time between laser attacks (50% faster)
                     enemy.damage = Math.round(70 * levelHealthMult); // Laser damage - brings same-level player to 30% HP
                     break;
                 default: // basic
@@ -7464,7 +7464,7 @@
                 const prevX = enemy.position.x;
 
                 if (enemy.movementPattern === 'challenger') {
-                    // Challenger (Executioner): stay at top of screen, move very slowly with Y wobble
+                    // Challenger (Executioner): stay at top of screen, active lateral movement between charges
                     const baseTargetY = orthoHeight - 2; // Base position near top of visible area
                     const targetY = baseTargetY + enemy.randomTargetYOffset; // Apply random Y offset
                     enemy.position.y += (targetY - enemy.position.y) * 0.03; // Smooth approach to target Y
@@ -7473,15 +7473,23 @@
                     const canMove = !enemy.laserCharging && currentTime > enemy.movementCooldownUntil;
 
                     if (canMove) {
-                        // Periodically pick new random targets for X and Y
-                        if (Math.random() < 0.002) { // ~20% of frames when we'd pick a new target
+                        // Pick new target when close to current target or periodically
+                        const distToTarget = Math.abs(enemy.randomTargetX - enemy.position.x);
+                        if (distToTarget < 0.5 || Math.random() < 0.008) {
                             // Decide whether to track player or pick random target
-                            if (Math.random() < 0.2 && playerShip) {
-                                // Track player (20% chance)
+                            if (Math.random() < 0.35 && playerShip) {
+                                // Track player position (35% chance)
                                 enemy.randomTargetX = playerShip.position.x;
                             } else {
-                                // Pick a random target position within screen bounds
-                                enemy.randomTargetX = (Math.random() * 2 - 1) * (orthoWidth - 1);
+                                // Pick opposite side or random position for active lateral movement
+                                if (Math.random() < 0.6) {
+                                    // Move toward opposite side of screen
+                                    const oppositeX = enemy.position.x > 0 ? -1 : 1;
+                                    enemy.randomTargetX = oppositeX * (orthoWidth - 1) * (0.5 + Math.random() * 0.5);
+                                } else {
+                                    // Pick a random target position within screen bounds
+                                    enemy.randomTargetX = (Math.random() * 2 - 1) * (orthoWidth - 1);
+                                }
                             }
                         }
 
@@ -7491,7 +7499,7 @@
                             enemy.randomTargetYOffset = (Math.random() * 2 - 1) * 1.5;
                         }
 
-                        // Move slowly toward the target
+                        // Move toward the target with increased speed
                         const dx = enemy.randomTargetX - enemy.position.x;
                         enemy.position.x += dx * enemy.speed;
                     }
