@@ -8998,6 +8998,9 @@
             // Apply upgrade effects (recalculates stats from upgrade levels)
             applyAllUpgrades();
 
+            // Sync equipped weapons from restored fleet hardpoints
+            syncEquippedWeapons();
+
             // Restore exploration/combat state
             gameState.inExploration = saveData.inExploration || false;
             gameState.explorationDistance = saveData.explorationDistance || 0;
