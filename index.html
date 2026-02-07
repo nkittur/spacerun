@@ -3146,6 +3146,7 @@
             pendingNotifications: {},
             // Zone/background tracking
             currentZone: 0,
+            currentZoneVariant: 1,
             distanceTraveled: 0,
             transitionPhase: 0, // 0=none, 1=fading to starfield, 2=fading to next zone
             backgroundTransition: 0,
@@ -4058,9 +4059,12 @@
         }
 
         // Get background texture path for a zone
-        function getBackgroundPath(zoneIndex) {
+        function getBackgroundPath(zoneIndex, variant) {
             const zone = SPACE_ZONES[zoneIndex % SPACE_ZONES.length];
-            const variant = Math.floor(Math.random() * zone.variants) + 1;
+            if (variant === undefined) {
+                variant = Math.floor(Math.random() * zone.variants) + 1;
+            }
+            gameState.currentZoneVariant = variant;
             const variantStr = variant.toString().padStart(2, '0');
             return `assets/SBS - Seamless Space Backgrounds - Small 512x512/Small 512x512/${zone.folder}/${zone.prefix}_${variantStr}-512x512.png`;
         }
@@ -8853,6 +8857,7 @@
                 levelConfig: gameState.levelConfig,
                 stationsVisited: gameState.stationsVisited,
                 currentZone: gameState.currentZone,
+                currentZoneVariant: gameState.currentZoneVariant,
                 levelEndSpawned: gameState.levelEndSpawned,
                 credits: gameState.credits,
                 ownedWeapons: gameState.ownedWeapons,
@@ -8946,6 +8951,7 @@
             gameState.stationsVisited = saveData.stationsVisited || 0;
             gameState.gatesAtLevel = saveData.gatesAtLevel || 0;
             gameState.currentZone = saveData.currentZone || 0;
+            gameState.currentZoneVariant = saveData.currentZoneVariant || 1;
             gameState.levelEndSpawned = saveData.levelEndSpawned || false;
             gameState.credits = saveData.credits || 0;
             gameState.ownedWeapons = saveData.ownedWeapons || ['basic'];
@@ -9000,7 +9006,7 @@
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.dispose();
                 const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
-                const textureA = new BABYLON.Texture(getBackgroundPath(gameState.currentZone), scene);
+                const textureA = new BABYLON.Texture(getBackgroundPath(gameState.currentZone, gameState.currentZoneVariant), scene);
                 textureA.uScale = bgSize / 20;
                 textureA.vScale = bgSize * 2 / 20;
                 textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
@@ -9296,6 +9302,14 @@
                 const savedGame = loadGame();
                 if (savedGame) {
                     applySavedState(savedGame);
+
+                    // On continue, enemy meshes don't survive page reload.
+                    // Re-spawn the current wave so the game doesn't instantly fast-forward
+                    // through all remaining waves (since enemiesSpawned >= enemiesInWave
+                    // with enemies.length === 0 would trigger wave completion immediately).
+                    if (gameState.enemiesInWave > 0 && gameState.enemiesSpawned > 0) {
+                        gameState.enemiesSpawned = 0;
+                    }
                 }
             } else {
                 // New game - clear any existing save
@@ -9333,7 +9347,9 @@
 
             // Initialize solar system spawning
             gameState.nextSolarSystemY = orthoHeight + 15;
-            gameState.baseShields = 100;
+            if (!loadSave) {
+                gameState.baseShields = 100;
+            }
 
             gameState.isPlaying = true;
             gameState.lastFrameTime = performance.now();
