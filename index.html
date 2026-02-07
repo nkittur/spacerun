@@ -188,6 +188,76 @@
             transition: width 0.3s ease;
         }
 
+        #secondaryDisplay {
+            position: absolute;
+            bottom: 80px;
+            right: 15px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 12px;
+            z-index: 50;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+        }
+
+        #secondaryBar {
+            width: 50px;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #4488ff;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        #secondaryBarFill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #4488ff, #88ccff);
+            transition: width 0.3s ease;
+        }
+
+        #secondaryLabel {
+            font-size: 10px;
+            color: #88ccff;
+        }
+
+        #shieldDisplay {
+            position: absolute;
+            top: 10px;
+            right: 180px;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px;
+            z-index: 50;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #shieldBar {
+            width: 60px;
+            height: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #4488ff;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        #shieldBarFill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #2266cc, #66aaff);
+            transition: width 0.3s ease;
+        }
+
         /* Resource collection notifications below top UI */
         #collectNotifications {
             position: absolute;
@@ -2525,6 +2595,18 @@
         <span id="fuelValue">100</span>
     </div>
 
+    <div id="secondaryDisplay" style="display: none;">
+        <span id="secondaryIcon">🌀</span>
+        <div id="secondaryBar"><div id="secondaryBarFill"></div></div>
+        <span id="secondaryLabel">READY</span>
+    </div>
+
+    <div id="shieldDisplay" style="display: none;">
+        <span>🛡</span>
+        <div id="shieldBar"><div id="shieldBarFill"></div></div>
+        <span id="shieldValue">0</span>
+    </div>
+
     <div id="collectNotifications"></div>
 
     <div id="harvestBar">
@@ -3218,7 +3300,21 @@
             mysteryEventActive: false,  // Whether mystery event dialog is open
             eventObject: null,          // Current event object mesh (e.g., behemoth derelict)
             pendingEventConfig: null,   // Gate config stored while event dialog is open
-            lastEventOutcome: null      // Outcome type from most recent event choice
+            lastEventOutcome: null,     // Outcome type from most recent event choice
+            // Equipment systems
+            drones: [],                 // Active drone meshes orbiting player
+            droneEquipment: null,       // Equipped drone data (from equipment)
+            shieldEquipment: null,      // Equipped shield generator data
+            shieldBubble: null,         // Shield bubble mesh (visual)
+            shieldHP: 0,               // Current shield equipment HP
+            shieldMaxHP: 0,            // Max shield equipment HP
+            shieldRechargeTimer: 0,    // Time until shield starts recharging
+            missiles: [],              // Active missile projectiles in flight
+            // Secondary ability
+            secondaryAbility: null,     // Equipped secondary ability data
+            secondaryCooldown: 0,       // Remaining cooldown (ms)
+            secondaryMaxCooldown: 0,    // Max cooldown (ms)
+            secondaryActive: false      // Whether secondary is currently firing
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -3683,7 +3779,8 @@
                 model: 'Bob',
                 hardpoints: [
                     { size: 'medium', position: { x: 0, y: 0.3 }, equipped: null }
-                ]
+                ],
+                secondarySlot: true  // Has a secondary ability slot
             }
         };
 
@@ -3893,6 +3990,204 @@
                 speed: 0.35,
                 cost: 0,
                 quality: 'common'
+            }
+        };
+
+        // ========== EQUIPMENT SYSTEM ==========
+        // Equipment types that go on hardpoints (alongside weapons) or special slots
+        const EQUIPMENT_TEMPLATES = {
+            // Shield generators - absorb damage, recharge after delay
+            shield_generator: {
+                baseName: 'Shield Generator',
+                category: 'shield',
+                size: 'medium',
+                baseShieldHP: 30,
+                baseRechargeRate: 5,    // HP per second
+                baseRechargeDelay: 4000, // ms before recharge starts after taking damage
+                baseCost: 200,
+                scaling: {
+                    shieldHPPerLevel: 10,
+                    rechargeRatePerLevel: 1.5,
+                    rechargeDelayPerLevel: -200
+                },
+                desc: 'Projects an energy barrier that absorbs damage before hull.'
+            },
+            heavy_shield: {
+                baseName: 'Heavy Shield',
+                category: 'shield',
+                size: 'heavy',
+                baseShieldHP: 60,
+                baseRechargeRate: 3,
+                baseRechargeDelay: 5000,
+                baseCost: 400,
+                scaling: {
+                    shieldHPPerLevel: 15,
+                    rechargeRatePerLevel: 1,
+                    rechargeDelayPerLevel: -250
+                },
+                desc: 'Heavy-duty shield with high capacity but slow recharge.'
+            },
+            // Combat drones - orbit player, shoot enemies, block some shots
+            combat_drone: {
+                baseName: 'Combat Drone',
+                category: 'drone',
+                size: 'light',
+                baseDroneCount: 2,
+                baseDroneDamage: 5,
+                baseDroneFireRate: 800,
+                baseDroneHP: 15,        // How much damage a drone can absorb before destruction
+                baseOrbitRadius: 1.5,
+                baseCost: 250,
+                scaling: {
+                    droneCountPerLevel: 0.5,  // +1 drone every 2 levels
+                    droneDamagePerLevel: 2,
+                    droneFireRatePerLevel: -30,
+                    droneHPPerLevel: 5
+                },
+                desc: 'Deploys autonomous drones that orbit your ship, shooting enemies and blocking incoming fire.'
+            },
+            assault_drone: {
+                baseName: 'Assault Drone',
+                category: 'drone',
+                size: 'medium',
+                baseDroneCount: 3,
+                baseDroneDamage: 8,
+                baseDroneFireRate: 600,
+                baseDroneHP: 25,
+                baseOrbitRadius: 1.8,
+                baseCost: 450,
+                scaling: {
+                    droneCountPerLevel: 0.5,
+                    droneDamagePerLevel: 3,
+                    droneFireRatePerLevel: -25,
+                    droneHPPerLevel: 8
+                },
+                desc: 'Heavy assault drones with superior firepower and durability.'
+            },
+            // Missile launchers - slow launch, accelerate to target
+            missile_launcher: {
+                baseName: 'Missile Pod',
+                category: 'missile',
+                size: 'medium',
+                baseDamage: 25,
+                baseFireRate: 1500,
+                baseMissileCount: 1,
+                baseSpeed: 0.05,         // Initial slow speed
+                baseMaxSpeed: 0.4,       // Top speed after acceleration
+                baseAcceleration: 0.008,
+                homing: false,           // Dumb missiles (fly straight)
+                baseCost: 300,
+                scaling: {
+                    damagePerLevel: 8,
+                    fireRatePerLevel: -50,
+                    missileCountPerLevel: 0.3,
+                    speedPerLevel: 0.01
+                },
+                desc: 'Fires unguided missiles that accelerate toward the target area.'
+            },
+            homing_missile: {
+                baseName: 'Homing Missile',
+                category: 'missile',
+                size: 'heavy',
+                baseDamage: 35,
+                baseFireRate: 2000,
+                baseMissileCount: 1,
+                baseSpeed: 0.04,
+                baseMaxSpeed: 0.35,
+                baseAcceleration: 0.006,
+                homing: true,            // Tracks nearest enemy
+                baseCost: 500,
+                scaling: {
+                    damagePerLevel: 10,
+                    fireRatePerLevel: -60,
+                    missileCountPerLevel: 0.25,
+                    speedPerLevel: 0.008
+                },
+                desc: 'Smart missiles that lock onto and pursue the nearest enemy.'
+            }
+        };
+
+        // Calculate equipment stats from template
+        function calculateEquipmentStats(template, level, quality) {
+            const q = WEAPON_QUALITIES[quality || 'common'];
+            const lvl = level - 1;
+            const stats = {};
+
+            if (template.category === 'shield') {
+                stats.shieldHP = Math.round((template.baseShieldHP + template.scaling.shieldHPPerLevel * lvl) * q.statMult);
+                stats.rechargeRate = Math.round((template.baseRechargeRate + template.scaling.rechargeRatePerLevel * lvl) * 10) / 10;
+                stats.rechargeDelay = Math.max(1000, template.baseRechargeDelay + template.scaling.rechargeDelayPerLevel * lvl);
+            } else if (template.category === 'drone') {
+                stats.droneCount = template.baseDroneCount + Math.floor(template.scaling.droneCountPerLevel * lvl);
+                stats.droneDamage = Math.round((template.baseDroneDamage + template.scaling.droneDamagePerLevel * lvl) * q.statMult);
+                stats.droneFireRate = Math.max(200, template.baseDroneFireRate + template.scaling.droneFireRatePerLevel * lvl);
+                stats.droneHP = Math.round((template.baseDroneHP + template.scaling.droneHPPerLevel * lvl) * q.statMult);
+                stats.orbitRadius = template.baseOrbitRadius;
+            } else if (template.category === 'missile') {
+                stats.damage = Math.round((template.baseDamage + template.scaling.damagePerLevel * lvl) * q.statMult);
+                stats.fireRate = Math.max(500, template.baseFireRate + template.scaling.fireRatePerLevel * lvl);
+                stats.missileCount = template.baseMissileCount + Math.floor(template.scaling.missileCountPerLevel * lvl);
+                stats.speed = template.baseSpeed + template.scaling.speedPerLevel * lvl;
+                stats.maxSpeed = template.baseMaxSpeed + template.scaling.speedPerLevel * lvl;
+                stats.acceleration = template.baseAcceleration;
+                stats.homing = template.homing;
+            }
+            return stats;
+        }
+
+        // Generate random equipment
+        function generateEquipment(level, category, quality) {
+            const templates = Object.entries(EQUIPMENT_TEMPLATES)
+                .filter(([_, t]) => !category || t.category === category);
+            if (templates.length === 0) return null;
+
+            const [templateId, template] = templates[Math.floor(Math.random() * templates.length)];
+            quality = quality || rollQuality(level);
+            const stats = calculateEquipmentStats(template, level, quality);
+            const q = WEAPON_QUALITIES[quality];
+
+            return {
+                id: `${templateId}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+                templateId,
+                name: `${q.namePre ? q.namePre + ' ' : ''}${template.baseName} Mk-${level}`,
+                category: template.category,
+                size: template.size,
+                level,
+                quality,
+                ...stats,
+                desc: template.desc,
+                isEquipment: true
+            };
+        }
+
+        function rollQuality(level) {
+            const r = Math.random();
+            const bonus = level * 0.02;
+            if (r < 0.05 + bonus * 2) return 'legendary';
+            if (r < 0.15 + bonus) return 'excellent';
+            if (r < 0.35 + bonus) return 'good';
+            if (r < 0.6) return 'common';
+            return 'poor';
+        }
+
+        // ========== SECONDARY ABILITIES ==========
+        const SECONDARY_ABILITIES = {
+            gravity_pulse: {
+                name: 'Gravity Pulse',
+                desc: 'Emits a shockwave that destroys all enemy projectiles on screen.',
+                icon: '🌀',
+                cooldown: 30000,  // 30 second base cooldown (starter is very long)
+                color: [0.3, 0.5, 1.0],
+                effect: 'clear_projectiles'
+            },
+            mega_laser: {
+                name: 'Nova Beam',
+                desc: 'Fires a devastating beam that deals massive damage to all enemies.',
+                icon: '⚡',
+                cooldown: 20000,  // 20 second cooldown
+                color: [1.0, 0.4, 0.1],
+                effect: 'mega_beam',
+                damage: 200
             }
         };
 
@@ -6407,6 +6702,9 @@
                 gameState.challengerLasers = [];
             }
 
+            // Clear missiles
+            cleanupMissiles();
+
             // Clear loot
             gameState.loot.forEach(l => {
                 l.getChildMeshes().forEach(m => m.dispose());
@@ -6514,10 +6812,11 @@
                         desc: 'Send a team to breach the outer cargo holds for supplies.',
                         risk: 'Low risk -- exterior compartments only',
                         outcomes: [
-                            { weight: 40, type: 'loot_common', text: 'Your salvage team cracks open corroded cargo containers. Standard military supplies, some still sealed.' },
-                            { weight: 30, type: 'loot_good', text: 'Behind a jammed blast door, your team finds a sealed armory cache -- premium supplies in pristine condition.' },
-                            { weight: 15, type: 'loot_great', text: 'The cargo bay was hauling rare minerals. Crystals and exotic materials fill your hold.' },
-                            { weight: 10, type: 'fuel_find', text: 'The Behemoth\'s auxiliary fuel reserves are still pressurized. You siphon a generous supply of hydrogen fuel.' },
+                            { weight: 30, type: 'loot_good', text: 'Your salvage team cracks open sealed military cargo containers. Quality supplies and components.' },
+                            { weight: 25, type: 'loot_great', text: 'The cargo bay was hauling rare minerals. Crystals and exotic materials fill your hold.' },
+                            { weight: 15, type: 'equipment_find', text: 'Buried in the cargo hold, your team uncovers a functioning piece of military hardware -- still sealed in its shipping crate!' },
+                            { weight: 15, type: 'fuel_find', text: 'The Behemoth\'s auxiliary fuel reserves are still pressurized. You siphon a generous supply of hydrogen fuel.' },
+                            { weight: 10, type: 'credits_jackpot', text: 'A sealed vault of credit chips and precious metals -- the Behemoth\'s payroll for thousands of crew.' },
                             { weight: 5, type: 'trap_minor', text: 'A corroded bulkhead collapses as your team works. Minor hull damage from debris, but you grab some salvage.' }
                         ]
                     },
@@ -6526,10 +6825,11 @@
                         desc: 'Venture deep inside to find the command deck and engineering core.',
                         risk: 'Medium risk -- deep penetration, unknown hazards',
                         outcomes: [
-                            { weight: 25, type: 'loot_good', text: 'The bridge is gutted but engineering still has functional components. Quality military hardware.' },
-                            { weight: 20, type: 'weapon_find', text: 'In the Behemoth\'s weapons vault you find a military-grade weapon system, still operational!' },
-                            { weight: 15, type: 'legendary_weapon', text: 'Deep in the command sanctum you discover the captain\'s personal weapon -- a legendary armament of extraordinary power.' },
-                            { weight: 15, type: 'credits_jackpot', text: 'The ship\'s strongroom is intact! Credit chips, precious metals, and trade goods worth a fortune.' },
+                            { weight: 20, type: 'legendary_equipment', text: 'In the captain\'s private armory, you discover a legendary piece of equipment -- still humming with power after all these years!' },
+                            { weight: 18, type: 'legendary_weapon', text: 'Deep in the command sanctum you discover the captain\'s personal weapon -- a legendary armament of extraordinary power.' },
+                            { weight: 15, type: 'equipment_find', text: 'Engineering bay yields a working equipment module. Military-spec technology far beyond civilian hardware.' },
+                            { weight: 12, type: 'secondary_upgrade', text: 'You find the Behemoth\'s tactical systems core -- an advanced secondary weapon module, still operational!' },
+                            { weight: 10, type: 'credits_jackpot', text: 'The ship\'s strongroom is intact! Credit chips, precious metals, and trade goods worth a fortune.' },
                             { weight: 15, type: 'pirates_ambush', text: 'You\'re not alone. Pirates have been using this wreck as a base. They spring their trap as your team reaches the bridge!' },
                             { weight: 10, type: 'trap_major', text: 'The reactor core is unstable. A power surge rips through the corridors. Your team barely escapes, taking heavy damage.' }
                         ]
@@ -6539,9 +6839,10 @@
                         desc: 'Remotely scan for the flight recorder and depart quickly.',
                         risk: 'No risk -- safe but modest reward',
                         outcomes: [
-                            { weight: 50, type: 'credits_small', text: 'You recover the black box telemetry data. A nearby station will pay for these naval records.' },
-                            { weight: 30, type: 'loot_common', text: 'Your long-range scan picks up a loose cargo pod drifting near the hull. You snag it on your way past.' },
-                            { weight: 20, type: 'intel_bonus', text: 'The black box contains star charts with hidden fuel cache coordinates. Valuable intelligence.' }
+                            { weight: 40, type: 'credits_small', text: 'You recover the black box telemetry data. A nearby station will pay for these naval records.' },
+                            { weight: 25, type: 'loot_good', text: 'Your long-range scan picks up a sealed cargo pod drifting near the hull. Quality supplies inside.' },
+                            { weight: 20, type: 'intel_bonus', text: 'The black box contains star charts with hidden fuel cache coordinates. Valuable intelligence.' },
+                            { weight: 15, type: 'equipment_find', text: 'Your scan detects an ejected escape pod with an intact equipment module strapped to its hull!' }
                         ]
                     },
                     {
@@ -6562,8 +6863,8 @@
 
             switch (outcome.type) {
                 case 'loot_common': {
-                    const metal = 5 + Math.floor(Math.random() * 6);
-                    const credits = 10 + Math.floor(Math.random() * 15);
+                    const metal = 10 + Math.floor(Math.random() * 10);
+                    const credits = 20 + Math.floor(Math.random() * 20);
                     gameState.resources.Metal = (gameState.resources.Metal || 0) + metal;
                     gameState.credits = (gameState.credits || 0) + credits;
                     rewards.push({ text: `+${metal} Metal`, css: 'reward-good' });
@@ -6571,9 +6872,9 @@
                     break;
                 }
                 case 'loot_good': {
-                    const metal = 8 + Math.floor(Math.random() * 8);
-                    const crystals = 3 + Math.floor(Math.random() * 4);
-                    const credits = 20 + Math.floor(Math.random() * 20);
+                    const metal = 15 + Math.floor(Math.random() * 10);
+                    const crystals = 5 + Math.floor(Math.random() * 6);
+                    const credits = 40 + Math.floor(Math.random() * 30);
                     gameState.resources.Metal = (gameState.resources.Metal || 0) + metal;
                     gameState.resources.Crystals = (gameState.resources.Crystals || 0) + crystals;
                     gameState.credits = (gameState.credits || 0) + credits;
@@ -6583,9 +6884,9 @@
                     break;
                 }
                 case 'loot_great': {
-                    const crystals = 5 + Math.floor(Math.random() * 6);
-                    const exotic = 2 + Math.floor(Math.random() * 3);
-                    const credits = 30 + Math.floor(Math.random() * 25);
+                    const crystals = 8 + Math.floor(Math.random() * 8);
+                    const exotic = 3 + Math.floor(Math.random() * 4);
+                    const credits = 60 + Math.floor(Math.random() * 40);
                     gameState.resources.Crystals = (gameState.resources.Crystals || 0) + crystals;
                     gameState.resources.Exotic = (gameState.resources.Exotic || 0) + exotic;
                     gameState.credits = (gameState.credits || 0) + credits;
@@ -6595,8 +6896,8 @@
                     break;
                 }
                 case 'fuel_find': {
-                    const fuel = 25 + Math.floor(Math.random() * 20);
-                    const metal = 3 + Math.floor(Math.random() * 4);
+                    const fuel = 35 + Math.floor(Math.random() * 25);
+                    const metal = 5 + Math.floor(Math.random() * 6);
                     gameState.fuel = Math.min(gameState.maxFuel, gameState.fuel + fuel);
                     gameState.resources.Metal = (gameState.resources.Metal || 0) + metal;
                     rewards.push({ text: `+${fuel} Fuel`, css: 'reward-good' });
@@ -6639,8 +6940,8 @@
                     break;
                 }
                 case 'credits_jackpot': {
-                    const credits = 80 + Math.floor(Math.random() * 60);
-                    const exotic = 1 + Math.floor(Math.random() * 3);
+                    const credits = 120 + Math.floor(Math.random() * 80);
+                    const exotic = 2 + Math.floor(Math.random() * 4);
                     gameState.credits = (gameState.credits || 0) + credits;
                     gameState.resources.Exotic = (gameState.resources.Exotic || 0) + exotic;
                     rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
@@ -6683,6 +6984,58 @@
                     gameState.health = Math.max(1, gameState.health - damage);
                     rewards.push({ text: `-${damage} Hull Damage`, css: 'reward-bad' });
                     rewards.push({ text: 'Barely escaped with your life!', css: 'reward-bad' });
+                    break;
+                }
+                case 'equipment_find': {
+                    // Generate a random equipment piece at current level + 1
+                    const equip = generateEquipment(gameState.level + 1, null, 'good');
+                    if (equip) {
+                        gameState.ownedWeapons.push(equip);
+                        rewards.push({ text: `Found: ${equip.name}`, css: 'reward-good' });
+                        rewards.push({ text: `[${equip.category}] ${equip.desc}`, css: 'reward-good' });
+                    }
+                    const bonusCredits = 20 + Math.floor(Math.random() * 20);
+                    gameState.credits += bonusCredits;
+                    rewards.push({ text: `+${bonusCredits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'legendary_equipment': {
+                    // Generate legendary equipment
+                    const equip = generateEquipment(gameState.level + 2, null, 'legendary');
+                    if (equip) {
+                        gameState.ownedWeapons.push(equip);
+                        rewards.push({ text: `LEGENDARY: ${equip.name}`, css: 'reward-legendary' });
+                        rewards.push({ text: `[${equip.category}] ${equip.desc}`, css: 'reward-legendary' });
+                    }
+                    const bonusCredits = 40 + Math.floor(Math.random() * 30);
+                    gameState.credits += bonusCredits;
+                    rewards.push({ text: `+${bonusCredits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'secondary_upgrade': {
+                    // Upgrade secondary ability - reduce cooldown or give a better secondary
+                    const ship = gameState.fleet.length > 0 ? gameState.fleet[0] : null;
+                    if (ship && ship.secondary) {
+                        // 50% chance to get mega_laser, 50% chance to reduce cooldown
+                        if (ship.secondary.abilityId === 'gravity_pulse' && Math.random() < 0.5) {
+                            ship.secondary = { abilityId: 'mega_laser', cooldown: SECONDARY_ABILITIES.mega_laser.cooldown };
+                            rewards.push({ text: 'NEW ABILITY: Nova Beam', css: 'reward-legendary' });
+                            rewards.push({ text: 'Devastating beam that damages all enemies!', css: 'reward-legendary' });
+                        } else {
+                            const reduction = Math.floor(ship.secondary.cooldown * 0.25);
+                            ship.secondary.cooldown = Math.max(5000, ship.secondary.cooldown - reduction);
+                            rewards.push({ text: `Secondary cooldown reduced by ${Math.round(reduction / 1000)}s!`, css: 'reward-legendary' });
+                        }
+                        // Re-initialize the secondary
+                        const abilityDef = SECONDARY_ABILITIES[ship.secondary.abilityId];
+                        if (abilityDef) {
+                            gameState.secondaryAbility = { ...abilityDef, ...ship.secondary };
+                            gameState.secondaryMaxCooldown = ship.secondary.cooldown;
+                        }
+                    }
+                    const bonusCredits = 30 + Math.floor(Math.random() * 20);
+                    gameState.credits += bonusCredits;
+                    rewards.push({ text: `+${bonusCredits} Credits`, css: 'reward-good' });
                     break;
                 }
                 case 'nothing':
@@ -7324,7 +7677,8 @@
                         });
 
                         if (totalDamage > 0) {
-                            gameState.health -= totalDamage;
+                            totalDamage = applyShieldDamage(totalDamage);
+                            if (totalDamage > 0) gameState.health -= totalDamage;
                             flashShip(playerShipMesh);
                             updateHUD();
 
@@ -7854,6 +8208,11 @@
                 e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog')) return;
             if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
+                // Two-finger tap activates secondary ability
+                if (e.touches.length >= 2) {
+                    activateSecondaryAbility();
+                    return;
+                }
                 const touch = e.touches[0];
                 handleInputStart(touch.clientX, touch.clientY);
             }
@@ -7923,6 +8282,11 @@
                 case 's':
                 case 'S':
                     keyState.down = true;
+                    e.preventDefault();
+                    break;
+                case ' ':
+                    // Spacebar activates secondary ability
+                    activateSecondaryAbility();
                     e.preventDefault();
                     break;
             }
@@ -8027,6 +8391,8 @@
 
             equippedWeapons.forEach((weapon, idx) => {
                 if (!weapon) return;
+                // Skip equipment items (shields, drones, missiles) - handled separately
+                if (weapon.isEquipment) return;
 
                 // Track fire time per weapon slot
                 if (!gameState.weaponFireTimes) gameState.weaponFireTimes = {};
@@ -8184,6 +8550,563 @@
 
             // Immediate hit on all enemies in the beam path
             applyBeamDamage(beam);
+        }
+
+        // ========== SHIELD EQUIPMENT ==========
+        function activateShieldEquipment(equipment) {
+            gameState.shieldEquipment = equipment;
+            gameState.shieldHP = equipment.shieldHP;
+            gameState.shieldMaxHP = equipment.shieldHP;
+            gameState.shieldRechargeTimer = 0;
+            createShieldBubble();
+        }
+
+        function createShieldBubble() {
+            if (gameState.shieldBubble) {
+                gameState.shieldBubble.dispose();
+            }
+            if (!scene || !playerShip) return;
+
+            const bubble = BABYLON.MeshBuilder.CreateDisc('shieldBubble', { radius: 1.2, tessellation: 32 }, scene);
+            bubble.parent = playerShip;
+            bubble.position.z = -0.05;
+
+            const mat = new BABYLON.StandardMaterial('shieldBubbleMat', scene);
+            mat.emissiveColor = new BABYLON.Color3(0.2, 0.6, 1.0);
+            mat.alpha = 0.15;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            bubble.material = mat;
+            bubble.renderingGroupId = 2;
+
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(bubble);
+            }
+
+            gameState.shieldBubble = bubble;
+        }
+
+        function updateShieldEquipment(deltaTime) {
+            if (!gameState.shieldEquipment) return;
+
+            // Update bubble visibility based on shield HP
+            if (gameState.shieldBubble && gameState.shieldBubble.material) {
+                if (gameState.shieldHP > 0) {
+                    const hpRatio = gameState.shieldHP / gameState.shieldMaxHP;
+                    gameState.shieldBubble.material.alpha = 0.08 + hpRatio * 0.12;
+                    gameState.shieldBubble.setEnabled(true);
+                } else {
+                    gameState.shieldBubble.setEnabled(false);
+                }
+            }
+
+            // Recharge shield after delay
+            if (gameState.shieldHP < gameState.shieldMaxHP) {
+                gameState.shieldRechargeTimer -= deltaTime;
+                if (gameState.shieldRechargeTimer <= 0) {
+                    gameState.shieldHP = Math.min(
+                        gameState.shieldMaxHP,
+                        gameState.shieldHP + gameState.shieldEquipment.rechargeRate * (deltaTime / 1000)
+                    );
+                    // Re-enable bubble when shield comes back
+                    if (gameState.shieldHP > 0 && gameState.shieldBubble) {
+                        gameState.shieldBubble.setEnabled(true);
+                    }
+                }
+            }
+        }
+
+        // Apply damage to shield first, return remaining damage
+        function applyShieldDamage(damage) {
+            if (!gameState.shieldEquipment || gameState.shieldHP <= 0) return damage;
+
+            const absorbed = Math.min(gameState.shieldHP, damage);
+            gameState.shieldHP -= absorbed;
+            gameState.shieldRechargeTimer = gameState.shieldEquipment.rechargeDelay;
+
+            // Flash shield bubble on hit
+            if (gameState.shieldBubble && gameState.shieldBubble.material) {
+                gameState.shieldBubble.material.alpha = 0.6;
+                setTimeout(() => {
+                    if (gameState.shieldBubble && gameState.shieldBubble.material) {
+                        gameState.shieldBubble.material.alpha = gameState.shieldHP > 0 ? 0.15 : 0;
+                    }
+                }, 150);
+            }
+
+            return damage - absorbed;
+        }
+
+        // ========== DRONE EQUIPMENT ==========
+        function activateDroneEquipment(equipment) {
+            cleanupDrones();
+            gameState.droneEquipment = equipment;
+            for (let i = 0; i < equipment.droneCount; i++) {
+                spawnDrone(i, equipment);
+            }
+        }
+
+        function spawnDrone(index, equipment) {
+            if (!scene || !playerShip) return;
+
+            const drone = BABYLON.MeshBuilder.CreatePlane('drone_' + index, { size: 0.45 }, scene);
+            const mat = new BABYLON.StandardMaterial('droneMat_' + index, scene);
+            mat.emissiveColor = new BABYLON.Color3(0.3, 0.9, 0.5);
+            mat.alpha = 0.9;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            drone.material = mat;
+            drone.renderingGroupId = 2;
+
+            // Add a core glow
+            const core = BABYLON.MeshBuilder.CreateDisc('droneCore_' + index, { radius: 0.12, tessellation: 8 }, scene);
+            core.parent = drone;
+            core.position.z = -0.01;
+            const coreMat = new BABYLON.StandardMaterial('droneCoreMat_' + index, scene);
+            coreMat.emissiveColor = new BABYLON.Color3(0.5, 1, 0.7);
+            coreMat.disableLighting = true;
+            core.material = coreMat;
+            core.renderingGroupId = 2;
+
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(drone);
+            }
+
+            drone.droneIndex = index;
+            drone.droneHP = equipment.droneHP;
+            drone.droneMaxHP = equipment.droneHP;
+            drone.droneDamage = equipment.droneDamage;
+            drone.droneFireRate = equipment.droneFireRate;
+            drone.lastFireTime = 0;
+            drone.orbitAngle = (index / equipment.droneCount) * Math.PI * 2;
+            drone.orbitRadius = equipment.orbitRadius;
+
+            gameState.drones.push(drone);
+        }
+
+        function updateDrones(deltaTime, currentTime) {
+            if (!playerShip || gameState.drones.length === 0) return;
+
+            for (let i = gameState.drones.length - 1; i >= 0; i--) {
+                const drone = gameState.drones[i];
+
+                // Orbit around player
+                drone.orbitAngle += deltaTime * 0.003;
+                const targetX = playerShip.position.x + Math.cos(drone.orbitAngle) * drone.orbitRadius;
+                const targetY = playerShip.position.y + Math.sin(drone.orbitAngle) * drone.orbitRadius;
+                drone.position.x += (targetX - drone.position.x) * 0.1;
+                drone.position.y += (targetY - drone.position.y) * 0.1;
+                drone.position.z = -0.08;
+
+                // Auto-fire at nearest enemy
+                if (gameState.enemies.length > 0 && currentTime - drone.lastFireTime > drone.droneFireRate) {
+                    let nearestEnemy = null;
+                    let nearestDist = Infinity;
+                    for (const enemy of gameState.enemies) {
+                        const dx = enemy.position.x - drone.position.x;
+                        const dy = enemy.position.y - drone.position.y;
+                        const dist = dx * dx + dy * dy;
+                        if (dist < nearestDist) {
+                            nearestDist = dist;
+                            nearestEnemy = enemy;
+                        }
+                    }
+                    if (nearestEnemy) {
+                        fireDroneBullet(drone, nearestEnemy);
+                        drone.lastFireTime = currentTime;
+                    }
+                }
+
+                // Check if drone is destroyed
+                if (drone.droneHP <= 0) {
+                    createExplosion(drone.position.x, drone.position.y, 'small', 'green');
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(drone);
+                    drone.getChildMeshes().forEach(m => m.dispose());
+                    drone.dispose();
+                    gameState.drones.splice(i, 1);
+                }
+            }
+        }
+
+        function fireDroneBullet(drone, target) {
+            const dx = target.position.x - drone.position.x;
+            const dy = target.position.y - drone.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist === 0) return;
+
+            const speed = 0.3;
+            const vx = (dx / dist) * speed;
+            const vy = (dy / dist) * speed;
+
+            const bullet = createBullet(true, drone.position.x, drone.position.y, vx, vy, drone.droneDamage);
+            // Tint drone bullets green to distinguish
+            if (bullet.material) {
+                bullet.material.emissiveColor = new BABYLON.Color3(0.1, 0.9, 0.3);
+            }
+            gameState.playerBullets.push(bullet);
+        }
+
+        function cleanupDrones() {
+            gameState.drones.forEach(d => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(d);
+                d.getChildMeshes().forEach(m => m.dispose());
+                d.dispose();
+            });
+            gameState.drones = [];
+            gameState.droneEquipment = null;
+        }
+
+        // Drones block enemy bullets - check if a bullet hits a drone
+        function checkDroneBlockBullet(bullet) {
+            for (const drone of gameState.drones) {
+                const dx = bullet.position.x - drone.position.x;
+                const dy = bullet.position.y - drone.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 0.4) {
+                    drone.droneHP -= (bullet.damage || 10);
+                    createExplosion(drone.position.x, drone.position.y, 'small', 'green');
+                    return true; // Bullet blocked
+                }
+            }
+            return false;
+        }
+
+        // ========== MISSILE SYSTEM ==========
+        function fireMissileWeapon(equipment, px, py) {
+            const count = equipment.missileCount || 1;
+            for (let i = 0; i < count; i++) {
+                const spreadX = count > 1 ? (i - (count - 1) / 2) * 0.3 : 0;
+                spawnMissile(px + spreadX, py, equipment);
+            }
+        }
+
+        function spawnMissile(x, y, equipment) {
+            const missile = BABYLON.MeshBuilder.CreatePlane('missile', { width: 0.2, height: 0.5 }, scene);
+            missile.position.x = x;
+            missile.position.y = y;
+            missile.position.z = -0.1;
+
+            const mat = new BABYLON.StandardMaterial('missileMat', scene);
+            mat.emissiveColor = new BABYLON.Color3(1, 0.5, 0.1);
+            mat.alpha = 0.9;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            missile.material = mat;
+            missile.renderingGroupId = 2;
+
+            // Exhaust trail
+            const trail = BABYLON.MeshBuilder.CreatePlane('missileTrail', { width: 0.12, height: 0.3 }, scene);
+            trail.parent = missile;
+            trail.position.y = -0.35;
+            trail.position.z = 0.01;
+            const trailMat = new BABYLON.StandardMaterial('trailMat', scene);
+            trailMat.emissiveColor = new BABYLON.Color3(1, 0.3, 0);
+            trailMat.alpha = 0.6;
+            trailMat.disableLighting = true;
+            trailMat.backFaceCulling = false;
+            trail.material = trailMat;
+            trail.renderingGroupId = 2;
+
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(missile);
+            }
+
+            missile.missileDamage = equipment.damage;
+            missile.missileSpeed = equipment.speed;
+            missile.missileMaxSpeed = equipment.maxSpeed;
+            missile.missileAccel = equipment.acceleration;
+            missile.missileHoming = equipment.homing;
+            missile.velocityX = 0;
+            missile.velocityY = missile.missileSpeed;
+            missile.targetEnemy = null;
+
+            gameState.missiles.push(missile);
+        }
+
+        function updateMissiles(deltaTime) {
+            for (let i = gameState.missiles.length - 1; i >= 0; i--) {
+                const m = gameState.missiles[i];
+
+                // Accelerate
+                const speed = Math.sqrt(m.velocityX * m.velocityX + m.velocityY * m.velocityY);
+                if (speed < m.missileMaxSpeed) {
+                    const accel = m.missileAccel * (deltaTime / 16);
+                    if (m.missileHoming && gameState.enemies.length > 0) {
+                        // Find nearest enemy to home toward
+                        if (!m.targetEnemy || m.targetEnemy.health <= 0) {
+                            let nearest = null;
+                            let nearDist = Infinity;
+                            for (const e of gameState.enemies) {
+                                const dx = e.position.x - m.position.x;
+                                const dy = e.position.y - m.position.y;
+                                const d = dx * dx + dy * dy;
+                                if (d < nearDist) { nearDist = d; nearest = e; }
+                            }
+                            m.targetEnemy = nearest;
+                        }
+                        if (m.targetEnemy) {
+                            const dx = m.targetEnemy.position.x - m.position.x;
+                            const dy = m.targetEnemy.position.y - m.position.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist > 0) {
+                                // Blend toward target direction
+                                const targetVX = (dx / dist) * (speed + accel);
+                                const targetVY = (dy / dist) * (speed + accel);
+                                m.velocityX += (targetVX - m.velocityX) * 0.05;
+                                m.velocityY += (targetVY - m.velocityY) * 0.05;
+                            }
+                        }
+                    } else {
+                        // Dumb missile - just accelerate upward
+                        m.velocityY += accel;
+                    }
+                }
+
+                // Move
+                m.position.x += m.velocityX;
+                m.position.y += m.velocityY;
+
+                // Rotate to face direction of travel
+                m.rotation.z = Math.atan2(-m.velocityX, m.velocityY);
+
+                // Check collision with enemies
+                let hit = false;
+                for (let j = gameState.enemies.length - 1; j >= 0; j--) {
+                    const enemy = gameState.enemies[j];
+                    const dx = m.position.x - enemy.position.x;
+                    const dy = m.position.y - enemy.position.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 0.7) {
+                        enemy.health -= m.missileDamage;
+                        createExplosion(m.position.x, m.position.y, 'large', 'orange');
+                        flashShip(enemy.mesh || enemy);
+                        hit = true;
+
+                        if (enemy.health <= 0) {
+                            createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
+                            createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                            gameState.score += 50;
+                            gameState.credits += 10 + Math.floor(Math.random() * 15);
+                            gameState.stats.enemiesKilled++;
+                            updateHUD();
+
+                            if (enemy.laserPreviewMesh) enemy.laserPreviewMesh.dispose();
+                            enemy.getChildMeshes().forEach(cm => cm.dispose());
+                            enemy.dispose();
+                            gameState.enemies.splice(j, 1);
+                        }
+                        break;
+                    }
+                }
+
+                // Cleanup if hit or off-screen
+                if (hit || m.position.y > orthoHeight + 3 || m.position.y < -orthoHeight - 3 ||
+                    m.position.x > orthoWidth + 3 || m.position.x < -orthoWidth - 3) {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(m);
+                    m.getChildMeshes().forEach(cm => cm.dispose());
+                    m.dispose();
+                    gameState.missiles.splice(i, 1);
+                }
+            }
+        }
+
+        function cleanupMissiles() {
+            gameState.missiles.forEach(m => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(m);
+                m.getChildMeshes().forEach(cm => cm.dispose());
+                m.dispose();
+            });
+            gameState.missiles = [];
+        }
+
+        // ========== SECONDARY ABILITIES ==========
+        function activateSecondaryAbility() {
+            if (!gameState.secondaryAbility) return;
+            if (gameState.secondaryCooldown > 0) return;
+
+            const ability = gameState.secondaryAbility;
+
+            if (ability.effect === 'clear_projectiles') {
+                // Gravity Pulse - clear all enemy bullets
+                fireGravityPulse();
+            } else if (ability.effect === 'mega_beam') {
+                // Nova Beam - massive damage beam
+                fireMegaBeam(ability);
+            }
+
+            gameState.secondaryCooldown = gameState.secondaryMaxCooldown;
+        }
+
+        function fireGravityPulse() {
+            if (!playerShip) return;
+
+            // Visual: expanding ring from player
+            const ring = BABYLON.MeshBuilder.CreateTorus('gravPulse', {
+                diameter: 0.5, thickness: 0.1, tessellation: 32
+            }, scene);
+            ring.position.x = playerShip.position.x;
+            ring.position.y = playerShip.position.y;
+            ring.position.z = -0.2;
+            ring.rotation.x = Math.PI / 2;
+
+            const ringMat = new BABYLON.StandardMaterial('gravPulseMat', scene);
+            ringMat.emissiveColor = new BABYLON.Color3(0.3, 0.5, 1.0);
+            ringMat.alpha = 0.8;
+            ringMat.disableLighting = true;
+            ringMat.backFaceCulling = false;
+            ring.material = ringMat;
+            ring.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(ring);
+
+            // Animate expansion
+            let scale = 1;
+            const expandInterval = setInterval(() => {
+                scale += 0.8;
+                ring.scaling.x = scale;
+                ring.scaling.y = scale;
+                ring.scaling.z = scale;
+                ringMat.alpha -= 0.04;
+
+                if (ringMat.alpha <= 0) {
+                    clearInterval(expandInterval);
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(ring);
+                    ring.dispose();
+                }
+            }, 30);
+
+            // Destroy all enemy bullets
+            gameState.enemyBullets.forEach(b => {
+                createExplosion(b.position.x, b.position.y, 'small', 'blue');
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                b.getChildMeshes().forEach(m => m.dispose());
+                b.dispose();
+            });
+            gameState.enemyBullets = [];
+
+            // Also clear challenger lasers
+            if (gameState.challengerLasers) {
+                gameState.challengerLasers.forEach(l => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(l);
+                    l.dispose();
+                });
+                gameState.challengerLasers = [];
+            }
+        }
+
+        function fireMegaBeam(ability) {
+            if (!playerShip) return;
+
+            const beamWidth = 1.5;
+            const beamHeight = orthoHeight * 3;
+            const beam = BABYLON.MeshBuilder.CreatePlane('megaBeam', { width: beamWidth, height: beamHeight }, scene);
+            beam.position.x = playerShip.position.x;
+            beam.position.y = playerShip.position.y + beamHeight / 2;
+            beam.position.z = -0.15;
+
+            const mat = new BABYLON.StandardMaterial('megaBeamMat', scene);
+            mat.emissiveColor = new BABYLON.Color3(1, 0.4, 0.1);
+            mat.alpha = 0.9;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            beam.material = mat;
+            beam.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(beam);
+
+            // Deal massive damage to all enemies in beam path
+            const beamDamage = ability.damage || 200;
+            for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+                const enemy = gameState.enemies[i];
+                if (Math.abs(enemy.position.x - beam.position.x) < beamWidth && enemy.position.y > playerShip.position.y) {
+                    enemy.health -= beamDamage;
+                    flashShip(enemy.mesh || enemy);
+
+                    if (enemy.health <= 0) {
+                        createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
+                        createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                        gameState.score += 50;
+                        gameState.credits += 10 + Math.floor(Math.random() * 15);
+                        gameState.stats.enemiesKilled++;
+                        if (enemy.laserPreviewMesh) enemy.laserPreviewMesh.dispose();
+                        enemy.getChildMeshes().forEach(cm => cm.dispose());
+                        enemy.dispose();
+                        gameState.enemies.splice(i, 1);
+                    }
+                }
+            }
+            updateHUD();
+
+            // Fade out beam
+            const fadeInterval = setInterval(() => {
+                mat.alpha -= 0.05;
+                if (mat.alpha <= 0) {
+                    clearInterval(fadeInterval);
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(beam);
+                    beam.dispose();
+                }
+            }, 30);
+        }
+
+        function updateSecondaryCooldown(deltaTime) {
+            if (gameState.secondaryCooldown > 0) {
+                gameState.secondaryCooldown = Math.max(0, gameState.secondaryCooldown - deltaTime);
+            }
+        }
+
+        // ========== EQUIPMENT IN FIRE LOOP ==========
+        // Fire missiles from equipped missile launchers
+        function fireEquipmentWeapons(currentTime) {
+            if (!playerShip) return;
+            if (gameState.enemies.length === 0) return;
+
+            // Check hardpoints for equipment (missiles)
+            const ship = gameState.fleet.length > 0 ? gameState.fleet[0] : null;
+            if (!ship) return;
+
+            ship.hardpoints.forEach((hp, idx) => {
+                const equip = hp.equipped;
+                if (!equip || !equip.isEquipment) return;
+
+                if (equip.category === 'missile') {
+                    if (!gameState.weaponFireTimes) gameState.weaponFireTimes = {};
+                    const key = 'eq_' + idx;
+                    const lastFire = gameState.weaponFireTimes[key] || 0;
+                    if (currentTime - lastFire > equip.fireRate) {
+                        const hpPos = hp.position || { x: 0, y: 0.3 };
+                        fireMissileWeapon(equip, playerShip.position.x + hpPos.x, playerShip.position.y + hpPos.y + 0.2);
+                        gameState.weaponFireTimes[key] = currentTime;
+                    }
+                }
+            });
+        }
+
+        // Initialize equipment from hardpoints (called after fleet setup or load)
+        function initEquipmentFromFleet() {
+            const ship = gameState.fleet.length > 0 ? gameState.fleet[0] : null;
+            if (!ship) return;
+
+            ship.hardpoints.forEach(hp => {
+                const equip = hp.equipped;
+                if (!equip || !equip.isEquipment) return;
+
+                if (equip.category === 'shield') {
+                    activateShieldEquipment(equip);
+                } else if (equip.category === 'drone') {
+                    activateDroneEquipment(equip);
+                }
+                // Missiles are handled in fire loop, no init needed
+            });
+
+            // Initialize secondary ability
+            if (ship.secondary) {
+                const abilityDef = SECONDARY_ABILITIES[ship.secondary.abilityId];
+                if (abilityDef) {
+                    gameState.secondaryAbility = { ...abilityDef, ...ship.secondary };
+                    gameState.secondaryMaxCooldown = ship.secondary.cooldown || abilityDef.cooldown;
+                    gameState.secondaryCooldown = 0;
+                }
+            }
         }
 
         // Spawn wave
@@ -8374,7 +9297,8 @@
                             flashShip(playerShipMesh);
 
                             if (!settings.godMode) {
-                                gameState.health -= laser.damagePerTick;
+                                let dmg = applyShieldDamage(laser.damagePerTick);
+                                if (dmg > 0) gameState.health -= dmg;
                                 updateHUD();
 
                                 if (gameState.health <= 0) {
@@ -8592,6 +9516,15 @@
                 bullet.position.x += bullet.velocityX;
                 bullet.position.y += bullet.velocityY;
 
+                // Check if drones block this bullet
+                if (gameState.drones.length > 0 && checkDroneBlockBullet(bullet)) {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                    bullet.getChildMeshes().forEach(m => m.dispose());
+                    bullet.dispose();
+                    gameState.enemyBullets.splice(i, 1);
+                    continue;
+                }
+
                 if (playerShip) {
                     const dx = bullet.position.x - playerShip.position.x;
                     const dy = bullet.position.y - playerShip.position.y;
@@ -8603,7 +9536,12 @@
 
                         // God mode: invulnerable to damage
                         if (!settings.godMode) {
-                            gameState.health -= (bullet.damage || 10);
+                            let dmg = bullet.damage || 10;
+                            // Shield absorbs damage first
+                            dmg = applyShieldDamage(dmg);
+                            if (dmg > 0) {
+                                gameState.health -= dmg;
+                            }
                             updateHUD();
 
                             if (gameState.health <= 0) {
@@ -8665,7 +9603,8 @@
 
                     // God mode: invulnerable to collision damage
                     if (!settings.godMode) {
-                        gameState.health -= 25;
+                        let dmg = applyShieldDamage(25);
+                        if (dmg > 0) gameState.health -= dmg;
                         updateHUD();
 
                         if (gameState.health <= 0) {
@@ -8715,6 +9654,35 @@
             // Hide fuel bar in arena mode
             if (gameState.arenaMode) {
                 document.getElementById('fuelBar').style.display = 'none';
+            }
+
+            // Update shield equipment display
+            const shieldDisplay = document.getElementById('shieldDisplay');
+            if (gameState.shieldEquipment && gameState.shieldMaxHP > 0) {
+                shieldDisplay.style.display = 'flex';
+                const shieldPct = Math.max(0, (gameState.shieldHP / gameState.shieldMaxHP) * 100);
+                document.getElementById('shieldBarFill').style.width = `${shieldPct}%`;
+                document.getElementById('shieldValue').textContent = Math.ceil(gameState.shieldHP);
+            } else {
+                shieldDisplay.style.display = 'none';
+            }
+
+            // Update secondary ability display
+            const secDisplay = document.getElementById('secondaryDisplay');
+            if (gameState.secondaryAbility) {
+                secDisplay.style.display = 'flex';
+                const ability = gameState.secondaryAbility;
+                document.getElementById('secondaryIcon').textContent = ability.icon || '🌀';
+                if (gameState.secondaryCooldown > 0) {
+                    const pct = Math.max(0, (1 - gameState.secondaryCooldown / gameState.secondaryMaxCooldown) * 100);
+                    document.getElementById('secondaryBarFill').style.width = `${pct}%`;
+                    document.getElementById('secondaryLabel').textContent = `${Math.ceil(gameState.secondaryCooldown / 1000)}s`;
+                } else {
+                    document.getElementById('secondaryBarFill').style.width = '100%';
+                    document.getElementById('secondaryLabel').textContent = 'READY';
+                }
+            } else {
+                secDisplay.style.display = 'none';
             }
         }
 
@@ -8865,7 +9833,8 @@
                 hardpoints: SHIP_DEFINITIONS.starter.hardpoints.map((hp, idx) => ({
                     ...hp,
                     equipped: idx === 0 ? starterWeapon : null  // Basic weapon on first hardpoint
-                }))
+                })),
+                secondary: { abilityId: 'gravity_pulse', cooldown: 30000 }
             }];
             gameState.ownedWeapons = [starterWeapon];
             gameState.equippedWeapons = [starterWeapon];  // Single medium hardpoint
@@ -8878,6 +9847,12 @@
                 });
             }
             gameState.beamMeshes = [];
+            // Cleanup equipment from previous game
+            cleanupDrones();
+            cleanupMissiles();
+            if (gameState.shieldBubble) { gameState.shieldBubble.dispose(); gameState.shieldBubble = null; }
+            gameState.shieldEquipment = null;
+            gameState.shieldHP = 0;
 
             // Reset level/river navigation state
             gameState.level = 1;
@@ -9043,6 +10018,10 @@
             // Restore fleet, or create default if not present (backward compatibility)
             if (saveData.fleet && saveData.fleet.length > 0) {
                 gameState.fleet = saveData.fleet;
+                // Ensure secondary slot exists (backward compatibility)
+                if (gameState.fleet[0] && !gameState.fleet[0].secondary) {
+                    gameState.fleet[0].secondary = { abilityId: 'gravity_pulse', cooldown: 30000 };
+                }
             } else {
                 // Create default fleet for old saves
                 const starterWeapon = { ...WEAPONS.basic, id: 'basic_' + Date.now() };
@@ -9052,7 +10031,8 @@
                     hardpoints: SHIP_DEFINITIONS.starter.hardpoints.map((hp, idx) => ({
                         ...hp,
                         equipped: idx === 0 ? starterWeapon : null
-                    }))
+                    })),
+                    secondary: { abilityId: 'gravity_pulse', cooldown: 30000 }
                 }];
                 // Also ensure ownedWeapons has the starter weapon
                 if (!gameState.ownedWeapons || gameState.ownedWeapons.length === 0) {
@@ -9411,7 +10391,8 @@
                     hardpoints: SHIP_DEFINITIONS.starter.hardpoints.map((hp, idx) => ({
                         ...hp,
                         equipped: idx === 0 ? starterWeapon : null
-                    }))
+                    })),
+                    secondary: { abilityId: 'gravity_pulse', cooldown: 30000 }
                 }];
                 gameState.ownedWeapons = [starterWeapon];
 
@@ -9421,6 +10402,9 @@
                 gameState.levelConfig = generateLevelConfig(1);
                 gameState.wavesUntilStarbase = gameState.levelConfig.waveCount;
             }
+
+            // Initialize equipment from fleet (shields, drones, secondary ability)
+            initEquipmentFromFleet();
 
             // Only spawn wave if not in exploration mode, no enemies pending, and not in an event zone
             // This preserves state when continuing a saved game
@@ -9529,6 +10513,11 @@
                 updateBullets();
                 updateChallengerLasers();
                 updatePlayerBeams();
+                updateMissiles(deltaTime);
+                updateDrones(deltaTime, currentTime);
+                updateShieldEquipment(deltaTime);
+                updateSecondaryCooldown(deltaTime);
+                fireEquipmentWeapons(currentTime);
                 updateLoot(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
                 updateStarbase(scrollMultiplier, deltaTime);
@@ -9893,6 +10882,11 @@
                 updateBullets();
                 updateChallengerLasers();
                 updatePlayerBeams();
+                updateMissiles(deltaTime);
+                updateDrones(deltaTime, currentTime);
+                updateShieldEquipment(deltaTime);
+                updateSecondaryCooldown(deltaTime);
+                fireEquipmentWeapons(currentTime);
                 updateLoot(scrollMultiplier);
                 updateStars(scrollMultiplier);
             });
