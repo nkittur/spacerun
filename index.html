@@ -672,6 +672,32 @@
             opacity: 0.9;
         }
 
+        /* Event gate HUD styling */
+        .gate-preview.event-gate .hud-value {
+            color: #cc88ff !important;
+        }
+
+        .event-gate-label {
+            border-bottom: 1px solid rgba(180, 100, 255, 0.4) !important;
+        }
+
+        .event-type-value {
+            color: #cc88ff !important;
+            text-shadow: 0 0 8px rgba(180, 100, 255, 0.6);
+            letter-spacing: 2px;
+            font-size: 13px !important;
+        }
+
+        .event-sig-value {
+            color: #aa77dd !important;
+            letter-spacing: 3px;
+        }
+
+        .event-risk-value {
+            color: #aa77dd !important;
+            letter-spacing: 2px;
+        }
+
         /* Warp/Lightspeed Animation */
         #warpOverlay {
             position: absolute;
@@ -3153,11 +3179,10 @@
             arenaWave: 0,           // Current arena wave
             arenaKills: 0,          // Total kills in arena
             arenaSpeedBonus: 1,     // Speed bonus from arena upgrades
-            // Mystery events
-            mysteryEvent: null,         // Current mystery event mesh (e.g., behemoth derelict)
+            // Mystery events (gate-based)
             mysteryEventActive: false,  // Whether mystery event dialog is open
             mysteryPirateAmbush: false, // Whether pirates were triggered by a mystery event
-            mysteryEventsEncountered: 0 // Total mystery events seen this run
+            pendingEventConfig: null    // Level config to warp to after an event gate resolves
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -5863,6 +5888,26 @@
             }
         }
 
+        // Gate type definitions - each type has visual and behavioral properties
+        const GATE_TYPES = {
+            system: {
+                name: 'System Gate',
+                texture: 'assets/stellar objects/warpgate.png',
+                rotationSpeed: 0.005
+            },
+            event: {
+                name: 'Event Gate',
+                texture: 'assets/stellar objects/warpgate_battle_boss1.png',
+                rotationSpeed: 0.003
+            }
+        };
+
+        // Pick a random mystery event type for an event gate
+        function pickMysteryEventType() {
+            const eventKeys = Object.keys(MYSTERY_EVENT_TYPES);
+            return eventKeys[Math.floor(Math.random() * eventKeys.length)];
+        }
+
         // Create warp gates at specified Y position
         function createWarpGates(spawnY) {
             if (!scene || gameState.showingGates) return;
@@ -5879,35 +5924,57 @@
             const currentLevel = gameState.level;
             const gatesAtLevel = gameState.gatesAtLevel;
 
-            // Determine if level-up option should be offered:
-            // - Not offered for first 5 gates (gatesAtLevel 0-4)
-            // - Offered at gate 6 (gatesAtLevel 5)
-            // - If declined, offered every 3 gates after (gatesAtLevel 8, 11, 14, ...)
             const shouldOfferLevelUp = gatesAtLevel >= 5 && (gatesAtLevel - 5) % 3 === 0;
-
             const rightLevel = shouldOfferLevelUp ? currentLevel + 1 : currentLevel;
 
+            // Determine if one gate should be an event gate
+            // ~25% chance, scaling slightly with level, not on the very first gate
+            const eventGateChance = 0.20 + (currentLevel * 0.02);
+            const shouldOfferEvent = gatesAtLevel >= 1 && Math.random() < eventGateChance;
+
+            // Randomly pick which side gets the event gate (if any)
+            const eventSide = shouldOfferEvent ? (Math.random() < 0.5 ? 'left' : 'right') : null;
+
+            // Build gate choices -- each has a gateType and associated config
             gameState.gateChoices = {
-                left: generateLevelConfig(currentLevel),   // Same level - safe choice
-                right: generateLevelConfig(rightLevel)     // Same or higher level based on progression
+                left: generateLevelConfig(currentLevel),
+                right: generateLevelConfig(rightLevel)
             };
 
-            // Mark the gates so UI can show the difference
+            // Mark system gate properties
+            gameState.gateChoices.left.gateType = 'system';
             gameState.gateChoices.left.isSafeChoice = true;
+            gameState.gateChoices.right.gateType = 'system';
             gameState.gateChoices.right.isSafeChoice = !shouldOfferLevelUp;
+
+            // Override one gate as an event gate if applicable
+            if (eventSide) {
+                const eventConfig = gameState.gateChoices[eventSide];
+                eventConfig.gateType = 'event';
+                eventConfig.eventType = pickMysteryEventType();
+                eventConfig.isSafeChoice = false;
+            }
 
             // Update UI with gate signatures
             updateGateUI();
 
-            // Create the gate meshes using dimensions from above
-            // Left gate (blue/cyan - safe, same level)
-            const leftGate = createGateMesh('warpGateLeft', leftGateX, gateY, gateSize, [0.3, 0.7, 1.0]);
+            // Create gate meshes with appropriate visuals per type
+            const leftType = GATE_TYPES[gameState.gateChoices.left.gateType];
+            const leftColor = gameState.gateChoices.left.gateType === 'event'
+                ? [0.8, 0.5, 1.0]   // Purple/violet for event gates
+                : [0.3, 0.7, 1.0];  // Blue/cyan for safe system gates
+            const leftGate = createGateMesh('warpGateLeft', leftGateX, gateY, gateSize, leftColor, leftType.texture);
             leftGate.gateId = 'left';
+            leftGate.gateType = gameState.gateChoices.left.gateType;
             gameState.warpGates.push(leftGate);
 
-            // Right gate (orange/red - danger, higher level)
-            const rightGate = createGateMesh('warpGateRight', rightGateX, gateY, gateSize, [1.0, 0.5, 0.2]);
+            const rightType = GATE_TYPES[gameState.gateChoices.right.gateType];
+            const rightColor = gameState.gateChoices.right.gateType === 'event'
+                ? [0.8, 0.5, 1.0]   // Purple/violet for event gates
+                : [1.0, 0.5, 0.2];  // Orange/red for harder system gates
+            const rightGate = createGateMesh('warpGateRight', rightGateX, gateY, gateSize, rightColor, rightType.texture);
             rightGate.gateId = 'right';
+            rightGate.gateType = gameState.gateChoices.right.gateType;
             gameState.warpGates.push(rightGate);
 
             gameState.showingGates = true;
@@ -5915,14 +5982,14 @@
         }
 
         // Create a single warp gate mesh using the warpgate.png texture
-        function createGateMesh(name, x, y, size, color) {
+        function createGateMesh(name, x, y, size, color, texturePath) {
             const gate = BABYLON.MeshBuilder.CreatePlane(name, { size: size }, scene);
 
             gate.position.x = x;
             gate.position.y = y;
             gate.position.z = 0.1;
 
-            const texture = new BABYLON.Texture('assets/stellar objects/warpgate.png', scene);
+            const texture = new BABYLON.Texture(texturePath || 'assets/stellar objects/warpgate.png', scene);
             texture.hasAlpha = true;
 
             const mat = new BABYLON.StandardMaterial(name + 'Mat', scene);
@@ -5977,26 +6044,77 @@
                 ).join('');
             };
 
-            // Left gate (same level - safe choice)
-            document.getElementById('gateLeftLevel').textContent = gameState.gateChoices.left.levelNum;
-            document.getElementById('gateLeftStars').innerHTML = getStarSystemIcons(gameState.gateChoices.left.starSystem);
-            document.getElementById('gateLeftThreat').innerHTML = getThreatBar(gameState.gateChoices.left);
-            document.getElementById('gateLeftWaves').textContent = gameState.gateChoices.left.waveCount;
-            document.getElementById('gateLeftStations').innerHTML = getStationIcons(gameState.gateChoices.left);
+            // Generate HUD content for a system gate
+            const getSystemGateHUD = (config, side) => {
+                const prefix = side === 'left' ? 'gateLeft' : 'gateRight';
+                return `
+                    <div class="hud-row level-row">
+                        <span class="hud-label">LVL</span>
+                        <span class="hud-value level-value" id="${prefix}Level">${config.levelNum}</span>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">SYS</span>
+                        <div class="star-icons" id="${prefix}Stars">${getStarSystemIcons(config.starSystem)}</div>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">THR</span>
+                        <div class="threat-bar" id="${prefix}Threat">${getThreatBar(config)}</div>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">WAV</span>
+                        <span class="hud-value" id="${prefix}Waves">${config.waveCount}</span>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">STA</span>
+                        <div class="station-icons" id="${prefix}Stations">${getStationIcons(config)}</div>
+                    </div>
+                `;
+            };
 
-            // Right gate (higher level - harder choice)
-            const rightLevelEl = document.getElementById('gateRightLevel');
-            rightLevelEl.textContent = gameState.gateChoices.right.levelNum;
-            // Add level-up class if it's actually a higher level
-            if (gameState.gateChoices.right.levelNum > gameState.gateChoices.left.levelNum) {
-                rightLevelEl.classList.add('level-up');
-            } else {
-                rightLevelEl.classList.remove('level-up');
-            }
-            document.getElementById('gateRightStars').innerHTML = getStarSystemIcons(gameState.gateChoices.right.starSystem);
-            document.getElementById('gateRightThreat').innerHTML = getThreatBar(gameState.gateChoices.right);
-            document.getElementById('gateRightWaves').textContent = gameState.gateChoices.right.waveCount;
-            document.getElementById('gateRightStations').innerHTML = getStationIcons(gameState.gateChoices.right);
+            // Generate HUD content for an event gate
+            const getEventGateHUD = (config) => {
+                const eventType = MYSTERY_EVENT_TYPES[config.eventType];
+                const eventName = eventType ? eventType.name : 'Unknown Signal';
+                return `
+                    <div class="hud-row level-row event-gate-label">
+                        <span class="hud-label">TYPE</span>
+                        <span class="hud-value event-type-value">EVENT</span>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">SIG</span>
+                        <span class="hud-value event-sig-value">? ? ?</span>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">RISK</span>
+                        <span class="hud-value event-risk-value">???</span>
+                    </div>
+                `;
+            };
+
+            // Update each gate's HUD based on its type
+            ['left', 'right'].forEach(side => {
+                const config = gameState.gateChoices[side];
+                const previewId = side === 'left' ? 'gateLeftPreview' : 'gateRightPreview';
+                const hudEl = document.querySelector(`#${previewId} .gate-hud`);
+                if (!hudEl) return;
+
+                if (config.gateType === 'event') {
+                    hudEl.innerHTML = getEventGateHUD(config);
+                } else {
+                    hudEl.innerHTML = getSystemGateHUD(config, side);
+                    // Add level-up class if right gate is higher level
+                    if (side === 'right' && config.levelNum > gameState.gateChoices.left.levelNum) {
+                        const levelEl = hudEl.querySelector('.level-value');
+                        if (levelEl) levelEl.classList.add('level-up');
+                    }
+                }
+
+                // Set preview class for styling
+                const previewEl = document.getElementById(previewId);
+                if (previewEl) {
+                    previewEl.classList.toggle('event-gate', config.gateType === 'event');
+                }
+            });
         }
 
         // Update warp gates (movement and collision)
@@ -6013,8 +6131,9 @@
                 // Move gate down
                 gate.position.y -= 0.01 * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
-                // Slow rotation
-                gate.rotation.z += 0.005;
+                // Slow rotation (event gates rotate slower)
+                const gateTypeDef = GATE_TYPES[gate.gateType] || GATE_TYPES.system;
+                gate.rotation.z += gateTypeDef.rotationSpeed;
 
                 // Update UI position below gate (so player can see it longer)
                 const screenPos = worldToScreen(gate.position.x, gate.position.y - gate.size / 2 - 0.5);
@@ -6107,18 +6226,21 @@
             gameState.gateChoices = null;
             document.getElementById('warpGatePanel').style.display = 'none';
 
-            // Pause game during warp
-            requestPause('warpAnimation');
-
-            // Show warp animation
-            playWarpAnimation(() => {
-                // After animation, start new level with fresh background
-                startNewLevel(chosenConfig);
-                // Save game progress when entering new level
-                saveGame();
-                showSavedNotification();
-                releasePause('warpAnimation');
-            });
+            // Branch based on gate type
+            if (chosenConfig.gateType === 'event') {
+                // Event gate: show mystery event dialog, then warp after resolution
+                gameState.pendingEventConfig = chosenConfig;
+                openMysteryEventDialog(chosenConfig.eventType);
+            } else {
+                // System gate: standard warp to new level
+                requestPause('warpAnimation');
+                playWarpAnimation(() => {
+                    startNewLevel(chosenConfig);
+                    saveGame();
+                    showSavedNotification();
+                    releasePause('warpAnimation');
+                });
+            }
         }
 
         // Play lightspeed warp animation
@@ -6165,7 +6287,6 @@
 
             // Reset level end state for new level
             gameState.levelEndSpawned = false;
-            gameState.mysteryEventsEncountered = 0;
 
             // Clear all existing game objects for fresh start
             clearLevelObjects();
@@ -6252,11 +6373,14 @@
                 gameState.starbase = null;
             }
 
-            // Clear mystery event
-            cleanupMysteryEvent();
+            // Clear mystery event state
             gameState.mysteryEventActive = false;
             gameState.mysteryPirateAmbush = false;
+            gameState.pendingEventConfig = null;
             document.getElementById('mysteryEventDialog').style.display = 'none';
+            if (gameState.pauseReasons.has('mysteryEvent')) {
+                releasePause('mysteryEvent');
+            }
 
             // Clear all beam lasers (both array and legacy single beam)
             if (gameState.beamMeshes) {
@@ -6516,124 +6640,12 @@
         }
 
         // Create a behemoth derelict mesh at a position
-        function createBehemothMesh(x, y) {
-            if (!scene) return null;
-
-            const eventType = MYSTERY_EVENT_TYPES.behemoth;
-            const size = eventType.meshSize;
-            const behemoth = BABYLON.MeshBuilder.CreatePlane('behemothDerelict', { size: size }, scene);
-
-            behemoth.position.x = x;
-            behemoth.position.y = y;
-            behemoth.position.z = 0.15;
-
-            const texture = new BABYLON.Texture(eventType.texture, scene);
-            texture.hasAlpha = true;
-
-            const mat = new BABYLON.StandardMaterial('behemothMat', scene);
-            mat.diffuseTexture = texture;
-            mat.emissiveTexture = texture;
-            mat.emissiveColor = new BABYLON.Color3(
-                eventType.tint[0] * 0.5,
-                eventType.tint[1] * 0.5,
-                eventType.tint[2] * 0.5
-            );
-            mat.useAlphaFromDiffuseTexture = true;
-            mat.backFaceCulling = false;
-            mat.disableLighting = true;
-            mat.disableDepthWrite = true;
-            behemoth.material = mat;
-            behemoth.renderingGroupId = 1;
-
-            if (sunGlowLayer) {
-                sunGlowLayer.addIncludedOnlyMesh(behemoth);
-            }
-
-            behemoth.size = size;
-            behemoth.dockRadius = size * 0.6;
-            behemoth.isMysteryEvent = true;
-            behemoth.mysteryEventType = 'behemoth';
-
-            return behemoth;
-        }
-
-        // Spawn a mystery event (behemoth) between waves
-        function spawnMysteryEvent() {
-            if (!scene || gameState.mysteryEvent) return;
-
-            const x = (Math.random() - 0.5) * orthoWidth * 0.8;
-            const y = orthoHeight + 8;
-
-            const mesh = createBehemothMesh(x, y);
-            if (!mesh) return;
-
-            gameState.mysteryEvent = mesh;
-        }
-
-        // Update the mystery event object (scroll, dock detection)
-        function updateMysteryEvent(scrollMultiplier, deltaTime) {
-            if (!gameState.mysteryEvent || !playerShip) return;
-
-            const event = gameState.mysteryEvent;
-
-            // Move down with the world
-            event.position.y -= 0.012 * settings.scrollSpeed * (0.5 + scrollMultiplier);
-
-            // Slow ambient rotation
-            event.rotation.z += 0.001;
-
-            // Check distance to player for docking
-            const dx = event.position.x - playerShip.position.x;
-            const dy = event.position.y - playerShip.position.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            const fullyVisible = event.position.y < (orthoHeight - event.size / 2);
-
-            if (fullyVisible && dist < event.dockRadius) {
-                if (!gameState.harvestingPlanet && !gameState.isDocked) {
-                    gameState.harvestProgress += deltaTime / 1500;
-
-                    const harvestBar = document.getElementById('harvestBar');
-                    const harvestBarFill = document.getElementById('harvestBarFill');
-                    harvestBar.style.display = 'block';
-                    harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
-
-                    const screenPos = worldToScreen(event.position.x, event.position.y);
-                    const screenSize = (event.size / (orthoHeight * 2)) * canvas.clientHeight;
-                    const halfSize = screenSize / 2;
-                    const barWidth = screenSize;
-                    harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
-                    harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
-                    harvestBar.style.width = barWidth + 'px';
-                    harvestBar.style.transform = 'none';
-
-                    if (gameState.harvestProgress >= 1) {
-                        openMysteryEventDialog(event.mysteryEventType);
-                    }
-                }
-            } else {
-                if (!gameState.harvestingPlanet && gameState.harvestProgress > 0 && !gameState.isDocked && !gameState.mysteryEventActive) {
-                    gameState.harvestProgress = 0;
-                    document.getElementById('harvestBar').style.display = 'none';
-                }
-            }
-
-            // Remove if scrolled off screen
-            if (event.position.y < -orthoHeight - event.size) {
-                cleanupMysteryEvent();
-                // Continue to next wave
-                spawnWave();
-            }
-        }
-
         // Open the mystery event dialog
         function openMysteryEventDialog(eventTypeKey) {
             const eventType = MYSTERY_EVENT_TYPES[eventTypeKey];
             if (!eventType) return;
 
             gameState.mysteryEventActive = true;
-            gameState.harvestProgress = 0;
-            document.getElementById('harvestBar').style.display = 'none';
             requestPause('mysteryEvent');
 
             // Fill dialog content
@@ -6702,33 +6714,33 @@
             document.getElementById('mysteryEventDialog').style.display = 'none';
             releasePause('mysteryEvent');
 
-            // Clean up the behemoth mesh
-            cleanupMysteryEvent();
-
             updateHUD();
 
-            // If pirates were triggered, spawn extra enemies immediately
-            if (gameState.mysteryPirateAmbush) {
-                gameState.mysteryPirateAmbush = false;
-                // Spawn a tough wave with extra enemies
-                const bonusEnemies = 4 + Math.floor(Math.random() * 4);
-                gameState.enemiesInWave = bonusEnemies;
-                gameState.enemiesSpawned = 0;
-            } else {
-                // Normal flow -- spawn next wave
-                spawnWave();
-            }
-        }
+            // Get the pending level config from the event gate
+            const config = gameState.pendingEventConfig;
+            gameState.pendingEventConfig = null;
 
-        // Clean up mystery event mesh
-        function cleanupMysteryEvent() {
-            if (gameState.mysteryEvent) {
-                if (sunGlowLayer) {
-                    sunGlowLayer.removeIncludedOnlyMesh(gameState.mysteryEvent);
+            if (!config) return;
+
+            // Flag if pirates should ambush in the new level's first wave
+            const piratesTriggered = gameState.mysteryPirateAmbush;
+            gameState.mysteryPirateAmbush = false;
+
+            // Warp to the new level (same as system gate, but after the event)
+            requestPause('warpAnimation');
+            playWarpAnimation(() => {
+                startNewLevel(config);
+
+                // If pirates were triggered, beef up the first wave
+                if (piratesTriggered) {
+                    const bonusEnemies = 4 + Math.floor(Math.random() * 4);
+                    gameState.enemiesInWave += bonusEnemies;
                 }
-                gameState.mysteryEvent.dispose();
-                gameState.mysteryEvent = null;
-            }
+
+                saveGame();
+                showSavedNotification();
+                releasePause('warpAnimation');
+            });
         }
 
         // Make closeMysteryEvent available for onclick
@@ -8638,10 +8650,9 @@
             document.getElementById('warpGatePanel').style.display = 'none';
             document.getElementById('stationInterior').style.display = 'none';
             // Clean up mystery events on new game
-            cleanupMysteryEvent();
             gameState.mysteryEventActive = false;
             gameState.mysteryPirateAmbush = false;
-            gameState.mysteryEventsEncountered = 0;
+            gameState.pendingEventConfig = null;
             document.getElementById('mysteryEventDialog').style.display = 'none';
             if (gameState.pauseReasons.has('mysteryEvent')) {
                 releasePause('mysteryEvent');
@@ -9196,7 +9207,7 @@
                 applySunLighting();
 
                 // Wave completion - enter exploration mode between waves
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.mysteryEvent) {
+                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration) {
                     gameState.wave++;
                     gameState.levelWave++;
                     updateHUD();
@@ -9217,26 +9228,11 @@
                             createStarbase();
                             gameState.stationsVisited++;
                         } else {
-                            // Mystery event chance: ~20% per exploration, increasing slightly with level
-                            // Only if not too frequent (at least 3 waves between events)
-                            const wavesSinceStart = gameState.levelWave;
-                            const mysteryChance = 0.15 + (gameState.level * 0.02);
-                            const canSpawnMystery = !gameState.mysteryEvent && wavesSinceStart >= 2 &&
-                                gameState.mysteryEventsEncountered < gameState.levelWave;
-
-                            if (canSpawnMystery && Math.random() < mysteryChance) {
-                                // Spawn a mystery event instead of entering exploration
-                                spawnMysteryEvent();
-                                gameState.mysteryEventsEncountered++;
-                                gameState.enemiesInWave = 0;
-                                gameState.enemiesSpawned = 0;
-                            } else {
-                                // Enter exploration mode - travel through space before next wave
-                                gameState.inExploration = true;
-                                gameState.explorationDistance = 0;
-                                gameState.enemiesInWave = 0;
-                                gameState.enemiesSpawned = 0;
-                            }
+                            // Enter exploration mode - travel through space before next wave
+                            gameState.inExploration = true;
+                            gameState.explorationDistance = 0;
+                            gameState.enemiesInWave = 0;
+                            gameState.enemiesSpawned = 0;
                         }
                     }
                 }
@@ -9264,7 +9260,6 @@
                 updateLoot(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
                 updateStarbase(scrollMultiplier, deltaTime);
-                updateMysteryEvent(scrollMultiplier, deltaTime);
                 checkPlayerCollision();
             });
 
