@@ -8017,36 +8017,68 @@
                     gameState.weaponFireTimes[idx] = currentTime;
                 }
             });
-
-            // Update beam visuals if active
-            updateBeamVisuals();
         }
 
-        // Update beam visual effects and continuous collision detection
-        function updateBeamVisuals() {
-            if (gameState.beamMeshes) {
-                for (let i = gameState.beamMeshes.length - 1; i >= 0; i--) {
-                    const beam = gameState.beamMeshes[i];
-                    if (beam && beam.material) {
-                        // Continuous collision detection while beam is active
-                        if (beam.beamDamage && beam.material.alpha > 0.3) {
-                            checkBeamCollisions(beam);
-                        }
+        // Update player beams -- handles DPS ticks, collision, fade, and cleanup
+        // Called from the game loop (not from firePlayerWeapons) so beams always clean up
+        function updatePlayerBeams() {
+            if (!gameState.beamMeshes) return;
 
-                        beam.material.alpha -= 0.05;
-                        if (beam.material.alpha <= 0) {
-                            if (sunGlowLayer) {
-                                sunGlowLayer.removeIncludedOnlyMesh(beam);
+            const currentTime = performance.now();
+            const playerY = playerShip ? playerShip.position.y : -7;
+
+            for (let i = gameState.beamMeshes.length - 1; i >= 0; i--) {
+                const beam = gameState.beamMeshes[i];
+                if (!beam || !beam.material) continue;
+
+                // Continuous damage ticks to ALL enemies in beam path (like challenger lasers)
+                if (beam.material.alpha > 0.2 && currentTime - beam.lastDamageTime >= beam.damageInterval) {
+                    beam.lastDamageTime = currentTime;
+                    const beamX = beam.sourceX !== undefined ? beam.sourceX : beam.position.x;
+                    const beamWidth = beam.beamWidth || 0.5;
+
+                    for (let j = gameState.enemies.length - 1; j >= 0; j--) {
+                        const enemy = gameState.enemies[j];
+                        const enemyHalfWidth = (enemy.hitboxWidth || 0.9) / 2;
+                        const collisionDistance = beamWidth + enemyHalfWidth;
+
+                        if (Math.abs(enemy.position.x - beamX) < collisionDistance && enemy.position.y > playerY) {
+                            enemy.health -= beam.damagePerTick;
+                            flashShip(enemy.mesh || enemy);
+
+                            if (enemy.health <= 0) {
+                                createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
+                                createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                                gameState.score += 50;
+                                gameState.credits += 10 + Math.floor(Math.random() * 15);
+                                updateHUD();
+
+                                if (enemy.laserPreviewMesh) {
+                                    enemy.laserPreviewMesh.dispose();
+                                }
+
+                                enemy.getChildMeshes().forEach(m => m.dispose());
+                                enemy.dispose();
+                                gameState.enemies.splice(j, 1);
                             }
-                            beam.dispose();
-                            gameState.beamMeshes.splice(i, 1);
                         }
                     }
                 }
+
+                // Fade out (lasts ~0.8 seconds at 0.015/frame, 60fps)
+                beam.material.alpha -= 0.015;
+                if (beam.material.alpha <= 0) {
+                    if (sunGlowLayer) {
+                        sunGlowLayer.removeIncludedOnlyMesh(beam);
+                    }
+                    beam.dispose();
+                    gameState.beamMeshes.splice(i, 1);
+                }
             }
-            // Legacy single beam support
+
+            // Legacy single beam cleanup
             if (gameState.beamMesh) {
-                gameState.beamMesh.material.alpha -= 0.05;
+                gameState.beamMesh.material.alpha -= 0.015;
                 if (gameState.beamMesh.material.alpha <= 0) {
                     if (sunGlowLayer) {
                         sunGlowLayer.removeIncludedOnlyMesh(gameState.beamMesh);
@@ -8057,52 +8089,7 @@
             }
         }
 
-        // Check beam collisions with enemies
-        function checkBeamCollisions(beam) {
-            const beamX = beam.position.x;
-            const beamWidth = beam.beamWidth || 0.5;
-            const beamDamage = beam.beamDamage || 20;
-            const playerY = playerShip ? playerShip.position.y : -7;
-
-            for (let i = gameState.enemies.length - 1; i >= 0; i--) {
-                const enemy = gameState.enemies[i];
-                // Skip if already hit by this beam
-                if (beam.hitEnemies && beam.hitEnemies.has(enemy.uniqueId)) continue;
-
-                // Account for BOTH beam width and enemy hitbox width
-                const enemyHalfWidth = (enemy.hitboxWidth || 0.9) / 2;
-                const collisionDistance = beamWidth + enemyHalfWidth;
-
-                // Check if enemy overlaps beam path (X within combined width, Y above player)
-                if (Math.abs(enemy.position.x - beamX) < collisionDistance && enemy.position.y > playerY) {
-                    // Mark as hit
-                    if (!beam.hitEnemies) beam.hitEnemies = new Set();
-                    beam.hitEnemies.add(enemy.uniqueId);
-
-                    enemy.health -= beamDamage;
-                    flashShip(enemy.mesh || enemy);
-
-                    if (enemy.health <= 0) {
-                        createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
-                        createLoot(enemy.position.x, enemy.position.y, enemy.type);
-                        gameState.score += 50;
-                        gameState.credits += 10 + Math.floor(Math.random() * 15);
-                        updateHUD();
-
-                        // Clean up challenger's laser preview if it exists
-                        if (enemy.laserPreviewMesh) {
-                            enemy.laserPreviewMesh.dispose();
-                        }
-
-                        enemy.getChildMeshes().forEach(m => m.dispose());
-                        enemy.dispose();
-                        gameState.enemies.splice(i, 1);
-                    }
-                }
-            }
-        }
-
-        // Fire beam laser
+        // Fire beam laser -- creates a persistent beam that deals damage over time
         function fireBeamLaser(px, py, weapon = null) {
             if (!gameState.beamMeshes) gameState.beamMeshes = [];
 
@@ -8118,14 +8105,17 @@
             const beamMat = new BABYLON.StandardMaterial('beamMat', scene);
             beamMat.emissiveColor = new BABYLON.Color3(0, 1, 0.8);
             beamMat.alpha = 0.8;
+            beamMat.disableLighting = true;
             beamMat.backFaceCulling = false;
             beam.material = beamMat;
             beam.renderingGroupId = 2;
 
-            // Store beam properties for continuous collision detection
-            beam.beamDamage = beamDamage;
+            // DPS properties -- deals damage in ticks over the beam's lifetime (like challenger lasers)
             beam.beamWidth = beamWidth;
-            beam.hitEnemies = new Set();
+            beam.damagePerTick = beamDamage / 8;
+            beam.damageInterval = 100; // Deal damage every 100ms
+            beam.lastDamageTime = 0;
+            beam.sourceX = px; // Fixed X position (beam doesn't track)
 
             // Add beam to glow layer for dramatic effect
             if (sunGlowLayer) {
@@ -8133,9 +8123,6 @@
             }
 
             gameState.beamMeshes.push(beam);
-
-            // Initial collision check
-            checkBeamCollisions(beam);
         }
 
         // Spawn wave
@@ -8259,6 +8246,8 @@
                     enemy.laserPreviewMesh = null;
                     enemy.laserCharging = false;
                     enemy.lastFireTime = currentTime;
+                    // Freeze movement while laser is active (overridden with real cooldown on laser cleanup)
+                    enemy.movementCooldownUntil = Infinity;
                 }
             }
         }
@@ -9440,6 +9429,7 @@
                 updateEnemies(deltaTime, currentTime, scrollMultiplier);
                 updateBullets();
                 updateChallengerLasers();
+                updatePlayerBeams();
                 updateLoot(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
                 updateStarbase(scrollMultiplier, deltaTime);
@@ -9803,6 +9793,7 @@
                 updateEnemies(deltaTime, currentTime, scrollMultiplier);
                 updateBullets();
                 updateChallengerLasers();
+                updatePlayerBeams();
                 updateLoot(scrollMultiplier);
                 updateStars(scrollMultiplier);
             });
