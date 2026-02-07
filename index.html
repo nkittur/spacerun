@@ -6362,9 +6362,12 @@
             });
             gameState.loot = [];
 
-            // Clear planets
+            // Clear planets and harvesting state
             gameState.planets.forEach(p => p.dispose());
             gameState.planets = [];
+            gameState.harvestingPlanet = null;
+            gameState.harvestProgress = 0;
+            document.getElementById('harvestBar').style.display = 'none';
 
             // Clear suns (with their corona children)
             gameState.suns.forEach(s => {
@@ -6450,7 +6453,7 @@
                 name: 'Behemoth Derelict',
                 subtitle: 'Massive hull signature detected on long-range scan',
                 texture: 'assets/stellar objects/derelict1.png',
-                meshSize: 6,
+                meshSize: 9,
                 tint: [0.7, 0.5, 0.3],
                 description: 'Your sensors light up as you drift toward an enormous derelict vessel -- a Behemoth-class capital ship, kilometers long and dark. Its hull is breached in dozens of places, atmosphere long gone. Faint energy readings flicker deep within. This titan died long ago, but its bones may yet hold secrets... or danger.',
                 choices: [
@@ -6718,8 +6721,8 @@
             // Scroll down with the world
             obj.position.y -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
-            // Slow rotation for visual interest
-            obj.rotation.z += 0.001;
+            // Skip docking logic if dialog is already open
+            if (gameState.mysteryEventActive) return;
 
             // Check distance to player for docking
             const dx = obj.position.x - playerShip.position.x;
@@ -6729,38 +6732,43 @@
             // Only allow docking once object is fully visible on screen
             const fullyVisible = obj.position.y < (orthoHeight - obj.size / 2);
 
-            if (fullyVisible && dist < obj.dockRadius && !gameState.mysteryEventActive) {
-                // Show docking progress using harvest bar (same pattern as starbase docking)
-                if (!gameState.harvestingPlanet && !gameState.isDocked) {
-                    gameState.harvestProgress += deltaTime / 2000; // 2 seconds to dock
-
-                    const harvestBar = document.getElementById('harvestBar');
-                    const harvestBarFill = document.getElementById('harvestBarFill');
-                    harvestBar.style.display = 'block';
-                    harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
-
-                    // Position bar at event object
-                    const screenPos = worldToScreen(obj.position.x, obj.position.y);
-                    const screenSize = (obj.size / (orthoHeight * 2)) * canvas.clientHeight;
-                    const halfSize = screenSize / 2;
-                    const barWidth = screenSize;
-                    harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
-                    harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
-                    harvestBar.style.width = barWidth + 'px';
-                    harvestBar.style.transform = 'none';
-
-                    if (gameState.harvestProgress >= 1) {
-                        // Docked with event object -- open mystery dialog
-                        gameState.harvestProgress = 0;
-                        harvestBar.style.display = 'none';
-                        gameState.pendingEventConfig = gameState.levelConfig;
-                        openMysteryEventDialog(obj.eventTypeKey);
-                    }
+            if (fullyVisible && dist < obj.dockRadius) {
+                // Event object docking takes priority -- override any planet harvesting
+                if (gameState.harvestingPlanet) {
+                    gameState.harvestingPlanet = null;
                 }
-            } else if (!gameState.mysteryEventActive) {
-                // Reset docking progress if player moves away
-                if (!gameState.harvestingPlanet && gameState.harvestProgress > 0 && !gameState.isDocked) {
+
+                // Track docking progress on the object itself to avoid conflicts
+                if (!obj.dockProgress) obj.dockProgress = 0;
+                obj.dockProgress += deltaTime / 2000; // 2 seconds to dock
+
+                const harvestBar = document.getElementById('harvestBar');
+                const harvestBarFill = document.getElementById('harvestBarFill');
+                harvestBar.style.display = 'block';
+                harvestBarFill.style.width = `${Math.min(100, obj.dockProgress * 100)}%`;
+
+                // Position bar at event object
+                const screenPos = worldToScreen(obj.position.x, obj.position.y);
+                const screenSize = (obj.size / (orthoHeight * 2)) * canvas.clientHeight;
+                const halfSize = screenSize / 2;
+                const barWidth = screenSize;
+                harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+                harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
+                harvestBar.style.width = barWidth + 'px';
+                harvestBar.style.transform = 'none';
+
+                if (obj.dockProgress >= 1) {
+                    // Docked with event object -- open mystery dialog
+                    obj.dockProgress = 0;
+                    harvestBar.style.display = 'none';
                     gameState.harvestProgress = 0;
+                    gameState.pendingEventConfig = gameState.levelConfig;
+                    openMysteryEventDialog(obj.eventTypeKey);
+                }
+            } else {
+                // Reset docking progress if player moves away
+                if (obj.dockProgress && obj.dockProgress > 0) {
+                    obj.dockProgress = 0;
                     document.getElementById('harvestBar').style.display = 'none';
                 }
             }
@@ -9365,7 +9373,8 @@
 
                 // Spawn solar systems with spacing - only during active waves
                 // Stop spawning once level end content (reward + gates) has been generated
-                const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates;
+                // Don't spawn in event zones (event object is the focus, no distractions)
+                const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates && !gameState.eventObject;
 
                 gameState.nextSolarSystemY -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 if (gameState.nextSolarSystemY < orthoHeight + 10 && shouldSpawnSolarSystems) {
