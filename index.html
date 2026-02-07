@@ -512,6 +512,26 @@
             margin-bottom: 20px;
         }
 
+        .run-summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 16px;
+            text-align: left;
+            margin: 12px 0 20px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 13px;
+            color: #ccc;
+        }
+        .run-summary .stat-label {
+            color: #888;
+        }
+        .run-summary .stat-value {
+            text-align: right;
+            color: #fff;
+        }
+
         #restartBtn {
             padding: 12px 30px;
             background: #ff4444;
@@ -2686,6 +2706,7 @@
     <div id="gameOver">
         <h2>Game Over</h2>
         <p>Final Credits: <span id="finalCredits">0</span></p>
+        <div id="runSummary" class="run-summary"></div>
         <button id="restartBtn">Play Again</button>
     </div>
     </div><!-- end gameContainer -->
@@ -3172,6 +3193,18 @@
             showingGates: false,    // Whether gates are currently displayed
             gatesAtLevel: 0,        // Gates passed at current level (level-up offered at 5, then every 3)
             gatesSinceEvent: 0,     // Gates passed since last event gate (force event after 3)
+            // Run statistics
+            stats: {
+                totalGatesPassed: 0,
+                systemGatesTaken: 0,
+                eventGatesTaken: 0,
+                eventsCompleted: 0,
+                enemiesKilled: 0,
+                creditsEarned: 0,
+                planetsHarvested: 0,
+                stationsDocked: 0,
+                highestLevel: 1
+            }
             levelEndSpawned: false, // Whether end-of-level content (reward + gates) has been spawned
             speedUp: false,         // Speed-up button pressed
             inExploration: false,   // Between waves - no combat, just exploration
@@ -5064,6 +5097,7 @@
         // Open station interior screen
         function openDockingScreen() {
             gameState.isDocked = true;
+            gameState.stats.stationsDocked++;
             requestPause('docked');
             gameState.harvestProgress = 0;
             document.getElementById('harvestBar').style.display = 'none';
@@ -6215,9 +6249,13 @@
             // Track gates since last event (reset when entering an event gate)
             if (chosenConfig.gateType === 'event') {
                 gameState.gatesSinceEvent = 0;
+                gameState.stats.eventGatesTaken++;
             } else {
                 gameState.gatesSinceEvent++;
+                gameState.stats.systemGatesTaken++;
             }
+            gameState.stats.totalGatesPassed++;
+            gameState.stats.highestLevel = Math.max(gameState.stats.highestLevel, chosenConfig.levelNum);
 
             // Consume fuel for warp jump (higher level = more fuel)
             const warpFuelCost = 10 + (chosenConfig.levelNum - 1) * 2;
@@ -6883,6 +6921,7 @@
             gameState.mysteryEventActive = false;
             document.getElementById('mysteryEventDialog').style.display = 'none';
             releasePause('mysteryEvent');
+            gameState.stats.eventsCompleted++;
 
             // Remove the event object (behemoth) from the scene
             cleanupEventObject();
@@ -7306,6 +7345,7 @@
                 if (gameState.harvestProgress >= 1) {
                     // Harvest complete!
                     nearPlanet.harvestsRemaining--;
+                    gameState.stats.planetsHarvested++;
                     gameState.harvestProgress = 0;
 
                     // Consume fuel for landing
@@ -8057,6 +8097,7 @@
                         createLoot(enemy.position.x, enemy.position.y, enemy.type);
                         gameState.score += 50;
                         gameState.credits += 10 + Math.floor(Math.random() * 15);
+                        gameState.stats.enemiesKilled++;
                         updateHUD();
 
                         if (enemy.laserPreviewMesh) {
@@ -8520,6 +8561,7 @@
                                 enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
                             gameState.score += points * gameState.wave;
                             gameState.credits += 10 + Math.floor(Math.random() * 15);
+                            gameState.stats.enemiesKilled++;
                             updateHUD();
 
                             // Clean up challenger's laser preview if it exists
@@ -8681,12 +8723,25 @@
             gameState.isPlaying = false;
 
             if (gameState.arenaMode) {
-                // Show arena-specific game over stats
                 document.getElementById('finalCredits').textContent =
                     `Wave ${gameState.arenaWave} | Score: ${gameState.score}`;
             } else {
                 document.getElementById('finalCredits').textContent = gameState.credits;
             }
+
+            // Build run summary
+            const s = gameState.stats;
+            const summaryDiv = document.getElementById('runSummary');
+            summaryDiv.innerHTML = `
+                <span class="stat-label">Highest Level</span><span class="stat-value">${s.highestLevel}</span>
+                <span class="stat-label">Gates Passed</span><span class="stat-value">${s.totalGatesPassed}</span>
+                <span class="stat-label">System Gates</span><span class="stat-value">${s.systemGatesTaken}</span>
+                <span class="stat-label">Event Gates</span><span class="stat-value">${s.eventGatesTaken}</span>
+                <span class="stat-label">Events Completed</span><span class="stat-value">${s.eventsCompleted}</span>
+                <span class="stat-label">Enemies Killed</span><span class="stat-value">${s.enemiesKilled}</span>
+                <span class="stat-label">Planets Harvested</span><span class="stat-value">${s.planetsHarvested}</span>
+                <span class="stat-label">Stations Docked</span><span class="stat-value">${s.stationsDocked}</span>
+            `;
 
             document.getElementById('gameOver').style.display = 'block';
             document.getElementById('harvestBar').style.display = 'none';
@@ -8747,6 +8802,12 @@
             gameState.score = 0;
             gameState.health = 100;
             gameState.wave = 1;
+            gameState.gatesSinceEvent = 0;
+            gameState.stats = {
+                totalGatesPassed: 0, systemGatesTaken: 0, eventGatesTaken: 0,
+                eventsCompleted: 0, enemiesKilled: 0, creditsEarned: 0,
+                planetsHarvested: 0, stationsDocked: 0, highestLevel: 1
+            };
             gameState.lastFireTime = 0;
             gameState.waveTimer = 0;
             gameState.enemiesInWave = 0;
@@ -8895,6 +8956,7 @@
                 enemiesSpawned: gameState.enemiesSpawned,
                 gatesAtLevel: gameState.gatesAtLevel,
                 gatesSinceEvent: gameState.gatesSinceEvent,
+                stats: gameState.stats,
                 savedAt: Date.now()
             };
         }
@@ -8968,6 +9030,9 @@
             gameState.stationsVisited = saveData.stationsVisited || 0;
             gameState.gatesAtLevel = saveData.gatesAtLevel || 0;
             gameState.gatesSinceEvent = saveData.gatesSinceEvent || 0;
+            if (saveData.stats) {
+                gameState.stats = { ...gameState.stats, ...saveData.stats };
+            }
             gameState.currentZone = saveData.currentZone || 0;
             gameState.currentZoneVariant = saveData.currentZoneVariant || 1;
             gameState.levelEndSpawned = saveData.levelEndSpawned || false;
