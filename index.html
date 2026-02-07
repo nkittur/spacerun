@@ -2330,6 +2330,269 @@
             background: #ffaa66;
             box-shadow: 0 0 15px rgba(255, 136, 68, 0.6);
         }
+
+        /* ========== TECH TREE / RESEARCH SCREEN ========== */
+        .research-btn {
+            background: linear-gradient(180deg, #44cc88 0%, #228855 100%) !important;
+            border-color: #66eebb !important;
+            box-shadow: 0 0 20px rgba(68, 204, 136, 0.4) !important;
+        }
+        .research-btn:hover {
+            box-shadow: 0 0 30px rgba(68, 204, 136, 0.7) !important;
+        }
+
+        #researchScreen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(180deg, #0a0a20 0%, #1a1a40 100%);
+            z-index: 310;
+            display: none;
+            flex-direction: column;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .research-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.4);
+            border-bottom: 1px solid #334;
+            flex-shrink: 0;
+        }
+        .research-header h2 {
+            font-size: 20px;
+            color: #44cc88;
+            margin: 0;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .research-back-btn {
+            padding: 8px 20px;
+            background: #445;
+            border: 1px solid #667;
+            border-radius: 6px;
+            color: #ccc;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .meta-resources-bar {
+            display: flex;
+            gap: 12px;
+            padding: 10px 16px;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid #223;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+        .meta-res-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+        }
+        .meta-res-icon { font-size: 16px; }
+        .meta-res-count { font-weight: bold; }
+
+        .special-slots-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: rgba(100,50,180,0.15);
+            border-bottom: 1px solid #334;
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+        .special-slots-bar span { color: #bb88ee; }
+        .upgrade-slots-btn {
+            padding: 4px 12px;
+            background: #6633aa;
+            border: 1px solid #8855cc;
+            border-radius: 4px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .upgrade-slots-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .tech-trees-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 16px;
+            flex: 1;
+        }
+
+        .tech-branch {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid #334;
+            border-radius: 10px;
+            padding: 14px;
+        }
+        .branch-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .branch-icon { font-size: 24px; }
+        .branch-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ddd;
+        }
+        .branch-resource {
+            margin-left: auto;
+            font-size: 12px;
+            color: #888;
+            padding: 2px 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+        }
+
+        .tech-nodes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tech-node {
+            position: relative;
+            padding: 10px 12px;
+            background: rgba(40,40,70,0.8);
+            border: 2px solid #445;
+            border-radius: 8px;
+            cursor: pointer;
+            min-width: 120px;
+            flex: 1;
+            min-height: 60px;
+            transition: all 0.2s ease;
+        }
+        .tech-node:hover {
+            border-color: #668;
+            background: rgba(60,60,90,0.8);
+        }
+        .tech-node.unlocked {
+            border-color: #44cc88;
+            background: rgba(30,80,50,0.4);
+        }
+        .tech-node.equipped {
+            border-color: #cc66ff;
+            background: rgba(80,30,120,0.4);
+            box-shadow: 0 0 10px rgba(200,100,255,0.3);
+        }
+        .tech-node.locked {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .tech-node.affordable {
+            border-color: #88aaff;
+            box-shadow: 0 0 8px rgba(100,150,255,0.2);
+        }
+
+        .node-name {
+            font-size: 12px;
+            font-weight: bold;
+            color: #ddd;
+            margin-bottom: 3px;
+        }
+        .node-desc {
+            font-size: 10px;
+            color: #999;
+            line-height: 1.3;
+        }
+        .node-cost {
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            font-size: 10px;
+            color: #888;
+            background: rgba(0,0,0,0.3);
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+        .node-special-tag {
+            display: inline-block;
+            font-size: 9px;
+            color: #cc66ff;
+            background: rgba(200,100,255,0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .node-requires {
+            font-size: 9px;
+            color: #665;
+            margin-top: 2px;
+        }
+
+        .tech-section-label {
+            font-size: 11px;
+            color: #777;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 10px 0 6px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Meta resource gains on game over */
+        .meta-gains {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 12px;
+            text-align: left;
+            margin: 8px 0;
+            padding: 10px 14px;
+            background: rgba(68, 204, 136, 0.1);
+            border: 1px solid rgba(68, 204, 136, 0.2);
+            border-radius: 8px;
+            font-size: 12px;
+        }
+        .meta-gains .gain-label { color: #88ccaa; }
+        .meta-gains .gain-value { text-align: right; color: #44cc88; font-weight: bold; }
+        .meta-gains-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #44cc88;
+            margin-top: 12px;
+            margin-bottom: 4px;
+        }
+
+        .reset-tree-btn {
+            margin-top: 12px;
+            padding: 8px 20px;
+            background: #553333;
+            border: 1px solid #774444;
+            border-radius: 6px;
+            color: #ffaaaa;
+            font-size: 12px;
+            cursor: pointer;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .reset-tree-btn:hover {
+            background: #664444;
+        }
     </style>
 </head>
 <body>
@@ -2342,12 +2605,28 @@
         <div id="titleButtons">
             <button id="newGameBtn" class="title-btn">New Game</button>
             <button id="continueBtn" class="title-btn">Continue</button>
+            <button id="researchBtn" class="title-btn research-btn">Research Lab</button>
             <button id="arenaModeBtn" class="title-btn arena-btn">Arena Mode</button>
         </div>
         <div id="loadingScreen">
             <div class="loading-spinner"></div>
             <div class="loading-text">Loading...</div>
         </div>
+    </div>
+
+    <!-- Research / Tech Tree Screen -->
+    <div id="researchScreen">
+        <div class="research-header">
+            <h2>Research Lab</h2>
+            <button class="research-back-btn" id="researchBackBtn">Back</button>
+        </div>
+        <div class="meta-resources-bar" id="metaResourcesBar"></div>
+        <div class="special-slots-bar">
+            <span>Special Slots: <strong id="specialSlotsCount">1/1</strong></span>
+            <button class="upgrade-slots-btn" id="upgradeSlotBtn">Upgrade Slot</button>
+        </div>
+        <div class="tech-trees-container" id="techTreesContainer"></div>
+        <button class="reset-tree-btn" id="resetTreeBtn">Reset All Trees (Free)</button>
     </div>
 
     <!-- Arena Mode Configuration Panel -->
@@ -2803,6 +3082,8 @@
         <h2>Game Over</h2>
         <p>Final Credits: <span id="finalCredits">0</span></p>
         <div id="runSummary" class="run-summary"></div>
+        <div class="meta-gains-title">Resources Salvaged</div>
+        <div id="metaGains" class="meta-gains"></div>
         <button id="restartBtn">Play Again</button>
     </div>
     </div><!-- end gameContainer -->
@@ -2819,31 +3100,437 @@
             Hydrogen: { color: '#aaddff', symbol: 'H₂', tradeValue: 1 },
             Organics: { color: '#44ff88', symbol: '🧬', tradeValue: 5 },
             Crystals: { color: '#ff44ff', symbol: '💎', tradeValue: 8 },
-            Exotic: { color: '#ffaa00', symbol: '✧', tradeValue: 25 }
+            Exotic: { color: '#ffaa00', symbol: '✧', tradeValue: 25 },
+            Plasma: { color: '#cc66ff', symbol: '⚡', tradeValue: 15 }
         };
+
+        // Meta resources - persist across deaths, used for tech tree
+        const META_RESOURCES = {
+            Alloys: { name: 'Alloys', icon: '🔩', desc: 'Refined metals for kinetic research', color: '#99aacc', from: 'Metal from rocky planets' },
+            Plasma: { name: 'Plasma', icon: '🔮', desc: 'Ionized gas for energy research', color: '#cc66ff', from: 'Gas giants' },
+            DataCores: { name: 'Data Cores', icon: '💿', desc: 'Ancient tech for defense research', color: '#44ddff', from: 'Crystals & Exotic materials' },
+            DarkMatter: { name: 'Dark Matter', icon: '🌑', desc: 'Exotic matter for special upgrades', color: '#8844cc', from: 'Mystery events' }
+        };
+
+        const META_SAVE_KEY = 'spacerun_meta';
+
+        // ========== TECH TREE SYSTEM ==========
+        const TECH_TREES = {
+            weapons: {
+                name: 'Weapons Lab',
+                icon: '🔫',
+                desc: 'Kinetic and projectile upgrades',
+                resource: 'Alloys',
+                nodes: [
+                    { id: 'w1', name: 'Hardened Rounds', desc: '+10% bullet damage', cost: 3, requires: [], effect: { bulletDamage: 0.10 } },
+                    { id: 'w2', name: 'Rapid Loader', desc: '+10% fire rate', cost: 5, requires: ['w1'], effect: { fireRate: 0.10 } },
+                    { id: 'w3', name: 'Split Chamber', desc: '+1 projectile', cost: 8, requires: ['w2'], effect: { extraProjectiles: 1 } },
+                    { id: 'w4', name: 'Heavy Ordinance', desc: '+15% missile damage', cost: 6, requires: ['w2'], effect: { missileDamage: 0.15 } },
+                    { id: 'w5', name: 'Overclocked Barrels', desc: '+15% fire rate', cost: 10, requires: ['w3'], effect: { fireRate: 0.15 } }
+                ],
+                specialNodes: [
+                    { id: 'ws1', name: 'Stationary Fire', desc: 'Fire rate +5%/sec while not moving (max +50%)', cost: 12, requires: ['w5'], effect: { stationaryFireRate: true } },
+                    { id: 'ws2', name: 'Piercing Rounds', desc: 'Bullets pierce through 1 extra enemy', cost: 10, requires: ['w3'], effect: { piercingRounds: 1 } }
+                ]
+            },
+            energy: {
+                name: 'Energy Lab',
+                icon: '⚡',
+                desc: 'Beam and energy weapon upgrades',
+                resource: 'Plasma',
+                nodes: [
+                    { id: 'e1', name: 'Beam Focus', desc: '+15% beam damage', cost: 3, requires: [], effect: { beamDamage: 0.15 } },
+                    { id: 'e2', name: 'Beam Width', desc: '+20% beam width', cost: 5, requires: ['e1'], effect: { beamWidth: 0.20 } },
+                    { id: 'e3', name: 'Capacitor Banks', desc: '-15% secondary cooldown', cost: 6, requires: ['e1'], effect: { secondaryCooldown: 0.15 } },
+                    { id: 'e4', name: 'Overcharge', desc: '+25% beam damage', cost: 8, requires: ['e2'], effect: { beamDamage: 0.25 } },
+                    { id: 'e5', name: 'Rapid Charge', desc: '-20% secondary cooldown', cost: 10, requires: ['e3'], effect: { secondaryCooldown: 0.20 } }
+                ],
+                specialNodes: [
+                    { id: 'es1', name: 'Nova Cascade', desc: 'Secondary ability hits deal 2x damage', cost: 12, requires: ['e5'], effect: { secondaryDamageMult: 2 } },
+                    { id: 'es2', name: 'Chain Lightning', desc: 'Beam hits arc to 1 nearby enemy for 50% dmg', cost: 10, requires: ['e4'], effect: { chainLightning: true } }
+                ]
+            },
+            defense: {
+                name: 'Defense Lab',
+                icon: '🛡',
+                desc: 'Shields, drones, and hull upgrades',
+                resource: 'DataCores',
+                nodes: [
+                    { id: 'd1', name: 'Hull Plating', desc: '+20 max HP', cost: 3, requires: [], effect: { maxHP: 20 } },
+                    { id: 'd2', name: 'Shield Boost', desc: '+15 shield HP', cost: 5, requires: ['d1'], effect: { shieldHP: 15 } },
+                    { id: 'd3', name: 'Drone Bay', desc: '+1 drone', cost: 6, requires: ['d1'], effect: { extraDrones: 1 } },
+                    { id: 'd4', name: 'Fast Recharge', desc: '+25% shield recharge rate', cost: 8, requires: ['d2'], effect: { shieldRecharge: 0.25 } },
+                    { id: 'd5', name: 'Reinforced Hull', desc: '+30 max HP', cost: 10, requires: ['d4'], effect: { maxHP: 30 } }
+                ],
+                specialNodes: [
+                    { id: 'ds1', name: 'Orbital Synergy', desc: 'Each drone damage x number of drones', cost: 12, requires: ['d3'], effect: { orbitalSynergy: true } },
+                    { id: 'ds2', name: 'Reactive Shields', desc: '30% damage reflected when shields absorb', cost: 10, requires: ['d4'], effect: { reactiveShields: 0.30 } }
+                ]
+            }
+        };
+
+        // Max special node slots (upgradeable with DarkMatter)
+        const BASE_SPECIAL_SLOTS = 1;
+        const MAX_SPECIAL_SLOTS = 3;
+        const SPECIAL_SLOT_COST = 15; // DarkMatter per extra slot
+
+        // Meta state management
+        function getDefaultMetaState() {
+            return {
+                resources: { Alloys: 0, Plasma: 0, DataCores: 0, DarkMatter: 0 },
+                unlockedNodes: [],     // Array of node IDs that are unlocked
+                specialSlots: BASE_SPECIAL_SLOTS,
+                equippedSpecials: [],  // Array of special node IDs currently equipped
+                totalRuns: 0,
+                bestLevel: 0
+            };
+        }
+
+        let metaState = getDefaultMetaState();
+
+        function saveMetaState() {
+            try {
+                localStorage.setItem(META_SAVE_KEY, JSON.stringify(metaState));
+            } catch (e) { /* ignore quota errors */ }
+        }
+
+        function loadMetaState() {
+            try {
+                const data = localStorage.getItem(META_SAVE_KEY);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    metaState = { ...getDefaultMetaState(), ...parsed };
+                    // Ensure resources object has all keys
+                    Object.keys(META_RESOURCES).forEach(r => {
+                        if (metaState.resources[r] === undefined) metaState.resources[r] = 0;
+                    });
+                }
+            } catch (e) {
+                metaState = getDefaultMetaState();
+            }
+        }
+
+        function isNodeUnlocked(nodeId) {
+            return metaState.unlockedNodes.includes(nodeId);
+        }
+
+        function canUnlockNode(treeKey, node) {
+            if (isNodeUnlocked(node.id)) return false;
+            // Check prerequisites
+            if (node.requires.length > 0 && !node.requires.every(r => isNodeUnlocked(r))) return false;
+            // Check resource cost
+            const tree = TECH_TREES[treeKey];
+            return metaState.resources[tree.resource] >= node.cost;
+        }
+
+        function unlockNode(treeKey, node) {
+            if (!canUnlockNode(treeKey, node)) return false;
+            const tree = TECH_TREES[treeKey];
+            metaState.resources[tree.resource] -= node.cost;
+            metaState.unlockedNodes.push(node.id);
+            saveMetaState();
+            return true;
+        }
+
+        function refundNode(treeKey, node) {
+            if (!isNodeUnlocked(node.id)) return;
+            // Check if any other unlocked node depends on this one
+            const tree = TECH_TREES[treeKey];
+            const allNodes = [...tree.nodes, ...tree.specialNodes];
+            for (const other of allNodes) {
+                if (other.requires.includes(node.id) && isNodeUnlocked(other.id)) return; // Can't refund, dependency exists
+            }
+            metaState.unlockedNodes = metaState.unlockedNodes.filter(id => id !== node.id);
+            metaState.equippedSpecials = metaState.equippedSpecials.filter(id => id !== node.id);
+            metaState.resources[tree.resource] += node.cost;
+            saveMetaState();
+        }
+
+        function toggleSpecialNode(nodeId) {
+            if (!isNodeUnlocked(nodeId)) return;
+            if (metaState.equippedSpecials.includes(nodeId)) {
+                metaState.equippedSpecials = metaState.equippedSpecials.filter(id => id !== nodeId);
+            } else {
+                if (metaState.equippedSpecials.length >= metaState.specialSlots) return; // No free slots
+                metaState.equippedSpecials.push(nodeId);
+            }
+            saveMetaState();
+        }
+
+        function upgradeSpecialSlots() {
+            if (metaState.specialSlots >= MAX_SPECIAL_SLOTS) return false;
+            if (metaState.resources.DarkMatter < SPECIAL_SLOT_COST) return false;
+            metaState.resources.DarkMatter -= SPECIAL_SLOT_COST;
+            metaState.specialSlots++;
+            saveMetaState();
+            return true;
+        }
+
+        // Calculate cumulative tech tree bonuses from unlocked nodes
+        function getTechBonuses() {
+            const bonuses = {
+                bulletDamage: 0, fireRate: 0, extraProjectiles: 0, missileDamage: 0,
+                beamDamage: 0, beamWidth: 0, secondaryCooldown: 0,
+                maxHP: 0, shieldHP: 0, extraDrones: 0, shieldRecharge: 0,
+                // Special effects (only from equipped special nodes)
+                stationaryFireRate: false, piercingRounds: 0,
+                secondaryDamageMult: 1, chainLightning: false,
+                orbitalSynergy: false, reactiveShields: 0
+            };
+
+            for (const treeKey of Object.keys(TECH_TREES)) {
+                const tree = TECH_TREES[treeKey];
+                // Normal nodes: always active if unlocked
+                for (const node of tree.nodes) {
+                    if (isNodeUnlocked(node.id)) {
+                        Object.keys(node.effect).forEach(key => {
+                            if (typeof bonuses[key] === 'boolean') {
+                                bonuses[key] = node.effect[key];
+                            } else {
+                                bonuses[key] += node.effect[key];
+                            }
+                        });
+                    }
+                }
+                // Special nodes: only active if equipped
+                for (const node of tree.specialNodes) {
+                    if (metaState.equippedSpecials.includes(node.id)) {
+                        Object.keys(node.effect).forEach(key => {
+                            if (typeof bonuses[key] === 'boolean') {
+                                bonuses[key] = node.effect[key];
+                            } else if (key === 'secondaryDamageMult') {
+                                bonuses[key] *= node.effect[key];
+                            } else {
+                                bonuses[key] += node.effect[key];
+                            }
+                        });
+                    }
+                }
+            }
+            return bonuses;
+        }
+
+        // Convert in-run resources to meta resources on death
+        function convertRunResourcesToMeta() {
+            const res = gameState.resources;
+            // Metal → Alloys (3 metal = 1 alloy)
+            const alloys = Math.floor((res.Metal || 0) / 3);
+            // Plasma transfers directly
+            const plasma = res.Plasma || 0;
+            // Crystals + Exotic → DataCores (2 crystals or 1 exotic = 1 datacore)
+            const dataCores = Math.floor((res.Crystals || 0) / 2) + (res.Exotic || 0);
+            // DarkMatter comes from mystery events (tracked separately in stats)
+            const darkMatter = Math.floor((gameState.stats.eventsCompleted || 0) * 1.5);
+
+            metaState.resources.Alloys += alloys;
+            metaState.resources.Plasma += plasma;
+            metaState.resources.DataCores += dataCores;
+            metaState.resources.DarkMatter += darkMatter;
+            metaState.totalRuns++;
+            metaState.bestLevel = Math.max(metaState.bestLevel, gameState.stats.highestLevel || 1);
+            saveMetaState();
+
+            return { Alloys: alloys, Plasma: plasma, DataCores: dataCores, DarkMatter: darkMatter };
+        }
+
+        // ========== TECH TREE UI ==========
+        function renderResearchScreen() {
+            // Update meta resources bar
+            const bar = document.getElementById('metaResourcesBar');
+            bar.innerHTML = Object.entries(META_RESOURCES).map(([key, r]) =>
+                `<div class="meta-res-item">
+                    <span class="meta-res-icon">${r.icon}</span>
+                    <span class="meta-res-count" style="color:${r.color}">${metaState.resources[key]}</span>
+                    <span style="color:#888;font-size:11px">${r.name}</span>
+                </div>`
+            ).join('');
+
+            // Update special slots
+            const equipped = metaState.equippedSpecials.length;
+            const slots = metaState.specialSlots;
+            document.getElementById('specialSlotsCount').textContent = `${equipped}/${slots}`;
+
+            const upgradeBtn = document.getElementById('upgradeSlotBtn');
+            const upgradeCost = SPECIAL_SLOT_COST;
+            if (slots >= MAX_SPECIAL_SLOTS) {
+                upgradeBtn.textContent = 'Max Slots';
+                upgradeBtn.disabled = true;
+            } else {
+                upgradeBtn.textContent = `Upgrade Slot (${upgradeCost} Dark Matter)`;
+                upgradeBtn.disabled = metaState.resources.DarkMatter < upgradeCost;
+            }
+
+            // Render tech trees
+            const container = document.getElementById('techTreesContainer');
+            container.innerHTML = '';
+
+            for (const [treeKey, tree] of Object.entries(TECH_TREES)) {
+                const branch = document.createElement('div');
+                branch.className = 'tech-branch';
+
+                const resName = META_RESOURCES[tree.resource].name;
+                const resIcon = META_RESOURCES[tree.resource].icon;
+                const resCount = metaState.resources[tree.resource];
+
+                branch.innerHTML = `
+                    <div class="branch-header">
+                        <span class="branch-icon">${tree.icon}</span>
+                        <span class="branch-name">${tree.name}</span>
+                        <span class="branch-resource">${resIcon} ${resCount} ${resName}</span>
+                    </div>
+                `;
+
+                // Normal nodes
+                const nodesDiv = document.createElement('div');
+                nodesDiv.className = 'tech-nodes';
+                tree.nodes.forEach(node => {
+                    nodesDiv.appendChild(createNodeElement(treeKey, node, false));
+                });
+                branch.appendChild(nodesDiv);
+
+                // Special nodes section
+                if (tree.specialNodes.length > 0) {
+                    const specialLabel = document.createElement('div');
+                    specialLabel.className = 'tech-section-label';
+                    specialLabel.textContent = 'Special Abilities (require equip slot)';
+                    branch.appendChild(specialLabel);
+
+                    const specialDiv = document.createElement('div');
+                    specialDiv.className = 'tech-nodes';
+                    tree.specialNodes.forEach(node => {
+                        specialDiv.appendChild(createNodeElement(treeKey, node, true));
+                    });
+                    branch.appendChild(specialDiv);
+                }
+
+                container.appendChild(branch);
+            }
+        }
+
+        function createNodeElement(treeKey, node, isSpecial) {
+            const el = document.createElement('div');
+            el.className = 'tech-node';
+
+            const unlocked = isNodeUnlocked(node.id);
+            const equipped = metaState.equippedSpecials.includes(node.id);
+            const canAfford = canUnlockNode(treeKey, node);
+
+            if (unlocked) {
+                el.classList.add('unlocked');
+                if (isSpecial && equipped) el.classList.add('equipped');
+            } else if (canAfford) {
+                el.classList.add('affordable');
+            } else {
+                // Check if prerequisites are met
+                const prereqsMet = node.requires.every(r => isNodeUnlocked(r));
+                if (!prereqsMet) el.classList.add('locked');
+            }
+
+            const resIcon = META_RESOURCES[TECH_TREES[treeKey].resource].icon;
+            let reqText = '';
+            if (node.requires.length > 0) {
+                const allNodes = [...TECH_TREES[treeKey].nodes, ...TECH_TREES[treeKey].specialNodes];
+                const reqNames = node.requires.map(r => {
+                    const n = allNodes.find(n => n.id === r);
+                    return n ? n.name : r;
+                });
+                reqText = `<div class="node-requires">Requires: ${reqNames.join(', ')}</div>`;
+            }
+
+            el.innerHTML = `
+                <div class="node-name">${node.name}</div>
+                <div class="node-desc">${node.desc}</div>
+                ${!unlocked ? `<div class="node-cost">${resIcon}${node.cost}</div>` : ''}
+                ${isSpecial ? '<div class="node-special-tag">Special</div>' : ''}
+                ${reqText}
+            `;
+
+            el.addEventListener('click', () => handleNodeClick(treeKey, node, isSpecial));
+            return el;
+        }
+
+        function handleNodeClick(treeKey, node, isSpecial) {
+            const unlocked = isNodeUnlocked(node.id);
+
+            if (unlocked) {
+                if (isSpecial) {
+                    // Toggle equip/unequip
+                    toggleSpecialNode(node.id);
+                } else {
+                    // Refund normal node
+                    refundNode(treeKey, node);
+                }
+            } else {
+                // Try to unlock
+                if (canUnlockNode(treeKey, node)) {
+                    unlockNode(treeKey, node);
+                }
+            }
+            renderResearchScreen();
+        }
+
+        function openResearchScreen() {
+            loadMetaState();
+            document.getElementById('researchScreen').style.display = 'flex';
+            renderResearchScreen();
+        }
+
+        function closeResearchScreen() {
+            document.getElementById('researchScreen').style.display = 'none';
+        }
+
+        function resetAllTrees() {
+            // Refund everything - give back all resources
+            for (const [treeKey, tree] of Object.entries(TECH_TREES)) {
+                const resource = tree.resource;
+                [...tree.nodes, ...tree.specialNodes].forEach(node => {
+                    if (isNodeUnlocked(node.id)) {
+                        metaState.resources[resource] += node.cost;
+                    }
+                });
+            }
+            metaState.unlockedNodes = [];
+            metaState.equippedSpecials = [];
+            saveMetaState();
+            renderResearchScreen();
+        }
+
+        // ========== APPLY TECH BONUSES TO GAMEPLAY ==========
+        function applyTechBonuses() {
+            const bonuses = getTechBonuses();
+
+            // Apply max HP bonus
+            if (bonuses.maxHP > 0) {
+                gameState.maxHealth += bonuses.maxHP;
+                gameState.health += bonuses.maxHP;
+            }
+
+            // Store bonuses for runtime use
+            gameState.techBonuses = bonuses;
+        }
 
         // Planet types with their resources and image paths
         const PLANET_TYPES = {
-            // Gas giants - yield Hydrogen (fuel), occasionally Crystals
+            // Gas giants - fuel-positive (yield more H2 than they cost), yield rare Plasma
             BlueGiant: {
                 category: 'Gaseous', folder: 'Blue Giant', prefix: 'BlueGiant',
-                resources: { Hydrogen: [2, 4] }, harvests: 2, tint: [0.7, 0.8, 1.0]
+                resources: { Hydrogen: [4, 7], Plasma: [1, 2] }, harvests: 2, tint: [0.7, 0.8, 1.0]
             },
             GreenGiant: {
                 category: 'Gaseous', folder: 'Green Giant', prefix: 'GreenGiant',
-                resources: { Hydrogen: [2, 3], Crystals: [0, 1] }, harvests: 2, tint: [0.7, 1.0, 0.8]
+                resources: { Hydrogen: [3, 6], Plasma: [0, 1], Crystals: [0, 1] }, harvests: 2, tint: [0.7, 1.0, 0.8]
             },
             OrangeGiant: {
                 category: 'Gaseous', folder: 'Orange Giant', prefix: 'OrgangeGiant',
-                resources: { Hydrogen: [2, 4] }, harvests: 2, tint: [1.0, 0.8, 0.6]
+                resources: { Hydrogen: [4, 7], Plasma: [1, 2] }, harvests: 2, tint: [1.0, 0.8, 0.6]
             },
             RedGiant: {
                 category: 'Gaseous', folder: 'Red Giant', prefix: 'RedGiant',
-                resources: { Hydrogen: [3, 5] }, harvests: 3, tint: [1.0, 0.7, 0.7]
+                resources: { Hydrogen: [5, 8], Plasma: [1, 3] }, harvests: 3, tint: [1.0, 0.7, 0.7]
             },
             YellowGiant: {
                 category: 'Gaseous', folder: 'Yellow Giant', prefix: 'YellowGiant',
-                resources: { Hydrogen: [2, 4], Crystals: [0, 1] }, harvests: 2, tint: [1.0, 1.0, 0.8]
+                resources: { Hydrogen: [3, 6], Plasma: [0, 1], Crystals: [0, 1] }, harvests: 2, tint: [1.0, 1.0, 0.8]
             },
             // Rocky planets - yield Metal
             Rocky: {
@@ -3108,8 +3795,8 @@
 
         // Base fuel costs per planet type (gas giants cost more due to gravity)
         const PLANET_FUEL_COSTS = {
-            // Gas giants - expensive
-            BlueGiant: 15, GreenGiant: 12, OrangeGiant: 12, RedGiant: 18, YellowGiant: 12,
+            // Gas giants - cheap (fuel-positive: yield more H2 than they cost)
+            BlueGiant: 3, GreenGiant: 3, OrangeGiant: 3, RedGiant: 4, YellowGiant: 3,
             // Rocky planets - moderate
             Rocky: 5, Cratered: 5, Barren: 4, Lunar: 3, Magma: 8,
             // Ice planets - moderate
@@ -8338,6 +9025,16 @@
 
             playerShip.velocityX = playerShip.position.x - prevX;
 
+            // Track stationary time for tech bonus
+            const prevY = playerShip.position.y;
+            const moved = Math.abs(playerShip.velocityX) > 0.005 || Math.abs(playerShip.position.y - (playerShip.prevY || prevY)) > 0.005;
+            playerShip.prevY = playerShip.position.y;
+            if (moved) {
+                gameState.stationaryTime = 0;
+            } else {
+                gameState.stationaryTime = (gameState.stationaryTime || 0) + deltaTime / 1000;
+            }
+
             // Banking effect - tilt ship based on horizontal movement
             const targetTilt = -playerShip.velocityX * 15;
             const maxTilt = Math.PI / 4; // 45 degrees max bank
@@ -8371,7 +9068,14 @@
                 // Track fire time per weapon slot
                 if (!gameState.weaponFireTimes) gameState.weaponFireTimes = {};
                 const lastFire = gameState.weaponFireTimes[idx] || 0;
-                const fireInterval = weapon.fireRate / settings.fireRate;
+                const tb = gameState.techBonuses || {};
+
+                // Apply tech fire rate bonus + stationary fire rate bonus
+                let fireRateMult = 1 + (tb.fireRate || 0);
+                if (tb.stationaryFireRate && gameState.stationaryTime) {
+                    fireRateMult += Math.min(gameState.stationaryTime * 0.05, 0.5);
+                }
+                const fireInterval = weapon.fireRate / settings.fireRate / fireRateMult;
 
                 if (currentTime - lastFire > fireInterval) {
                     // Calculate hardpoint position offset
@@ -8385,12 +9089,16 @@
                     // Get weapon speed (default 0.35 for backward compatibility)
                     const weaponSpeed = weapon.speed || 0.35;
 
+                    // Apply tech bullet damage bonus
+                    const dmgMult = 1 + (tb.bulletDamage || 0);
+                    const boostedDmg = Math.round(weapon.damage * dmgMult);
+
                     // Fire based on weapon type
                     if (weapon.type === 'beam') {
                         fireBeamLaser(px, py, weapon);
                     } else if (weapon.type === 'spread' || weapon.projectiles > 1) {
-                        // Spread/multi-projectile weapon
-                        const count = weapon.projectiles || 3;
+                        // Spread/multi-projectile weapon (+ extra projectiles from tech)
+                        const count = (weapon.projectiles || 3) + (tb.extraProjectiles || 0);
                         const spreadAngle = weapon.spread || 0.3;
                         const angleStep = count > 1 ? (spreadAngle * 2) / (count - 1) : 0;
                         const startAngle = -spreadAngle;
@@ -8399,13 +9107,26 @@
                             const angle = count > 1 ? startAngle + (angleStep * i) : 0;
                             const vx = Math.sin(angle) * weaponSpeed;
                             const vy = Math.cos(angle) * weaponSpeed;
-                            const bullet = createBullet(true, px + (vx * 0.3), py, vx * 0.3, vy, weapon.damage);
+                            const bullet = createBullet(true, px + (vx * 0.3), py, vx * 0.3, vy, boostedDmg);
                             gameState.playerBullets.push(bullet);
                         }
                     } else {
-                        // Single projectile bullet weapon
-                        const bullet = createBullet(true, px, py, 0, weaponSpeed, weapon.damage);
-                        gameState.playerBullets.push(bullet);
+                        // Single projectile bullet weapon (+ extra projectiles from tech as slight spread)
+                        const extraProj = tb.extraProjectiles || 0;
+                        if (extraProj > 0) {
+                            const totalProj = 1 + extraProj;
+                            const spread = 0.15;
+                            for (let i = 0; i < totalProj; i++) {
+                                const angle = totalProj > 1 ? -spread + (2 * spread * i / (totalProj - 1)) : 0;
+                                const vx = Math.sin(angle) * weaponSpeed;
+                                const vy = Math.cos(angle) * weaponSpeed;
+                                const bullet = createBullet(true, px, py, vx * 0.3, vy, boostedDmg);
+                                gameState.playerBullets.push(bullet);
+                            }
+                        } else {
+                            const bullet = createBullet(true, px, py, 0, weaponSpeed, boostedDmg);
+                            gameState.playerBullets.push(bullet);
+                        }
                     }
 
                     gameState.weaponFireTimes[idx] = currentTime;
@@ -8431,6 +9152,23 @@
                     beam.hitEnemies.add(enemy);
                     enemy.health -= beamDamage;
                     flashShip(enemy.mesh || enemy);
+
+                    // Chain lightning: arc damage to 1 nearby enemy
+                    const tb = gameState.techBonuses || {};
+                    if (tb.chainLightning) {
+                        const chainDmg = Math.round(beamDamage * 0.5);
+                        let chainTarget = null, chainDist = 6;
+                        gameState.enemies.forEach(other => {
+                            if (other === enemy || beam.hitEnemies.has(other)) return;
+                            const d = BABYLON.Vector3.Distance(enemy.position, other.position);
+                            if (d < chainDist) { chainDist = d; chainTarget = other; }
+                        });
+                        if (chainTarget) {
+                            beam.hitEnemies.add(chainTarget);
+                            chainTarget.health -= chainDmg;
+                            flashShip(chainTarget.mesh || chainTarget);
+                        }
+                    }
 
                     if (enemy.health <= 0) {
                         createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
@@ -8494,8 +9232,11 @@
         function fireBeamLaser(px, py, weapon = null) {
             if (!gameState.beamMeshes) gameState.beamMeshes = [];
 
-            const beamDamage = weapon ? weapon.damage : 20;
-            const beamWidth = weapon ? (0.3 + weapon.spread * 0.5) : 0.5;
+            const tb = gameState.techBonuses || {};
+            const beamDmgMult = 1 + (tb.beamDamage || 0);
+            const beamWidthMult = 1 + (tb.beamWidth || 0);
+            const beamDamage = Math.round((weapon ? weapon.damage : 20) * beamDmgMult);
+            const beamWidth = (weapon ? (0.3 + weapon.spread * 0.5) : 0.5) * beamWidthMult;
 
             const beamHeight = orthoHeight * 2;
             const beam = BABYLON.MeshBuilder.CreatePlane('beam', { width: beamWidth * 0.6, height: beamHeight }, scene);
@@ -8528,9 +9269,11 @@
 
         // ========== SHIELD EQUIPMENT ==========
         function activateShieldEquipment(equipment) {
+            const tb = gameState.techBonuses || {};
             gameState.shieldEquipment = equipment;
-            gameState.shieldHP = equipment.shieldHP;
-            gameState.shieldMaxHP = equipment.shieldHP;
+            const bonusHP = tb.shieldHP || 0;
+            gameState.shieldHP = equipment.shieldHP + bonusHP;
+            gameState.shieldMaxHP = equipment.shieldHP + bonusHP;
             gameState.shieldRechargeTimer = 0;
             createShieldBubble();
         }
@@ -8578,9 +9321,10 @@
             if (gameState.shieldHP < gameState.shieldMaxHP) {
                 gameState.shieldRechargeTimer -= deltaTime;
                 if (gameState.shieldRechargeTimer <= 0) {
+                    const rechargeMult = 1 + ((gameState.techBonuses || {}).shieldRecharge || 0);
                     gameState.shieldHP = Math.min(
                         gameState.shieldMaxHP,
-                        gameState.shieldHP + gameState.shieldEquipment.rechargeRate * (deltaTime / 1000)
+                        gameState.shieldHP + gameState.shieldEquipment.rechargeRate * rechargeMult * (deltaTime / 1000)
                     );
                     // Re-enable bubble when shield comes back
                     if (gameState.shieldHP > 0 && gameState.shieldBubble) {
@@ -8597,6 +9341,22 @@
             const absorbed = Math.min(gameState.shieldHP, damage);
             gameState.shieldHP -= absorbed;
             gameState.shieldRechargeTimer = gameState.shieldEquipment.rechargeDelay;
+
+            // Reactive shields: reflect damage to nearest enemy
+            const tb = gameState.techBonuses || {};
+            if (tb.reactiveShields > 0 && absorbed > 0) {
+                const reflectDmg = Math.round(absorbed * tb.reactiveShields);
+                if (reflectDmg > 0 && playerShip && gameState.enemies.length > 0) {
+                    let nearest = null, nearDist = Infinity;
+                    gameState.enemies.forEach(e => {
+                        const d = BABYLON.Vector3.Distance(playerShip.position, e.position);
+                        if (d < nearDist) { nearDist = d; nearest = e; }
+                    });
+                    if (nearest) {
+                        nearest.health -= reflectDmg;
+                    }
+                }
+            }
 
             // Flash shield bubble on hit
             if (gameState.shieldBubble && gameState.shieldBubble.material) {
@@ -8615,7 +9375,9 @@
         function activateDroneEquipment(equipment) {
             cleanupDrones();
             gameState.droneEquipment = equipment;
-            for (let i = 0; i < equipment.droneCount; i++) {
+            const extraDrones = (gameState.techBonuses || {}).extraDrones || 0;
+            const totalDrones = equipment.droneCount + extraDrones;
+            for (let i = 0; i < totalDrones; i++) {
                 spawnDrone(i, equipment);
             }
         }
@@ -8712,7 +9474,13 @@
             const vx = (dx / dist) * speed;
             const vy = (dy / dist) * speed;
 
-            const bullet = createBullet(true, drone.position.x, drone.position.y, vx, vy, drone.droneDamage);
+            // Orbital synergy: drone damage multiplied by number of active drones
+            const tb = gameState.techBonuses || {};
+            let dmg = drone.droneDamage;
+            if (tb.orbitalSynergy && gameState.drones.length > 1) {
+                dmg *= gameState.drones.length;
+            }
+            const bullet = createBullet(true, drone.position.x, drone.position.y, vx, vy, Math.round(dmg));
             // Tint drone bullets green to distinguish
             if (bullet.material) {
                 bullet.material.emissiveColor = new BABYLON.Color3(0.1, 0.9, 0.3);
@@ -8785,7 +9553,8 @@
                 sunGlowLayer.addIncludedOnlyMesh(missile);
             }
 
-            missile.missileDamage = equipment.damage;
+            const missileDmgMult = 1 + ((gameState.techBonuses || {}).missileDamage || 0);
+            missile.missileDamage = Math.round(equipment.damage * missileDmgMult);
             missile.missileSpeed = equipment.speed;
             missile.missileMaxSpeed = equipment.maxSpeed;
             missile.missileAccel = equipment.acceleration;
@@ -8989,7 +9758,8 @@
             if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(beam);
 
             // Deal massive damage to all enemies in beam path
-            const beamDamage = ability.damage || 200;
+            const tb = gameState.techBonuses || {};
+            const beamDamage = Math.round((ability.damage || 200) * (tb.secondaryDamageMult || 1));
             for (let i = gameState.enemies.length - 1; i >= 0; i--) {
                 const enemy = gameState.enemies[i];
                 if (Math.abs(enemy.position.x - beam.position.x) < beamWidth && enemy.position.y > playerShip.position.y) {
@@ -9077,7 +9847,9 @@
                 const abilityDef = SECONDARY_ABILITIES[ship.secondary.abilityId];
                 if (abilityDef) {
                     gameState.secondaryAbility = { ...abilityDef, ...ship.secondary };
-                    gameState.secondaryMaxCooldown = ship.secondary.cooldown || abilityDef.cooldown;
+                    const tb = gameState.techBonuses || {};
+                    const cdReduction = 1 - (tb.secondaryCooldown || 0);
+                    gameState.secondaryMaxCooldown = Math.round((ship.secondary.cooldown || abilityDef.cooldown) * cdReduction);
                     gameState.secondaryCooldown = 0;
                 }
             }
@@ -9445,11 +10217,18 @@
 
                         createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
 
-                        if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
-                        bullet.getChildMeshes().forEach(m => m.dispose());
-                        bullet.dispose();
-                        gameState.playerBullets.splice(i, 1);
-                        bulletHit = true;
+                        // Piercing rounds: bullet continues through enemies
+                        const piercesLeft = bullet.piercesLeft !== undefined ? bullet.piercesLeft : ((gameState.techBonuses || {}).piercingRounds || 0);
+                        if (piercesLeft > 0) {
+                            bullet.piercesLeft = piercesLeft - 1;
+                            // Don't dispose - let it keep going
+                        } else {
+                            if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                            bullet.getChildMeshes().forEach(m => m.dispose());
+                            bullet.dispose();
+                            gameState.playerBullets.splice(i, 1);
+                            bulletHit = true;
+                        }
 
                         if (enemy.health <= 0) {
                             createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
@@ -9692,6 +10471,20 @@
                 <span class="stat-label">Planets Harvested</span><span class="stat-value">${s.planetsHarvested}</span>
                 <span class="stat-label">Stations Docked</span><span class="stat-value">${s.stationsDocked}</span>
             `;
+
+            // Convert in-run resources to meta resources (not in arena mode)
+            const gainsDiv = document.getElementById('metaGains');
+            if (!gameState.arenaMode) {
+                const gains = convertRunResourcesToMeta();
+                gainsDiv.innerHTML = Object.entries(META_RESOURCES).map(([key, r]) =>
+                    `<span class="gain-label">${r.icon} ${r.name}</span><span class="gain-value">+${gains[key]}</span>`
+                ).join('');
+                gainsDiv.style.display = 'grid';
+                document.querySelector('.meta-gains-title').style.display = 'block';
+            } else {
+                gainsDiv.style.display = 'none';
+                document.querySelector('.meta-gains-title').style.display = 'none';
+            }
 
             document.getElementById('gameOver').style.display = 'block';
             document.getElementById('harvestBar').style.display = 'none';
@@ -10382,6 +11175,10 @@
                 gameState.wavesUntilStarbase = gameState.levelConfig.waveCount;
             }
 
+            // Apply tech tree bonuses before equipment init (so shield/drone bonuses apply)
+            loadMetaState();
+            applyTechBonuses();
+
             // Initialize equipment from fleet (shields, drones, secondary ability)
             initEquipmentFromFleet();
 
@@ -10509,9 +11306,21 @@
             });
         }
 
+        // Load meta state on page load
+        loadMetaState();
+
         // Button event handlers
         newGameBtn.addEventListener('click', () => startGame(false));
         continueBtn.addEventListener('click', () => startGame(true));
+
+        // Research Lab button
+        document.getElementById('researchBtn').addEventListener('click', openResearchScreen);
+        document.getElementById('researchBackBtn').addEventListener('click', closeResearchScreen);
+        document.getElementById('resetTreeBtn').addEventListener('click', resetAllTrees);
+        document.getElementById('upgradeSlotBtn').addEventListener('click', () => {
+            upgradeSpecialSlots();
+            renderResearchScreen();
+        });
 
         // Arena Mode Configuration
         const arenaConfig = {
