@@ -3171,6 +3171,7 @@
             gateChoices: null,      // The two gate options
             showingGates: false,    // Whether gates are currently displayed
             gatesAtLevel: 0,        // Gates passed at current level (level-up offered at 5, then every 3)
+            gatesSinceEvent: 0,     // Gates passed since last event gate (force event after 3)
             levelEndSpawned: false, // Whether end-of-level content (reward + gates) has been spawned
             speedUp: false,         // Speed-up button pressed
             inExploration: false,   // Between waves - no combat, just exploration
@@ -5934,8 +5935,10 @@
 
             // Determine if one gate should be an event gate
             // ~25% chance, scaling slightly with level, not on the very first gate
+            // Guaranteed after 3 consecutive gates without an event
             const eventGateChance = 0.20 + (currentLevel * 0.02);
-            const shouldOfferEvent = gatesAtLevel >= 1 && Math.random() < eventGateChance;
+            const forceEvent = gameState.gatesSinceEvent >= 3;
+            const shouldOfferEvent = gatesAtLevel >= 1 && (forceEvent || Math.random() < eventGateChance);
 
             // Randomly pick which side gets the event gate (if any)
             const eventSide = shouldOfferEvent ? (Math.random() < 0.5 ? 'left' : 'right') : null;
@@ -6207,6 +6210,13 @@
                 gameState.gatesAtLevel = 0;  // Reset on level-up
             } else {
                 gameState.gatesAtLevel++;    // Increment when staying at same level
+            }
+
+            // Track gates since last event (reset when entering an event gate)
+            if (chosenConfig.gateType === 'event') {
+                gameState.gatesSinceEvent = 0;
+            } else {
+                gameState.gatesSinceEvent++;
             }
 
             // Consume fuel for warp jump (higher level = more fuel)
@@ -8884,6 +8894,7 @@
                 enemiesInWave: gameState.enemiesInWave,
                 enemiesSpawned: gameState.enemiesSpawned,
                 gatesAtLevel: gameState.gatesAtLevel,
+                gatesSinceEvent: gameState.gatesSinceEvent,
                 savedAt: Date.now()
             };
         }
@@ -8956,6 +8967,7 @@
             gameState.levelConfig = saveData.levelConfig || generateLevelConfig(1);
             gameState.stationsVisited = saveData.stationsVisited || 0;
             gameState.gatesAtLevel = saveData.gatesAtLevel || 0;
+            gameState.gatesSinceEvent = saveData.gatesSinceEvent || 0;
             gameState.currentZone = saveData.currentZone || 0;
             gameState.currentZoneVariant = saveData.currentZoneVariant || 1;
             gameState.levelEndSpawned = saveData.levelEndSpawned || false;
