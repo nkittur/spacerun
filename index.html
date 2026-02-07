@@ -2246,6 +2246,28 @@
                 God Mode (invulnerable, fast, warp anytime)
             </label>
         </div>
+        <h3 style="margin-top: 20px; margin-bottom: 10px; border-top: 1px solid #444; padding-top: 15px;">Graphics</h3>
+        <div class="setting-group checkbox-group">
+            <label>
+                <input type="checkbox" id="bloomEnabled" checked>
+                Bloom Effects (post-processing glow)
+            </label>
+        </div>
+        <div class="setting-group">
+            <label>Sun/Effects Glow</label>
+            <input type="range" id="sunGlowIntensity" min="0" max="2" step="0.1" value="0.7">
+            <div class="setting-value" id="sunGlowIntensityValue">0.7</div>
+        </div>
+        <div class="setting-group">
+            <label>Loot Glow</label>
+            <input type="range" id="lootGlowIntensity" min="0" max="2" step="0.1" value="0.4">
+            <div class="setting-value" id="lootGlowIntensityValue">0.4</div>
+        </div>
+        <div class="setting-group">
+            <label>Light Intensity</label>
+            <input type="range" id="lightIntensity" min="0" max="2" step="0.1" value="1.0">
+            <div class="setting-value" id="lightIntensityValue">1.0</div>
+        </div>
         <button id="closeSettings">Close</button>
     </div>
 
@@ -2556,7 +2578,12 @@
             enemyShip: 'Spitfire',
             enemyColor: 'Red',
             debugMode: localStorage.getItem('debugMode') === 'true',
-            godMode: localStorage.getItem('godMode') === 'true'
+            godMode: localStorage.getItem('godMode') === 'true',
+            // Graphics settings
+            bloomEnabled: localStorage.getItem('bloomEnabled') !== 'false', // Default on
+            sunGlowIntensity: parseFloat(localStorage.getItem('sunGlowIntensity')) || 0.7,
+            lootGlowIntensity: parseFloat(localStorage.getItem('lootGlowIntensity')) || 0.4,
+            lightIntensity: parseFloat(localStorage.getItem('lightIntensity')) || 1.0
         };
 
         // Loaded model templates
@@ -3747,23 +3774,23 @@
             window.addEventListener('resize', updateCamera);
 
             const light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, -1), scene);
-            light.intensity = 1.0;
+            light.intensity = settings.lightIntensity;
             const light2 = new BABYLON.DirectionalLight('light2', new BABYLON.Vector3(0, 0, -1), scene);
-            light2.intensity = 0.8;
+            light2.intensity = settings.lightIntensity * 0.8;
 
             // GlowLayer for suns, bullets, and explosions - whitelisted meshes
             sunGlowLayer = new BABYLON.GlowLayer('sunGlow', scene, {
                 mainTextureFixedSize: 512,
                 blurKernelSize: 24 // Tighter glow
             });
-            sunGlowLayer.intensity = 0.7; // Reduced intensity
+            sunGlowLayer.intensity = settings.sunGlowIntensity;
 
             // Separate glow layer for loot with subtle glow
             lootGlowLayer = new BABYLON.GlowLayer('lootGlow', scene, {
                 mainTextureFixedSize: 256,
                 blurKernelSize: 16
             });
-            lootGlowLayer.intensity = 0.4;
+            lootGlowLayer.intensity = settings.lootGlowIntensity;
 
             // DefaultRenderingPipeline for global bloom
             renderPipeline = new BABYLON.DefaultRenderingPipeline(
@@ -3772,7 +3799,7 @@
                 scene,
                 [camera]
             );
-            renderPipeline.bloomEnabled = true;
+            renderPipeline.bloomEnabled = settings.bloomEnabled;
             renderPipeline.bloomKernel = 24; // Tighter bloom
             renderPipeline.bloomWeight = 0.25; // Subtle bloom
             renderPipeline.bloomThreshold = 0.7; // Higher threshold
@@ -8254,6 +8281,74 @@
         godModeCheckbox.addEventListener('change', () => {
             settings.godMode = godModeCheckbox.checked;
             localStorage.setItem('godMode', settings.godMode);
+        });
+
+        // Graphics settings - helper function to apply settings
+        function applyGraphicsSettings() {
+            if (renderPipeline) {
+                renderPipeline.bloomEnabled = settings.bloomEnabled;
+            }
+            if (sunGlowLayer) {
+                sunGlowLayer.intensity = settings.sunGlowIntensity;
+            }
+            if (lootGlowLayer) {
+                lootGlowLayer.intensity = settings.lootGlowIntensity;
+            }
+            // Apply light intensity to all lights
+            if (scene) {
+                scene.lights.forEach(light => {
+                    if (light.name === 'light') {
+                        light.intensity = settings.lightIntensity;
+                    } else if (light.name === 'light2') {
+                        light.intensity = settings.lightIntensity * 0.8;
+                    }
+                });
+            }
+        }
+
+        // Bloom toggle
+        const bloomCheckbox = document.getElementById('bloomEnabled');
+        bloomCheckbox.checked = settings.bloomEnabled;
+        bloomCheckbox.addEventListener('change', () => {
+            settings.bloomEnabled = bloomCheckbox.checked;
+            localStorage.setItem('bloomEnabled', settings.bloomEnabled);
+            applyGraphicsSettings();
+        });
+
+        // Sun/Effects glow intensity slider
+        const sunGlowSlider = document.getElementById('sunGlowIntensity');
+        const sunGlowValue = document.getElementById('sunGlowIntensityValue');
+        sunGlowSlider.value = settings.sunGlowIntensity;
+        sunGlowValue.textContent = settings.sunGlowIntensity.toFixed(1);
+        sunGlowSlider.addEventListener('input', () => {
+            settings.sunGlowIntensity = parseFloat(sunGlowSlider.value);
+            sunGlowValue.textContent = settings.sunGlowIntensity.toFixed(1);
+            localStorage.setItem('sunGlowIntensity', settings.sunGlowIntensity);
+            applyGraphicsSettings();
+        });
+
+        // Loot glow intensity slider
+        const lootGlowSlider = document.getElementById('lootGlowIntensity');
+        const lootGlowValue = document.getElementById('lootGlowIntensityValue');
+        lootGlowSlider.value = settings.lootGlowIntensity;
+        lootGlowValue.textContent = settings.lootGlowIntensity.toFixed(1);
+        lootGlowSlider.addEventListener('input', () => {
+            settings.lootGlowIntensity = parseFloat(lootGlowSlider.value);
+            lootGlowValue.textContent = settings.lootGlowIntensity.toFixed(1);
+            localStorage.setItem('lootGlowIntensity', settings.lootGlowIntensity);
+            applyGraphicsSettings();
+        });
+
+        // Light intensity slider
+        const lightSlider = document.getElementById('lightIntensity');
+        const lightValue = document.getElementById('lightIntensityValue');
+        lightSlider.value = settings.lightIntensity;
+        lightValue.textContent = settings.lightIntensity.toFixed(1);
+        lightSlider.addEventListener('input', () => {
+            settings.lightIntensity = parseFloat(lightSlider.value);
+            lightValue.textContent = settings.lightIntensity.toFixed(1);
+            localStorage.setItem('lightIntensity', settings.lightIntensity);
+            applyGraphicsSettings();
         });
 
         // Start game
