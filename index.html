@@ -7354,6 +7354,9 @@
                 const result = await BABYLON.SceneLoader.ImportMeshAsync('', basePath + 'glTF/', `${shipName}.gltf`, targetScene);
                 const rootMesh = result.meshes[0];
 
+                // Hide mesh immediately to prevent flash at origin while texture loads
+                rootMesh.setEnabled(false);
+
                 const texturePath = `${basePath}Textures/${shipName}_${colorVariant}.png`;
 
                 // Wait for texture to fully load before applying
@@ -7389,6 +7392,9 @@
                     rootMesh.rotationQuaternion = null;
                     rootMesh.rotation.set(Math.PI / 2, 0, 0);
                 }
+
+                // Now safe to show -- mesh is properly scaled and rotated
+                rootMesh.setEnabled(true);
 
                 return rootMesh;
             } catch (e) {
