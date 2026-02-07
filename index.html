@@ -5988,13 +5988,15 @@
             });
             gameState.enemies = [];
 
-            // Clear bullets (including child meshes like cores/glows)
+            // Clear bullets (remove from glow layer first, then dispose with child meshes)
             gameState.playerBullets.forEach(b => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
                 b.getChildMeshes().forEach(m => m.dispose());
                 b.dispose();
             });
             gameState.playerBullets = [];
             gameState.enemyBullets.forEach(b => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
                 b.getChildMeshes().forEach(m => m.dispose());
                 b.dispose();
             });
@@ -7653,6 +7655,7 @@
 
                         createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
 
+                        if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
                         bullet.getChildMeshes().forEach(m => m.dispose());
                         bullet.dispose();
                         gameState.playerBullets.splice(i, 1);
@@ -7684,6 +7687,7 @@
                 }
 
                 if (!bulletHit && bullet.position.y > orthoHeight + 2) {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
                     bullet.getChildMeshes().forEach(m => m.dispose());
                     bullet.dispose();
                     gameState.playerBullets.splice(i, 1);
@@ -7714,6 +7718,7 @@
                                 gameOver();
                             }
                         }
+                        if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
                         bullet.getChildMeshes().forEach(m => m.dispose());
                         bullet.dispose();
                         gameState.enemyBullets.splice(i, 1);
@@ -7723,6 +7728,7 @@
 
                 if (bullet.position.y < -orthoHeight - 2 || bullet.position.y > orthoHeight + 2 ||
                     bullet.position.x < -orthoWidth - 2 || bullet.position.x > orthoWidth + 2) {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
                     bullet.getChildMeshes().forEach(m => m.dispose());
                     bullet.dispose();
                     gameState.enemyBullets.splice(i, 1);
@@ -7845,9 +7851,17 @@
             });
             gameState.enemies = [];
 
-            gameState.playerBullets.forEach(b => b.dispose());
+            gameState.playerBullets.forEach(b => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                b.getChildMeshes().forEach(m => m.dispose());
+                b.dispose();
+            });
             gameState.playerBullets = [];
-            gameState.enemyBullets.forEach(b => b.dispose());
+            gameState.enemyBullets.forEach(b => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                b.getChildMeshes().forEach(m => m.dispose());
+                b.dispose();
+            });
             gameState.enemyBullets = [];
 
             // Clear challenger lasers (remove from glow layer first)
@@ -7924,6 +7938,7 @@
                 gameState.starbase = null;
             }
             if (gameState.beamMesh) {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(gameState.beamMesh);
                 gameState.beamMesh.dispose();
                 gameState.beamMesh = null;
             }
@@ -7945,7 +7960,10 @@
             gameState.stationWeapons = [];
             gameState.weaponFireTimes = {};
             if (gameState.beamMeshes) {
-                gameState.beamMeshes.forEach(b => b.dispose());
+                gameState.beamMeshes.forEach(b => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                    b.dispose();
+                });
             }
             gameState.beamMeshes = [];
 
