@@ -1424,6 +1424,183 @@
             background: #446;
         }
 
+        /* Mystery Event Dialog */
+        #mysteryEventDialog {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 15, 0.95);
+            display: none;
+            z-index: 210;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-y: auto;
+            color: white;
+        }
+
+        .mystery-event-header {
+            width: 100%;
+            text-align: center;
+            padding: 20px 15px 10px;
+            border-bottom: 1px solid rgba(255, 170, 50, 0.3);
+        }
+
+        .mystery-event-header h2 {
+            color: #ffaa33;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 4px;
+            text-shadow: 0 0 15px rgba(255, 170, 50, 0.5);
+        }
+
+        .mystery-event-header .event-subtitle {
+            color: #aa8855;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        .mystery-event-scene {
+            width: 100%;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .mystery-event-scene .scene-image {
+            width: 80%;
+            max-width: 300px;
+            height: auto;
+            border: 2px solid rgba(255, 170, 50, 0.4);
+            border-radius: 8px;
+            box-shadow: 0 0 25px rgba(255, 100, 0, 0.3);
+            image-rendering: pixelated;
+        }
+
+        .mystery-event-description {
+            padding: 10px 20px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #ccbbaa;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .mystery-event-choices {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .mystery-choice-btn {
+            padding: 14px 18px;
+            background: rgba(40, 35, 25, 0.9);
+            border: 1px solid rgba(255, 170, 50, 0.4);
+            border-radius: 10px;
+            color: #eeddbb;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+            line-height: 1.4;
+        }
+
+        .mystery-choice-btn:hover {
+            background: rgba(80, 60, 20, 0.9);
+            border-color: #ffaa33;
+            box-shadow: 0 0 15px rgba(255, 170, 50, 0.3);
+        }
+
+        .mystery-choice-btn .choice-label {
+            color: #ffcc66;
+            font-weight: bold;
+            font-size: 14px;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .mystery-choice-btn .choice-risk {
+            font-size: 11px;
+            color: #887755;
+        }
+
+        /* Mystery Event Outcome */
+        .mystery-event-outcome {
+            width: 100%;
+            max-width: 400px;
+            padding: 15px 20px;
+            text-align: center;
+        }
+
+        .outcome-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #ccbbaa;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(40, 35, 25, 0.6);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 170, 50, 0.2);
+        }
+
+        .outcome-rewards {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 15px;
+        }
+
+        .outcome-reward-item {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .outcome-reward-item.reward-good {
+            background: rgba(50, 180, 80, 0.2);
+            border: 1px solid rgba(50, 180, 80, 0.4);
+            color: #66dd88;
+        }
+
+        .outcome-reward-item.reward-bad {
+            background: rgba(200, 50, 50, 0.2);
+            border: 1px solid rgba(200, 50, 50, 0.4);
+            color: #ff6655;
+        }
+
+        .outcome-reward-item.reward-legendary {
+            background: rgba(255, 170, 0, 0.2);
+            border: 1px solid rgba(255, 170, 0, 0.5);
+            color: #ffcc33;
+            text-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
+        }
+
+        .mystery-continue-btn {
+            padding: 14px 40px;
+            background: rgba(255, 170, 50, 0.2);
+            border: 2px solid #ffaa33;
+            border-radius: 10px;
+            color: #ffcc66;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .mystery-continue-btn:hover {
+            background: rgba(255, 170, 50, 0.4);
+            box-shadow: 0 0 20px rgba(255, 170, 50, 0.4);
+        }
+
         /* Station Interior View */
         #stationInterior {
             position: absolute;
@@ -2202,6 +2379,19 @@
         <button class="inventory-btn" id="mountToInventory">Keep in Inventory</button>
     </div>
 
+    <div id="mysteryEventDialog">
+        <div class="mystery-event-header">
+            <h2 id="mysteryEventTitle">Unknown Contact</h2>
+            <div class="event-subtitle" id="mysteryEventSubtitle">Anomalous signature detected</div>
+        </div>
+        <div class="mystery-event-scene">
+            <img class="scene-image" id="mysteryEventImage" src="" alt="Mystery Event">
+        </div>
+        <div class="mystery-event-description" id="mysteryEventDesc"></div>
+        <div class="mystery-event-choices" id="mysteryEventChoices"></div>
+        <div class="mystery-event-outcome" id="mysteryEventOutcome" style="display:none;"></div>
+    </div>
+
     <div id="settingsPanel">
         <h2>Settings</h2>
         <div class="setting-group">
@@ -2962,7 +3152,12 @@
             arenaConfig: null,      // Arena configuration
             arenaWave: 0,           // Current arena wave
             arenaKills: 0,          // Total kills in arena
-            arenaSpeedBonus: 1      // Speed bonus from arena upgrades
+            arenaSpeedBonus: 1,     // Speed bonus from arena upgrades
+            // Mystery events
+            mysteryEvent: null,         // Current mystery event mesh (e.g., behemoth derelict)
+            mysteryEventActive: false,  // Whether mystery event dialog is open
+            mysteryPirateAmbush: false, // Whether pirates were triggered by a mystery event
+            mysteryEventsEncountered: 0 // Total mystery events seen this run
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -5970,6 +6165,7 @@
 
             // Reset level end state for new level
             gameState.levelEndSpawned = false;
+            gameState.mysteryEventsEncountered = 0;
 
             // Clear all existing game objects for fresh start
             clearLevelObjects();
@@ -6056,6 +6252,12 @@
                 gameState.starbase = null;
             }
 
+            // Clear mystery event
+            cleanupMysteryEvent();
+            gameState.mysteryEventActive = false;
+            gameState.mysteryPirateAmbush = false;
+            document.getElementById('mysteryEventDialog').style.display = 'none';
+
             // Clear all beam lasers (both array and legacy single beam)
             if (gameState.beamMeshes) {
                 gameState.beamMeshes.forEach(beam => {
@@ -6100,6 +6302,439 @@
                 backgroundMaterialA.emissiveTexture = newTexture;
             }
         }
+
+        // ========== MYSTERY EVENTS ==========
+
+        // Mystery event types - each defines a stellar object encounter
+        // More types can be added here in the future
+        const MYSTERY_EVENT_TYPES = {
+            behemoth: {
+                name: 'Behemoth Derelict',
+                subtitle: 'Massive hull signature detected on long-range scan',
+                texture: 'assets/stellar objects/derelict1.png',
+                meshSize: 6,
+                tint: [0.7, 0.5, 0.3],
+                description: 'Your sensors light up as you drift toward an enormous derelict vessel -- a Behemoth-class capital ship, kilometers long and dark. Its hull is breached in dozens of places, atmosphere long gone. Faint energy readings flicker deep within. This titan died long ago, but its bones may yet hold secrets... or danger.',
+                choices: [
+                    {
+                        label: 'Board and Salvage Cargo Bays',
+                        desc: 'Send a team to breach the outer cargo holds for supplies.',
+                        risk: 'Low risk -- exterior compartments only',
+                        outcomes: [
+                            { weight: 40, type: 'loot_common', text: 'Your salvage team cracks open corroded cargo containers. Standard military supplies, some still sealed.' },
+                            { weight: 30, type: 'loot_good', text: 'Behind a jammed blast door, your team finds a sealed armory cache -- premium supplies in pristine condition.' },
+                            { weight: 15, type: 'loot_great', text: 'The cargo bay was hauling rare minerals. Crystals and exotic materials fill your hold.' },
+                            { weight: 10, type: 'fuel_find', text: 'The Behemoth\'s auxiliary fuel reserves are still pressurized. You siphon a generous supply of hydrogen fuel.' },
+                            { weight: 5, type: 'trap_minor', text: 'A corroded bulkhead collapses as your team works. Minor hull damage from debris, but you grab some salvage.' }
+                        ]
+                    },
+                    {
+                        label: 'Explore the Bridge and Core Systems',
+                        desc: 'Venture deep inside to find the command deck and engineering core.',
+                        risk: 'Medium risk -- deep penetration, unknown hazards',
+                        outcomes: [
+                            { weight: 25, type: 'loot_good', text: 'The bridge is gutted but engineering still has functional components. Quality military hardware.' },
+                            { weight: 20, type: 'weapon_find', text: 'In the Behemoth\'s weapons vault you find a military-grade weapon system, still operational!' },
+                            { weight: 15, type: 'legendary_weapon', text: 'Deep in the command sanctum you discover the captain\'s personal weapon -- a legendary armament of extraordinary power.' },
+                            { weight: 15, type: 'credits_jackpot', text: 'The ship\'s strongroom is intact! Credit chips, precious metals, and trade goods worth a fortune.' },
+                            { weight: 15, type: 'pirates_ambush', text: 'You\'re not alone. Pirates have been using this wreck as a base. They spring their trap as your team reaches the bridge!' },
+                            { weight: 10, type: 'trap_major', text: 'The reactor core is unstable. A power surge rips through the corridors. Your team barely escapes, taking heavy damage.' }
+                        ]
+                    },
+                    {
+                        label: 'Scan for Black Box and Leave',
+                        desc: 'Remotely scan for the flight recorder and depart quickly.',
+                        risk: 'No risk -- safe but modest reward',
+                        outcomes: [
+                            { weight: 50, type: 'credits_small', text: 'You recover the black box telemetry data. A nearby station will pay for these naval records.' },
+                            { weight: 30, type: 'loot_common', text: 'Your long-range scan picks up a loose cargo pod drifting near the hull. You snag it on your way past.' },
+                            { weight: 20, type: 'intel_bonus', text: 'The black box contains star charts with hidden fuel cache coordinates. Valuable intelligence.' }
+                        ]
+                    },
+                    {
+                        label: 'Ignore and Move On',
+                        desc: 'This wreck gives you a bad feeling. Better to keep flying.',
+                        risk: 'No risk -- no reward',
+                        outcomes: [
+                            { weight: 100, type: 'nothing', text: 'You give the Behemoth a wide berth and continue on your journey. Some mysteries are better left alone.' }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        // Outcome reward definitions -- what each outcome type gives the player
+        function applyMysteryOutcome(outcome) {
+            const rewards = [];
+
+            switch (outcome.type) {
+                case 'loot_common': {
+                    const metal = 5 + Math.floor(Math.random() * 6);
+                    const credits = 10 + Math.floor(Math.random() * 15);
+                    gameState.resources.Metal = (gameState.resources.Metal || 0) + metal;
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    rewards.push({ text: `+${metal} Metal`, css: 'reward-good' });
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'loot_good': {
+                    const metal = 8 + Math.floor(Math.random() * 8);
+                    const crystals = 3 + Math.floor(Math.random() * 4);
+                    const credits = 20 + Math.floor(Math.random() * 20);
+                    gameState.resources.Metal = (gameState.resources.Metal || 0) + metal;
+                    gameState.resources.Crystals = (gameState.resources.Crystals || 0) + crystals;
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    rewards.push({ text: `+${metal} Metal`, css: 'reward-good' });
+                    rewards.push({ text: `+${crystals} Crystals`, css: 'reward-good' });
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'loot_great': {
+                    const crystals = 5 + Math.floor(Math.random() * 6);
+                    const exotic = 2 + Math.floor(Math.random() * 3);
+                    const credits = 30 + Math.floor(Math.random() * 25);
+                    gameState.resources.Crystals = (gameState.resources.Crystals || 0) + crystals;
+                    gameState.resources.Exotic = (gameState.resources.Exotic || 0) + exotic;
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    rewards.push({ text: `+${crystals} Crystals`, css: 'reward-good' });
+                    rewards.push({ text: `+${exotic} Exotic`, css: 'reward-good' });
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'fuel_find': {
+                    const fuel = 25 + Math.floor(Math.random() * 20);
+                    const metal = 3 + Math.floor(Math.random() * 4);
+                    gameState.fuel = Math.min(gameState.maxFuel, gameState.fuel + fuel);
+                    gameState.resources.Metal = (gameState.resources.Metal || 0) + metal;
+                    rewards.push({ text: `+${fuel} Fuel`, css: 'reward-good' });
+                    rewards.push({ text: `+${metal} Metal`, css: 'reward-good' });
+                    break;
+                }
+                case 'weapon_find': {
+                    const weapon = generateWeapon(gameState.level + 1, 'heavy');
+                    // Ensure at least 'good' quality
+                    if (weapon.quality === 'poor' || weapon.quality === 'common') {
+                        weapon.quality = 'good';
+                        const q = WEAPON_QUALITIES['good'];
+                        weapon.name = weapon.name.replace(/^(Worn |)/, q.namePre ? q.namePre + ' ' : '');
+                    }
+                    gameState.ownedWeapons.push(weapon);
+                    rewards.push({ text: `Found: ${weapon.name}`, css: 'reward-good' });
+                    rewards.push({ text: `[${weapon.size}] ${weapon.desc}`, css: 'reward-good' });
+                    break;
+                }
+                case 'legendary_weapon': {
+                    const weapon = generateWeapon(gameState.level + 2, 'assault');
+                    weapon.quality = 'legendary';
+                    const q = WEAPON_QUALITIES['legendary'];
+                    // Recalculate with legendary quality
+                    const template = WEAPON_TEMPLATES[weapon.templateId];
+                    if (template) {
+                        const stats = calculateWeaponStats(template, weapon.level, 'legendary');
+                        weapon.damage = stats.damage;
+                        weapon.fireRate = stats.fireRate;
+                        weapon.spread = stats.spread;
+                        weapon.projectiles = stats.projectiles;
+                        weapon.speed = stats.speed;
+                        weapon.cost = stats.cost;
+                        weapon.desc = generateWeaponDesc(template, stats, weapon.level);
+                    }
+                    weapon.name = `${q.namePre} ${template ? template.baseName : 'Weapon'} ${weapon.level}`;
+                    gameState.ownedWeapons.push(weapon);
+                    rewards.push({ text: `LEGENDARY: ${weapon.name}`, css: 'reward-legendary' });
+                    rewards.push({ text: `[${weapon.size}] ${weapon.desc}`, css: 'reward-legendary' });
+                    break;
+                }
+                case 'credits_jackpot': {
+                    const credits = 80 + Math.floor(Math.random() * 60);
+                    const exotic = 1 + Math.floor(Math.random() * 3);
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    gameState.resources.Exotic = (gameState.resources.Exotic || 0) + exotic;
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    rewards.push({ text: `+${exotic} Exotic`, css: 'reward-good' });
+                    break;
+                }
+                case 'credits_small': {
+                    const credits = 15 + Math.floor(Math.random() * 15);
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'intel_bonus': {
+                    const fuel = 15 + Math.floor(Math.random() * 15);
+                    const credits = 20 + Math.floor(Math.random() * 15);
+                    gameState.fuel = Math.min(gameState.maxFuel, gameState.fuel + fuel);
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    rewards.push({ text: `+${fuel} Fuel (cache coordinates)`, css: 'reward-good' });
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'pirates_ambush': {
+                    const credits = 5 + Math.floor(Math.random() * 10);
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    // Set flag to spawn extra enemies in the next wave
+                    gameState.mysteryPirateAmbush = true;
+                    rewards.push({ text: `+${credits} Credits (grabbed on the way out)`, css: 'reward-good' });
+                    rewards.push({ text: 'Pirates inbound! Brace for attack!', css: 'reward-bad' });
+                    break;
+                }
+                case 'trap_minor': {
+                    const damage = 10 + Math.floor(Math.random() * 10);
+                    const metal = 2 + Math.floor(Math.random() * 3);
+                    gameState.health = Math.max(1, gameState.health - damage);
+                    gameState.resources.Metal = (gameState.resources.Metal || 0) + metal;
+                    rewards.push({ text: `-${damage} Hull Damage`, css: 'reward-bad' });
+                    rewards.push({ text: `+${metal} Metal (salvaged)`, css: 'reward-good' });
+                    break;
+                }
+                case 'trap_major': {
+                    const damage = 25 + Math.floor(Math.random() * 15);
+                    gameState.health = Math.max(1, gameState.health - damage);
+                    rewards.push({ text: `-${damage} Hull Damage`, css: 'reward-bad' });
+                    rewards.push({ text: 'Barely escaped with your life!', css: 'reward-bad' });
+                    break;
+                }
+                case 'nothing':
+                default:
+                    rewards.push({ text: 'Nothing gained, nothing lost.', css: 'reward-good' });
+                    break;
+            }
+
+            updateHUD();
+            return rewards;
+        }
+
+        // Roll a weighted random outcome from a list
+        function rollMysteryOutcome(outcomes) {
+            const totalWeight = outcomes.reduce((sum, o) => sum + o.weight, 0);
+            let roll = Math.random() * totalWeight;
+            for (const outcome of outcomes) {
+                roll -= outcome.weight;
+                if (roll <= 0) return outcome;
+            }
+            return outcomes[outcomes.length - 1];
+        }
+
+        // Create a behemoth derelict mesh at a position
+        function createBehemothMesh(x, y) {
+            if (!scene) return null;
+
+            const eventType = MYSTERY_EVENT_TYPES.behemoth;
+            const size = eventType.meshSize;
+            const behemoth = BABYLON.MeshBuilder.CreatePlane('behemothDerelict', { size: size }, scene);
+
+            behemoth.position.x = x;
+            behemoth.position.y = y;
+            behemoth.position.z = 0.15;
+
+            const texture = new BABYLON.Texture(eventType.texture, scene);
+            texture.hasAlpha = true;
+
+            const mat = new BABYLON.StandardMaterial('behemothMat', scene);
+            mat.diffuseTexture = texture;
+            mat.emissiveTexture = texture;
+            mat.emissiveColor = new BABYLON.Color3(
+                eventType.tint[0] * 0.5,
+                eventType.tint[1] * 0.5,
+                eventType.tint[2] * 0.5
+            );
+            mat.useAlphaFromDiffuseTexture = true;
+            mat.backFaceCulling = false;
+            mat.disableLighting = true;
+            mat.disableDepthWrite = true;
+            behemoth.material = mat;
+            behemoth.renderingGroupId = 1;
+
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(behemoth);
+            }
+
+            behemoth.size = size;
+            behemoth.dockRadius = size * 0.6;
+            behemoth.isMysteryEvent = true;
+            behemoth.mysteryEventType = 'behemoth';
+
+            return behemoth;
+        }
+
+        // Spawn a mystery event (behemoth) between waves
+        function spawnMysteryEvent() {
+            if (!scene || gameState.mysteryEvent) return;
+
+            const x = (Math.random() - 0.5) * orthoWidth * 0.8;
+            const y = orthoHeight + 8;
+
+            const mesh = createBehemothMesh(x, y);
+            if (!mesh) return;
+
+            gameState.mysteryEvent = mesh;
+        }
+
+        // Update the mystery event object (scroll, dock detection)
+        function updateMysteryEvent(scrollMultiplier, deltaTime) {
+            if (!gameState.mysteryEvent || !playerShip) return;
+
+            const event = gameState.mysteryEvent;
+
+            // Move down with the world
+            event.position.y -= 0.012 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+
+            // Slow ambient rotation
+            event.rotation.z += 0.001;
+
+            // Check distance to player for docking
+            const dx = event.position.x - playerShip.position.x;
+            const dy = event.position.y - playerShip.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            const fullyVisible = event.position.y < (orthoHeight - event.size / 2);
+
+            if (fullyVisible && dist < event.dockRadius) {
+                if (!gameState.harvestingPlanet && !gameState.isDocked) {
+                    gameState.harvestProgress += deltaTime / 1500;
+
+                    const harvestBar = document.getElementById('harvestBar');
+                    const harvestBarFill = document.getElementById('harvestBarFill');
+                    harvestBar.style.display = 'block';
+                    harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
+
+                    const screenPos = worldToScreen(event.position.x, event.position.y);
+                    const screenSize = (event.size / (orthoHeight * 2)) * canvas.clientHeight;
+                    const halfSize = screenSize / 2;
+                    const barWidth = screenSize;
+                    harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+                    harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
+                    harvestBar.style.width = barWidth + 'px';
+                    harvestBar.style.transform = 'none';
+
+                    if (gameState.harvestProgress >= 1) {
+                        openMysteryEventDialog(event.mysteryEventType);
+                    }
+                }
+            } else {
+                if (!gameState.harvestingPlanet && gameState.harvestProgress > 0 && !gameState.isDocked && !gameState.mysteryEventActive) {
+                    gameState.harvestProgress = 0;
+                    document.getElementById('harvestBar').style.display = 'none';
+                }
+            }
+
+            // Remove if scrolled off screen
+            if (event.position.y < -orthoHeight - event.size) {
+                cleanupMysteryEvent();
+                // Continue to next wave
+                spawnWave();
+            }
+        }
+
+        // Open the mystery event dialog
+        function openMysteryEventDialog(eventTypeKey) {
+            const eventType = MYSTERY_EVENT_TYPES[eventTypeKey];
+            if (!eventType) return;
+
+            gameState.mysteryEventActive = true;
+            gameState.harvestProgress = 0;
+            document.getElementById('harvestBar').style.display = 'none';
+            requestPause('mysteryEvent');
+
+            // Fill dialog content
+            document.getElementById('mysteryEventTitle').textContent = eventType.name;
+            document.getElementById('mysteryEventSubtitle').textContent = eventType.subtitle;
+            document.getElementById('mysteryEventImage').src = eventType.texture;
+            document.getElementById('mysteryEventDesc').textContent = eventType.description;
+
+            // Build choice buttons
+            const choicesDiv = document.getElementById('mysteryEventChoices');
+            choicesDiv.innerHTML = '';
+            choicesDiv.style.display = 'flex';
+
+            const outcomeDiv = document.getElementById('mysteryEventOutcome');
+            outcomeDiv.style.display = 'none';
+            outcomeDiv.innerHTML = '';
+
+            eventType.choices.forEach((choice, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'mystery-choice-btn';
+                btn.innerHTML = `
+                    <span class="choice-label">${choice.label}</span>
+                    <span>${choice.desc}</span>
+                    <span class="choice-risk">${choice.risk}</span>
+                `;
+                btn.addEventListener('click', () => {
+                    handleMysteryChoice(eventTypeKey, idx);
+                });
+                choicesDiv.appendChild(btn);
+            });
+
+            document.getElementById('mysteryEventDialog').style.display = 'flex';
+        }
+
+        // Handle player choosing an option
+        function handleMysteryChoice(eventTypeKey, choiceIdx) {
+            const eventType = MYSTERY_EVENT_TYPES[eventTypeKey];
+            const choice = eventType.choices[choiceIdx];
+
+            // Roll the outcome
+            const outcome = rollMysteryOutcome(choice.outcomes);
+
+            // Apply rewards/penalties
+            const rewards = applyMysteryOutcome(outcome);
+
+            // Hide choices, show outcome
+            document.getElementById('mysteryEventChoices').style.display = 'none';
+
+            const outcomeDiv = document.getElementById('mysteryEventOutcome');
+            outcomeDiv.style.display = 'block';
+
+            let outcomeHTML = `<div class="outcome-text">${outcome.text}</div>`;
+            outcomeHTML += '<div class="outcome-rewards">';
+            for (const reward of rewards) {
+                outcomeHTML += `<div class="outcome-reward-item ${reward.css}">${reward.text}</div>`;
+            }
+            outcomeHTML += '</div>';
+            outcomeHTML += '<button class="mystery-continue-btn" onclick="closeMysteryEvent()">Continue</button>';
+
+            outcomeDiv.innerHTML = outcomeHTML;
+        }
+
+        // Close the mystery event dialog and resume gameplay
+        function closeMysteryEvent() {
+            gameState.mysteryEventActive = false;
+            document.getElementById('mysteryEventDialog').style.display = 'none';
+            releasePause('mysteryEvent');
+
+            // Clean up the behemoth mesh
+            cleanupMysteryEvent();
+
+            updateHUD();
+
+            // If pirates were triggered, spawn extra enemies immediately
+            if (gameState.mysteryPirateAmbush) {
+                gameState.mysteryPirateAmbush = false;
+                // Spawn a tough wave with extra enemies
+                const bonusEnemies = 4 + Math.floor(Math.random() * 4);
+                gameState.enemiesInWave = bonusEnemies;
+                gameState.enemiesSpawned = 0;
+            } else {
+                // Normal flow -- spawn next wave
+                spawnWave();
+            }
+        }
+
+        // Clean up mystery event mesh
+        function cleanupMysteryEvent() {
+            if (gameState.mysteryEvent) {
+                if (sunGlowLayer) {
+                    sunGlowLayer.removeIncludedOnlyMesh(gameState.mysteryEvent);
+                }
+                gameState.mysteryEvent.dispose();
+                gameState.mysteryEvent = null;
+            }
+        }
+
+        // Make closeMysteryEvent available for onclick
+        window.closeMysteryEvent = closeMysteryEvent;
+
+        // ========== END MYSTERY EVENTS ==========
 
         // ========== END RIVER NAVIGATION ==========
 
@@ -6969,11 +7604,11 @@
         }
 
         document.addEventListener('touchstart', (e) => {
-            // Allow buttons, inputs, and station interior to work normally
+            // Allow buttons, inputs, station interior, and mystery event dialog to work normally
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
                 e.target.closest('button') || e.target.closest('#systemMenu') ||
                 e.target.closest('#settingsPanel') || e.target.closest('#confirmDialog') ||
-                e.target.closest('#stationInterior')) return;
+                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog')) return;
             if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
@@ -6982,9 +7617,9 @@
         }, { passive: false });
 
         document.addEventListener('touchmove', (e) => {
-            // Allow station interior scrolling
+            // Allow station interior and mystery event dialog scrolling
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
-                e.target.closest('#stationInterior')) return;
+                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog')) return;
             if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
@@ -8002,6 +8637,15 @@
             gameState.showingGates = false;
             document.getElementById('warpGatePanel').style.display = 'none';
             document.getElementById('stationInterior').style.display = 'none';
+            // Clean up mystery events on new game
+            cleanupMysteryEvent();
+            gameState.mysteryEventActive = false;
+            gameState.mysteryPirateAmbush = false;
+            gameState.mysteryEventsEncountered = 0;
+            document.getElementById('mysteryEventDialog').style.display = 'none';
+            if (gameState.pauseReasons.has('mysteryEvent')) {
+                releasePause('mysteryEvent');
+            }
 
             initResources();
 
@@ -8552,7 +9196,7 @@
                 applySunLighting();
 
                 // Wave completion - enter exploration mode between waves
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration) {
+                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.mysteryEvent) {
                     gameState.wave++;
                     gameState.levelWave++;
                     updateHUD();
@@ -8573,11 +9217,26 @@
                             createStarbase();
                             gameState.stationsVisited++;
                         } else {
-                            // Enter exploration mode - travel through space before next wave
-                            gameState.inExploration = true;
-                            gameState.explorationDistance = 0;
-                            gameState.enemiesInWave = 0;
-                            gameState.enemiesSpawned = 0;
+                            // Mystery event chance: ~20% per exploration, increasing slightly with level
+                            // Only if not too frequent (at least 3 waves between events)
+                            const wavesSinceStart = gameState.levelWave;
+                            const mysteryChance = 0.15 + (gameState.level * 0.02);
+                            const canSpawnMystery = !gameState.mysteryEvent && wavesSinceStart >= 2 &&
+                                gameState.mysteryEventsEncountered < gameState.levelWave;
+
+                            if (canSpawnMystery && Math.random() < mysteryChance) {
+                                // Spawn a mystery event instead of entering exploration
+                                spawnMysteryEvent();
+                                gameState.mysteryEventsEncountered++;
+                                gameState.enemiesInWave = 0;
+                                gameState.enemiesSpawned = 0;
+                            } else {
+                                // Enter exploration mode - travel through space before next wave
+                                gameState.inExploration = true;
+                                gameState.explorationDistance = 0;
+                                gameState.enemiesInWave = 0;
+                                gameState.enemiesSpawned = 0;
+                            }
                         }
                     }
                 }
@@ -8605,6 +9264,7 @@
                 updateLoot(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
                 updateStarbase(scrollMultiplier, deltaTime);
+                updateMysteryEvent(scrollMultiplier, deltaTime);
                 checkPlayerCollision();
             });
 
