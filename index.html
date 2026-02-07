@@ -145,109 +145,79 @@
 
         #hud {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
-            z-index: 50;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
-        }
-
-        #hud div {
-            margin-bottom: 3px;
-        }
-
-        #fuelDisplay {
-            position: absolute;
-            top: 10px;
-            right: 60px;
-            color: white;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
-            z-index: 50;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        #fuelBar {
-            width: 100px;
-            height: 12px;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid #ffaa44;
-            border-radius: 6px;
-            overflow: hidden;
-        }
-
-        #fuelBarFill {
-            height: 100%;
-            width: 100%;
-            background: linear-gradient(90deg, #ff8800, #ffcc44);
-            transition: width 0.3s ease;
-        }
-
-        #secondaryDisplay {
-            position: absolute;
-            bottom: 80px;
-            right: 15px;
+            top: 8px;
+            left: 8px;
+            right: 50px;
             color: white;
             font-family: 'Segoe UI', Arial, sans-serif;
             font-size: 12px;
             z-index: 50;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            background: rgba(0, 0, 0, 0.4);
-            padding: 6px 8px;
-            border-radius: 8px;
-            border: 1px solid rgba(100, 150, 255, 0.3);
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
         }
 
-        #secondaryBar {
-            width: 50px;
+        .hud-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 4px;
+        }
+
+        .hud-left {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .hud-info {
+            font-size: 11px;
+            color: #ccc;
+            letter-spacing: 0.5px;
+        }
+
+        .hud-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            max-width: 180px;
+        }
+
+        .hud-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .bar-label {
+            font-size: 9px;
+            font-weight: bold;
+            color: #aaa;
+            width: 16px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        #healthBar {
+            flex: 1;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #44cc44;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        #healthBarFill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #22aa22, #66ee66);
+            transition: width 0.3s ease;
+        }
+
+        #shieldBar {
+            flex: 1;
             height: 6px;
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid #4488ff;
             border-radius: 3px;
-            overflow: hidden;
-        }
-
-        #secondaryBarFill {
-            height: 100%;
-            width: 100%;
-            background: linear-gradient(90deg, #4488ff, #88ccff);
-            transition: width 0.3s ease;
-        }
-
-        #secondaryLabel {
-            font-size: 10px;
-            color: #88ccff;
-        }
-
-        #shieldDisplay {
-            position: absolute;
-            top: 10px;
-            right: 180px;
-            color: white;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
-            z-index: 50;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        #shieldBar {
-            width: 60px;
-            height: 12px;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid #4488ff;
-            border-radius: 6px;
             overflow: hidden;
         }
 
@@ -258,10 +228,26 @@
             transition: width 0.3s ease;
         }
 
+        #secondaryBar {
+            flex: 1;
+            height: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #6644cc;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        #secondaryBarFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #6644cc, #aa88ff);
+            transition: width 0.3s ease;
+        }
+
         /* Resource collection notifications below top UI */
         #collectNotifications {
             position: absolute;
-            top: 45px;
+            top: 75px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
@@ -2584,27 +2570,26 @@
     </div>
 
     <div id="hud" style="display: none;">
-        <div>Credits: <span id="creditsHud">0</span></div>
-        <div>Health: <span id="health">100</span></div>
-        <div>Level: <span id="level">1</span> | Wave: <span id="wave">1</span>/<span id="totalWaves">3</span></div>
-    </div>
-
-    <div id="fuelDisplay" style="display: none;">
-        <span>⛽</span>
-        <div id="fuelBar"><div id="fuelBarFill"></div></div>
-        <span id="fuelValue">100</span>
-    </div>
-
-    <div id="secondaryDisplay" style="display: none;">
-        <span id="secondaryIcon">🌀</span>
-        <div id="secondaryBar"><div id="secondaryBarFill"></div></div>
-        <span id="secondaryLabel">READY</span>
-    </div>
-
-    <div id="shieldDisplay" style="display: none;">
-        <span>🛡</span>
-        <div id="shieldBar"><div id="shieldBarFill"></div></div>
-        <span id="shieldValue">0</span>
+        <div class="hud-top-row">
+            <div class="hud-left">
+                <div class="hud-info">Lv.<span id="level">1</span> | <span id="wave">1</span>/<span id="totalWaves">3</span></div>
+                <div class="hud-info">$<span id="creditsHud">0</span> | <span id="health">100</span>HP <span id="fuelInline" style="display:none;">| ⛽<span id="fuelValue">100</span></span></div>
+            </div>
+        </div>
+        <div class="hud-bars">
+            <div class="hud-bar-row">
+                <span class="bar-label">HP</span>
+                <div id="healthBar"><div id="healthBarFill"></div></div>
+            </div>
+            <div class="hud-bar-row" id="shieldBarRow" style="display: none;">
+                <span class="bar-label">SH</span>
+                <div id="shieldBar"><div id="shieldBarFill"></div></div>
+            </div>
+            <div class="hud-bar-row" id="secondaryBarRow" style="display: none;">
+                <span class="bar-label" id="secondaryIcon">AB</span>
+                <div id="secondaryBar"><div id="secondaryBarFill"></div></div>
+            </div>
+        </div>
     </div>
 
     <div id="collectNotifications"></div>
@@ -3328,6 +3313,7 @@
         const STARFIELD_ZONE = { name: 'Starfield', folder: 'Starfields', prefix: 'Starfield', variants: 8 };
 
         const ZONE_DISTANCE = 500; // Distance units per zone before transitioning
+        const WORLD_SCROLL_SPEED = 0.0225; // Base world scroll speed (50% faster than enemy descent)
 
         // Level zone heights in world Y units (1 screen height ≈ orthoHeight*2 ≈ 20 units)
         const LEVEL_ZONE_HEIGHTS = {
@@ -4485,12 +4471,12 @@
             if (!backgroundMeshA || !backgroundMeshB) return;
 
             // Track distance traveled based on scroll
-            const scrollAmount = 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            const scrollAmount = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
             gameState.distanceTraveled += scrollAmount * deltaTime * 0.1;
 
             // Scroll both backgrounds
             // Very slow background scroll for ambient effect
-            const scrollSpeed = 0.00005 * settings.scrollSpeed;
+            const scrollSpeed = 0.000075 * settings.scrollSpeed;
             if (backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.vOffset += scrollSpeed * deltaTime;
             }
@@ -4942,7 +4928,7 @@
                 loot.velocityY *= 0.98;
 
                 loot.position.x += loot.velocityX;
-                loot.position.y += loot.velocityY - 0.02 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                loot.position.y += loot.velocityY - (WORLD_SCROLL_SPEED * 1.33) * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
                 // Slower, more subtle rotation
                 loot.rotation.x += loot.rotSpeed * 0.5;
@@ -5291,7 +5277,7 @@
             const starbase = gameState.starbase;
 
             // Move starbase down
-            starbase.position.y -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            starbase.position.y -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
             // Slow rotation
             starbase.rotation.z += 0.002;
@@ -6143,12 +6129,17 @@
             // Base spawn position - above the visible screen
             const baseSpawnY = orthoHeight + 10;
 
-            // 1. REWARD ZONE: Spawn solar system(s) as reward for completing waves
-            const rewardY = baseSpawnY;
-            createSolarSystemAt(rewardY);
+            // 1. REWARD ZONE: Spawn multiple solar systems as reward for completing waves
+            // Spread them across a generous area so there are more planets than the player can harvest
+            const systemCount = 3 + Math.floor(Math.random() * 2); // 3-4 solar systems
+            const systemSpacing = 12; // Y distance between solar systems
+            for (let i = 0; i < systemCount; i++) {
+                const rewardY = baseSpawnY + i * systemSpacing;
+                createSolarSystemAt(rewardY);
+            }
 
             // 2. GATE ZONE: Spawn warp gates after the reward zone
-            const gateY = rewardY + LEVEL_ZONE_HEIGHTS.reward;
+            const gateY = baseSpawnY + systemCount * systemSpacing + LEVEL_ZONE_HEIGHTS.reward;
             createWarpGates(gateY);
 
             gameState.levelEndSpawned = true;
@@ -6466,7 +6457,7 @@
                 const gate = gameState.warpGates[i];
 
                 // Move gate down
-                gate.position.y -= 0.01 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                gate.position.y -= (WORLD_SCROLL_SPEED * 0.67) * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
                 // Slow rotation (event gates rotate slower)
                 const gateTypeDef = GATE_TYPES[gate.gateType] || GATE_TYPES.system;
@@ -7124,7 +7115,7 @@
             const obj = gameState.eventObject;
 
             // Scroll down with the world
-            obj.position.y -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            obj.position.y -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
             // Skip docking logic if dialog is already open
             if (gameState.mysteryEventActive) return;
@@ -7332,7 +7323,7 @@
             for (let i = gameState.suns.length - 1; i >= 0; i--) {
                 const sun = gameState.suns[i];
 
-                const moveAmount = 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                const moveAmount = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 sun.position.y -= moveAmount;
 
                 // Rotate the sun mesh (not the whole node with coronas)
@@ -7605,7 +7596,7 @@
                 const planet = gameState.planets[i];
 
                 // Move planet down
-                planet.position.y -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                planet.position.y -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
                 // Update orbit center if planet is orbiting
                 if (planet.orbitCenterX !== undefined) {
@@ -9569,7 +9560,7 @@
 
         // Update stars
         function updateStars(scrollMultiplier) {
-            const baseSpeed = 0.05 * settings.scrollSpeed;
+            const baseSpeed = 0.075 * settings.scrollSpeed;
             const adjustedSpeed = baseSpeed * (0.5 + scrollMultiplier);
 
             gameState.stars.forEach(star => {
@@ -9623,10 +9614,10 @@
         // Update HUD
         function updateHUD() {
             document.getElementById('creditsHud').textContent = gameState.credits;
-            document.getElementById('health').textContent = Math.max(0, gameState.health);
+            const hp = Math.max(0, Math.ceil(gameState.health));
+            document.getElementById('health').textContent = hp;
 
             if (gameState.arenaMode) {
-                // Arena mode: show "Arena" as level and wave count
                 document.getElementById('level').textContent = 'Arena';
                 document.getElementById('wave').textContent = gameState.arenaWave;
                 document.getElementById('totalWaves').textContent = '∞';
@@ -9636,53 +9627,62 @@
                 document.getElementById('totalWaves').textContent = gameState.levelConfig ? gameState.levelConfig.waveCount : 3;
             }
 
-            // Update fuel bar
-            const fuelPercent = Math.max(0, (gameState.fuel / gameState.maxFuel) * 100);
-            document.getElementById('fuelBarFill').style.width = `${fuelPercent}%`;
-            document.getElementById('fuelValue').textContent = Math.max(0, gameState.fuel);
-
-            // Color fuel bar based on level
-            const fuelBar = document.getElementById('fuelBarFill');
-            if (fuelPercent <= 20) {
-                fuelBar.style.background = 'linear-gradient(90deg, #ff4444, #ff6666)';
-            } else if (fuelPercent <= 40) {
-                fuelBar.style.background = 'linear-gradient(90deg, #ffaa00, #ffcc44)';
+            // Health bar
+            const maxHP = gameState.maxHealth || 100;
+            const hpPct = Math.max(0, (gameState.health / maxHP) * 100);
+            const healthFill = document.getElementById('healthBarFill');
+            healthFill.style.width = `${hpPct}%`;
+            if (hpPct <= 25) {
+                healthFill.style.background = 'linear-gradient(90deg, #cc2222, #ff4444)';
+            } else if (hpPct <= 50) {
+                healthFill.style.background = 'linear-gradient(90deg, #ccaa22, #eecc44)';
             } else {
-                fuelBar.style.background = 'linear-gradient(90deg, #ff8800, #ffcc44)';
+                healthFill.style.background = 'linear-gradient(90deg, #22aa22, #66ee66)';
             }
 
-            // Hide fuel bar in arena mode
-            if (gameState.arenaMode) {
-                document.getElementById('fuelBar').style.display = 'none';
+            // Fuel as inline number
+            const fuelInline = document.getElementById('fuelInline');
+            if (fuelInline) {
+                if (gameState.arenaMode) {
+                    fuelInline.style.display = 'none';
+                } else {
+                    fuelInline.style.display = 'inline';
+                    const fuelVal = document.getElementById('fuelValue');
+                    fuelVal.textContent = Math.max(0, Math.ceil(gameState.fuel));
+                    // Color fuel number based on level
+                    const fuelPct = gameState.fuel / gameState.maxFuel;
+                    if (fuelPct <= 0.2) {
+                        fuelVal.style.color = '#ff4444';
+                    } else if (fuelPct <= 0.4) {
+                        fuelVal.style.color = '#ffaa44';
+                    } else {
+                        fuelVal.style.color = '#ccc';
+                    }
+                }
             }
 
-            // Update shield equipment display
-            const shieldDisplay = document.getElementById('shieldDisplay');
+            // Shield bar row
+            const shieldRow = document.getElementById('shieldBarRow');
             if (gameState.shieldEquipment && gameState.shieldMaxHP > 0) {
-                shieldDisplay.style.display = 'flex';
+                shieldRow.style.display = 'flex';
                 const shieldPct = Math.max(0, (gameState.shieldHP / gameState.shieldMaxHP) * 100);
                 document.getElementById('shieldBarFill').style.width = `${shieldPct}%`;
-                document.getElementById('shieldValue').textContent = Math.ceil(gameState.shieldHP);
             } else {
-                shieldDisplay.style.display = 'none';
+                shieldRow.style.display = 'none';
             }
 
-            // Update secondary ability display
-            const secDisplay = document.getElementById('secondaryDisplay');
+            // Secondary ability bar row
+            const secRow = document.getElementById('secondaryBarRow');
             if (gameState.secondaryAbility) {
-                secDisplay.style.display = 'flex';
-                const ability = gameState.secondaryAbility;
-                document.getElementById('secondaryIcon').textContent = ability.icon || '🌀';
+                secRow.style.display = 'flex';
                 if (gameState.secondaryCooldown > 0) {
                     const pct = Math.max(0, (1 - gameState.secondaryCooldown / gameState.secondaryMaxCooldown) * 100);
                     document.getElementById('secondaryBarFill').style.width = `${pct}%`;
-                    document.getElementById('secondaryLabel').textContent = `${Math.ceil(gameState.secondaryCooldown / 1000)}s`;
                 } else {
                     document.getElementById('secondaryBarFill').style.width = '100%';
-                    document.getElementById('secondaryLabel').textContent = 'READY';
                 }
             } else {
-                secDisplay.style.display = 'none';
+                secRow.style.display = 'none';
             }
         }
 
@@ -10163,10 +10163,9 @@
                 // Reset arena mode
                 gameState.arenaMode = false;
                 gameState.arenaConfig = null;
-                document.getElementById('fuelBar').style.display = ''; // Show fuel bar again
+                // Fuel display handled in updateHUD now
 
                 document.getElementById('hud').style.display = 'none';
-                document.getElementById('fuelDisplay').style.display = 'none';
                 systemBtn.style.display = 'none';
                 document.getElementById('startScreen').style.display = 'flex';
                 document.getElementById('titleButtons').style.display = 'flex';
@@ -10193,7 +10192,6 @@
             // Reset arena mode if active
             gameState.arenaMode = false;
             gameState.arenaConfig = null;
-            document.getElementById('fuelBar').style.display = ''; // Show fuel bar again
 
             await resetGame();
             gameState.pauseReasons.clear();  // Clear all pause reasons for fresh start
@@ -10359,7 +10357,6 @@
             startScreen.style.display = 'none';
             document.getElementById('systemBtn').style.display = 'flex';
             document.getElementById('hud').style.display = 'block';
-            document.getElementById('fuelDisplay').style.display = 'flex';
 
             if (loadSave) {
                 const savedGame = loadGame();
@@ -10451,7 +10448,7 @@
                 // Don't spawn in event zones (event object is the focus, no distractions)
                 const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates && !gameState.eventObject;
 
-                gameState.nextSolarSystemY -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                gameState.nextSolarSystemY -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 if (gameState.nextSolarSystemY < orthoHeight + 10 && shouldSpawnSolarSystems) {
                     createSolarSystem();
                 }
