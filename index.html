@@ -6129,17 +6129,12 @@
             // Base spawn position - above the visible screen
             const baseSpawnY = orthoHeight + 10;
 
-            // 1. REWARD ZONE: Spawn multiple solar systems as reward for completing waves
-            // Spread them across a generous area so there are more planets than the player can harvest
-            const systemCount = 3 + Math.floor(Math.random() * 2); // 3-4 solar systems
-            const systemSpacing = 12; // Y distance between solar systems
-            for (let i = 0; i < systemCount; i++) {
-                const rewardY = baseSpawnY + i * systemSpacing;
-                createSolarSystemAt(rewardY);
-            }
+            // 1. REWARD ZONE: Spawn solar system as reward for completing waves
+            const rewardY = baseSpawnY;
+            createSolarSystemAt(rewardY);
 
             // 2. GATE ZONE: Spawn warp gates after the reward zone
-            const gateY = baseSpawnY + systemCount * systemSpacing + LEVEL_ZONE_HEIGHTS.reward;
+            const gateY = rewardY + LEVEL_ZONE_HEIGHTS.reward;
             createWarpGates(gateY);
 
             gameState.levelEndSpawned = true;
