@@ -6550,8 +6550,10 @@
 
                 const boundingInfo = rootMesh.getHierarchyBoundingVectors(true);
                 const size = boundingInfo.max.subtract(boundingInfo.min);
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const gameScale = 1.5 / maxDim;
+                // Ensure maxDim has a minimum value to prevent division by zero or extreme scaling
+                const maxDim = Math.max(size.x, size.y, size.z, 0.1);
+                // Cap gameScale to prevent ships from becoming giant overlays
+                const gameScale = Math.min(1.5 / maxDim, 10);
                 rootMesh.scaling = new BABYLON.Vector3(gameScale, gameScale, gameScale);
 
                 if (faceDirection === 'up') {
