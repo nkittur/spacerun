@@ -2953,6 +2953,7 @@
             warpGates: [],          // Active warp gates
             gateChoices: null,      // The two gate options
             showingGates: false,    // Whether gates are currently displayed
+            gatesAtLevel: 0,        // Gates passed at current level (level-up offered at 5, then every 3)
             levelEndSpawned: false, // Whether end-of-level content (reward + gates) has been spawned
             speedUp: false,         // Speed-up button pressed
             inExploration: false,   // Between waves - no combat, just exploration
@@ -5679,19 +5680,26 @@
             const rightGateX = gateSpacing / 2;
 
             // Player-driven progression:
-            // Left gate = same level (safe, consolidate)
-            // Right gate = next level (harder, progress)
+            // Level-up option offered after 5 gates at same level, then every 3 if declined
             const currentLevel = gameState.level;
-            const nextLevel = currentLevel + 1;
+            const gatesAtLevel = gameState.gatesAtLevel;
+
+            // Determine if level-up option should be offered:
+            // - Not offered for first 5 gates (gatesAtLevel 0-4)
+            // - Offered at gate 6 (gatesAtLevel 5)
+            // - If declined, offered every 3 gates after (gatesAtLevel 8, 11, 14, ...)
+            const shouldOfferLevelUp = gatesAtLevel >= 5 && (gatesAtLevel - 5) % 3 === 0;
+
+            const rightLevel = shouldOfferLevelUp ? currentLevel + 1 : currentLevel;
 
             gameState.gateChoices = {
                 left: generateLevelConfig(currentLevel),   // Same level - safe choice
-                right: generateLevelConfig(nextLevel)      // Higher level - harder choice
+                right: generateLevelConfig(rightLevel)     // Same or higher level based on progression
             };
 
             // Mark the gates so UI can show the difference
             gameState.gateChoices.left.isSafeChoice = true;
-            gameState.gateChoices.right.isSafeChoice = false;
+            gameState.gateChoices.right.isSafeChoice = !shouldOfferLevelUp;
 
             // Update UI with gate signatures
             updateGateUI();
@@ -5873,6 +5881,14 @@
         // Handle entering a warp gate
         function enterWarpGate(gateId) {
             const chosenConfig = gameState.gateChoices[gateId];
+
+            // Track gate progression for level-up timing
+            // If leveling up, reset counter; otherwise increment
+            if (chosenConfig.levelNum > gameState.level) {
+                gameState.gatesAtLevel = 0;  // Reset on level-up
+            } else {
+                gameState.gatesAtLevel++;    // Increment when staying at same level
+            }
 
             // Consume fuel for warp jump (higher level = more fuel)
             const warpFuelCost = 10 + (chosenConfig.levelNum - 1) * 2;
@@ -8034,6 +8050,7 @@
                 explorationDistance: gameState.explorationDistance,
                 enemiesInWave: gameState.enemiesInWave,
                 enemiesSpawned: gameState.enemiesSpawned,
+                gatesAtLevel: gameState.gatesAtLevel,
                 savedAt: Date.now()
             };
         }
@@ -8105,6 +8122,7 @@
             gameState.levelWave = saveData.levelWave || 0;
             gameState.levelConfig = saveData.levelConfig || generateLevelConfig(1);
             gameState.stationsVisited = saveData.stationsVisited || 0;
+            gameState.gatesAtLevel = saveData.gatesAtLevel || 0;
             gameState.currentZone = saveData.currentZone || 0;
             gameState.levelEndSpawned = saveData.levelEndSpawned || false;
             gameState.credits = saveData.credits || 0;
