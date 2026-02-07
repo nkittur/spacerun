@@ -5193,8 +5193,8 @@
         }
 
         // Place planets around a sun center, avoiding overlaps
-        function placePlanetsAroundSun(centerX, centerY, sunSize) {
-            const planetCount = 4 + Math.floor(Math.random() * 4);
+        function placePlanetsAroundSun(centerX, centerY, sunSize, maxPlanets) {
+            const planetCount = maxPlanets || (4 + Math.floor(Math.random() * 4));
             const placedPlanets = [];
             const minPlanetSpacing = 2.5;
             const minSunDist = sunSize * 0.5;
@@ -5253,7 +5253,8 @@
                 gameState.suns.push(sun);
             }
 
-            placePlanetsAroundSun(centerX, centerY, sunSize);
+            // Mid-level systems only get 1-2 planets (scenery, not major harvest opportunities)
+            placePlanetsAroundSun(centerX, centerY, sunSize, 1 + Math.floor(Math.random() * 2));
 
             const spacing = orthoHeight * 2 * (0.7 + Math.random() * 0.6);
             gameState.nextSolarSystemY = centerY + spacing;
@@ -5314,29 +5315,32 @@
             const fullyVisible = starbase.position.y < (orthoHeight - starbase.size / 2);
 
             if (fullyVisible && dist < starbase.dockRadius) {
-                // Show docking progress using harvest bar
-                if (!gameState.harvestingPlanet) {
-                    gameState.harvestProgress += deltaTime / 1500; // 1.5 seconds to dock
+                // Station always takes priority - clear planet harvesting if active
+                if (gameState.harvestingPlanet) {
+                    gameState.harvestingPlanet = null;
+                    gameState.harvestProgress = 0;
+                }
 
-                    const harvestBar = document.getElementById('harvestBar');
-                    const harvestBarFill = document.getElementById('harvestBarFill');
-                    harvestBar.style.display = 'block';
-                    harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
+                gameState.harvestProgress += deltaTime / 1500; // 1.5 seconds to dock
 
-                    // Position bar at starbase
-                    const screenPos = worldToScreen(starbase.position.x, starbase.position.y);
-                    const screenSize = (starbase.size / (orthoHeight * 2)) * canvas.clientHeight;
-                    const halfSize = screenSize / 2;
-                    const barWidth = screenSize;
-                    harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
-                    harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
-                    harvestBar.style.width = barWidth + 'px';
-                    harvestBar.style.transform = 'none';
+                const harvestBar = document.getElementById('harvestBar');
+                const harvestBarFill = document.getElementById('harvestBarFill');
+                harvestBar.style.display = 'block';
+                harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
 
-                    if (gameState.harvestProgress >= 1) {
-                        // Docked!
-                        openDockingScreen();
-                    }
+                // Position bar at starbase
+                const screenPos = worldToScreen(starbase.position.x, starbase.position.y);
+                const screenSize = (starbase.size / (orthoHeight * 2)) * canvas.clientHeight;
+                const halfSize = screenSize / 2;
+                const barWidth = screenSize;
+                harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+                harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
+                harvestBar.style.width = barWidth + 'px';
+                harvestBar.style.transform = 'none';
+
+                if (gameState.harvestProgress >= 1) {
+                    // Docked!
+                    openDockingScreen();
                 }
             } else {
                 if (!gameState.harvestingPlanet && gameState.harvestProgress > 0 && !gameState.isDocked) {
@@ -7599,6 +7603,20 @@
             // Handle harvesting UI
             const harvestBar = document.getElementById('harvestBar');
             const harvestBarFill = document.getElementById('harvestBarFill');
+
+            // Stations always take priority - suppress planet harvesting if near a dockable starbase
+            if (nearPlanet && gameState.starbase && playerShip) {
+                const sb = gameState.starbase;
+                const sbVisible = sb.position.y < (orthoHeight - sb.size / 2);
+                if (sbVisible) {
+                    const sdx = sb.position.x - playerShip.position.x;
+                    const sdy = sb.position.y - playerShip.position.y;
+                    const sDist = Math.sqrt(sdx * sdx + sdy * sdy);
+                    if (sDist < sb.dockRadius * 1.5) {
+                        nearPlanet = null; // Yield to station
+                    }
+                }
+            }
 
             if (nearPlanet && nearPlanet.harvestsRemaining > 0) {
                 if (gameState.harvestingPlanet !== nearPlanet) {
