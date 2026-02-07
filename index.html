@@ -3181,7 +3181,9 @@
             arenaSpeedBonus: 1,     // Speed bonus from arena upgrades
             // Mystery events (gate-based)
             mysteryEventActive: false,  // Whether mystery event dialog is open
-            pendingEventConfig: null    // Level config to warp to after an event gate resolves
+            eventObject: null,          // Current event object mesh (e.g., behemoth derelict)
+            pendingEventConfig: null,   // Gate config stored while event dialog is open
+            lastEventOutcome: null      // Outcome type from most recent event choice
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -6227,9 +6229,15 @@
 
             // Branch based on gate type
             if (chosenConfig.gateType === 'event') {
-                // Event gate: show mystery event dialog, then warp after resolution
-                gameState.pendingEventConfig = chosenConfig;
-                openMysteryEventDialog(chosenConfig.eventType);
+                // Event gate: warp into an event zone with the event object to discover
+                const eventZoneConfig = createEventZoneConfig(chosenConfig);
+                requestPause('warpAnimation');
+                playWarpAnimation(() => {
+                    startNewLevel(eventZoneConfig);
+                    saveGame();
+                    showSavedNotification();
+                    releasePause('warpAnimation');
+                });
             } else {
                 // System gate: standard warp to new level
                 requestPause('warpAnimation');
@@ -6307,8 +6315,12 @@
             // Update HUD to show level
             updateHUD();
 
-            // Start first wave
-            spawnWave();
+            // Event zones spawn the event object; normal levels start waves
+            if (config.isEventZone) {
+                spawnEventObject(config.eventType);
+            } else {
+                spawnWave();
+            }
         }
 
         // Clear all level objects for fresh start
@@ -6372,9 +6384,13 @@
                 gameState.starbase = null;
             }
 
+            // Clear event object
+            cleanupEventObject();
+
             // Clear mystery event state
             gameState.mysteryEventActive = false;
             gameState.pendingEventConfig = null;
+            gameState.lastEventOutcome = null;
             document.getElementById('mysteryEventDialog').style.display = 'none';
             if (gameState.pauseReasons.has('mysteryEvent')) {
                 releasePause('mysteryEvent');
@@ -6635,111 +6651,135 @@
             return outcomes[outcomes.length - 1];
         }
 
-        // Generate a level config for an event zone based on the mystery outcome
-        // Event zones are mini-levels that play out after an event resolves,
-        // ending with gates to the next level like any other level.
-        function generateEventZoneConfig(outcomeType, baseLevel) {
-            const starSystem = generateStarSystem();
-            const levelNum = baseLevel;
+        // Create a simple event zone config for the initial event encounter
+        // The zone has no waves -- the player flies through space and encounters the event object
+        function createEventZoneConfig(gateConfig) {
+            return {
+                waveCount: 0,
+                threatLevel: 'Unknown',
+                threatClass: 'medium',
+                enemyMultiplier: 1.0,
+                stations: [],
+                stationWaves: [],
+                stationDisplay: 'None',
+                levelNum: gateConfig.levelNum,
+                starSystem: gateConfig.starSystem || generateStarSystem(),
+                isEventZone: true,
+                eventType: gateConfig.eventType
+            };
+        }
 
-            switch (outcomeType) {
-                case 'pirates_ambush': {
-                    // Heavy combat zone: multiple waves of tough enemies
-                    const waveCount = 3 + Math.floor(Math.random() * 2); // 3-4 waves
-                    return {
-                        waveCount,
-                        threatLevel: 'High',
-                        threatClass: 'danger',
-                        enemyMultiplier: 1.3 + (baseLevel * 0.05),
-                        stations: [],
-                        stationWaves: [],
-                        stationDisplay: 'None',
-                        levelNum,
-                        starSystem,
-                        isEventZone: true,
-                        eventZoneType: 'pirates_ambush'
-                    };
+        // Spawn the event object (e.g., behemoth derelict) off-screen above for the player to discover
+        function spawnEventObject(eventTypeKey) {
+            if (!scene) return;
+            const eventType = MYSTERY_EVENT_TYPES[eventTypeKey];
+            if (!eventType) return;
+
+            const meshSize = eventType.meshSize || 6;
+            const mesh = BABYLON.MeshBuilder.CreatePlane('eventObject', { size: meshSize }, scene);
+
+            // Spawn off-screen above and slightly to one side for a natural encounter
+            mesh.position.x = (Math.random() - 0.5) * orthoWidth * 0.6;
+            mesh.position.y = orthoHeight + meshSize + 8; // Well above screen
+            mesh.position.z = 0.2; // Same depth as starbases and game objects
+
+            const texture = new BABYLON.Texture(eventType.texture, scene);
+            texture.hasAlpha = true;
+
+            const mat = new BABYLON.StandardMaterial('eventObjectMat', scene);
+            mat.diffuseTexture = texture;
+            mat.emissiveTexture = texture;
+            const tint = eventType.tint || [0.5, 0.5, 0.5];
+            mat.emissiveColor = new BABYLON.Color3(tint[0], tint[1], tint[2]);
+            mat.useAlphaFromDiffuseTexture = true;
+            mat.backFaceCulling = false;
+            mesh.material = mat;
+            mesh.renderingGroupId = 2;
+
+            // Exclude from glow layer to prevent bloom washout (like starbases)
+            if (sunGlowLayer) {
+                sunGlowLayer.addExcludedMesh(mesh);
+            }
+
+            // Store docking properties on the mesh (like starbase pattern)
+            mesh.size = meshSize;
+            mesh.dockRadius = meshSize * 0.7;
+            mesh.eventTypeKey = eventTypeKey;
+
+            gameState.eventObject = mesh;
+        }
+
+        // Update the event object: scroll it down and handle docking proximity
+        function updateEventObject(scrollMultiplier, deltaTime) {
+            if (!gameState.eventObject || !playerShip) return;
+
+            const obj = gameState.eventObject;
+
+            // Scroll down with the world
+            obj.position.y -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+
+            // Slow rotation for visual interest
+            obj.rotation.z += 0.001;
+
+            // Check distance to player for docking
+            const dx = obj.position.x - playerShip.position.x;
+            const dy = obj.position.y - playerShip.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Only allow docking once object is fully visible on screen
+            const fullyVisible = obj.position.y < (orthoHeight - obj.size / 2);
+
+            if (fullyVisible && dist < obj.dockRadius && !gameState.mysteryEventActive) {
+                // Show docking progress using harvest bar (same pattern as starbase docking)
+                if (!gameState.harvestingPlanet && !gameState.isDocked) {
+                    gameState.harvestProgress += deltaTime / 2000; // 2 seconds to dock
+
+                    const harvestBar = document.getElementById('harvestBar');
+                    const harvestBarFill = document.getElementById('harvestBarFill');
+                    harvestBar.style.display = 'block';
+                    harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
+
+                    // Position bar at event object
+                    const screenPos = worldToScreen(obj.position.x, obj.position.y);
+                    const screenSize = (obj.size / (orthoHeight * 2)) * canvas.clientHeight;
+                    const halfSize = screenSize / 2;
+                    const barWidth = screenSize;
+                    harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+                    harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
+                    harvestBar.style.width = barWidth + 'px';
+                    harvestBar.style.transform = 'none';
+
+                    if (gameState.harvestProgress >= 1) {
+                        // Docked with event object -- open mystery dialog
+                        gameState.harvestProgress = 0;
+                        harvestBar.style.display = 'none';
+                        gameState.pendingEventConfig = gameState.levelConfig;
+                        openMysteryEventDialog(obj.eventTypeKey);
+                    }
                 }
-                case 'trap_minor':
-                case 'trap_major': {
-                    // Short hazardous zone: 1-2 waves, medium threat
-                    const waveCount = 1 + Math.floor(Math.random() * 2); // 1-2 waves
-                    return {
-                        waveCount,
-                        threatLevel: 'Medium',
-                        threatClass: 'medium',
-                        enemyMultiplier: 1.0,
-                        stations: [],
-                        stationWaves: [],
-                        stationDisplay: 'None',
-                        levelNum,
-                        starSystem,
-                        isEventZone: true,
-                        eventZoneType: 'hazard'
-                    };
+            } else if (!gameState.mysteryEventActive) {
+                // Reset docking progress if player moves away
+                if (!gameState.harvestingPlanet && gameState.harvestProgress > 0 && !gameState.isDocked) {
+                    gameState.harvestProgress = 0;
+                    document.getElementById('harvestBar').style.display = 'none';
                 }
-                case 'loot_good':
-                case 'loot_great':
-                case 'weapon_find':
-                case 'legendary_weapon':
-                case 'credits_jackpot': {
-                    // Reward zone: few waves, possibly a station for trading/outfitting
-                    const waveCount = 2 + Math.floor(Math.random() * 2); // 2-3 waves
-                    const hasStation = Math.random() < 0.5;
-                    const stationType = ['Trade', 'Armory'][Math.floor(Math.random() * 2)];
-                    const stations = hasStation ? [stationType] : [];
-                    const stationWaves = hasStation ? [1] : [];
-                    return {
-                        waveCount,
-                        threatLevel: 'Low',
-                        threatClass: 'safe',
-                        enemyMultiplier: 0.8,
-                        stations,
-                        stationWaves,
-                        stationDisplay: stations.length > 0 ? stationType : 'None',
-                        levelNum,
-                        starSystem,
-                        isEventZone: true,
-                        eventZoneType: 'reward'
-                    };
+            }
+
+            // If event object scrolls off screen bottom, just spawn level end content
+            if (obj.position.y < -orthoHeight - obj.size) {
+                cleanupEventObject();
+                generateLevelEndContent();
+            }
+        }
+
+        // Clean up the event object mesh
+        function cleanupEventObject() {
+            if (gameState.eventObject) {
+                if (sunGlowLayer) {
+                    sunGlowLayer.removeExcludedMesh(gameState.eventObject);
                 }
-                case 'loot_common':
-                case 'fuel_find':
-                case 'credits_small':
-                case 'intel_bonus': {
-                    // Light zone: a couple of easy waves
-                    const waveCount = 2;
-                    return {
-                        waveCount,
-                        threatLevel: 'Low',
-                        threatClass: 'safe',
-                        enemyMultiplier: 0.8,
-                        stations: [],
-                        stationWaves: [],
-                        stationDisplay: 'None',
-                        levelNum,
-                        starSystem,
-                        isEventZone: true,
-                        eventZoneType: 'light'
-                    };
-                }
-                case 'nothing':
-                default: {
-                    // Minimal zone: single wave then gates
-                    return {
-                        waveCount: 1,
-                        threatLevel: 'Low',
-                        threatClass: 'safe',
-                        enemyMultiplier: 0.7,
-                        stations: [],
-                        stationWaves: [],
-                        stationDisplay: 'None',
-                        levelNum,
-                        starSystem,
-                        isEventZone: true,
-                        eventZoneType: 'empty'
-                    };
-                }
+                gameState.eventObject.dispose();
+                gameState.eventObject = null;
             }
         }
 
@@ -6816,32 +6856,54 @@
             outcomeDiv.innerHTML = outcomeHTML;
         }
 
-        // Close the mystery event dialog and start the event zone
+        // Close the mystery event dialog and spawn post-event content
         function closeMysteryEvent() {
             gameState.mysteryEventActive = false;
             document.getElementById('mysteryEventDialog').style.display = 'none';
             releasePause('mysteryEvent');
 
+            // Remove the event object (behemoth) from the scene
+            cleanupEventObject();
+
             updateHUD();
 
-            // Get the pending config from the event gate
-            const eventGateConfig = gameState.pendingEventConfig;
+            // Get the pending config
+            const eventConfig = gameState.pendingEventConfig;
             gameState.pendingEventConfig = null;
 
-            if (!eventGateConfig) return;
+            if (!eventConfig) return;
 
-            // Build an event zone config based on the outcome type
-            const outcomeType = eventGateConfig.lastOutcomeType || 'nothing';
-            const eventZoneConfig = generateEventZoneConfig(outcomeType, eventGateConfig.levelNum);
+            const outcomeType = eventConfig.lastOutcomeType || 'nothing';
+            gameState.lastEventOutcome = outcomeType;
 
-            // Warp into the event zone (plays out like a level, ending with gates)
-            requestPause('warpAnimation');
-            playWarpAnimation(() => {
-                startNewLevel(eventZoneConfig);
-                saveGame();
-                showSavedNotification();
-                releasePause('warpAnimation');
-            });
+            // Based on outcome, spawn post-event content just off-screen above
+            if (outcomeType === 'pirates_ambush') {
+                // Combat aftermath: set up pirate waves, then gates spawn after waves complete
+                const config = gameState.levelConfig;
+                config.waveCount = 3 + Math.floor(Math.random() * 2); // 3-4 pirate waves
+                config.enemyMultiplier = 1.3 + (config.levelNum * 0.05);
+                config.threatLevel = 'High';
+                config.threatClass = 'danger';
+                config.isEventZone = false; // Now plays as normal combat level
+                gameState.levelWave = 0;
+                gameState.levelEndSpawned = false;
+                spawnWave();
+            } else if (outcomeType === 'trap_minor' || outcomeType === 'trap_major') {
+                // Hazard aftermath: 1-2 quick waves then gates
+                const config = gameState.levelConfig;
+                config.waveCount = 1 + Math.floor(Math.random() * 2);
+                config.enemyMultiplier = 1.0;
+                config.threatLevel = 'Medium';
+                config.threatClass = 'medium';
+                config.isEventZone = false;
+                gameState.levelWave = 0;
+                gameState.levelEndSpawned = false;
+                spawnWave();
+            } else {
+                // Peaceful outcomes: spawn level end content (reward zone + gates) directly
+                gameState.levelEndSpawned = false;
+                generateLevelEndContent();
+            }
         }
 
         // Make closeMysteryEvent available for onclick
@@ -8750,9 +8812,11 @@
             gameState.showingGates = false;
             document.getElementById('warpGatePanel').style.display = 'none';
             document.getElementById('stationInterior').style.display = 'none';
-            // Clean up mystery events on new game
+            // Clean up event objects and mystery events on new game
+            cleanupEventObject();
             gameState.mysteryEventActive = false;
             gameState.pendingEventConfig = null;
+            gameState.lastEventOutcome = null;
             document.getElementById('mysteryEventDialog').style.display = 'none';
             if (gameState.pauseReasons.has('mysteryEvent')) {
                 releasePause('mysteryEvent');
@@ -9255,9 +9319,9 @@
                 gameState.wavesUntilStarbase = gameState.levelConfig.waveCount;
             }
 
-            // Only spawn wave if not in exploration mode and no enemies already pending
+            // Only spawn wave if not in exploration mode, no enemies pending, and not in an event zone
             // This preserves state when continuing a saved game
-            if (!gameState.inExploration && gameState.enemiesInWave === 0) {
+            if (!gameState.inExploration && gameState.enemiesInWave === 0 && !(gameState.levelConfig && gameState.levelConfig.isEventZone)) {
                 spawnWave();
             }
 
@@ -9307,7 +9371,8 @@
                 applySunLighting();
 
                 // Wave completion - enter exploration mode between waves
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration) {
+                // Skip this check when an event object is present (event zones handle their own flow)
+                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.eventObject && !gameState.mysteryEventActive) {
                     gameState.wave++;
                     gameState.levelWave++;
                     updateHUD();
@@ -9360,6 +9425,7 @@
                 updateLoot(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
                 updateStarbase(scrollMultiplier, deltaTime);
+                updateEventObject(scrollMultiplier, deltaTime);
                 checkPlayerCollision();
             });
 
