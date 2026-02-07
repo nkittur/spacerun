@@ -2253,6 +2253,12 @@
                 Bloom Effects (post-processing glow)
             </label>
         </div>
+        <div class="setting-group checkbox-group">
+            <label>
+                <input type="checkbox" id="engineGlowEnabled" checked>
+                Engine Glow (exhaust bloom)
+            </label>
+        </div>
         <div class="setting-group">
             <label>Sun/Effects Glow</label>
             <input type="range" id="sunGlowIntensity" min="0" max="2" step="0.1" value="0.7">
@@ -2581,6 +2587,7 @@
             godMode: localStorage.getItem('godMode') === 'true',
             // Graphics settings
             bloomEnabled: localStorage.getItem('bloomEnabled') !== 'false', // Default on
+            engineGlowEnabled: localStorage.getItem('engineGlowEnabled') !== 'false', // Default on
             sunGlowIntensity: parseFloat(localStorage.getItem('sunGlowIntensity')) || 0.7,
             lootGlowIntensity: parseFloat(localStorage.getItem('lootGlowIntensity')) || 0.4,
             lightIntensity: parseFloat(localStorage.getItem('lightIntensity')) || 1.0
@@ -2902,6 +2909,7 @@
             playerBullets: [],
             enemyBullets: [],
             challengerLasers: [],
+            engineExhausts: [],
             loot: [],
             planets: [],
             suns: [],
@@ -3871,6 +3879,12 @@
             backgroundMaterialB.backFaceCulling = false;
             backgroundMaterialB.alpha = 0;
             backgroundMeshB.material = backgroundMaterialB;
+
+            // Exclude backgrounds from loot glow layer to prevent unwanted glow effect
+            if (lootGlowLayer) {
+                lootGlowLayer.addExcludedMesh(backgroundMeshA);
+                lootGlowLayer.addExcludedMesh(backgroundMeshB);
+            }
         }
 
         // Get starfield texture path
@@ -5986,9 +6000,12 @@
             });
             gameState.enemyBullets = [];
 
-            // Clear challenger lasers
+            // Clear challenger lasers (remove from glow layer first)
             if (gameState.challengerLasers) {
-                gameState.challengerLasers.forEach(l => l.dispose());
+                gameState.challengerLasers.forEach(l => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(l);
+                    l.dispose();
+                });
                 gameState.challengerLasers = [];
             }
 
@@ -6591,8 +6608,8 @@
                 coreMat.disableLighting = true;
                 core.material = coreMat;
 
-                // Add to glow layer
-                if (sunGlowLayer) {
+                // Add to glow layer (conditional on setting)
+                if (sunGlowLayer && settings.engineGlowEnabled) {
                     sunGlowLayer.addIncludedOnlyMesh(glow);
                     sunGlowLayer.addIncludedOnlyMesh(core);
                 }
@@ -6600,6 +6617,11 @@
                 // Render on top of suns/planets
                 glow.renderingGroupId = 2;
                 core.renderingGroupId = 2;
+
+                // Track exhausts for dynamic toggling (player ship only)
+                if (!isEnemy) {
+                    gameState.engineExhausts.push({ glow, core });
+                }
 
                 exhausts.push({ glow, core });
             });
@@ -7828,9 +7850,12 @@
             gameState.enemyBullets.forEach(b => b.dispose());
             gameState.enemyBullets = [];
 
-            // Clear challenger lasers
+            // Clear challenger lasers (remove from glow layer first)
             if (gameState.challengerLasers) {
-                gameState.challengerLasers.forEach(l => l.dispose());
+                gameState.challengerLasers.forEach(l => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(l);
+                    l.dispose();
+                });
                 gameState.challengerLasers = [];
             }
 
@@ -8313,6 +8338,26 @@
             settings.bloomEnabled = bloomCheckbox.checked;
             localStorage.setItem('bloomEnabled', settings.bloomEnabled);
             applyGraphicsSettings();
+        });
+
+        // Engine glow toggle
+        const engineGlowCheckbox = document.getElementById('engineGlowEnabled');
+        engineGlowCheckbox.checked = settings.engineGlowEnabled;
+        engineGlowCheckbox.addEventListener('change', () => {
+            settings.engineGlowEnabled = engineGlowCheckbox.checked;
+            localStorage.setItem('engineGlowEnabled', settings.engineGlowEnabled);
+            // Toggle engine exhausts in glow layer
+            if (gameState.engineExhausts && sunGlowLayer) {
+                gameState.engineExhausts.forEach(exhaust => {
+                    if (settings.engineGlowEnabled) {
+                        sunGlowLayer.addIncludedOnlyMesh(exhaust.glow);
+                        sunGlowLayer.addIncludedOnlyMesh(exhaust.core);
+                    } else {
+                        sunGlowLayer.removeIncludedOnlyMesh(exhaust.glow);
+                        sunGlowLayer.removeIncludedOnlyMesh(exhaust.core);
+                    }
+                });
+            }
         });
 
         // Sun/Effects glow intensity slider
