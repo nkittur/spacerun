@@ -3181,7 +3181,6 @@
             arenaSpeedBonus: 1,     // Speed bonus from arena upgrades
             // Mystery events (gate-based)
             mysteryEventActive: false,  // Whether mystery event dialog is open
-            mysteryPirateAmbush: false, // Whether pirates were triggered by a mystery event
             pendingEventConfig: null    // Level config to warp to after an event gate resolves
         };
 
@@ -6375,7 +6374,6 @@
 
             // Clear mystery event state
             gameState.mysteryEventActive = false;
-            gameState.mysteryPirateAmbush = false;
             gameState.pendingEventConfig = null;
             document.getElementById('mysteryEventDialog').style.display = 'none';
             if (gameState.pauseReasons.has('mysteryEvent')) {
@@ -6596,8 +6594,6 @@
                 case 'pirates_ambush': {
                     const credits = 5 + Math.floor(Math.random() * 10);
                     gameState.credits = (gameState.credits || 0) + credits;
-                    // Set flag to spawn extra enemies in the next wave
-                    gameState.mysteryPirateAmbush = true;
                     rewards.push({ text: `+${credits} Credits (grabbed on the way out)`, css: 'reward-good' });
                     rewards.push({ text: 'Pirates inbound! Brace for attack!', css: 'reward-bad' });
                     break;
@@ -6639,7 +6635,114 @@
             return outcomes[outcomes.length - 1];
         }
 
-        // Create a behemoth derelict mesh at a position
+        // Generate a level config for an event zone based on the mystery outcome
+        // Event zones are mini-levels that play out after an event resolves,
+        // ending with gates to the next level like any other level.
+        function generateEventZoneConfig(outcomeType, baseLevel) {
+            const starSystem = generateStarSystem();
+            const levelNum = baseLevel;
+
+            switch (outcomeType) {
+                case 'pirates_ambush': {
+                    // Heavy combat zone: multiple waves of tough enemies
+                    const waveCount = 3 + Math.floor(Math.random() * 2); // 3-4 waves
+                    return {
+                        waveCount,
+                        threatLevel: 'High',
+                        threatClass: 'danger',
+                        enemyMultiplier: 1.3 + (baseLevel * 0.05),
+                        stations: [],
+                        stationWaves: [],
+                        stationDisplay: 'None',
+                        levelNum,
+                        starSystem,
+                        isEventZone: true,
+                        eventZoneType: 'pirates_ambush'
+                    };
+                }
+                case 'trap_minor':
+                case 'trap_major': {
+                    // Short hazardous zone: 1-2 waves, medium threat
+                    const waveCount = 1 + Math.floor(Math.random() * 2); // 1-2 waves
+                    return {
+                        waveCount,
+                        threatLevel: 'Medium',
+                        threatClass: 'medium',
+                        enemyMultiplier: 1.0,
+                        stations: [],
+                        stationWaves: [],
+                        stationDisplay: 'None',
+                        levelNum,
+                        starSystem,
+                        isEventZone: true,
+                        eventZoneType: 'hazard'
+                    };
+                }
+                case 'loot_good':
+                case 'loot_great':
+                case 'weapon_find':
+                case 'legendary_weapon':
+                case 'credits_jackpot': {
+                    // Reward zone: few waves, possibly a station for trading/outfitting
+                    const waveCount = 2 + Math.floor(Math.random() * 2); // 2-3 waves
+                    const hasStation = Math.random() < 0.5;
+                    const stationType = ['Trade', 'Armory'][Math.floor(Math.random() * 2)];
+                    const stations = hasStation ? [stationType] : [];
+                    const stationWaves = hasStation ? [1] : [];
+                    return {
+                        waveCount,
+                        threatLevel: 'Low',
+                        threatClass: 'safe',
+                        enemyMultiplier: 0.8,
+                        stations,
+                        stationWaves,
+                        stationDisplay: stations.length > 0 ? stationType : 'None',
+                        levelNum,
+                        starSystem,
+                        isEventZone: true,
+                        eventZoneType: 'reward'
+                    };
+                }
+                case 'loot_common':
+                case 'fuel_find':
+                case 'credits_small':
+                case 'intel_bonus': {
+                    // Light zone: a couple of easy waves
+                    const waveCount = 2;
+                    return {
+                        waveCount,
+                        threatLevel: 'Low',
+                        threatClass: 'safe',
+                        enemyMultiplier: 0.8,
+                        stations: [],
+                        stationWaves: [],
+                        stationDisplay: 'None',
+                        levelNum,
+                        starSystem,
+                        isEventZone: true,
+                        eventZoneType: 'light'
+                    };
+                }
+                case 'nothing':
+                default: {
+                    // Minimal zone: single wave then gates
+                    return {
+                        waveCount: 1,
+                        threatLevel: 'Low',
+                        threatClass: 'safe',
+                        enemyMultiplier: 0.7,
+                        stations: [],
+                        stationWaves: [],
+                        stationDisplay: 'None',
+                        levelNum,
+                        starSystem,
+                        isEventZone: true,
+                        eventZoneType: 'empty'
+                    };
+                }
+            }
+        }
+
         // Open the mystery event dialog
         function openMysteryEventDialog(eventTypeKey) {
             const eventType = MYSTERY_EVENT_TYPES[eventTypeKey];
@@ -6688,6 +6791,11 @@
             // Roll the outcome
             const outcome = rollMysteryOutcome(choice.outcomes);
 
+            // Store outcome type on pending config so closeMysteryEvent can build the right zone
+            if (gameState.pendingEventConfig) {
+                gameState.pendingEventConfig.lastOutcomeType = outcome.type;
+            }
+
             // Apply rewards/penalties
             const rewards = applyMysteryOutcome(outcome);
 
@@ -6708,7 +6816,7 @@
             outcomeDiv.innerHTML = outcomeHTML;
         }
 
-        // Close the mystery event dialog and resume gameplay
+        // Close the mystery event dialog and start the event zone
         function closeMysteryEvent() {
             gameState.mysteryEventActive = false;
             document.getElementById('mysteryEventDialog').style.display = 'none';
@@ -6716,27 +6824,20 @@
 
             updateHUD();
 
-            // Get the pending level config from the event gate
-            const config = gameState.pendingEventConfig;
+            // Get the pending config from the event gate
+            const eventGateConfig = gameState.pendingEventConfig;
             gameState.pendingEventConfig = null;
 
-            if (!config) return;
+            if (!eventGateConfig) return;
 
-            // Flag if pirates should ambush in the new level's first wave
-            const piratesTriggered = gameState.mysteryPirateAmbush;
-            gameState.mysteryPirateAmbush = false;
+            // Build an event zone config based on the outcome type
+            const outcomeType = eventGateConfig.lastOutcomeType || 'nothing';
+            const eventZoneConfig = generateEventZoneConfig(outcomeType, eventGateConfig.levelNum);
 
-            // Warp to the new level (same as system gate, but after the event)
+            // Warp into the event zone (plays out like a level, ending with gates)
             requestPause('warpAnimation');
             playWarpAnimation(() => {
-                startNewLevel(config);
-
-                // If pirates were triggered, beef up the first wave
-                if (piratesTriggered) {
-                    const bonusEnemies = 4 + Math.floor(Math.random() * 4);
-                    gameState.enemiesInWave += bonusEnemies;
-                }
-
+                startNewLevel(eventZoneConfig);
                 saveGame();
                 showSavedNotification();
                 releasePause('warpAnimation');
@@ -8651,7 +8752,6 @@
             document.getElementById('stationInterior').style.display = 'none';
             // Clean up mystery events on new game
             gameState.mysteryEventActive = false;
-            gameState.mysteryPirateAmbush = false;
             gameState.pendingEventConfig = null;
             document.getElementById('mysteryEventDialog').style.display = 'none';
             if (gameState.pauseReasons.has('mysteryEvent')) {
