@@ -145,53 +145,130 @@
 
         #hud {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
+            top: 0;
+            left: 0;
+            right: 0;
             z-index: 50;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
         }
 
-        #hud div {
-            margin-bottom: 3px;
-        }
-
-        #fuelDisplay {
-            position: absolute;
-            top: 10px;
-            right: 60px;
-            color: white;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
-            z-index: 50;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+        .hud-strip {
             display: flex;
             align-items: center;
             gap: 8px;
+            padding: 6px 50px 5px 10px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 80%, transparent 100%);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #ddd;
         }
 
-        #fuelBar {
-            width: 100px;
-            height: 12px;
+        .hud-stats {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+        }
+
+        .hud-stat {
+            color: #ccc;
+        }
+
+        .hud-divider {
+            color: #555;
+            font-size: 10px;
+        }
+
+        .hud-bars {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .hud-bar-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .hud-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .bar-label {
+            font-size: 8px;
+            font-weight: bold;
+            color: #888;
+            width: 14px;
+            text-align: right;
+            flex-shrink: 0;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+        }
+
+        .bar-value {
+            font-size: 9px;
+            color: #aaa;
+            width: 24px;
+            text-align: left;
+            flex-shrink: 0;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+        }
+
+        #healthBar {
+            flex: 1;
+            height: 7px;
             background: rgba(0, 0, 0, 0.5);
-            border: 1px solid #ffaa44;
-            border-radius: 6px;
+            border: 1px solid rgba(68, 204, 68, 0.5);
+            border-radius: 3px;
             overflow: hidden;
         }
 
-        #fuelBarFill {
+        #healthBarFill {
             height: 100%;
             width: 100%;
-            background: linear-gradient(90deg, #ff8800, #ffcc44);
+            background: linear-gradient(90deg, #22aa22, #66ee66);
+            transition: width 0.3s ease;
+        }
+
+        #shieldBar {
+            flex: 1;
+            height: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(68, 136, 255, 0.5);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        #shieldBarFill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #2266cc, #66aaff);
+            transition: width 0.3s ease;
+        }
+
+        #secondaryBar {
+            flex: 1;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(102, 68, 204, 0.5);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        #secondaryBarFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #6644cc, #aa88ff);
             transition: width 0.3s ease;
         }
 
         /* Resource collection notifications below top UI */
         #collectNotifications {
             position: absolute;
-            top: 45px;
+            top: 40px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
@@ -512,6 +589,26 @@
             margin-bottom: 20px;
         }
 
+        .run-summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 16px;
+            text-align: left;
+            margin: 12px 0 20px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 13px;
+            color: #ccc;
+        }
+        .run-summary .stat-label {
+            color: #888;
+        }
+        .run-summary .stat-value {
+            text-align: right;
+            color: #fff;
+        }
+
         #restartBtn {
             padding: 12px 30px;
             background: #ff4444;
@@ -670,6 +767,32 @@
         .feature-icon {
             font-size: 10px;
             opacity: 0.9;
+        }
+
+        /* Event gate HUD styling */
+        .gate-preview.event-gate .hud-value {
+            color: #cc88ff !important;
+        }
+
+        .event-gate-label {
+            border-bottom: 1px solid rgba(180, 100, 255, 0.4) !important;
+        }
+
+        .event-type-value {
+            color: #cc88ff !important;
+            text-shadow: 0 0 8px rgba(180, 100, 255, 0.6);
+            letter-spacing: 2px;
+            font-size: 13px !important;
+        }
+
+        .event-sig-value {
+            color: #aa77dd !important;
+            letter-spacing: 3px;
+        }
+
+        .event-risk-value {
+            color: #aa77dd !important;
+            letter-spacing: 2px;
         }
 
         /* Warp/Lightspeed Animation */
@@ -1204,15 +1327,15 @@
         /* System Menu */
         #systemBtn {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 40px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 8px;
-            color: white;
-            font-size: 20px;
+            top: 2px;
+            right: 6px;
+            width: 32px;
+            height: 28px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 6px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
             cursor: pointer;
             z-index: 100;
             display: flex;
@@ -1221,13 +1344,13 @@
         }
 
         #systemBtn:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.2);
         }
 
         #systemMenu {
             position: absolute;
-            top: 55px;
-            right: 10px;
+            top: 36px;
+            right: 6px;
             background: rgba(20, 20, 40, 0.95);
             border: 2px solid #4488ff;
             border-radius: 10px;
@@ -1422,6 +1545,183 @@
 
         #weaponMountDialog .inventory-btn:hover {
             background: #446;
+        }
+
+        /* Mystery Event Dialog */
+        #mysteryEventDialog {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 15, 0.95);
+            display: none;
+            z-index: 210;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-y: auto;
+            color: white;
+        }
+
+        .mystery-event-header {
+            width: 100%;
+            text-align: center;
+            padding: 20px 15px 10px;
+            border-bottom: 1px solid rgba(255, 170, 50, 0.3);
+        }
+
+        .mystery-event-header h2 {
+            color: #ffaa33;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 4px;
+            text-shadow: 0 0 15px rgba(255, 170, 50, 0.5);
+        }
+
+        .mystery-event-header .event-subtitle {
+            color: #aa8855;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        .mystery-event-scene {
+            width: 100%;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .mystery-event-scene .scene-image {
+            width: 80%;
+            max-width: 300px;
+            height: auto;
+            border: 2px solid rgba(255, 170, 50, 0.4);
+            border-radius: 8px;
+            box-shadow: 0 0 25px rgba(255, 100, 0, 0.3);
+            image-rendering: pixelated;
+        }
+
+        .mystery-event-description {
+            padding: 10px 20px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #ccbbaa;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .mystery-event-choices {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .mystery-choice-btn {
+            padding: 14px 18px;
+            background: rgba(40, 35, 25, 0.9);
+            border: 1px solid rgba(255, 170, 50, 0.4);
+            border-radius: 10px;
+            color: #eeddbb;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+            line-height: 1.4;
+        }
+
+        .mystery-choice-btn:hover {
+            background: rgba(80, 60, 20, 0.9);
+            border-color: #ffaa33;
+            box-shadow: 0 0 15px rgba(255, 170, 50, 0.3);
+        }
+
+        .mystery-choice-btn .choice-label {
+            color: #ffcc66;
+            font-weight: bold;
+            font-size: 14px;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .mystery-choice-btn .choice-risk {
+            font-size: 11px;
+            color: #887755;
+        }
+
+        /* Mystery Event Outcome */
+        .mystery-event-outcome {
+            width: 100%;
+            max-width: 400px;
+            padding: 15px 20px;
+            text-align: center;
+        }
+
+        .outcome-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #ccbbaa;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(40, 35, 25, 0.6);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 170, 50, 0.2);
+        }
+
+        .outcome-rewards {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 15px;
+        }
+
+        .outcome-reward-item {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .outcome-reward-item.reward-good {
+            background: rgba(50, 180, 80, 0.2);
+            border: 1px solid rgba(50, 180, 80, 0.4);
+            color: #66dd88;
+        }
+
+        .outcome-reward-item.reward-bad {
+            background: rgba(200, 50, 50, 0.2);
+            border: 1px solid rgba(200, 50, 50, 0.4);
+            color: #ff6655;
+        }
+
+        .outcome-reward-item.reward-legendary {
+            background: rgba(255, 170, 0, 0.2);
+            border: 1px solid rgba(255, 170, 0, 0.5);
+            color: #ffcc33;
+            text-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
+        }
+
+        .mystery-continue-btn {
+            padding: 14px 40px;
+            background: rgba(255, 170, 50, 0.2);
+            border: 2px solid #ffaa33;
+            border-radius: 10px;
+            color: #ffcc66;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .mystery-continue-btn:hover {
+            background: rgba(255, 170, 50, 0.4);
+            box-shadow: 0 0 20px rgba(255, 170, 50, 0.4);
         }
 
         /* Station Interior View */
@@ -2030,6 +2330,269 @@
             background: #ffaa66;
             box-shadow: 0 0 15px rgba(255, 136, 68, 0.6);
         }
+
+        /* ========== TECH TREE / RESEARCH SCREEN ========== */
+        .research-btn {
+            background: linear-gradient(180deg, #44cc88 0%, #228855 100%) !important;
+            border-color: #66eebb !important;
+            box-shadow: 0 0 20px rgba(68, 204, 136, 0.4) !important;
+        }
+        .research-btn:hover {
+            box-shadow: 0 0 30px rgba(68, 204, 136, 0.7) !important;
+        }
+
+        #researchScreen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(180deg, #0a0a20 0%, #1a1a40 100%);
+            z-index: 310;
+            display: none;
+            flex-direction: column;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .research-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.4);
+            border-bottom: 1px solid #334;
+            flex-shrink: 0;
+        }
+        .research-header h2 {
+            font-size: 20px;
+            color: #44cc88;
+            margin: 0;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .research-back-btn {
+            padding: 8px 20px;
+            background: #445;
+            border: 1px solid #667;
+            border-radius: 6px;
+            color: #ccc;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .meta-resources-bar {
+            display: flex;
+            gap: 12px;
+            padding: 10px 16px;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid #223;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+        .meta-res-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+        }
+        .meta-res-icon { font-size: 16px; }
+        .meta-res-count { font-weight: bold; }
+
+        .special-slots-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: rgba(100,50,180,0.15);
+            border-bottom: 1px solid #334;
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+        .special-slots-bar span { color: #bb88ee; }
+        .upgrade-slots-btn {
+            padding: 4px 12px;
+            background: #6633aa;
+            border: 1px solid #8855cc;
+            border-radius: 4px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .upgrade-slots-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .tech-trees-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 16px;
+            flex: 1;
+        }
+
+        .tech-branch {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid #334;
+            border-radius: 10px;
+            padding: 14px;
+        }
+        .branch-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .branch-icon { font-size: 24px; }
+        .branch-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ddd;
+        }
+        .branch-resource {
+            margin-left: auto;
+            font-size: 12px;
+            color: #888;
+            padding: 2px 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+        }
+
+        .tech-nodes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tech-node {
+            position: relative;
+            padding: 10px 12px;
+            background: rgba(40,40,70,0.8);
+            border: 2px solid #445;
+            border-radius: 8px;
+            cursor: pointer;
+            min-width: 120px;
+            flex: 1;
+            min-height: 60px;
+            transition: all 0.2s ease;
+        }
+        .tech-node:hover {
+            border-color: #668;
+            background: rgba(60,60,90,0.8);
+        }
+        .tech-node.unlocked {
+            border-color: #44cc88;
+            background: rgba(30,80,50,0.4);
+        }
+        .tech-node.equipped {
+            border-color: #cc66ff;
+            background: rgba(80,30,120,0.4);
+            box-shadow: 0 0 10px rgba(200,100,255,0.3);
+        }
+        .tech-node.locked {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .tech-node.affordable {
+            border-color: #88aaff;
+            box-shadow: 0 0 8px rgba(100,150,255,0.2);
+        }
+
+        .node-name {
+            font-size: 12px;
+            font-weight: bold;
+            color: #ddd;
+            margin-bottom: 3px;
+        }
+        .node-desc {
+            font-size: 10px;
+            color: #999;
+            line-height: 1.3;
+        }
+        .node-cost {
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            font-size: 10px;
+            color: #888;
+            background: rgba(0,0,0,0.3);
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+        .node-special-tag {
+            display: inline-block;
+            font-size: 9px;
+            color: #cc66ff;
+            background: rgba(200,100,255,0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .node-requires {
+            font-size: 9px;
+            color: #665;
+            margin-top: 2px;
+        }
+
+        .tech-section-label {
+            font-size: 11px;
+            color: #777;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 10px 0 6px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Meta resource gains on game over */
+        .meta-gains {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 12px;
+            text-align: left;
+            margin: 8px 0;
+            padding: 10px 14px;
+            background: rgba(68, 204, 136, 0.1);
+            border: 1px solid rgba(68, 204, 136, 0.2);
+            border-radius: 8px;
+            font-size: 12px;
+        }
+        .meta-gains .gain-label { color: #88ccaa; }
+        .meta-gains .gain-value { text-align: right; color: #44cc88; font-weight: bold; }
+        .meta-gains-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #44cc88;
+            margin-top: 12px;
+            margin-bottom: 4px;
+        }
+
+        .reset-tree-btn {
+            margin-top: 12px;
+            padding: 8px 20px;
+            background: #553333;
+            border: 1px solid #774444;
+            border-radius: 6px;
+            color: #ffaaaa;
+            font-size: 12px;
+            cursor: pointer;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .reset-tree-btn:hover {
+            background: #664444;
+        }
     </style>
 </head>
 <body>
@@ -2042,12 +2605,28 @@
         <div id="titleButtons">
             <button id="newGameBtn" class="title-btn">New Game</button>
             <button id="continueBtn" class="title-btn">Continue</button>
+            <button id="researchBtn" class="title-btn research-btn">Research Lab</button>
             <button id="arenaModeBtn" class="title-btn arena-btn">Arena Mode</button>
         </div>
         <div id="loadingScreen">
             <div class="loading-spinner"></div>
             <div class="loading-text">Loading...</div>
         </div>
+    </div>
+
+    <!-- Research / Tech Tree Screen -->
+    <div id="researchScreen">
+        <div class="research-header">
+            <h2>Research Lab</h2>
+            <button class="research-back-btn" id="researchBackBtn">Back</button>
+        </div>
+        <div class="meta-resources-bar" id="metaResourcesBar"></div>
+        <div class="special-slots-bar">
+            <span>Special Slots: <strong id="specialSlotsCount">1/1</strong></span>
+            <button class="upgrade-slots-btn" id="upgradeSlotBtn">Upgrade Slot</button>
+        </div>
+        <div class="tech-trees-container" id="techTreesContainer"></div>
+        <button class="reset-tree-btn" id="resetTreeBtn">Reset All Trees (Free)</button>
     </div>
 
     <!-- Arena Mode Configuration Panel -->
@@ -2178,7 +2757,7 @@
         </div>
     </div>
 
-    <button id="systemBtn" style="display: none;">☰</button>
+    <button id="systemBtn" style="display: none;">⏸</button>
     <div id="systemMenu">
         <div class="menu-item" id="menuSettings">⚙ Settings</div>
         <div class="menu-divider"></div>
@@ -2202,6 +2781,19 @@
         <button class="inventory-btn" id="mountToInventory">Keep in Inventory</button>
     </div>
 
+    <div id="mysteryEventDialog">
+        <div class="mystery-event-header">
+            <h2 id="mysteryEventTitle">Unknown Contact</h2>
+            <div class="event-subtitle" id="mysteryEventSubtitle">Anomalous signature detected</div>
+        </div>
+        <div class="mystery-event-scene">
+            <img class="scene-image" id="mysteryEventImage" src="" alt="Mystery Event">
+        </div>
+        <div class="mystery-event-description" id="mysteryEventDesc"></div>
+        <div class="mystery-event-choices" id="mysteryEventChoices"></div>
+        <div class="mystery-event-outcome" id="mysteryEventOutcome" style="display:none;"></div>
+    </div>
+
     <div id="settingsPanel">
         <h2>Settings</h2>
         <div class="setting-group">
@@ -2216,8 +2808,8 @@
         </div>
         <div class="setting-group">
             <label>Max Ship Height (% of screen)</label>
-            <input type="range" id="maxHeight" min="30" max="70" step="5" value="50">
-            <div class="setting-value" id="maxHeightValue">50%</div>
+            <input type="range" id="maxHeight" min="30" max="80" step="5" value="70">
+            <div class="setting-value" id="maxHeightValue">70%</div>
         </div>
         <div class="setting-group">
             <label>Ship Speed</label>
@@ -2278,15 +2870,34 @@
     </div>
 
     <div id="hud" style="display: none;">
-        <div>Credits: <span id="creditsHud">0</span></div>
-        <div>Health: <span id="health">100</span></div>
-        <div>Level: <span id="level">1</span> | Wave: <span id="wave">1</span>/<span id="totalWaves">3</span></div>
-    </div>
-
-    <div id="fuelDisplay" style="display: none;">
-        <span>⛽</span>
-        <div id="fuelBar"><div id="fuelBarFill"></div></div>
-        <span id="fuelValue">100</span>
+        <div class="hud-strip">
+            <div class="hud-stats">
+                <span class="hud-stat">Lv<span id="level">1</span></span>
+                <span class="hud-divider">|</span>
+                <span class="hud-stat"><span id="wave">1</span>/<span id="totalWaves">3</span></span>
+                <span class="hud-divider">|</span>
+                <span class="hud-stat">$<span id="creditsHud">0</span></span>
+                <span class="hud-divider">|</span>
+                <span class="hud-stat" id="fuelStat">⛽<span id="fuelValue">100</span></span>
+            </div>
+            <div class="hud-bars">
+                <div class="hud-bar-stack">
+                    <div class="hud-bar-row">
+                        <span class="bar-label">HP</span>
+                        <div id="healthBar"><div id="healthBarFill"></div></div>
+                        <span class="bar-value" id="health">100</span>
+                    </div>
+                    <div class="hud-bar-row" id="shieldBarRow" style="display: none;">
+                        <span class="bar-label">SH</span>
+                        <div id="shieldBar"><div id="shieldBarFill"></div></div>
+                    </div>
+                    <div class="hud-bar-row" id="secondaryBarRow" style="display: none;">
+                        <span class="bar-label" id="secondaryIcon">AB</span>
+                        <div id="secondaryBar"><div id="secondaryBarFill"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="collectNotifications"></div>
@@ -2470,6 +3081,9 @@
     <div id="gameOver">
         <h2>Game Over</h2>
         <p>Final Credits: <span id="finalCredits">0</span></p>
+        <div id="runSummary" class="run-summary"></div>
+        <div class="meta-gains-title">Resources Salvaged</div>
+        <div id="metaGains" class="meta-gains"></div>
         <button id="restartBtn">Play Again</button>
     </div>
     </div><!-- end gameContainer -->
@@ -2486,31 +3100,437 @@
             Hydrogen: { color: '#aaddff', symbol: 'H₂', tradeValue: 1 },
             Organics: { color: '#44ff88', symbol: '🧬', tradeValue: 5 },
             Crystals: { color: '#ff44ff', symbol: '💎', tradeValue: 8 },
-            Exotic: { color: '#ffaa00', symbol: '✧', tradeValue: 25 }
+            Exotic: { color: '#ffaa00', symbol: '✧', tradeValue: 25 },
+            Plasma: { color: '#cc66ff', symbol: '⚡', tradeValue: 15 }
         };
+
+        // Meta resources - persist across deaths, used for tech tree
+        const META_RESOURCES = {
+            Alloys: { name: 'Alloys', icon: '🔩', desc: 'Refined metals for kinetic research', color: '#99aacc', from: 'Metal from rocky planets' },
+            Plasma: { name: 'Plasma', icon: '🔮', desc: 'Ionized gas for energy research', color: '#cc66ff', from: 'Gas giants' },
+            DataCores: { name: 'Data Cores', icon: '💿', desc: 'Ancient tech for defense research', color: '#44ddff', from: 'Crystals & Exotic materials' },
+            DarkMatter: { name: 'Dark Matter', icon: '🌑', desc: 'Exotic matter for special upgrades', color: '#8844cc', from: 'Mystery events' }
+        };
+
+        const META_SAVE_KEY = 'spacerun_meta';
+
+        // ========== TECH TREE SYSTEM ==========
+        const TECH_TREES = {
+            weapons: {
+                name: 'Weapons Lab',
+                icon: '🔫',
+                desc: 'Kinetic and projectile upgrades',
+                resource: 'Alloys',
+                nodes: [
+                    { id: 'w1', name: 'Hardened Rounds', desc: '+10% bullet damage', cost: 3, requires: [], effect: { bulletDamage: 0.10 } },
+                    { id: 'w2', name: 'Rapid Loader', desc: '+10% fire rate', cost: 5, requires: ['w1'], effect: { fireRate: 0.10 } },
+                    { id: 'w3', name: 'Split Chamber', desc: '+1 projectile', cost: 8, requires: ['w2'], effect: { extraProjectiles: 1 } },
+                    { id: 'w4', name: 'Heavy Ordinance', desc: '+15% missile damage', cost: 6, requires: ['w2'], effect: { missileDamage: 0.15 } },
+                    { id: 'w5', name: 'Overclocked Barrels', desc: '+15% fire rate', cost: 10, requires: ['w3'], effect: { fireRate: 0.15 } }
+                ],
+                specialNodes: [
+                    { id: 'ws1', name: 'Stationary Fire', desc: 'Fire rate +5%/sec while not moving (max +50%)', cost: 12, requires: ['w5'], effect: { stationaryFireRate: true } },
+                    { id: 'ws2', name: 'Piercing Rounds', desc: 'Bullets pierce through 1 extra enemy', cost: 10, requires: ['w3'], effect: { piercingRounds: 1 } }
+                ]
+            },
+            energy: {
+                name: 'Energy Lab',
+                icon: '⚡',
+                desc: 'Beam and energy weapon upgrades',
+                resource: 'Plasma',
+                nodes: [
+                    { id: 'e1', name: 'Beam Focus', desc: '+15% beam damage', cost: 3, requires: [], effect: { beamDamage: 0.15 } },
+                    { id: 'e2', name: 'Beam Width', desc: '+20% beam width', cost: 5, requires: ['e1'], effect: { beamWidth: 0.20 } },
+                    { id: 'e3', name: 'Capacitor Banks', desc: '-15% secondary cooldown', cost: 6, requires: ['e1'], effect: { secondaryCooldown: 0.15 } },
+                    { id: 'e4', name: 'Overcharge', desc: '+25% beam damage', cost: 8, requires: ['e2'], effect: { beamDamage: 0.25 } },
+                    { id: 'e5', name: 'Rapid Charge', desc: '-20% secondary cooldown', cost: 10, requires: ['e3'], effect: { secondaryCooldown: 0.20 } }
+                ],
+                specialNodes: [
+                    { id: 'es1', name: 'Nova Cascade', desc: 'Secondary ability hits deal 2x damage', cost: 12, requires: ['e5'], effect: { secondaryDamageMult: 2 } },
+                    { id: 'es2', name: 'Chain Lightning', desc: 'Beam hits arc to 1 nearby enemy for 50% dmg', cost: 10, requires: ['e4'], effect: { chainLightning: true } }
+                ]
+            },
+            defense: {
+                name: 'Defense Lab',
+                icon: '🛡',
+                desc: 'Shields, drones, and hull upgrades',
+                resource: 'DataCores',
+                nodes: [
+                    { id: 'd1', name: 'Hull Plating', desc: '+20 max HP', cost: 3, requires: [], effect: { maxHP: 20 } },
+                    { id: 'd2', name: 'Shield Boost', desc: '+15 shield HP', cost: 5, requires: ['d1'], effect: { shieldHP: 15 } },
+                    { id: 'd3', name: 'Drone Bay', desc: '+1 drone', cost: 6, requires: ['d1'], effect: { extraDrones: 1 } },
+                    { id: 'd4', name: 'Fast Recharge', desc: '+25% shield recharge rate', cost: 8, requires: ['d2'], effect: { shieldRecharge: 0.25 } },
+                    { id: 'd5', name: 'Reinforced Hull', desc: '+30 max HP', cost: 10, requires: ['d4'], effect: { maxHP: 30 } }
+                ],
+                specialNodes: [
+                    { id: 'ds1', name: 'Orbital Synergy', desc: 'Each drone damage x number of drones', cost: 12, requires: ['d3'], effect: { orbitalSynergy: true } },
+                    { id: 'ds2', name: 'Reactive Shields', desc: '30% damage reflected when shields absorb', cost: 10, requires: ['d4'], effect: { reactiveShields: 0.30 } }
+                ]
+            }
+        };
+
+        // Max special node slots (upgradeable with DarkMatter)
+        const BASE_SPECIAL_SLOTS = 1;
+        const MAX_SPECIAL_SLOTS = 3;
+        const SPECIAL_SLOT_COST = 15; // DarkMatter per extra slot
+
+        // Meta state management
+        function getDefaultMetaState() {
+            return {
+                resources: { Alloys: 0, Plasma: 0, DataCores: 0, DarkMatter: 0 },
+                unlockedNodes: [],     // Array of node IDs that are unlocked
+                specialSlots: BASE_SPECIAL_SLOTS,
+                equippedSpecials: [],  // Array of special node IDs currently equipped
+                totalRuns: 0,
+                bestLevel: 0
+            };
+        }
+
+        let metaState = getDefaultMetaState();
+
+        function saveMetaState() {
+            try {
+                localStorage.setItem(META_SAVE_KEY, JSON.stringify(metaState));
+            } catch (e) { /* ignore quota errors */ }
+        }
+
+        function loadMetaState() {
+            try {
+                const data = localStorage.getItem(META_SAVE_KEY);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    metaState = { ...getDefaultMetaState(), ...parsed };
+                    // Ensure resources object has all keys
+                    Object.keys(META_RESOURCES).forEach(r => {
+                        if (metaState.resources[r] === undefined) metaState.resources[r] = 0;
+                    });
+                }
+            } catch (e) {
+                metaState = getDefaultMetaState();
+            }
+        }
+
+        function isNodeUnlocked(nodeId) {
+            return metaState.unlockedNodes.includes(nodeId);
+        }
+
+        function canUnlockNode(treeKey, node) {
+            if (isNodeUnlocked(node.id)) return false;
+            // Check prerequisites
+            if (node.requires.length > 0 && !node.requires.every(r => isNodeUnlocked(r))) return false;
+            // Check resource cost
+            const tree = TECH_TREES[treeKey];
+            return metaState.resources[tree.resource] >= node.cost;
+        }
+
+        function unlockNode(treeKey, node) {
+            if (!canUnlockNode(treeKey, node)) return false;
+            const tree = TECH_TREES[treeKey];
+            metaState.resources[tree.resource] -= node.cost;
+            metaState.unlockedNodes.push(node.id);
+            saveMetaState();
+            return true;
+        }
+
+        function refundNode(treeKey, node) {
+            if (!isNodeUnlocked(node.id)) return;
+            // Check if any other unlocked node depends on this one
+            const tree = TECH_TREES[treeKey];
+            const allNodes = [...tree.nodes, ...tree.specialNodes];
+            for (const other of allNodes) {
+                if (other.requires.includes(node.id) && isNodeUnlocked(other.id)) return; // Can't refund, dependency exists
+            }
+            metaState.unlockedNodes = metaState.unlockedNodes.filter(id => id !== node.id);
+            metaState.equippedSpecials = metaState.equippedSpecials.filter(id => id !== node.id);
+            metaState.resources[tree.resource] += node.cost;
+            saveMetaState();
+        }
+
+        function toggleSpecialNode(nodeId) {
+            if (!isNodeUnlocked(nodeId)) return;
+            if (metaState.equippedSpecials.includes(nodeId)) {
+                metaState.equippedSpecials = metaState.equippedSpecials.filter(id => id !== nodeId);
+            } else {
+                if (metaState.equippedSpecials.length >= metaState.specialSlots) return; // No free slots
+                metaState.equippedSpecials.push(nodeId);
+            }
+            saveMetaState();
+        }
+
+        function upgradeSpecialSlots() {
+            if (metaState.specialSlots >= MAX_SPECIAL_SLOTS) return false;
+            if (metaState.resources.DarkMatter < SPECIAL_SLOT_COST) return false;
+            metaState.resources.DarkMatter -= SPECIAL_SLOT_COST;
+            metaState.specialSlots++;
+            saveMetaState();
+            return true;
+        }
+
+        // Calculate cumulative tech tree bonuses from unlocked nodes
+        function getTechBonuses() {
+            const bonuses = {
+                bulletDamage: 0, fireRate: 0, extraProjectiles: 0, missileDamage: 0,
+                beamDamage: 0, beamWidth: 0, secondaryCooldown: 0,
+                maxHP: 0, shieldHP: 0, extraDrones: 0, shieldRecharge: 0,
+                // Special effects (only from equipped special nodes)
+                stationaryFireRate: false, piercingRounds: 0,
+                secondaryDamageMult: 1, chainLightning: false,
+                orbitalSynergy: false, reactiveShields: 0
+            };
+
+            for (const treeKey of Object.keys(TECH_TREES)) {
+                const tree = TECH_TREES[treeKey];
+                // Normal nodes: always active if unlocked
+                for (const node of tree.nodes) {
+                    if (isNodeUnlocked(node.id)) {
+                        Object.keys(node.effect).forEach(key => {
+                            if (typeof bonuses[key] === 'boolean') {
+                                bonuses[key] = node.effect[key];
+                            } else {
+                                bonuses[key] += node.effect[key];
+                            }
+                        });
+                    }
+                }
+                // Special nodes: only active if equipped
+                for (const node of tree.specialNodes) {
+                    if (metaState.equippedSpecials.includes(node.id)) {
+                        Object.keys(node.effect).forEach(key => {
+                            if (typeof bonuses[key] === 'boolean') {
+                                bonuses[key] = node.effect[key];
+                            } else if (key === 'secondaryDamageMult') {
+                                bonuses[key] *= node.effect[key];
+                            } else {
+                                bonuses[key] += node.effect[key];
+                            }
+                        });
+                    }
+                }
+            }
+            return bonuses;
+        }
+
+        // Convert in-run resources to meta resources on death
+        function convertRunResourcesToMeta() {
+            const res = gameState.resources;
+            // Metal → Alloys (3 metal = 1 alloy)
+            const alloys = Math.floor((res.Metal || 0) / 3);
+            // Plasma transfers directly
+            const plasma = res.Plasma || 0;
+            // Crystals + Exotic → DataCores (2 crystals or 1 exotic = 1 datacore)
+            const dataCores = Math.floor((res.Crystals || 0) / 2) + (res.Exotic || 0);
+            // DarkMatter comes from mystery events (tracked separately in stats)
+            const darkMatter = Math.floor((gameState.stats.eventsCompleted || 0) * 1.5);
+
+            metaState.resources.Alloys += alloys;
+            metaState.resources.Plasma += plasma;
+            metaState.resources.DataCores += dataCores;
+            metaState.resources.DarkMatter += darkMatter;
+            metaState.totalRuns++;
+            metaState.bestLevel = Math.max(metaState.bestLevel, gameState.stats.highestLevel || 1);
+            saveMetaState();
+
+            return { Alloys: alloys, Plasma: plasma, DataCores: dataCores, DarkMatter: darkMatter };
+        }
+
+        // ========== TECH TREE UI ==========
+        function renderResearchScreen() {
+            // Update meta resources bar
+            const bar = document.getElementById('metaResourcesBar');
+            bar.innerHTML = Object.entries(META_RESOURCES).map(([key, r]) =>
+                `<div class="meta-res-item">
+                    <span class="meta-res-icon">${r.icon}</span>
+                    <span class="meta-res-count" style="color:${r.color}">${metaState.resources[key]}</span>
+                    <span style="color:#888;font-size:11px">${r.name}</span>
+                </div>`
+            ).join('');
+
+            // Update special slots
+            const equipped = metaState.equippedSpecials.length;
+            const slots = metaState.specialSlots;
+            document.getElementById('specialSlotsCount').textContent = `${equipped}/${slots}`;
+
+            const upgradeBtn = document.getElementById('upgradeSlotBtn');
+            const upgradeCost = SPECIAL_SLOT_COST;
+            if (slots >= MAX_SPECIAL_SLOTS) {
+                upgradeBtn.textContent = 'Max Slots';
+                upgradeBtn.disabled = true;
+            } else {
+                upgradeBtn.textContent = `Upgrade Slot (${upgradeCost} Dark Matter)`;
+                upgradeBtn.disabled = metaState.resources.DarkMatter < upgradeCost;
+            }
+
+            // Render tech trees
+            const container = document.getElementById('techTreesContainer');
+            container.innerHTML = '';
+
+            for (const [treeKey, tree] of Object.entries(TECH_TREES)) {
+                const branch = document.createElement('div');
+                branch.className = 'tech-branch';
+
+                const resName = META_RESOURCES[tree.resource].name;
+                const resIcon = META_RESOURCES[tree.resource].icon;
+                const resCount = metaState.resources[tree.resource];
+
+                branch.innerHTML = `
+                    <div class="branch-header">
+                        <span class="branch-icon">${tree.icon}</span>
+                        <span class="branch-name">${tree.name}</span>
+                        <span class="branch-resource">${resIcon} ${resCount} ${resName}</span>
+                    </div>
+                `;
+
+                // Normal nodes
+                const nodesDiv = document.createElement('div');
+                nodesDiv.className = 'tech-nodes';
+                tree.nodes.forEach(node => {
+                    nodesDiv.appendChild(createNodeElement(treeKey, node, false));
+                });
+                branch.appendChild(nodesDiv);
+
+                // Special nodes section
+                if (tree.specialNodes.length > 0) {
+                    const specialLabel = document.createElement('div');
+                    specialLabel.className = 'tech-section-label';
+                    specialLabel.textContent = 'Special Abilities (require equip slot)';
+                    branch.appendChild(specialLabel);
+
+                    const specialDiv = document.createElement('div');
+                    specialDiv.className = 'tech-nodes';
+                    tree.specialNodes.forEach(node => {
+                        specialDiv.appendChild(createNodeElement(treeKey, node, true));
+                    });
+                    branch.appendChild(specialDiv);
+                }
+
+                container.appendChild(branch);
+            }
+        }
+
+        function createNodeElement(treeKey, node, isSpecial) {
+            const el = document.createElement('div');
+            el.className = 'tech-node';
+
+            const unlocked = isNodeUnlocked(node.id);
+            const equipped = metaState.equippedSpecials.includes(node.id);
+            const canAfford = canUnlockNode(treeKey, node);
+
+            if (unlocked) {
+                el.classList.add('unlocked');
+                if (isSpecial && equipped) el.classList.add('equipped');
+            } else if (canAfford) {
+                el.classList.add('affordable');
+            } else {
+                // Check if prerequisites are met
+                const prereqsMet = node.requires.every(r => isNodeUnlocked(r));
+                if (!prereqsMet) el.classList.add('locked');
+            }
+
+            const resIcon = META_RESOURCES[TECH_TREES[treeKey].resource].icon;
+            let reqText = '';
+            if (node.requires.length > 0) {
+                const allNodes = [...TECH_TREES[treeKey].nodes, ...TECH_TREES[treeKey].specialNodes];
+                const reqNames = node.requires.map(r => {
+                    const n = allNodes.find(n => n.id === r);
+                    return n ? n.name : r;
+                });
+                reqText = `<div class="node-requires">Requires: ${reqNames.join(', ')}</div>`;
+            }
+
+            el.innerHTML = `
+                <div class="node-name">${node.name}</div>
+                <div class="node-desc">${node.desc}</div>
+                ${!unlocked ? `<div class="node-cost">${resIcon}${node.cost}</div>` : ''}
+                ${isSpecial ? '<div class="node-special-tag">Special</div>' : ''}
+                ${reqText}
+            `;
+
+            el.addEventListener('click', () => handleNodeClick(treeKey, node, isSpecial));
+            return el;
+        }
+
+        function handleNodeClick(treeKey, node, isSpecial) {
+            const unlocked = isNodeUnlocked(node.id);
+
+            if (unlocked) {
+                if (isSpecial) {
+                    // Toggle equip/unequip
+                    toggleSpecialNode(node.id);
+                } else {
+                    // Refund normal node
+                    refundNode(treeKey, node);
+                }
+            } else {
+                // Try to unlock
+                if (canUnlockNode(treeKey, node)) {
+                    unlockNode(treeKey, node);
+                }
+            }
+            renderResearchScreen();
+        }
+
+        function openResearchScreen() {
+            loadMetaState();
+            document.getElementById('researchScreen').style.display = 'flex';
+            renderResearchScreen();
+        }
+
+        function closeResearchScreen() {
+            document.getElementById('researchScreen').style.display = 'none';
+        }
+
+        function resetAllTrees() {
+            // Refund everything - give back all resources
+            for (const [treeKey, tree] of Object.entries(TECH_TREES)) {
+                const resource = tree.resource;
+                [...tree.nodes, ...tree.specialNodes].forEach(node => {
+                    if (isNodeUnlocked(node.id)) {
+                        metaState.resources[resource] += node.cost;
+                    }
+                });
+            }
+            metaState.unlockedNodes = [];
+            metaState.equippedSpecials = [];
+            saveMetaState();
+            renderResearchScreen();
+        }
+
+        // ========== APPLY TECH BONUSES TO GAMEPLAY ==========
+        function applyTechBonuses() {
+            const bonuses = getTechBonuses();
+
+            // Apply max HP bonus
+            if (bonuses.maxHP > 0) {
+                gameState.maxHealth += bonuses.maxHP;
+                gameState.health += bonuses.maxHP;
+            }
+
+            // Store bonuses for runtime use
+            gameState.techBonuses = bonuses;
+        }
 
         // Planet types with their resources and image paths
         const PLANET_TYPES = {
-            // Gas giants - yield Hydrogen (fuel), occasionally Crystals
+            // Gas giants - fuel-positive (yield more H2 than they cost), yield rare Plasma
             BlueGiant: {
                 category: 'Gaseous', folder: 'Blue Giant', prefix: 'BlueGiant',
-                resources: { Hydrogen: [2, 4] }, harvests: 2, tint: [0.7, 0.8, 1.0]
+                resources: { Hydrogen: [4, 7], Plasma: [1, 2] }, harvests: 2, tint: [0.7, 0.8, 1.0]
             },
             GreenGiant: {
                 category: 'Gaseous', folder: 'Green Giant', prefix: 'GreenGiant',
-                resources: { Hydrogen: [2, 3], Crystals: [0, 1] }, harvests: 2, tint: [0.7, 1.0, 0.8]
+                resources: { Hydrogen: [3, 6], Plasma: [0, 1], Crystals: [0, 1] }, harvests: 2, tint: [0.7, 1.0, 0.8]
             },
             OrangeGiant: {
                 category: 'Gaseous', folder: 'Orange Giant', prefix: 'OrgangeGiant',
-                resources: { Hydrogen: [2, 4] }, harvests: 2, tint: [1.0, 0.8, 0.6]
+                resources: { Hydrogen: [4, 7], Plasma: [1, 2] }, harvests: 2, tint: [1.0, 0.8, 0.6]
             },
             RedGiant: {
                 category: 'Gaseous', folder: 'Red Giant', prefix: 'RedGiant',
-                resources: { Hydrogen: [3, 5] }, harvests: 3, tint: [1.0, 0.7, 0.7]
+                resources: { Hydrogen: [5, 8], Plasma: [1, 3] }, harvests: 3, tint: [1.0, 0.7, 0.7]
             },
             YellowGiant: {
                 category: 'Gaseous', folder: 'Yellow Giant', prefix: 'YellowGiant',
-                resources: { Hydrogen: [2, 4], Crystals: [0, 1] }, harvests: 2, tint: [1.0, 1.0, 0.8]
+                resources: { Hydrogen: [3, 6], Plasma: [0, 1], Crystals: [0, 1] }, harvests: 2, tint: [1.0, 1.0, 0.8]
             },
             // Rocky planets - yield Metal
             Rocky: {
@@ -2575,7 +3595,7 @@
         const settings = {
             xSensitivity: 1.5,
             ySensitivity: 1.2,
-            maxHeight: 0.5,
+            maxHeight: 0.7,
             shipSpeed: 1.0,
             fireRate: 1.0,
             scrollSpeed: 1.0,
@@ -2775,8 +3795,8 @@
 
         // Base fuel costs per planet type (gas giants cost more due to gravity)
         const PLANET_FUEL_COSTS = {
-            // Gas giants - expensive
-            BlueGiant: 15, GreenGiant: 12, OrangeGiant: 12, RedGiant: 18, YellowGiant: 12,
+            // Gas giants - cheap (fuel-positive: yield more H2 than they cost)
+            BlueGiant: 3, GreenGiant: 3, OrangeGiant: 3, RedGiant: 4, YellowGiant: 3,
             // Rocky planets - moderate
             Rocky: 5, Cratered: 5, Barren: 4, Lunar: 3, Magma: 8,
             // Ice planets - moderate
@@ -2930,6 +3950,7 @@
             pendingNotifications: {},
             // Zone/background tracking
             currentZone: 0,
+            currentZoneVariant: 1,
             distanceTraveled: 0,
             transitionPhase: 0, // 0=none, 1=fading to starfield, 2=fading to next zone
             backgroundTransition: 0,
@@ -2954,6 +3975,19 @@
             gateChoices: null,      // The two gate options
             showingGates: false,    // Whether gates are currently displayed
             gatesAtLevel: 0,        // Gates passed at current level (level-up offered at 5, then every 3)
+            gatesSinceEvent: 0,     // Gates passed since last event gate (force event after 3)
+            // Run statistics
+            stats: {
+                totalGatesPassed: 0,
+                systemGatesTaken: 0,
+                eventGatesTaken: 0,
+                eventsCompleted: 0,
+                enemiesKilled: 0,
+                creditsEarned: 0,
+                planetsHarvested: 0,
+                stationsDocked: 0,
+                highestLevel: 1
+            },
             levelEndSpawned: false, // Whether end-of-level content (reward + gates) has been spawned
             speedUp: false,         // Speed-up button pressed
             inExploration: false,   // Between waves - no combat, just exploration
@@ -2962,7 +3996,26 @@
             arenaConfig: null,      // Arena configuration
             arenaWave: 0,           // Current arena wave
             arenaKills: 0,          // Total kills in arena
-            arenaSpeedBonus: 1      // Speed bonus from arena upgrades
+            arenaSpeedBonus: 1,     // Speed bonus from arena upgrades
+            // Mystery events (gate-based)
+            mysteryEventActive: false,  // Whether mystery event dialog is open
+            eventObject: null,          // Current event object mesh (e.g., behemoth derelict)
+            pendingEventConfig: null,   // Gate config stored while event dialog is open
+            lastEventOutcome: null,     // Outcome type from most recent event choice
+            // Equipment systems
+            drones: [],                 // Active drone meshes orbiting player
+            droneEquipment: null,       // Equipped drone data (from equipment)
+            shieldEquipment: null,      // Equipped shield generator data
+            shieldBubble: null,         // Shield bubble mesh (visual)
+            shieldHP: 0,               // Current shield equipment HP
+            shieldMaxHP: 0,            // Max shield equipment HP
+            shieldRechargeTimer: 0,    // Time until shield starts recharging
+            missiles: [],              // Active missile projectiles in flight
+            // Secondary ability
+            secondaryAbility: null,     // Equipped secondary ability data
+            secondaryCooldown: 0,       // Remaining cooldown (ms)
+            secondaryMaxCooldown: 0,    // Max cooldown (ms)
+            secondaryActive: false      // Whether secondary is currently firing
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -2976,10 +4029,11 @@
         const STARFIELD_ZONE = { name: 'Starfield', folder: 'Starfields', prefix: 'Starfield', variants: 8 };
 
         const ZONE_DISTANCE = 500; // Distance units per zone before transitioning
+        const WORLD_SCROLL_SPEED = 0.0225; // Base world scroll speed (50% faster than enemy descent)
 
         // Level zone heights in world Y units (1 screen height ≈ orthoHeight*2 ≈ 20 units)
         const LEVEL_ZONE_HEIGHTS = {
-            reward: 6,   // Y distance for reward/exploration zone (~0.3 screens)
+            reward: 25,  // Y distance for reward/exploration zone (~1.25 screens)
             gate: 10     // Y distance for gate zone
         };
 
@@ -3427,7 +4481,8 @@
                 model: 'Bob',
                 hardpoints: [
                     { size: 'medium', position: { x: 0, y: 0.3 }, equipped: null }
-                ]
+                ],
+                secondarySlot: true  // Has a secondary ability slot
             }
         };
 
@@ -3640,6 +4695,204 @@
             }
         };
 
+        // ========== EQUIPMENT SYSTEM ==========
+        // Equipment types that go on hardpoints (alongside weapons) or special slots
+        const EQUIPMENT_TEMPLATES = {
+            // Shield generators - absorb damage, recharge after delay
+            shield_generator: {
+                baseName: 'Shield Generator',
+                category: 'shield',
+                size: 'medium',
+                baseShieldHP: 30,
+                baseRechargeRate: 5,    // HP per second
+                baseRechargeDelay: 4000, // ms before recharge starts after taking damage
+                baseCost: 200,
+                scaling: {
+                    shieldHPPerLevel: 10,
+                    rechargeRatePerLevel: 1.5,
+                    rechargeDelayPerLevel: -200
+                },
+                desc: 'Projects an energy barrier that absorbs damage before hull.'
+            },
+            heavy_shield: {
+                baseName: 'Heavy Shield',
+                category: 'shield',
+                size: 'heavy',
+                baseShieldHP: 60,
+                baseRechargeRate: 3,
+                baseRechargeDelay: 5000,
+                baseCost: 400,
+                scaling: {
+                    shieldHPPerLevel: 15,
+                    rechargeRatePerLevel: 1,
+                    rechargeDelayPerLevel: -250
+                },
+                desc: 'Heavy-duty shield with high capacity but slow recharge.'
+            },
+            // Combat drones - orbit player, shoot enemies, block some shots
+            combat_drone: {
+                baseName: 'Combat Drone',
+                category: 'drone',
+                size: 'light',
+                baseDroneCount: 2,
+                baseDroneDamage: 5,
+                baseDroneFireRate: 800,
+                baseDroneHP: 15,        // How much damage a drone can absorb before destruction
+                baseOrbitRadius: 1.5,
+                baseCost: 250,
+                scaling: {
+                    droneCountPerLevel: 0.5,  // +1 drone every 2 levels
+                    droneDamagePerLevel: 2,
+                    droneFireRatePerLevel: -30,
+                    droneHPPerLevel: 5
+                },
+                desc: 'Deploys autonomous drones that orbit your ship, shooting enemies and blocking incoming fire.'
+            },
+            assault_drone: {
+                baseName: 'Assault Drone',
+                category: 'drone',
+                size: 'medium',
+                baseDroneCount: 3,
+                baseDroneDamage: 8,
+                baseDroneFireRate: 600,
+                baseDroneHP: 25,
+                baseOrbitRadius: 1.8,
+                baseCost: 450,
+                scaling: {
+                    droneCountPerLevel: 0.5,
+                    droneDamagePerLevel: 3,
+                    droneFireRatePerLevel: -25,
+                    droneHPPerLevel: 8
+                },
+                desc: 'Heavy assault drones with superior firepower and durability.'
+            },
+            // Missile launchers - slow launch, accelerate to target
+            missile_launcher: {
+                baseName: 'Missile Pod',
+                category: 'missile',
+                size: 'medium',
+                baseDamage: 25,
+                baseFireRate: 1500,
+                baseMissileCount: 1,
+                baseSpeed: 0.05,         // Initial slow speed
+                baseMaxSpeed: 0.4,       // Top speed after acceleration
+                baseAcceleration: 0.008,
+                homing: false,           // Dumb missiles (fly straight)
+                baseCost: 300,
+                scaling: {
+                    damagePerLevel: 8,
+                    fireRatePerLevel: -50,
+                    missileCountPerLevel: 0.3,
+                    speedPerLevel: 0.01
+                },
+                desc: 'Fires unguided missiles that accelerate toward the target area.'
+            },
+            homing_missile: {
+                baseName: 'Homing Missile',
+                category: 'missile',
+                size: 'heavy',
+                baseDamage: 35,
+                baseFireRate: 2000,
+                baseMissileCount: 1,
+                baseSpeed: 0.04,
+                baseMaxSpeed: 0.35,
+                baseAcceleration: 0.006,
+                homing: true,            // Tracks nearest enemy
+                baseCost: 500,
+                scaling: {
+                    damagePerLevel: 10,
+                    fireRatePerLevel: -60,
+                    missileCountPerLevel: 0.25,
+                    speedPerLevel: 0.008
+                },
+                desc: 'Smart missiles that lock onto and pursue the nearest enemy.'
+            }
+        };
+
+        // Calculate equipment stats from template
+        function calculateEquipmentStats(template, level, quality) {
+            const q = WEAPON_QUALITIES[quality || 'common'];
+            const lvl = level - 1;
+            const stats = {};
+
+            if (template.category === 'shield') {
+                stats.shieldHP = Math.round((template.baseShieldHP + template.scaling.shieldHPPerLevel * lvl) * q.statMult);
+                stats.rechargeRate = Math.round((template.baseRechargeRate + template.scaling.rechargeRatePerLevel * lvl) * 10) / 10;
+                stats.rechargeDelay = Math.max(1000, template.baseRechargeDelay + template.scaling.rechargeDelayPerLevel * lvl);
+            } else if (template.category === 'drone') {
+                stats.droneCount = template.baseDroneCount + Math.floor(template.scaling.droneCountPerLevel * lvl);
+                stats.droneDamage = Math.round((template.baseDroneDamage + template.scaling.droneDamagePerLevel * lvl) * q.statMult);
+                stats.droneFireRate = Math.max(200, template.baseDroneFireRate + template.scaling.droneFireRatePerLevel * lvl);
+                stats.droneHP = Math.round((template.baseDroneHP + template.scaling.droneHPPerLevel * lvl) * q.statMult);
+                stats.orbitRadius = template.baseOrbitRadius;
+            } else if (template.category === 'missile') {
+                stats.damage = Math.round((template.baseDamage + template.scaling.damagePerLevel * lvl) * q.statMult);
+                stats.fireRate = Math.max(500, template.baseFireRate + template.scaling.fireRatePerLevel * lvl);
+                stats.missileCount = template.baseMissileCount + Math.floor(template.scaling.missileCountPerLevel * lvl);
+                stats.speed = template.baseSpeed + template.scaling.speedPerLevel * lvl;
+                stats.maxSpeed = template.baseMaxSpeed + template.scaling.speedPerLevel * lvl;
+                stats.acceleration = template.baseAcceleration;
+                stats.homing = template.homing;
+            }
+            return stats;
+        }
+
+        // Generate random equipment
+        function generateEquipment(level, category, quality) {
+            const templates = Object.entries(EQUIPMENT_TEMPLATES)
+                .filter(([_, t]) => !category || t.category === category);
+            if (templates.length === 0) return null;
+
+            const [templateId, template] = templates[Math.floor(Math.random() * templates.length)];
+            quality = quality || rollQuality(level);
+            const stats = calculateEquipmentStats(template, level, quality);
+            const q = WEAPON_QUALITIES[quality];
+
+            return {
+                id: `${templateId}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+                templateId,
+                name: `${q.namePre ? q.namePre + ' ' : ''}${template.baseName} Mk-${level}`,
+                category: template.category,
+                size: template.size,
+                level,
+                quality,
+                ...stats,
+                desc: template.desc,
+                isEquipment: true
+            };
+        }
+
+        function rollQuality(level) {
+            const r = Math.random();
+            const bonus = level * 0.02;
+            if (r < 0.05 + bonus * 2) return 'legendary';
+            if (r < 0.15 + bonus) return 'excellent';
+            if (r < 0.35 + bonus) return 'good';
+            if (r < 0.6) return 'common';
+            return 'poor';
+        }
+
+        // ========== SECONDARY ABILITIES ==========
+        const SECONDARY_ABILITIES = {
+            gravity_pulse: {
+                name: 'Gravity Pulse',
+                desc: 'Emits a shockwave that destroys all enemy projectiles on screen.',
+                icon: '🌀',
+                cooldown: 30000,  // 30 second base cooldown (starter is very long)
+                color: [0.3, 0.5, 1.0],
+                effect: 'clear_projectiles'
+            },
+            mega_laser: {
+                name: 'Nova Beam',
+                desc: 'Fires a devastating beam that deals massive damage to all enemies.',
+                icon: '⚡',
+                cooldown: 20000,  // 20 second cooldown
+                color: [1.0, 0.4, 0.1],
+                effect: 'mega_beam',
+                damage: 200
+            }
+        };
+
         // Station types for level signatures
         const STATION_TYPES = ['Trade', 'Armory', 'Repair', 'Fuel'];
 
@@ -3837,9 +5090,12 @@
         }
 
         // Get background texture path for a zone
-        function getBackgroundPath(zoneIndex) {
+        function getBackgroundPath(zoneIndex, variant) {
             const zone = SPACE_ZONES[zoneIndex % SPACE_ZONES.length];
-            const variant = Math.floor(Math.random() * zone.variants) + 1;
+            if (variant === undefined) {
+                variant = Math.floor(Math.random() * zone.variants) + 1;
+            }
+            gameState.currentZoneVariant = variant;
             const variantStr = variant.toString().padStart(2, '0');
             return `assets/SBS - Seamless Space Backgrounds - Small 512x512/Small 512x512/${zone.folder}/${zone.prefix}_${variantStr}-512x512.png`;
         }
@@ -3931,12 +5187,12 @@
             if (!backgroundMeshA || !backgroundMeshB) return;
 
             // Track distance traveled based on scroll
-            const scrollAmount = 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            const scrollAmount = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
             gameState.distanceTraveled += scrollAmount * deltaTime * 0.1;
 
             // Scroll both backgrounds
             // Very slow background scroll for ambient effect
-            const scrollSpeed = 0.00005 * settings.scrollSpeed;
+            const scrollSpeed = 0.000075 * settings.scrollSpeed;
             if (backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.vOffset += scrollSpeed * deltaTime;
             }
@@ -4388,7 +5644,7 @@
                 loot.velocityY *= 0.98;
 
                 loot.position.x += loot.velocityX;
-                loot.position.y += loot.velocityY - 0.02 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                loot.position.y += loot.velocityY - (WORLD_SCROLL_SPEED * 1.33) * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
                 // Slower, more subtle rotation
                 loot.rotation.x += loot.rotSpeed * 0.5;
@@ -4623,49 +5879,29 @@
             return planet;
         }
 
-        // Create a solar system (sun with orbiting planets)
-        function createSolarSystem() {
-            if (!scene) return;
-
-            // Center sun within visible screen area
-            const centerX = (Math.random() - 0.5) * (orthoWidth * 0.4);
-            const centerY = orthoHeight + 8; // Start above screen
-
-            // Create sun at center
-            const sun = createSun(centerX, centerY);
-            const sunSize = sun ? sun.size : 4;
-            if (sun) {
-                gameState.suns.push(sun);
-            }
-
-            // Create 4-7 planets with collision avoidance
-            const planetCount = 4 + Math.floor(Math.random() * 4);
-            const placedPlanets = []; // Track placed planet positions
-            const minPlanetSpacing = 4; // Minimum center-to-center distance
-            const minSunDistanceX = sunSize * 0.8; // Horizontal distance from sun center
-            const planetMargin = 3; // Screen edge margin
+        // Place planets around a sun center, avoiding overlaps
+        function placePlanetsAroundSun(centerX, centerY, sunSize, maxPlanets) {
+            const planetCount = maxPlanets || (4 + Math.floor(Math.random() * 4));
+            const placedPlanets = [];
+            const minPlanetSpacing = 2.5;
+            const minSunDist = sunSize * 1.3; // Keep planets outside the corona
+            const margin = 0.8;
 
             for (let i = 0; i < planetCount; i++) {
                 let attempts = 0;
                 let placed = false;
 
-                while (!placed && attempts < 50) {
-                    // Distribute planets across screen in zones
-                    const zoneWidth = (orthoWidth * 2 - planetMargin * 2) / planetCount;
-                    const zoneStart = -orthoWidth + planetMargin + (i * zoneWidth);
-                    const px = zoneStart + Math.random() * zoneWidth;
+                while (!placed && attempts < 80) {
+                    const px = -orthoWidth + margin + Math.random() * (orthoWidth * 2 - margin * 2);
+                    const ySpread = 10;
+                    const py = centerY + (Math.random() - 0.5) * ySpread;
 
-                    // Spread Y positions across a range, offset by zone index
-                    const ySpread = 6;
-                    const py = centerY + (Math.random() - 0.5) * ySpread + (i - planetCount/2) * 1.5;
-
-                    // Check horizontal distance from sun (avoid overlapping sun visually)
-                    if (Math.abs(px - centerX) < minSunDistanceX) {
+                    const sunDist = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow(py - centerY, 2));
+                    if (sunDist < minSunDist) {
                         attempts++;
                         continue;
                     }
 
-                    // Check distance from all placed planets
                     let validPosition = true;
                     for (const other of placedPlanets) {
                         const dist = Math.sqrt(Math.pow(px - other.x, 2) + Math.pow(py - other.y, 2));
@@ -4690,9 +5926,25 @@
                     attempts++;
                 }
             }
+        }
 
-            // Schedule next solar system with spacing (screen's worth on average)
-            const spacing = orthoHeight * 2 * (0.7 + Math.random() * 0.6); // 0.7-1.3 screens
+        // Create a solar system (sun with orbiting planets)
+        function createSolarSystem() {
+            if (!scene) return;
+
+            const centerX = (Math.random() - 0.5) * (orthoWidth * 0.4);
+            const centerY = orthoHeight + 8;
+
+            const sun = createSun(centerX, centerY);
+            const sunSize = sun ? sun.size : 4;
+            if (sun) {
+                gameState.suns.push(sun);
+            }
+
+            // Mid-level systems only get 1-2 planets (scenery, not major harvest opportunities)
+            placePlanetsAroundSun(centerX, centerY, sunSize, 1 + Math.floor(Math.random() * 2));
+
+            const spacing = orthoHeight * 2 * (0.7 + Math.random() * 0.6);
             gameState.nextSolarSystemY = centerY + spacing;
         }
 
@@ -4737,7 +5989,7 @@
             const starbase = gameState.starbase;
 
             // Move starbase down
-            starbase.position.y -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            starbase.position.y -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
             // Slow rotation
             starbase.rotation.z += 0.002;
@@ -4751,29 +6003,32 @@
             const fullyVisible = starbase.position.y < (orthoHeight - starbase.size / 2);
 
             if (fullyVisible && dist < starbase.dockRadius) {
-                // Show docking progress using harvest bar
-                if (!gameState.harvestingPlanet) {
-                    gameState.harvestProgress += deltaTime / 1500; // 1.5 seconds to dock
+                // Station always takes priority - clear planet harvesting if active
+                if (gameState.harvestingPlanet) {
+                    gameState.harvestingPlanet = null;
+                    gameState.harvestProgress = 0;
+                }
 
-                    const harvestBar = document.getElementById('harvestBar');
-                    const harvestBarFill = document.getElementById('harvestBarFill');
-                    harvestBar.style.display = 'block';
-                    harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
+                gameState.harvestProgress += deltaTime / 1500; // 1.5 seconds to dock
 
-                    // Position bar at starbase
-                    const screenPos = worldToScreen(starbase.position.x, starbase.position.y);
-                    const screenSize = (starbase.size / (orthoHeight * 2)) * canvas.clientHeight;
-                    const halfSize = screenSize / 2;
-                    const barWidth = screenSize;
-                    harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
-                    harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
-                    harvestBar.style.width = barWidth + 'px';
-                    harvestBar.style.transform = 'none';
+                const harvestBar = document.getElementById('harvestBar');
+                const harvestBarFill = document.getElementById('harvestBarFill');
+                harvestBar.style.display = 'block';
+                harvestBarFill.style.width = `${Math.min(100, gameState.harvestProgress * 100)}%`;
 
-                    if (gameState.harvestProgress >= 1) {
-                        // Docked!
-                        openDockingScreen();
-                    }
+                // Position bar at starbase
+                const screenPos = worldToScreen(starbase.position.x, starbase.position.y);
+                const screenSize = (starbase.size / (orthoHeight * 2)) * canvas.clientHeight;
+                const halfSize = screenSize / 2;
+                const barWidth = screenSize;
+                harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+                harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
+                harvestBar.style.width = barWidth + 'px';
+                harvestBar.style.transform = 'none';
+
+                if (gameState.harvestProgress >= 1) {
+                    // Docked!
+                    openDockingScreen();
                 }
             } else {
                 if (!gameState.harvestingPlanet && gameState.harvestProgress > 0 && !gameState.isDocked) {
@@ -4838,6 +6093,7 @@
         // Open station interior screen
         function openDockingScreen() {
             gameState.isDocked = true;
+            gameState.stats.stationsDocked++;
             requestPause('docked');
             gameState.harvestProgress = 0;
             document.getElementById('harvestBar').style.display = 'none';
@@ -5588,7 +6844,7 @@
             // Base spawn position - above the visible screen
             const baseSpawnY = orthoHeight + 10;
 
-            // 1. REWARD ZONE: Spawn solar system(s) as reward for completing waves
+            // 1. REWARD ZONE: Spawn solar system as reward for completing waves
             const rewardY = baseSpawnY;
             createSolarSystemAt(rewardY);
 
@@ -5603,69 +6859,36 @@
         function createSolarSystemAt(spawnY) {
             if (!scene) return;
 
-            // Center sun within visible screen area
             const centerX = (Math.random() - 0.5) * (orthoWidth * 0.4);
             const centerY = spawnY;
 
-            // Create sun at center
             const sun = createSun(centerX, centerY);
             const sunSize = sun ? sun.size : 4;
             if (sun) {
                 gameState.suns.push(sun);
             }
 
-            // Create 4-7 planets with collision avoidance
-            const planetCount = 4 + Math.floor(Math.random() * 4);
-            const placedPlanets = []; // Track placed planet positions
-            const minPlanetSpacing = 4; // Minimum center-to-center distance
-            const minSunDistanceX = sunSize * 0.8; // Horizontal distance from sun center
-            const planetMargin = 3; // Screen edge margin
+            placePlanetsAroundSun(centerX, centerY, sunSize);
+        }
 
-            for (let i = 0; i < planetCount; i++) {
-                let attempts = 0;
-                let placed = false;
-
-                while (!placed && attempts < 50) {
-                    // Distribute planets across screen in zones
-                    const zoneWidth = (orthoWidth * 2 - planetMargin * 2) / planetCount;
-                    const zoneStart = -orthoWidth + planetMargin + (i * zoneWidth);
-                    const px = zoneStart + Math.random() * zoneWidth;
-
-                    // Spread Y positions across a range, offset by zone index
-                    const ySpread = 6;
-                    const py = centerY + (Math.random() - 0.5) * ySpread + (i - planetCount/2) * 1.5;
-
-                    // Check horizontal distance from sun (avoid overlapping sun visually)
-                    if (Math.abs(px - centerX) < minSunDistanceX) {
-                        attempts++;
-                        continue;
-                    }
-
-                    // Check distance from all placed planets
-                    let validPosition = true;
-                    for (const other of placedPlanets) {
-                        const dist = Math.sqrt(Math.pow(px - other.x, 2) + Math.pow(py - other.y, 2));
-                        if (dist < minPlanetSpacing) {
-                            validPosition = false;
-                            break;
-                        }
-                    }
-
-                    if (validPosition) {
-                        const planet = createPlanetAt(px, py);
-                        if (planet) {
-                            placedPlanets.push({ x: px, y: py, size: planet.size });
-                            planet.orbitCenterX = centerX;
-                            planet.orbitRadius = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow((py - centerY) / 0.4, 2));
-                            planet.orbitAngle = Math.atan2((py - centerY) / 0.4, px - centerX);
-                            planet.orbitSpeed = 0.0002 + Math.random() * 0.0001;
-                            gameState.planets.push(planet);
-                            placed = true;
-                        }
-                    }
-                    attempts++;
-                }
+        // Gate type definitions - each type has visual and behavioral properties
+        const GATE_TYPES = {
+            system: {
+                name: 'System Gate',
+                texture: 'assets/stellar objects/warpgate.png',
+                rotationSpeed: 0.005
+            },
+            event: {
+                name: 'Event Gate',
+                texture: 'assets/stellar objects/warpgate.png',
+                rotationSpeed: 0.003
             }
+        };
+
+        // Pick a random mystery event type for an event gate
+        function pickMysteryEventType() {
+            const eventKeys = Object.keys(MYSTERY_EVENT_TYPES);
+            return eventKeys[Math.floor(Math.random() * eventKeys.length)];
         }
 
         // Create warp gates at specified Y position
@@ -5684,35 +6907,59 @@
             const currentLevel = gameState.level;
             const gatesAtLevel = gameState.gatesAtLevel;
 
-            // Determine if level-up option should be offered:
-            // - Not offered for first 5 gates (gatesAtLevel 0-4)
-            // - Offered at gate 6 (gatesAtLevel 5)
-            // - If declined, offered every 3 gates after (gatesAtLevel 8, 11, 14, ...)
             const shouldOfferLevelUp = gatesAtLevel >= 5 && (gatesAtLevel - 5) % 3 === 0;
-
             const rightLevel = shouldOfferLevelUp ? currentLevel + 1 : currentLevel;
 
+            // Determine if one gate should be an event gate
+            // ~25% chance, scaling slightly with level, not on the very first gate
+            // Guaranteed after 3 consecutive gates without an event
+            const eventGateChance = 0.20 + (currentLevel * 0.02);
+            const forceEvent = gameState.gatesSinceEvent >= 3;
+            const shouldOfferEvent = gatesAtLevel >= 1 && (forceEvent || Math.random() < eventGateChance);
+
+            // Randomly pick which side gets the event gate (if any)
+            const eventSide = shouldOfferEvent ? (Math.random() < 0.5 ? 'left' : 'right') : null;
+
+            // Build gate choices -- each has a gateType and associated config
             gameState.gateChoices = {
-                left: generateLevelConfig(currentLevel),   // Same level - safe choice
-                right: generateLevelConfig(rightLevel)     // Same or higher level based on progression
+                left: generateLevelConfig(currentLevel),
+                right: generateLevelConfig(rightLevel)
             };
 
-            // Mark the gates so UI can show the difference
+            // Mark system gate properties
+            gameState.gateChoices.left.gateType = 'system';
             gameState.gateChoices.left.isSafeChoice = true;
+            gameState.gateChoices.right.gateType = 'system';
             gameState.gateChoices.right.isSafeChoice = !shouldOfferLevelUp;
+
+            // Override one gate as an event gate if applicable
+            if (eventSide) {
+                const eventConfig = gameState.gateChoices[eventSide];
+                eventConfig.gateType = 'event';
+                eventConfig.eventType = pickMysteryEventType();
+                eventConfig.isSafeChoice = false;
+            }
 
             // Update UI with gate signatures
             updateGateUI();
 
-            // Create the gate meshes using dimensions from above
-            // Left gate (blue/cyan - safe, same level)
-            const leftGate = createGateMesh('warpGateLeft', leftGateX, gateY, gateSize, [0.3, 0.7, 1.0]);
+            // Create gate meshes with appropriate visuals per type
+            const leftType = GATE_TYPES[gameState.gateChoices.left.gateType];
+            const leftColor = gameState.gateChoices.left.gateType === 'event'
+                ? [0.8, 0.5, 1.0]   // Purple/violet for event gates
+                : [0.3, 0.7, 1.0];  // Blue/cyan for safe system gates
+            const leftGate = createGateMesh('warpGateLeft', leftGateX, gateY, gateSize, leftColor, leftType.texture);
             leftGate.gateId = 'left';
+            leftGate.gateType = gameState.gateChoices.left.gateType;
             gameState.warpGates.push(leftGate);
 
-            // Right gate (orange/red - danger, higher level)
-            const rightGate = createGateMesh('warpGateRight', rightGateX, gateY, gateSize, [1.0, 0.5, 0.2]);
+            const rightType = GATE_TYPES[gameState.gateChoices.right.gateType];
+            const rightColor = gameState.gateChoices.right.gateType === 'event'
+                ? [0.8, 0.5, 1.0]   // Purple/violet for event gates
+                : [1.0, 0.5, 0.2];  // Orange/red for harder system gates
+            const rightGate = createGateMesh('warpGateRight', rightGateX, gateY, gateSize, rightColor, rightType.texture);
             rightGate.gateId = 'right';
+            rightGate.gateType = gameState.gateChoices.right.gateType;
             gameState.warpGates.push(rightGate);
 
             gameState.showingGates = true;
@@ -5720,14 +6967,14 @@
         }
 
         // Create a single warp gate mesh using the warpgate.png texture
-        function createGateMesh(name, x, y, size, color) {
+        function createGateMesh(name, x, y, size, color, texturePath) {
             const gate = BABYLON.MeshBuilder.CreatePlane(name, { size: size }, scene);
 
             gate.position.x = x;
             gate.position.y = y;
             gate.position.z = 0.1;
 
-            const texture = new BABYLON.Texture('assets/stellar objects/warpgate.png', scene);
+            const texture = new BABYLON.Texture(texturePath || 'assets/stellar objects/warpgate.png', scene);
             texture.hasAlpha = true;
 
             const mat = new BABYLON.StandardMaterial(name + 'Mat', scene);
@@ -5782,26 +7029,77 @@
                 ).join('');
             };
 
-            // Left gate (same level - safe choice)
-            document.getElementById('gateLeftLevel').textContent = gameState.gateChoices.left.levelNum;
-            document.getElementById('gateLeftStars').innerHTML = getStarSystemIcons(gameState.gateChoices.left.starSystem);
-            document.getElementById('gateLeftThreat').innerHTML = getThreatBar(gameState.gateChoices.left);
-            document.getElementById('gateLeftWaves').textContent = gameState.gateChoices.left.waveCount;
-            document.getElementById('gateLeftStations').innerHTML = getStationIcons(gameState.gateChoices.left);
+            // Generate HUD content for a system gate
+            const getSystemGateHUD = (config, side) => {
+                const prefix = side === 'left' ? 'gateLeft' : 'gateRight';
+                return `
+                    <div class="hud-row level-row">
+                        <span class="hud-label">LVL</span>
+                        <span class="hud-value level-value" id="${prefix}Level">${config.levelNum}</span>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">SYS</span>
+                        <div class="star-icons" id="${prefix}Stars">${getStarSystemIcons(config.starSystem)}</div>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">THR</span>
+                        <div class="threat-bar" id="${prefix}Threat">${getThreatBar(config)}</div>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">WAV</span>
+                        <span class="hud-value" id="${prefix}Waves">${config.waveCount}</span>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">STA</span>
+                        <div class="station-icons" id="${prefix}Stations">${getStationIcons(config)}</div>
+                    </div>
+                `;
+            };
 
-            // Right gate (higher level - harder choice)
-            const rightLevelEl = document.getElementById('gateRightLevel');
-            rightLevelEl.textContent = gameState.gateChoices.right.levelNum;
-            // Add level-up class if it's actually a higher level
-            if (gameState.gateChoices.right.levelNum > gameState.gateChoices.left.levelNum) {
-                rightLevelEl.classList.add('level-up');
-            } else {
-                rightLevelEl.classList.remove('level-up');
-            }
-            document.getElementById('gateRightStars').innerHTML = getStarSystemIcons(gameState.gateChoices.right.starSystem);
-            document.getElementById('gateRightThreat').innerHTML = getThreatBar(gameState.gateChoices.right);
-            document.getElementById('gateRightWaves').textContent = gameState.gateChoices.right.waveCount;
-            document.getElementById('gateRightStations').innerHTML = getStationIcons(gameState.gateChoices.right);
+            // Generate HUD content for an event gate
+            const getEventGateHUD = (config) => {
+                const eventType = MYSTERY_EVENT_TYPES[config.eventType];
+                const eventName = eventType ? eventType.name : 'Unknown Signal';
+                return `
+                    <div class="hud-row level-row event-gate-label">
+                        <span class="hud-label">TYPE</span>
+                        <span class="hud-value event-type-value">EVENT</span>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">SIG</span>
+                        <span class="hud-value event-sig-value">? ? ?</span>
+                    </div>
+                    <div class="hud-row">
+                        <span class="hud-label">RISK</span>
+                        <span class="hud-value event-risk-value">???</span>
+                    </div>
+                `;
+            };
+
+            // Update each gate's HUD based on its type
+            ['left', 'right'].forEach(side => {
+                const config = gameState.gateChoices[side];
+                const previewId = side === 'left' ? 'gateLeftPreview' : 'gateRightPreview';
+                const hudEl = document.querySelector(`#${previewId} .gate-hud`);
+                if (!hudEl) return;
+
+                if (config.gateType === 'event') {
+                    hudEl.innerHTML = getEventGateHUD(config);
+                } else {
+                    hudEl.innerHTML = getSystemGateHUD(config, side);
+                    // Add level-up class if right gate is higher level
+                    if (side === 'right' && config.levelNum > gameState.gateChoices.left.levelNum) {
+                        const levelEl = hudEl.querySelector('.level-value');
+                        if (levelEl) levelEl.classList.add('level-up');
+                    }
+                }
+
+                // Set preview class for styling
+                const previewEl = document.getElementById(previewId);
+                if (previewEl) {
+                    previewEl.classList.toggle('event-gate', config.gateType === 'event');
+                }
+            });
         }
 
         // Update warp gates (movement and collision)
@@ -5816,10 +7114,11 @@
                 const gate = gameState.warpGates[i];
 
                 // Move gate down
-                gate.position.y -= 0.01 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                gate.position.y -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
-                // Slow rotation
-                gate.rotation.z += 0.005;
+                // Slow rotation (event gates rotate slower)
+                const gateTypeDef = GATE_TYPES[gate.gateType] || GATE_TYPES.system;
+                gate.rotation.z += gateTypeDef.rotationSpeed;
 
                 // Update UI position below gate (so player can see it longer)
                 const screenPos = worldToScreen(gate.position.x, gate.position.y - gate.size / 2 - 0.5);
@@ -5890,6 +7189,17 @@
                 gameState.gatesAtLevel++;    // Increment when staying at same level
             }
 
+            // Track gates since last event (reset when entering an event gate)
+            if (chosenConfig.gateType === 'event') {
+                gameState.gatesSinceEvent = 0;
+                gameState.stats.eventGatesTaken++;
+            } else {
+                gameState.gatesSinceEvent++;
+                gameState.stats.systemGatesTaken++;
+            }
+            gameState.stats.totalGatesPassed++;
+            gameState.stats.highestLevel = Math.max(gameState.stats.highestLevel, chosenConfig.levelNum);
+
             // Consume fuel for warp jump (higher level = more fuel)
             const warpFuelCost = 10 + (chosenConfig.levelNum - 1) * 2;
             gameState.fuel = Math.max(0, gameState.fuel - warpFuelCost);
@@ -5912,18 +7222,27 @@
             gameState.gateChoices = null;
             document.getElementById('warpGatePanel').style.display = 'none';
 
-            // Pause game during warp
-            requestPause('warpAnimation');
-
-            // Show warp animation
-            playWarpAnimation(() => {
-                // After animation, start new level with fresh background
-                startNewLevel(chosenConfig);
-                // Save game progress when entering new level
-                saveGame();
-                showSavedNotification();
-                releasePause('warpAnimation');
-            });
+            // Branch based on gate type
+            if (chosenConfig.gateType === 'event') {
+                // Event gate: warp into an event zone with the event object to discover
+                const eventZoneConfig = createEventZoneConfig(chosenConfig);
+                requestPause('warpAnimation');
+                playWarpAnimation(() => {
+                    startNewLevel(eventZoneConfig);
+                    saveGame();
+                    showSavedNotification();
+                    releasePause('warpAnimation');
+                });
+            } else {
+                // System gate: standard warp to new level
+                requestPause('warpAnimation');
+                playWarpAnimation(() => {
+                    startNewLevel(chosenConfig);
+                    saveGame();
+                    showSavedNotification();
+                    releasePause('warpAnimation');
+                });
+            }
         }
 
         // Play lightspeed warp animation
@@ -5991,8 +7310,12 @@
             // Update HUD to show level
             updateHUD();
 
-            // Start first wave
-            spawnWave();
+            // Event zones spawn the event object; normal levels start waves
+            if (config.isEventZone) {
+                spawnEventObject(config.eventType);
+            } else {
+                spawnWave();
+            }
         }
 
         // Clear all level objects for fresh start
@@ -6027,6 +7350,9 @@
                 gameState.challengerLasers = [];
             }
 
+            // Clear missiles
+            cleanupMissiles();
+
             // Clear loot
             gameState.loot.forEach(l => {
                 l.getChildMeshes().forEach(m => m.dispose());
@@ -6034,9 +7360,12 @@
             });
             gameState.loot = [];
 
-            // Clear planets
+            // Clear planets and harvesting state
             gameState.planets.forEach(p => p.dispose());
             gameState.planets = [];
+            gameState.harvestingPlanet = null;
+            gameState.harvestProgress = 0;
+            document.getElementById('harvestBar').style.display = 'none';
 
             // Clear suns (with their corona children)
             gameState.suns.forEach(s => {
@@ -6054,6 +7383,18 @@
             if (gameState.starbase) {
                 gameState.starbase.dispose();
                 gameState.starbase = null;
+            }
+
+            // Clear event object
+            cleanupEventObject();
+
+            // Clear mystery event state
+            gameState.mysteryEventActive = false;
+            gameState.pendingEventConfig = null;
+            gameState.lastEventOutcome = null;
+            document.getElementById('mysteryEventDialog').style.display = 'none';
+            if (gameState.pauseReasons.has('mysteryEvent')) {
+                releasePause('mysteryEvent');
             }
 
             // Clear all beam lasers (both array and legacy single beam)
@@ -6101,6 +7442,537 @@
             }
         }
 
+        // ========== MYSTERY EVENTS ==========
+
+        // Mystery event types - each defines a stellar object encounter
+        // More types can be added here in the future
+        const MYSTERY_EVENT_TYPES = {
+            behemoth: {
+                name: 'Behemoth Derelict',
+                subtitle: 'Massive hull signature detected on long-range scan',
+                texture: 'assets/stellar objects/derelict1.png',
+                meshSize: 9,
+                tint: [0.7, 0.5, 0.3],
+                description: 'Your sensors light up as you drift toward an enormous derelict vessel -- a Behemoth-class capital ship, kilometers long and dark. Its hull is breached in dozens of places, atmosphere long gone. Faint energy readings flicker deep within. This titan died long ago, but its bones may yet hold secrets... or danger.',
+                choices: [
+                    {
+                        label: 'Board and Salvage Cargo Bays',
+                        desc: 'Send a team to breach the outer cargo holds for supplies.',
+                        risk: 'Low risk -- exterior compartments only',
+                        outcomes: [
+                            { weight: 30, type: 'loot_good', text: 'Your salvage team cracks open sealed military cargo containers. Quality supplies and components.' },
+                            { weight: 25, type: 'loot_great', text: 'The cargo bay was hauling rare minerals. Crystals and exotic materials fill your hold.' },
+                            { weight: 15, type: 'equipment_find', text: 'Buried in the cargo hold, your team uncovers a functioning piece of military hardware -- still sealed in its shipping crate!' },
+                            { weight: 15, type: 'fuel_find', text: 'The Behemoth\'s auxiliary fuel reserves are still pressurized. You siphon a generous supply of hydrogen fuel.' },
+                            { weight: 10, type: 'credits_jackpot', text: 'A sealed vault of credit chips and precious metals -- the Behemoth\'s payroll for thousands of crew.' },
+                            { weight: 5, type: 'trap_minor', text: 'A corroded bulkhead collapses as your team works. Minor hull damage from debris, but you grab some salvage.' }
+                        ]
+                    },
+                    {
+                        label: 'Explore the Bridge and Core Systems',
+                        desc: 'Venture deep inside to find the command deck and engineering core.',
+                        risk: 'Medium risk -- deep penetration, unknown hazards',
+                        outcomes: [
+                            { weight: 20, type: 'legendary_equipment', text: 'In the captain\'s private armory, you discover a legendary piece of equipment -- still humming with power after all these years!' },
+                            { weight: 18, type: 'legendary_weapon', text: 'Deep in the command sanctum you discover the captain\'s personal weapon -- a legendary armament of extraordinary power.' },
+                            { weight: 15, type: 'equipment_find', text: 'Engineering bay yields a working equipment module. Military-spec technology far beyond civilian hardware.' },
+                            { weight: 12, type: 'secondary_upgrade', text: 'You find the Behemoth\'s tactical systems core -- an advanced secondary weapon module, still operational!' },
+                            { weight: 10, type: 'credits_jackpot', text: 'The ship\'s strongroom is intact! Credit chips, precious metals, and trade goods worth a fortune.' },
+                            { weight: 15, type: 'pirates_ambush', text: 'You\'re not alone. Pirates have been using this wreck as a base. They spring their trap as your team reaches the bridge!' },
+                            { weight: 10, type: 'trap_major', text: 'The reactor core is unstable. A power surge rips through the corridors. Your team barely escapes, taking heavy damage.' }
+                        ]
+                    },
+                    {
+                        label: 'Scan for Black Box and Leave',
+                        desc: 'Remotely scan for the flight recorder and depart quickly.',
+                        risk: 'No risk -- safe but modest reward',
+                        outcomes: [
+                            { weight: 40, type: 'credits_small', text: 'You recover the black box telemetry data. A nearby station will pay for these naval records.' },
+                            { weight: 25, type: 'loot_good', text: 'Your long-range scan picks up a sealed cargo pod drifting near the hull. Quality supplies inside.' },
+                            { weight: 20, type: 'intel_bonus', text: 'The black box contains star charts with hidden fuel cache coordinates. Valuable intelligence.' },
+                            { weight: 15, type: 'equipment_find', text: 'Your scan detects an ejected escape pod with an intact equipment module strapped to its hull!' }
+                        ]
+                    },
+                    {
+                        label: 'Ignore and Move On',
+                        desc: 'This wreck gives you a bad feeling. Better to keep flying.',
+                        risk: 'No risk -- no reward',
+                        outcomes: [
+                            { weight: 100, type: 'nothing', text: 'You give the Behemoth a wide berth and continue on your journey. Some mysteries are better left alone.' }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        // Outcome reward definitions -- what each outcome type gives the player
+        function applyMysteryOutcome(outcome) {
+            const rewards = [];
+
+            switch (outcome.type) {
+                case 'loot_common': {
+                    const metal = 10 + Math.floor(Math.random() * 10);
+                    const credits = 20 + Math.floor(Math.random() * 20);
+                    gameState.resources.Metal = (gameState.resources.Metal || 0) + metal;
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    rewards.push({ text: `+${metal} Metal`, css: 'reward-good' });
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'loot_good': {
+                    const metal = 15 + Math.floor(Math.random() * 10);
+                    const crystals = 5 + Math.floor(Math.random() * 6);
+                    const credits = 40 + Math.floor(Math.random() * 30);
+                    gameState.resources.Metal = (gameState.resources.Metal || 0) + metal;
+                    gameState.resources.Crystals = (gameState.resources.Crystals || 0) + crystals;
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    rewards.push({ text: `+${metal} Metal`, css: 'reward-good' });
+                    rewards.push({ text: `+${crystals} Crystals`, css: 'reward-good' });
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'loot_great': {
+                    const crystals = 8 + Math.floor(Math.random() * 8);
+                    const exotic = 3 + Math.floor(Math.random() * 4);
+                    const credits = 60 + Math.floor(Math.random() * 40);
+                    gameState.resources.Crystals = (gameState.resources.Crystals || 0) + crystals;
+                    gameState.resources.Exotic = (gameState.resources.Exotic || 0) + exotic;
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    rewards.push({ text: `+${crystals} Crystals`, css: 'reward-good' });
+                    rewards.push({ text: `+${exotic} Exotic`, css: 'reward-good' });
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'fuel_find': {
+                    const fuel = 35 + Math.floor(Math.random() * 25);
+                    const metal = 5 + Math.floor(Math.random() * 6);
+                    gameState.fuel = Math.min(gameState.maxFuel, gameState.fuel + fuel);
+                    gameState.resources.Metal = (gameState.resources.Metal || 0) + metal;
+                    rewards.push({ text: `+${fuel} Fuel`, css: 'reward-good' });
+                    rewards.push({ text: `+${metal} Metal`, css: 'reward-good' });
+                    break;
+                }
+                case 'weapon_find': {
+                    const weapon = generateWeapon(gameState.level + 1, 'heavy');
+                    // Ensure at least 'good' quality
+                    if (weapon.quality === 'poor' || weapon.quality === 'common') {
+                        weapon.quality = 'good';
+                        const q = WEAPON_QUALITIES['good'];
+                        weapon.name = weapon.name.replace(/^(Worn |)/, q.namePre ? q.namePre + ' ' : '');
+                    }
+                    gameState.ownedWeapons.push(weapon);
+                    rewards.push({ text: `Found: ${weapon.name}`, css: 'reward-good' });
+                    rewards.push({ text: `[${weapon.size}] ${weapon.desc}`, css: 'reward-good' });
+                    break;
+                }
+                case 'legendary_weapon': {
+                    const weapon = generateWeapon(gameState.level + 2, 'assault');
+                    weapon.quality = 'legendary';
+                    const q = WEAPON_QUALITIES['legendary'];
+                    // Recalculate with legendary quality
+                    const template = WEAPON_TEMPLATES[weapon.templateId];
+                    if (template) {
+                        const stats = calculateWeaponStats(template, weapon.level, 'legendary');
+                        weapon.damage = stats.damage;
+                        weapon.fireRate = stats.fireRate;
+                        weapon.spread = stats.spread;
+                        weapon.projectiles = stats.projectiles;
+                        weapon.speed = stats.speed;
+                        weapon.cost = stats.cost;
+                        weapon.desc = generateWeaponDesc(template, stats, weapon.level);
+                    }
+                    weapon.name = `${q.namePre} ${template ? template.baseName : 'Weapon'} ${weapon.level}`;
+                    gameState.ownedWeapons.push(weapon);
+                    rewards.push({ text: `LEGENDARY: ${weapon.name}`, css: 'reward-legendary' });
+                    rewards.push({ text: `[${weapon.size}] ${weapon.desc}`, css: 'reward-legendary' });
+                    break;
+                }
+                case 'credits_jackpot': {
+                    const credits = 120 + Math.floor(Math.random() * 80);
+                    const exotic = 2 + Math.floor(Math.random() * 4);
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    gameState.resources.Exotic = (gameState.resources.Exotic || 0) + exotic;
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    rewards.push({ text: `+${exotic} Exotic`, css: 'reward-good' });
+                    break;
+                }
+                case 'credits_small': {
+                    const credits = 15 + Math.floor(Math.random() * 15);
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'intel_bonus': {
+                    const fuel = 15 + Math.floor(Math.random() * 15);
+                    const credits = 20 + Math.floor(Math.random() * 15);
+                    gameState.fuel = Math.min(gameState.maxFuel, gameState.fuel + fuel);
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    rewards.push({ text: `+${fuel} Fuel (cache coordinates)`, css: 'reward-good' });
+                    rewards.push({ text: `+${credits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'pirates_ambush': {
+                    const credits = 5 + Math.floor(Math.random() * 10);
+                    gameState.credits = (gameState.credits || 0) + credits;
+                    rewards.push({ text: `+${credits} Credits (grabbed on the way out)`, css: 'reward-good' });
+                    rewards.push({ text: 'Pirates inbound! Brace for attack!', css: 'reward-bad' });
+                    break;
+                }
+                case 'trap_minor': {
+                    const damage = 10 + Math.floor(Math.random() * 10);
+                    const metal = 2 + Math.floor(Math.random() * 3);
+                    gameState.health = Math.max(1, gameState.health - damage);
+                    gameState.resources.Metal = (gameState.resources.Metal || 0) + metal;
+                    rewards.push({ text: `-${damage} Hull Damage`, css: 'reward-bad' });
+                    rewards.push({ text: `+${metal} Metal (salvaged)`, css: 'reward-good' });
+                    break;
+                }
+                case 'trap_major': {
+                    const damage = 25 + Math.floor(Math.random() * 15);
+                    gameState.health = Math.max(1, gameState.health - damage);
+                    rewards.push({ text: `-${damage} Hull Damage`, css: 'reward-bad' });
+                    rewards.push({ text: 'Barely escaped with your life!', css: 'reward-bad' });
+                    break;
+                }
+                case 'equipment_find': {
+                    // Generate a random equipment piece at current level + 1
+                    const equip = generateEquipment(gameState.level + 1, null, 'good');
+                    if (equip) {
+                        gameState.ownedWeapons.push(equip);
+                        rewards.push({ text: `Found: ${equip.name}`, css: 'reward-good' });
+                        rewards.push({ text: `[${equip.category}] ${equip.desc}`, css: 'reward-good' });
+                    }
+                    const bonusCredits = 20 + Math.floor(Math.random() * 20);
+                    gameState.credits += bonusCredits;
+                    rewards.push({ text: `+${bonusCredits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'legendary_equipment': {
+                    // Generate legendary equipment
+                    const equip = generateEquipment(gameState.level + 2, null, 'legendary');
+                    if (equip) {
+                        gameState.ownedWeapons.push(equip);
+                        rewards.push({ text: `LEGENDARY: ${equip.name}`, css: 'reward-legendary' });
+                        rewards.push({ text: `[${equip.category}] ${equip.desc}`, css: 'reward-legendary' });
+                    }
+                    const bonusCredits = 40 + Math.floor(Math.random() * 30);
+                    gameState.credits += bonusCredits;
+                    rewards.push({ text: `+${bonusCredits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'secondary_upgrade': {
+                    // Upgrade secondary ability - reduce cooldown or give a better secondary
+                    const ship = gameState.fleet.length > 0 ? gameState.fleet[0] : null;
+                    if (ship && ship.secondary) {
+                        // 50% chance to get mega_laser, 50% chance to reduce cooldown
+                        if (ship.secondary.abilityId === 'gravity_pulse' && Math.random() < 0.5) {
+                            ship.secondary = { abilityId: 'mega_laser', cooldown: SECONDARY_ABILITIES.mega_laser.cooldown };
+                            rewards.push({ text: 'NEW ABILITY: Nova Beam', css: 'reward-legendary' });
+                            rewards.push({ text: 'Devastating beam that damages all enemies!', css: 'reward-legendary' });
+                        } else {
+                            const reduction = Math.floor(ship.secondary.cooldown * 0.25);
+                            ship.secondary.cooldown = Math.max(5000, ship.secondary.cooldown - reduction);
+                            rewards.push({ text: `Secondary cooldown reduced by ${Math.round(reduction / 1000)}s!`, css: 'reward-legendary' });
+                        }
+                        // Re-initialize the secondary
+                        const abilityDef = SECONDARY_ABILITIES[ship.secondary.abilityId];
+                        if (abilityDef) {
+                            gameState.secondaryAbility = { ...abilityDef, ...ship.secondary };
+                            gameState.secondaryMaxCooldown = ship.secondary.cooldown;
+                        }
+                    }
+                    const bonusCredits = 30 + Math.floor(Math.random() * 20);
+                    gameState.credits += bonusCredits;
+                    rewards.push({ text: `+${bonusCredits} Credits`, css: 'reward-good' });
+                    break;
+                }
+                case 'nothing':
+                default:
+                    rewards.push({ text: 'Nothing gained, nothing lost.', css: 'reward-good' });
+                    break;
+            }
+
+            updateHUD();
+            return rewards;
+        }
+
+        // Roll a weighted random outcome from a list
+        function rollMysteryOutcome(outcomes) {
+            const totalWeight = outcomes.reduce((sum, o) => sum + o.weight, 0);
+            let roll = Math.random() * totalWeight;
+            for (const outcome of outcomes) {
+                roll -= outcome.weight;
+                if (roll <= 0) return outcome;
+            }
+            return outcomes[outcomes.length - 1];
+        }
+
+        // Create a simple event zone config for the initial event encounter
+        // The zone has no waves -- the player flies through space and encounters the event object
+        function createEventZoneConfig(gateConfig) {
+            return {
+                waveCount: 0,
+                threatLevel: 'Unknown',
+                threatClass: 'medium',
+                enemyMultiplier: 1.0,
+                stations: [],
+                stationWaves: [],
+                stationDisplay: 'None',
+                levelNum: gateConfig.levelNum,
+                starSystem: gateConfig.starSystem || generateStarSystem(),
+                isEventZone: true,
+                eventType: gateConfig.eventType
+            };
+        }
+
+        // Spawn the event object (e.g., behemoth derelict) off-screen above for the player to discover
+        function spawnEventObject(eventTypeKey) {
+            if (!scene) return;
+            const eventType = MYSTERY_EVENT_TYPES[eventTypeKey];
+            if (!eventType) return;
+
+            const meshSize = eventType.meshSize || 6;
+            const mesh = BABYLON.MeshBuilder.CreatePlane('eventObject', { size: meshSize }, scene);
+
+            // Spawn off-screen above and slightly to one side for a natural encounter
+            mesh.position.x = (Math.random() - 0.5) * orthoWidth * 0.6;
+            mesh.position.y = orthoHeight + meshSize + 8; // Well above screen
+            mesh.position.z = 0.2; // Same depth as starbases and game objects
+
+            const texture = new BABYLON.Texture(eventType.texture, scene);
+            texture.hasAlpha = true;
+
+            const mat = new BABYLON.StandardMaterial('eventObjectMat', scene);
+            mat.diffuseTexture = texture;
+            mat.emissiveTexture = texture;
+            const tint = eventType.tint || [0.5, 0.5, 0.5];
+            mat.emissiveColor = new BABYLON.Color3(tint[0], tint[1], tint[2]);
+            mat.useAlphaFromDiffuseTexture = true;
+            mat.backFaceCulling = false;
+            mesh.material = mat;
+            mesh.renderingGroupId = 2;
+
+            // Exclude from glow layer to prevent bloom washout (like starbases)
+            if (sunGlowLayer) {
+                sunGlowLayer.addExcludedMesh(mesh);
+            }
+
+            // Store docking properties on the mesh (like starbase pattern)
+            mesh.size = meshSize;
+            mesh.dockRadius = meshSize * 0.7;
+            mesh.eventTypeKey = eventTypeKey;
+
+            gameState.eventObject = mesh;
+        }
+
+        // Update the event object: scroll it down and handle docking proximity
+        function updateEventObject(scrollMultiplier, deltaTime) {
+            if (!gameState.eventObject || !playerShip) return;
+
+            const obj = gameState.eventObject;
+
+            // Scroll down with the world
+            obj.position.y -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
+
+            // Skip docking logic if dialog is already open
+            if (gameState.mysteryEventActive) return;
+
+            // Check distance to player for docking
+            const dx = obj.position.x - playerShip.position.x;
+            const dy = obj.position.y - playerShip.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Only allow docking once object is fully visible on screen
+            const fullyVisible = obj.position.y < (orthoHeight - obj.size / 2);
+
+            if (fullyVisible && dist < obj.dockRadius) {
+                // Event object docking takes priority -- override any planet harvesting
+                if (gameState.harvestingPlanet) {
+                    gameState.harvestingPlanet = null;
+                }
+
+                // Track docking progress on the object itself to avoid conflicts
+                if (!obj.dockProgress) obj.dockProgress = 0;
+                obj.dockProgress += deltaTime / 2000; // 2 seconds to dock
+
+                const harvestBar = document.getElementById('harvestBar');
+                const harvestBarFill = document.getElementById('harvestBarFill');
+                harvestBar.style.display = 'block';
+                harvestBarFill.style.width = `${Math.min(100, obj.dockProgress * 100)}%`;
+
+                // Position bar at event object
+                const screenPos = worldToScreen(obj.position.x, obj.position.y);
+                const screenSize = (obj.size / (orthoHeight * 2)) * canvas.clientHeight;
+                const halfSize = screenSize / 2;
+                const barWidth = screenSize;
+                harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+                harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
+                harvestBar.style.width = barWidth + 'px';
+                harvestBar.style.transform = 'none';
+
+                if (obj.dockProgress >= 1) {
+                    // Docked with event object -- open mystery dialog
+                    obj.dockProgress = 0;
+                    harvestBar.style.display = 'none';
+                    gameState.harvestProgress = 0;
+                    gameState.pendingEventConfig = gameState.levelConfig;
+                    openMysteryEventDialog(obj.eventTypeKey);
+                }
+            } else {
+                // Reset docking progress if player moves away
+                if (obj.dockProgress && obj.dockProgress > 0) {
+                    obj.dockProgress = 0;
+                    document.getElementById('harvestBar').style.display = 'none';
+                }
+            }
+
+            // If event object scrolls off screen bottom, just spawn level end content
+            if (obj.position.y < -orthoHeight - obj.size) {
+                cleanupEventObject();
+                generateLevelEndContent();
+            }
+        }
+
+        // Clean up the event object mesh
+        function cleanupEventObject() {
+            if (gameState.eventObject) {
+                if (sunGlowLayer) {
+                    sunGlowLayer.removeExcludedMesh(gameState.eventObject);
+                }
+                gameState.eventObject.dispose();
+                gameState.eventObject = null;
+            }
+        }
+
+        // Open the mystery event dialog
+        function openMysteryEventDialog(eventTypeKey) {
+            const eventType = MYSTERY_EVENT_TYPES[eventTypeKey];
+            if (!eventType) return;
+
+            gameState.mysteryEventActive = true;
+            requestPause('mysteryEvent');
+
+            // Fill dialog content
+            document.getElementById('mysteryEventTitle').textContent = eventType.name;
+            document.getElementById('mysteryEventSubtitle').textContent = eventType.subtitle;
+            document.getElementById('mysteryEventImage').src = eventType.texture;
+            document.getElementById('mysteryEventDesc').textContent = eventType.description;
+
+            // Build choice buttons
+            const choicesDiv = document.getElementById('mysteryEventChoices');
+            choicesDiv.innerHTML = '';
+            choicesDiv.style.display = 'flex';
+
+            const outcomeDiv = document.getElementById('mysteryEventOutcome');
+            outcomeDiv.style.display = 'none';
+            outcomeDiv.innerHTML = '';
+
+            eventType.choices.forEach((choice, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'mystery-choice-btn';
+                btn.innerHTML = `
+                    <span class="choice-label">${choice.label}</span>
+                    <span>${choice.desc}</span>
+                    <span class="choice-risk">${choice.risk}</span>
+                `;
+                btn.addEventListener('click', () => {
+                    handleMysteryChoice(eventTypeKey, idx);
+                });
+                choicesDiv.appendChild(btn);
+            });
+
+            document.getElementById('mysteryEventDialog').style.display = 'flex';
+        }
+
+        // Handle player choosing an option
+        function handleMysteryChoice(eventTypeKey, choiceIdx) {
+            const eventType = MYSTERY_EVENT_TYPES[eventTypeKey];
+            const choice = eventType.choices[choiceIdx];
+
+            // Roll the outcome
+            const outcome = rollMysteryOutcome(choice.outcomes);
+
+            // Store outcome type on pending config so closeMysteryEvent can build the right zone
+            if (gameState.pendingEventConfig) {
+                gameState.pendingEventConfig.lastOutcomeType = outcome.type;
+            }
+
+            // Apply rewards/penalties
+            const rewards = applyMysteryOutcome(outcome);
+
+            // Hide choices, show outcome
+            document.getElementById('mysteryEventChoices').style.display = 'none';
+
+            const outcomeDiv = document.getElementById('mysteryEventOutcome');
+            outcomeDiv.style.display = 'block';
+
+            let outcomeHTML = `<div class="outcome-text">${outcome.text}</div>`;
+            outcomeHTML += '<div class="outcome-rewards">';
+            for (const reward of rewards) {
+                outcomeHTML += `<div class="outcome-reward-item ${reward.css}">${reward.text}</div>`;
+            }
+            outcomeHTML += '</div>';
+            outcomeHTML += '<button class="mystery-continue-btn" onclick="closeMysteryEvent()">Continue</button>';
+
+            outcomeDiv.innerHTML = outcomeHTML;
+        }
+
+        // Close the mystery event dialog and spawn post-event content
+        function closeMysteryEvent() {
+            gameState.mysteryEventActive = false;
+            document.getElementById('mysteryEventDialog').style.display = 'none';
+            releasePause('mysteryEvent');
+            gameState.stats.eventsCompleted++;
+
+            // Remove the event object (behemoth) from the scene
+            cleanupEventObject();
+
+            updateHUD();
+
+            // Get the pending config
+            const eventConfig = gameState.pendingEventConfig;
+            gameState.pendingEventConfig = null;
+
+            if (!eventConfig) return;
+
+            const outcomeType = eventConfig.lastOutcomeType || 'nothing';
+            gameState.lastEventOutcome = outcomeType;
+
+            // Based on outcome, spawn post-event content just off-screen above
+            if (outcomeType === 'pirates_ambush') {
+                // Combat aftermath: set up pirate waves, then gates spawn after waves complete
+                const config = gameState.levelConfig;
+                config.waveCount = 3 + Math.floor(Math.random() * 2); // 3-4 pirate waves
+                config.enemyMultiplier = 1.3 + (config.levelNum * 0.05);
+                config.threatLevel = 'High';
+                config.threatClass = 'danger';
+                config.isEventZone = false; // Now plays as normal combat level
+                gameState.levelWave = 0;
+                gameState.levelEndSpawned = false;
+                spawnWave();
+            } else if (outcomeType === 'trap_minor' || outcomeType === 'trap_major') {
+                // Hazard aftermath: 1-2 quick waves then gates
+                const config = gameState.levelConfig;
+                config.waveCount = 1 + Math.floor(Math.random() * 2);
+                config.enemyMultiplier = 1.0;
+                config.threatLevel = 'Medium';
+                config.threatClass = 'medium';
+                config.isEventZone = false;
+                gameState.levelWave = 0;
+                gameState.levelEndSpawned = false;
+                spawnWave();
+            } else {
+                // Peaceful outcomes: spawn level end content (reward zone + gates) directly
+                gameState.levelEndSpawned = false;
+                generateLevelEndContent();
+            }
+        }
+
+        // Make closeMysteryEvent available for onclick
+        window.closeMysteryEvent = closeMysteryEvent;
+
+        // ========== END MYSTERY EVENTS ==========
+
         // ========== END RIVER NAVIGATION ==========
 
         // Update suns
@@ -6108,7 +7980,7 @@
             for (let i = gameState.suns.length - 1; i >= 0; i--) {
                 const sun = gameState.suns[i];
 
-                const moveAmount = 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                const moveAmount = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 sun.position.y -= moveAmount;
 
                 // Rotate the sun mesh (not the whole node with coronas)
@@ -6381,7 +8253,7 @@
                 const planet = gameState.planets[i];
 
                 // Move planet down
-                planet.position.y -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                planet.position.y -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
                 // Update orbit center if planet is orbiting
                 if (planet.orbitCenterX !== undefined) {
@@ -6420,6 +8292,20 @@
             const harvestBar = document.getElementById('harvestBar');
             const harvestBarFill = document.getElementById('harvestBarFill');
 
+            // Stations always take priority - suppress planet harvesting if near a dockable starbase
+            if (nearPlanet && gameState.starbase && playerShip) {
+                const sb = gameState.starbase;
+                const sbVisible = sb.position.y < (orthoHeight - sb.size / 2);
+                if (sbVisible) {
+                    const sdx = sb.position.x - playerShip.position.x;
+                    const sdy = sb.position.y - playerShip.position.y;
+                    const sDist = Math.sqrt(sdx * sdx + sdy * sdy);
+                    if (sDist < sb.dockRadius * 1.5) {
+                        nearPlanet = null; // Yield to station
+                    }
+                }
+            }
+
             if (nearPlanet && nearPlanet.harvestsRemaining > 0) {
                 if (gameState.harvestingPlanet !== nearPlanet) {
                     gameState.harvestingPlanet = nearPlanet;
@@ -6453,7 +8339,8 @@
                         });
 
                         if (totalDamage > 0) {
-                            gameState.health -= totalDamage;
+                            totalDamage = applyShieldDamage(totalDamage);
+                            if (totalDamage > 0) gameState.health -= totalDamage;
                             flashShip(playerShipMesh);
                             updateHUD();
 
@@ -6474,6 +8361,7 @@
                 if (gameState.harvestProgress >= 1) {
                     // Harvest complete!
                     nearPlanet.harvestsRemaining--;
+                    gameState.stats.planetsHarvested++;
                     gameState.harvestProgress = 0;
 
                     // Consume fuel for landing
@@ -6544,6 +8432,9 @@
                 const result = await BABYLON.SceneLoader.ImportMeshAsync('', basePath + 'glTF/', `${shipName}.gltf`, targetScene);
                 const rootMesh = result.meshes[0];
 
+                // Hide mesh immediately to prevent flash at origin while texture loads
+                rootMesh.setEnabled(false);
+
                 const texturePath = `${basePath}Textures/${shipName}_${colorVariant}.png`;
 
                 // Wait for texture to fully load before applying
@@ -6579,6 +8470,9 @@
                     rootMesh.rotationQuaternion = null;
                     rootMesh.rotation.set(Math.PI / 2, 0, 0);
                 }
+
+                // Now safe to show -- mesh is properly scaled and rotated
+                rootMesh.setEnabled(true);
 
                 return rootMesh;
             } catch (e) {
@@ -6969,22 +8863,27 @@
         }
 
         document.addEventListener('touchstart', (e) => {
-            // Allow buttons, inputs, and station interior to work normally
+            // Allow buttons, inputs, station interior, and mystery event dialog to work normally
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
                 e.target.closest('button') || e.target.closest('#systemMenu') ||
                 e.target.closest('#settingsPanel') || e.target.closest('#confirmDialog') ||
-                e.target.closest('#stationInterior')) return;
+                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog')) return;
             if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
+                // Two-finger tap activates secondary ability
+                if (e.touches.length >= 2) {
+                    activateSecondaryAbility();
+                    return;
+                }
                 const touch = e.touches[0];
                 handleInputStart(touch.clientX, touch.clientY);
             }
         }, { passive: false });
 
         document.addEventListener('touchmove', (e) => {
-            // Allow station interior scrolling
+            // Allow station interior and mystery event dialog scrolling
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
-                e.target.closest('#stationInterior')) return;
+                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog')) return;
             if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
@@ -7045,6 +8944,11 @@
                 case 's':
                 case 'S':
                     keyState.down = true;
+                    e.preventDefault();
+                    break;
+                case ' ':
+                    // Spacebar activates secondary ability
+                    activateSecondaryAbility();
                     e.preventDefault();
                     break;
             }
@@ -7122,6 +9026,16 @@
 
             playerShip.velocityX = playerShip.position.x - prevX;
 
+            // Track stationary time for tech bonus
+            const prevY = playerShip.position.y;
+            const moved = Math.abs(playerShip.velocityX) > 0.005 || Math.abs(playerShip.position.y - (playerShip.prevY || prevY)) > 0.005;
+            playerShip.prevY = playerShip.position.y;
+            if (moved) {
+                gameState.stationaryTime = 0;
+            } else {
+                gameState.stationaryTime = (gameState.stationaryTime || 0) + deltaTime / 1000;
+            }
+
             // Banking effect - tilt ship based on horizontal movement
             const targetTilt = -playerShip.velocityX * 15;
             const maxTilt = Math.PI / 4; // 45 degrees max bank
@@ -7149,11 +9063,20 @@
 
             equippedWeapons.forEach((weapon, idx) => {
                 if (!weapon) return;
+                // Skip equipment items (shields, drones, missiles) - handled separately
+                if (weapon.isEquipment) return;
 
                 // Track fire time per weapon slot
                 if (!gameState.weaponFireTimes) gameState.weaponFireTimes = {};
                 const lastFire = gameState.weaponFireTimes[idx] || 0;
-                const fireInterval = weapon.fireRate / settings.fireRate;
+                const tb = gameState.techBonuses || {};
+
+                // Apply tech fire rate bonus + stationary fire rate bonus
+                let fireRateMult = 1 + (tb.fireRate || 0);
+                if (tb.stationaryFireRate && gameState.stationaryTime) {
+                    fireRateMult += Math.min(gameState.stationaryTime * 0.05, 0.5);
+                }
+                const fireInterval = weapon.fireRate / settings.fireRate / fireRateMult;
 
                 if (currentTime - lastFire > fireInterval) {
                     // Calculate hardpoint position offset
@@ -7167,12 +9090,16 @@
                     // Get weapon speed (default 0.35 for backward compatibility)
                     const weaponSpeed = weapon.speed || 0.35;
 
+                    // Apply tech bullet damage bonus
+                    const dmgMult = 1 + (tb.bulletDamage || 0);
+                    const boostedDmg = Math.round(weapon.damage * dmgMult);
+
                     // Fire based on weapon type
                     if (weapon.type === 'beam') {
                         fireBeamLaser(px, py, weapon);
                     } else if (weapon.type === 'spread' || weapon.projectiles > 1) {
-                        // Spread/multi-projectile weapon
-                        const count = weapon.projectiles || 3;
+                        // Spread/multi-projectile weapon (+ extra projectiles from tech)
+                        const count = (weapon.projectiles || 3) + (tb.extraProjectiles || 0);
                         const spreadAngle = weapon.spread || 0.3;
                         const angleStep = count > 1 ? (spreadAngle * 2) / (count - 1) : 0;
                         const startAngle = -spreadAngle;
@@ -7181,60 +9108,35 @@
                             const angle = count > 1 ? startAngle + (angleStep * i) : 0;
                             const vx = Math.sin(angle) * weaponSpeed;
                             const vy = Math.cos(angle) * weaponSpeed;
-                            const bullet = createBullet(true, px + (vx * 0.3), py, vx * 0.3, vy, weapon.damage);
+                            const bullet = createBullet(true, px + (vx * 0.3), py, vx * 0.3, vy, boostedDmg);
                             gameState.playerBullets.push(bullet);
                         }
                     } else {
-                        // Single projectile bullet weapon
-                        const bullet = createBullet(true, px, py, 0, weaponSpeed, weapon.damage);
-                        gameState.playerBullets.push(bullet);
+                        // Single projectile bullet weapon (+ extra projectiles from tech as slight spread)
+                        const extraProj = tb.extraProjectiles || 0;
+                        if (extraProj > 0) {
+                            const totalProj = 1 + extraProj;
+                            const spread = 0.15;
+                            for (let i = 0; i < totalProj; i++) {
+                                const angle = totalProj > 1 ? -spread + (2 * spread * i / (totalProj - 1)) : 0;
+                                const vx = Math.sin(angle) * weaponSpeed;
+                                const vy = Math.cos(angle) * weaponSpeed;
+                                const bullet = createBullet(true, px, py, vx * 0.3, vy, boostedDmg);
+                                gameState.playerBullets.push(bullet);
+                            }
+                        } else {
+                            const bullet = createBullet(true, px, py, 0, weaponSpeed, boostedDmg);
+                            gameState.playerBullets.push(bullet);
+                        }
                     }
 
                     gameState.weaponFireTimes[idx] = currentTime;
                 }
             });
-
-            // Update beam visuals if active
-            updateBeamVisuals();
         }
 
-        // Update beam visual effects and continuous collision detection
-        function updateBeamVisuals() {
-            if (gameState.beamMeshes) {
-                for (let i = gameState.beamMeshes.length - 1; i >= 0; i--) {
-                    const beam = gameState.beamMeshes[i];
-                    if (beam && beam.material) {
-                        // Continuous collision detection while beam is active
-                        if (beam.beamDamage && beam.material.alpha > 0.3) {
-                            checkBeamCollisions(beam);
-                        }
-
-                        beam.material.alpha -= 0.05;
-                        if (beam.material.alpha <= 0) {
-                            if (sunGlowLayer) {
-                                sunGlowLayer.removeIncludedOnlyMesh(beam);
-                            }
-                            beam.dispose();
-                            gameState.beamMeshes.splice(i, 1);
-                        }
-                    }
-                }
-            }
-            // Legacy single beam support
-            if (gameState.beamMesh) {
-                gameState.beamMesh.material.alpha -= 0.05;
-                if (gameState.beamMesh.material.alpha <= 0) {
-                    if (sunGlowLayer) {
-                        sunGlowLayer.removeIncludedOnlyMesh(gameState.beamMesh);
-                    }
-                    gameState.beamMesh.dispose();
-                    gameState.beamMesh = null;
-                }
-            }
-        }
-
-        // Check beam collisions with enemies
-        function checkBeamCollisions(beam) {
+        // Apply beam damage to all enemies in the beam's path (one hit per enemy per beam)
+        function applyBeamDamage(beam) {
             const beamX = beam.position.x;
             const beamWidth = beam.beamWidth || 0.5;
             const beamDamage = beam.beamDamage || 20;
@@ -7242,30 +9144,41 @@
 
             for (let i = gameState.enemies.length - 1; i >= 0; i--) {
                 const enemy = gameState.enemies[i];
-                // Skip if already hit by this beam
-                if (beam.hitEnemies && beam.hitEnemies.has(enemy.uniqueId)) continue;
+                if (beam.hitEnemies.has(enemy)) continue;
 
-                // Account for BOTH beam width and enemy hitbox width
                 const enemyHalfWidth = (enemy.hitboxWidth || 0.9) / 2;
                 const collisionDistance = beamWidth + enemyHalfWidth;
 
-                // Check if enemy overlaps beam path (X within combined width, Y above player)
                 if (Math.abs(enemy.position.x - beamX) < collisionDistance && enemy.position.y > playerY) {
-                    // Mark as hit
-                    if (!beam.hitEnemies) beam.hitEnemies = new Set();
-                    beam.hitEnemies.add(enemy.uniqueId);
-
+                    beam.hitEnemies.add(enemy);
                     enemy.health -= beamDamage;
                     flashShip(enemy.mesh || enemy);
+
+                    // Chain lightning: arc damage to 1 nearby enemy
+                    const tb = gameState.techBonuses || {};
+                    if (tb.chainLightning) {
+                        const chainDmg = Math.round(beamDamage * 0.5);
+                        let chainTarget = null, chainDist = 6;
+                        gameState.enemies.forEach(other => {
+                            if (other === enemy || beam.hitEnemies.has(other)) return;
+                            const d = BABYLON.Vector3.Distance(enemy.position, other.position);
+                            if (d < chainDist) { chainDist = d; chainTarget = other; }
+                        });
+                        if (chainTarget) {
+                            beam.hitEnemies.add(chainTarget);
+                            chainTarget.health -= chainDmg;
+                            flashShip(chainTarget.mesh || chainTarget);
+                        }
+                    }
 
                     if (enemy.health <= 0) {
                         createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
                         createLoot(enemy.position.x, enemy.position.y, enemy.type);
                         gameState.score += 50;
                         gameState.credits += 10 + Math.floor(Math.random() * 15);
+                        gameState.stats.enemiesKilled++;
                         updateHUD();
 
-                        // Clean up challenger's laser preview if it exists
                         if (enemy.laserPreviewMesh) {
                             enemy.laserPreviewMesh.dispose();
                         }
@@ -7278,12 +9191,53 @@
             }
         }
 
-        // Fire beam laser
+        // Update player beams -- fade visuals, re-check collisions for enemies drifting in, cleanup
+        // Called from the game loop (not from firePlayerWeapons) so beams always clean up
+        function updatePlayerBeams() {
+            if (!gameState.beamMeshes) return;
+
+            for (let i = gameState.beamMeshes.length - 1; i >= 0; i--) {
+                const beam = gameState.beamMeshes[i];
+                if (!beam || !beam.material) continue;
+
+                // Re-check collisions while beam is still bright (catches enemies drifting in)
+                if (beam.material.alpha > 0.3) {
+                    applyBeamDamage(beam);
+                }
+
+                // Fade out
+                beam.material.alpha -= 0.05;
+                if (beam.material.alpha <= 0) {
+                    if (sunGlowLayer) {
+                        sunGlowLayer.removeIncludedOnlyMesh(beam);
+                    }
+                    beam.dispose();
+                    gameState.beamMeshes.splice(i, 1);
+                }
+            }
+
+            // Legacy single beam cleanup
+            if (gameState.beamMesh) {
+                gameState.beamMesh.material.alpha -= 0.05;
+                if (gameState.beamMesh.material.alpha <= 0) {
+                    if (sunGlowLayer) {
+                        sunGlowLayer.removeIncludedOnlyMesh(gameState.beamMesh);
+                    }
+                    gameState.beamMesh.dispose();
+                    gameState.beamMesh = null;
+                }
+            }
+        }
+
+        // Fire beam laser -- instant hit, damages all enemies in its path once
         function fireBeamLaser(px, py, weapon = null) {
             if (!gameState.beamMeshes) gameState.beamMeshes = [];
 
-            const beamDamage = weapon ? weapon.damage : 20;
-            const beamWidth = weapon ? (0.3 + weapon.spread * 0.5) : 0.5;
+            const tb = gameState.techBonuses || {};
+            const beamDmgMult = 1 + (tb.beamDamage || 0);
+            const beamWidthMult = 1 + (tb.beamWidth || 0);
+            const beamDamage = Math.round((weapon ? weapon.damage : 20) * beamDmgMult);
+            const beamWidth = (weapon ? (0.3 + weapon.spread * 0.5) : 0.5) * beamWidthMult;
 
             const beamHeight = orthoHeight * 2;
             const beam = BABYLON.MeshBuilder.CreatePlane('beam', { width: beamWidth * 0.6, height: beamHeight }, scene);
@@ -7294,11 +9248,11 @@
             const beamMat = new BABYLON.StandardMaterial('beamMat', scene);
             beamMat.emissiveColor = new BABYLON.Color3(0, 1, 0.8);
             beamMat.alpha = 0.8;
+            beamMat.disableLighting = true;
             beamMat.backFaceCulling = false;
             beam.material = beamMat;
             beam.renderingGroupId = 2;
 
-            // Store beam properties for continuous collision detection
             beam.beamDamage = beamDamage;
             beam.beamWidth = beamWidth;
             beam.hitEnemies = new Set();
@@ -7310,8 +9264,596 @@
 
             gameState.beamMeshes.push(beam);
 
-            // Initial collision check
-            checkBeamCollisions(beam);
+            // Immediate hit on all enemies in the beam path
+            applyBeamDamage(beam);
+        }
+
+        // ========== SHIELD EQUIPMENT ==========
+        function activateShieldEquipment(equipment) {
+            const tb = gameState.techBonuses || {};
+            gameState.shieldEquipment = equipment;
+            const bonusHP = tb.shieldHP || 0;
+            gameState.shieldHP = equipment.shieldHP + bonusHP;
+            gameState.shieldMaxHP = equipment.shieldHP + bonusHP;
+            gameState.shieldRechargeTimer = 0;
+            createShieldBubble();
+        }
+
+        function createShieldBubble() {
+            if (gameState.shieldBubble) {
+                gameState.shieldBubble.dispose();
+            }
+            if (!scene || !playerShip) return;
+
+            const bubble = BABYLON.MeshBuilder.CreateDisc('shieldBubble', { radius: 1.2, tessellation: 32 }, scene);
+            bubble.parent = playerShip;
+            bubble.position.z = -0.05;
+
+            const mat = new BABYLON.StandardMaterial('shieldBubbleMat', scene);
+            mat.emissiveColor = new BABYLON.Color3(0.2, 0.6, 1.0);
+            mat.alpha = 0.15;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            bubble.material = mat;
+            bubble.renderingGroupId = 2;
+
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(bubble);
+            }
+
+            gameState.shieldBubble = bubble;
+        }
+
+        function updateShieldEquipment(deltaTime) {
+            if (!gameState.shieldEquipment) return;
+
+            // Update bubble visibility based on shield HP
+            if (gameState.shieldBubble && gameState.shieldBubble.material) {
+                if (gameState.shieldHP > 0) {
+                    const hpRatio = gameState.shieldHP / gameState.shieldMaxHP;
+                    gameState.shieldBubble.material.alpha = 0.08 + hpRatio * 0.12;
+                    gameState.shieldBubble.setEnabled(true);
+                } else {
+                    gameState.shieldBubble.setEnabled(false);
+                }
+            }
+
+            // Recharge shield after delay
+            if (gameState.shieldHP < gameState.shieldMaxHP) {
+                gameState.shieldRechargeTimer -= deltaTime;
+                if (gameState.shieldRechargeTimer <= 0) {
+                    const rechargeMult = 1 + ((gameState.techBonuses || {}).shieldRecharge || 0);
+                    gameState.shieldHP = Math.min(
+                        gameState.shieldMaxHP,
+                        gameState.shieldHP + gameState.shieldEquipment.rechargeRate * rechargeMult * (deltaTime / 1000)
+                    );
+                    // Re-enable bubble when shield comes back
+                    if (gameState.shieldHP > 0 && gameState.shieldBubble) {
+                        gameState.shieldBubble.setEnabled(true);
+                    }
+                }
+            }
+        }
+
+        // Apply damage to shield first, return remaining damage
+        function applyShieldDamage(damage) {
+            if (!gameState.shieldEquipment || gameState.shieldHP <= 0) return damage;
+
+            const absorbed = Math.min(gameState.shieldHP, damage);
+            gameState.shieldHP -= absorbed;
+            gameState.shieldRechargeTimer = gameState.shieldEquipment.rechargeDelay;
+
+            // Reactive shields: reflect damage to nearest enemy
+            const tb = gameState.techBonuses || {};
+            if (tb.reactiveShields > 0 && absorbed > 0) {
+                const reflectDmg = Math.round(absorbed * tb.reactiveShields);
+                if (reflectDmg > 0 && playerShip && gameState.enemies.length > 0) {
+                    let nearest = null, nearDist = Infinity;
+                    gameState.enemies.forEach(e => {
+                        const d = BABYLON.Vector3.Distance(playerShip.position, e.position);
+                        if (d < nearDist) { nearDist = d; nearest = e; }
+                    });
+                    if (nearest) {
+                        nearest.health -= reflectDmg;
+                    }
+                }
+            }
+
+            // Flash shield bubble on hit
+            if (gameState.shieldBubble && gameState.shieldBubble.material) {
+                gameState.shieldBubble.material.alpha = 0.6;
+                setTimeout(() => {
+                    if (gameState.shieldBubble && gameState.shieldBubble.material) {
+                        gameState.shieldBubble.material.alpha = gameState.shieldHP > 0 ? 0.15 : 0;
+                    }
+                }, 150);
+            }
+
+            return damage - absorbed;
+        }
+
+        // ========== DRONE EQUIPMENT ==========
+        function activateDroneEquipment(equipment) {
+            cleanupDrones();
+            gameState.droneEquipment = equipment;
+            const extraDrones = (gameState.techBonuses || {}).extraDrones || 0;
+            const totalDrones = equipment.droneCount + extraDrones;
+            for (let i = 0; i < totalDrones; i++) {
+                spawnDrone(i, equipment);
+            }
+        }
+
+        function spawnDrone(index, equipment) {
+            if (!scene || !playerShip) return;
+
+            const drone = BABYLON.MeshBuilder.CreatePlane('drone_' + index, { size: 0.45 }, scene);
+            const mat = new BABYLON.StandardMaterial('droneMat_' + index, scene);
+            mat.emissiveColor = new BABYLON.Color3(0.3, 0.9, 0.5);
+            mat.alpha = 0.9;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            drone.material = mat;
+            drone.renderingGroupId = 2;
+
+            // Add a core glow
+            const core = BABYLON.MeshBuilder.CreateDisc('droneCore_' + index, { radius: 0.12, tessellation: 8 }, scene);
+            core.parent = drone;
+            core.position.z = -0.01;
+            const coreMat = new BABYLON.StandardMaterial('droneCoreMat_' + index, scene);
+            coreMat.emissiveColor = new BABYLON.Color3(0.5, 1, 0.7);
+            coreMat.disableLighting = true;
+            core.material = coreMat;
+            core.renderingGroupId = 2;
+
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(drone);
+            }
+
+            drone.droneIndex = index;
+            drone.droneHP = equipment.droneHP;
+            drone.droneMaxHP = equipment.droneHP;
+            drone.droneDamage = equipment.droneDamage;
+            drone.droneFireRate = equipment.droneFireRate;
+            drone.lastFireTime = 0;
+            drone.orbitAngle = (index / equipment.droneCount) * Math.PI * 2;
+            drone.orbitRadius = equipment.orbitRadius;
+
+            gameState.drones.push(drone);
+        }
+
+        function updateDrones(deltaTime, currentTime) {
+            if (!playerShip || gameState.drones.length === 0) return;
+
+            for (let i = gameState.drones.length - 1; i >= 0; i--) {
+                const drone = gameState.drones[i];
+
+                // Orbit around player
+                drone.orbitAngle += deltaTime * 0.003;
+                const targetX = playerShip.position.x + Math.cos(drone.orbitAngle) * drone.orbitRadius;
+                const targetY = playerShip.position.y + Math.sin(drone.orbitAngle) * drone.orbitRadius;
+                drone.position.x += (targetX - drone.position.x) * 0.1;
+                drone.position.y += (targetY - drone.position.y) * 0.1;
+                drone.position.z = -0.08;
+
+                // Auto-fire at nearest enemy
+                if (gameState.enemies.length > 0 && currentTime - drone.lastFireTime > drone.droneFireRate) {
+                    let nearestEnemy = null;
+                    let nearestDist = Infinity;
+                    for (const enemy of gameState.enemies) {
+                        const dx = enemy.position.x - drone.position.x;
+                        const dy = enemy.position.y - drone.position.y;
+                        const dist = dx * dx + dy * dy;
+                        if (dist < nearestDist) {
+                            nearestDist = dist;
+                            nearestEnemy = enemy;
+                        }
+                    }
+                    if (nearestEnemy) {
+                        fireDroneBullet(drone, nearestEnemy);
+                        drone.lastFireTime = currentTime;
+                    }
+                }
+
+                // Check if drone is destroyed
+                if (drone.droneHP <= 0) {
+                    createExplosion(drone.position.x, drone.position.y, 'small', 'green');
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(drone);
+                    drone.getChildMeshes().forEach(m => m.dispose());
+                    drone.dispose();
+                    gameState.drones.splice(i, 1);
+                }
+            }
+        }
+
+        function fireDroneBullet(drone, target) {
+            const dx = target.position.x - drone.position.x;
+            const dy = target.position.y - drone.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist === 0) return;
+
+            const speed = 0.3;
+            const vx = (dx / dist) * speed;
+            const vy = (dy / dist) * speed;
+
+            // Orbital synergy: drone damage multiplied by number of active drones
+            const tb = gameState.techBonuses || {};
+            let dmg = drone.droneDamage;
+            if (tb.orbitalSynergy && gameState.drones.length > 1) {
+                dmg *= gameState.drones.length;
+            }
+            const bullet = createBullet(true, drone.position.x, drone.position.y, vx, vy, Math.round(dmg));
+            // Tint drone bullets green to distinguish
+            if (bullet.material) {
+                bullet.material.emissiveColor = new BABYLON.Color3(0.1, 0.9, 0.3);
+            }
+            gameState.playerBullets.push(bullet);
+        }
+
+        function cleanupDrones() {
+            gameState.drones.forEach(d => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(d);
+                d.getChildMeshes().forEach(m => m.dispose());
+                d.dispose();
+            });
+            gameState.drones = [];
+            gameState.droneEquipment = null;
+        }
+
+        // Drones block enemy bullets - check if a bullet hits a drone
+        function checkDroneBlockBullet(bullet) {
+            for (const drone of gameState.drones) {
+                const dx = bullet.position.x - drone.position.x;
+                const dy = bullet.position.y - drone.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 0.4) {
+                    drone.droneHP -= (bullet.damage || 10);
+                    createExplosion(drone.position.x, drone.position.y, 'small', 'green');
+                    return true; // Bullet blocked
+                }
+            }
+            return false;
+        }
+
+        // ========== MISSILE SYSTEM ==========
+        function fireMissileWeapon(equipment, px, py) {
+            const count = equipment.missileCount || 1;
+            for (let i = 0; i < count; i++) {
+                const spreadX = count > 1 ? (i - (count - 1) / 2) * 0.3 : 0;
+                spawnMissile(px + spreadX, py, equipment);
+            }
+        }
+
+        function spawnMissile(x, y, equipment) {
+            const missile = BABYLON.MeshBuilder.CreatePlane('missile', { width: 0.2, height: 0.5 }, scene);
+            missile.position.x = x;
+            missile.position.y = y;
+            missile.position.z = -0.1;
+
+            const mat = new BABYLON.StandardMaterial('missileMat', scene);
+            mat.emissiveColor = new BABYLON.Color3(1, 0.5, 0.1);
+            mat.alpha = 0.9;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            missile.material = mat;
+            missile.renderingGroupId = 2;
+
+            // Exhaust trail
+            const trail = BABYLON.MeshBuilder.CreatePlane('missileTrail', { width: 0.12, height: 0.3 }, scene);
+            trail.parent = missile;
+            trail.position.y = -0.35;
+            trail.position.z = 0.01;
+            const trailMat = new BABYLON.StandardMaterial('trailMat', scene);
+            trailMat.emissiveColor = new BABYLON.Color3(1, 0.3, 0);
+            trailMat.alpha = 0.6;
+            trailMat.disableLighting = true;
+            trailMat.backFaceCulling = false;
+            trail.material = trailMat;
+            trail.renderingGroupId = 2;
+
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(missile);
+            }
+
+            const missileDmgMult = 1 + ((gameState.techBonuses || {}).missileDamage || 0);
+            missile.missileDamage = Math.round(equipment.damage * missileDmgMult);
+            missile.missileSpeed = equipment.speed;
+            missile.missileMaxSpeed = equipment.maxSpeed;
+            missile.missileAccel = equipment.acceleration;
+            missile.missileHoming = equipment.homing;
+            missile.velocityX = 0;
+            missile.velocityY = missile.missileSpeed;
+            missile.targetEnemy = null;
+
+            gameState.missiles.push(missile);
+        }
+
+        function updateMissiles(deltaTime) {
+            for (let i = gameState.missiles.length - 1; i >= 0; i--) {
+                const m = gameState.missiles[i];
+
+                // Accelerate
+                const speed = Math.sqrt(m.velocityX * m.velocityX + m.velocityY * m.velocityY);
+                if (speed < m.missileMaxSpeed) {
+                    const accel = m.missileAccel * (deltaTime / 16);
+                    if (m.missileHoming && gameState.enemies.length > 0) {
+                        // Find nearest enemy to home toward
+                        if (!m.targetEnemy || m.targetEnemy.health <= 0) {
+                            let nearest = null;
+                            let nearDist = Infinity;
+                            for (const e of gameState.enemies) {
+                                const dx = e.position.x - m.position.x;
+                                const dy = e.position.y - m.position.y;
+                                const d = dx * dx + dy * dy;
+                                if (d < nearDist) { nearDist = d; nearest = e; }
+                            }
+                            m.targetEnemy = nearest;
+                        }
+                        if (m.targetEnemy) {
+                            const dx = m.targetEnemy.position.x - m.position.x;
+                            const dy = m.targetEnemy.position.y - m.position.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist > 0) {
+                                // Blend toward target direction
+                                const targetVX = (dx / dist) * (speed + accel);
+                                const targetVY = (dy / dist) * (speed + accel);
+                                m.velocityX += (targetVX - m.velocityX) * 0.05;
+                                m.velocityY += (targetVY - m.velocityY) * 0.05;
+                            }
+                        }
+                    } else {
+                        // Dumb missile - just accelerate upward
+                        m.velocityY += accel;
+                    }
+                }
+
+                // Move
+                m.position.x += m.velocityX;
+                m.position.y += m.velocityY;
+
+                // Rotate to face direction of travel
+                m.rotation.z = Math.atan2(-m.velocityX, m.velocityY);
+
+                // Check collision with enemies
+                let hit = false;
+                for (let j = gameState.enemies.length - 1; j >= 0; j--) {
+                    const enemy = gameState.enemies[j];
+                    const dx = m.position.x - enemy.position.x;
+                    const dy = m.position.y - enemy.position.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 0.7) {
+                        enemy.health -= m.missileDamage;
+                        createExplosion(m.position.x, m.position.y, 'large', 'orange');
+                        flashShip(enemy.mesh || enemy);
+                        hit = true;
+
+                        if (enemy.health <= 0) {
+                            createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
+                            createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                            gameState.score += 50;
+                            gameState.credits += 10 + Math.floor(Math.random() * 15);
+                            gameState.stats.enemiesKilled++;
+                            updateHUD();
+
+                            if (enemy.laserPreviewMesh) enemy.laserPreviewMesh.dispose();
+                            enemy.getChildMeshes().forEach(cm => cm.dispose());
+                            enemy.dispose();
+                            gameState.enemies.splice(j, 1);
+                        }
+                        break;
+                    }
+                }
+
+                // Cleanup if hit or off-screen
+                if (hit || m.position.y > orthoHeight + 3 || m.position.y < -orthoHeight - 3 ||
+                    m.position.x > orthoWidth + 3 || m.position.x < -orthoWidth - 3) {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(m);
+                    m.getChildMeshes().forEach(cm => cm.dispose());
+                    m.dispose();
+                    gameState.missiles.splice(i, 1);
+                }
+            }
+        }
+
+        function cleanupMissiles() {
+            gameState.missiles.forEach(m => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(m);
+                m.getChildMeshes().forEach(cm => cm.dispose());
+                m.dispose();
+            });
+            gameState.missiles = [];
+        }
+
+        // ========== SECONDARY ABILITIES ==========
+        function activateSecondaryAbility() {
+            if (!gameState.secondaryAbility) return;
+            if (gameState.secondaryCooldown > 0) return;
+
+            const ability = gameState.secondaryAbility;
+
+            if (ability.effect === 'clear_projectiles') {
+                // Gravity Pulse - clear all enemy bullets
+                fireGravityPulse();
+            } else if (ability.effect === 'mega_beam') {
+                // Nova Beam - massive damage beam
+                fireMegaBeam(ability);
+            }
+
+            gameState.secondaryCooldown = gameState.secondaryMaxCooldown;
+        }
+
+        function fireGravityPulse() {
+            if (!playerShip) return;
+
+            // Visual: expanding ring from player
+            const ring = BABYLON.MeshBuilder.CreateTorus('gravPulse', {
+                diameter: 0.5, thickness: 0.1, tessellation: 32
+            }, scene);
+            ring.position.x = playerShip.position.x;
+            ring.position.y = playerShip.position.y;
+            ring.position.z = -0.2;
+            ring.rotation.x = Math.PI / 2;
+
+            const ringMat = new BABYLON.StandardMaterial('gravPulseMat', scene);
+            ringMat.emissiveColor = new BABYLON.Color3(0.3, 0.5, 1.0);
+            ringMat.alpha = 0.8;
+            ringMat.disableLighting = true;
+            ringMat.backFaceCulling = false;
+            ring.material = ringMat;
+            ring.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(ring);
+
+            // Animate expansion
+            let scale = 1;
+            const expandInterval = setInterval(() => {
+                scale += 0.8;
+                ring.scaling.x = scale;
+                ring.scaling.y = scale;
+                ring.scaling.z = scale;
+                ringMat.alpha -= 0.04;
+
+                if (ringMat.alpha <= 0) {
+                    clearInterval(expandInterval);
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(ring);
+                    ring.dispose();
+                }
+            }, 30);
+
+            // Destroy all enemy bullets
+            gameState.enemyBullets.forEach(b => {
+                createExplosion(b.position.x, b.position.y, 'small', 'blue');
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                b.getChildMeshes().forEach(m => m.dispose());
+                b.dispose();
+            });
+            gameState.enemyBullets = [];
+
+            // Also clear challenger lasers
+            if (gameState.challengerLasers) {
+                gameState.challengerLasers.forEach(l => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(l);
+                    l.dispose();
+                });
+                gameState.challengerLasers = [];
+            }
+        }
+
+        function fireMegaBeam(ability) {
+            if (!playerShip) return;
+
+            const beamWidth = 1.5;
+            const beamHeight = orthoHeight * 3;
+            const beam = BABYLON.MeshBuilder.CreatePlane('megaBeam', { width: beamWidth, height: beamHeight }, scene);
+            beam.position.x = playerShip.position.x;
+            beam.position.y = playerShip.position.y + beamHeight / 2;
+            beam.position.z = -0.15;
+
+            const mat = new BABYLON.StandardMaterial('megaBeamMat', scene);
+            mat.emissiveColor = new BABYLON.Color3(1, 0.4, 0.1);
+            mat.alpha = 0.9;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            beam.material = mat;
+            beam.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(beam);
+
+            // Deal massive damage to all enemies in beam path
+            const tb = gameState.techBonuses || {};
+            const beamDamage = Math.round((ability.damage || 200) * (tb.secondaryDamageMult || 1));
+            for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+                const enemy = gameState.enemies[i];
+                if (Math.abs(enemy.position.x - beam.position.x) < beamWidth && enemy.position.y > playerShip.position.y) {
+                    enemy.health -= beamDamage;
+                    flashShip(enemy.mesh || enemy);
+
+                    if (enemy.health <= 0) {
+                        createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
+                        createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                        gameState.score += 50;
+                        gameState.credits += 10 + Math.floor(Math.random() * 15);
+                        gameState.stats.enemiesKilled++;
+                        if (enemy.laserPreviewMesh) enemy.laserPreviewMesh.dispose();
+                        enemy.getChildMeshes().forEach(cm => cm.dispose());
+                        enemy.dispose();
+                        gameState.enemies.splice(i, 1);
+                    }
+                }
+            }
+            updateHUD();
+
+            // Fade out beam
+            const fadeInterval = setInterval(() => {
+                mat.alpha -= 0.05;
+                if (mat.alpha <= 0) {
+                    clearInterval(fadeInterval);
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(beam);
+                    beam.dispose();
+                }
+            }, 30);
+        }
+
+        function updateSecondaryCooldown(deltaTime) {
+            if (gameState.secondaryCooldown > 0) {
+                gameState.secondaryCooldown = Math.max(0, gameState.secondaryCooldown - deltaTime);
+            }
+        }
+
+        // ========== EQUIPMENT IN FIRE LOOP ==========
+        // Fire missiles from equipped missile launchers
+        function fireEquipmentWeapons(currentTime) {
+            if (!playerShip) return;
+            if (gameState.enemies.length === 0) return;
+
+            // Check hardpoints for equipment (missiles)
+            const ship = gameState.fleet.length > 0 ? gameState.fleet[0] : null;
+            if (!ship) return;
+
+            ship.hardpoints.forEach((hp, idx) => {
+                const equip = hp.equipped;
+                if (!equip || !equip.isEquipment) return;
+
+                if (equip.category === 'missile') {
+                    if (!gameState.weaponFireTimes) gameState.weaponFireTimes = {};
+                    const key = 'eq_' + idx;
+                    const lastFire = gameState.weaponFireTimes[key] || 0;
+                    if (currentTime - lastFire > equip.fireRate) {
+                        const hpPos = hp.position || { x: 0, y: 0.3 };
+                        fireMissileWeapon(equip, playerShip.position.x + hpPos.x, playerShip.position.y + hpPos.y + 0.2);
+                        gameState.weaponFireTimes[key] = currentTime;
+                    }
+                }
+            });
+        }
+
+        // Initialize equipment from hardpoints (called after fleet setup or load)
+        function initEquipmentFromFleet() {
+            const ship = gameState.fleet.length > 0 ? gameState.fleet[0] : null;
+            if (!ship) return;
+
+            ship.hardpoints.forEach(hp => {
+                const equip = hp.equipped;
+                if (!equip || !equip.isEquipment) return;
+
+                if (equip.category === 'shield') {
+                    activateShieldEquipment(equip);
+                } else if (equip.category === 'drone') {
+                    activateDroneEquipment(equip);
+                }
+                // Missiles are handled in fire loop, no init needed
+            });
+
+            // Initialize secondary ability
+            if (ship.secondary) {
+                const abilityDef = SECONDARY_ABILITIES[ship.secondary.abilityId];
+                if (abilityDef) {
+                    gameState.secondaryAbility = { ...abilityDef, ...ship.secondary };
+                    const tb = gameState.techBonuses || {};
+                    const cdReduction = 1 - (tb.secondaryCooldown || 0);
+                    gameState.secondaryMaxCooldown = Math.round((ship.secondary.cooldown || abilityDef.cooldown) * cdReduction);
+                    gameState.secondaryCooldown = 0;
+                }
+            }
         }
 
         // Spawn wave
@@ -7435,6 +9977,8 @@
                     enemy.laserPreviewMesh = null;
                     enemy.laserCharging = false;
                     enemy.lastFireTime = currentTime;
+                    // Freeze movement while laser is active (overridden with real cooldown on laser cleanup)
+                    enemy.movementCooldownUntil = Infinity;
                 }
             }
         }
@@ -7500,7 +10044,8 @@
                             flashShip(playerShipMesh);
 
                             if (!settings.godMode) {
-                                gameState.health -= laser.damagePerTick;
+                                let dmg = applyShieldDamage(laser.damagePerTick);
+                                if (dmg > 0) gameState.health -= dmg;
                                 updateHUD();
 
                                 if (gameState.health <= 0) {
@@ -7673,11 +10218,18 @@
 
                         createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
 
-                        if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
-                        bullet.getChildMeshes().forEach(m => m.dispose());
-                        bullet.dispose();
-                        gameState.playerBullets.splice(i, 1);
-                        bulletHit = true;
+                        // Piercing rounds: bullet continues through enemies
+                        const piercesLeft = bullet.piercesLeft !== undefined ? bullet.piercesLeft : ((gameState.techBonuses || {}).piercingRounds || 0);
+                        if (piercesLeft > 0) {
+                            bullet.piercesLeft = piercesLeft - 1;
+                            // Don't dispose - let it keep going
+                        } else {
+                            if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                            bullet.getChildMeshes().forEach(m => m.dispose());
+                            bullet.dispose();
+                            gameState.playerBullets.splice(i, 1);
+                            bulletHit = true;
+                        }
 
                         if (enemy.health <= 0) {
                             createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
@@ -7687,6 +10239,7 @@
                                 enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
                             gameState.score += points * gameState.wave;
                             gameState.credits += 10 + Math.floor(Math.random() * 15);
+                            gameState.stats.enemiesKilled++;
                             updateHUD();
 
                             // Clean up challenger's laser preview if it exists
@@ -7717,6 +10270,15 @@
                 bullet.position.x += bullet.velocityX;
                 bullet.position.y += bullet.velocityY;
 
+                // Check if drones block this bullet
+                if (gameState.drones.length > 0 && checkDroneBlockBullet(bullet)) {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                    bullet.getChildMeshes().forEach(m => m.dispose());
+                    bullet.dispose();
+                    gameState.enemyBullets.splice(i, 1);
+                    continue;
+                }
+
                 if (playerShip) {
                     const dx = bullet.position.x - playerShip.position.x;
                     const dy = bullet.position.y - playerShip.position.y;
@@ -7728,7 +10290,12 @@
 
                         // God mode: invulnerable to damage
                         if (!settings.godMode) {
-                            gameState.health -= (bullet.damage || 10);
+                            let dmg = bullet.damage || 10;
+                            // Shield absorbs damage first
+                            dmg = applyShieldDamage(dmg);
+                            if (dmg > 0) {
+                                gameState.health -= dmg;
+                            }
                             updateHUD();
 
                             if (gameState.health <= 0) {
@@ -7756,7 +10323,7 @@
 
         // Update stars
         function updateStars(scrollMultiplier) {
-            const baseSpeed = 0.05 * settings.scrollSpeed;
+            const baseSpeed = 0.075 * settings.scrollSpeed;
             const adjustedSpeed = baseSpeed * (0.5 + scrollMultiplier);
 
             gameState.stars.forEach(star => {
@@ -7790,7 +10357,8 @@
 
                     // God mode: invulnerable to collision damage
                     if (!settings.godMode) {
-                        gameState.health -= 25;
+                        let dmg = applyShieldDamage(25);
+                        if (dmg > 0) gameState.health -= dmg;
                         updateHUD();
 
                         if (gameState.health <= 0) {
@@ -7809,10 +10377,10 @@
         // Update HUD
         function updateHUD() {
             document.getElementById('creditsHud').textContent = gameState.credits;
-            document.getElementById('health').textContent = Math.max(0, gameState.health);
+            const hp = Math.max(0, Math.ceil(gameState.health));
+            document.getElementById('health').textContent = hp;
 
             if (gameState.arenaMode) {
-                // Arena mode: show "Arena" as level and wave count
                 document.getElementById('level').textContent = 'Arena';
                 document.getElementById('wave').textContent = gameState.arenaWave;
                 document.getElementById('totalWaves').textContent = '∞';
@@ -7822,24 +10390,61 @@
                 document.getElementById('totalWaves').textContent = gameState.levelConfig ? gameState.levelConfig.waveCount : 3;
             }
 
-            // Update fuel bar
-            const fuelPercent = Math.max(0, (gameState.fuel / gameState.maxFuel) * 100);
-            document.getElementById('fuelBarFill').style.width = `${fuelPercent}%`;
-            document.getElementById('fuelValue').textContent = Math.max(0, gameState.fuel);
-
-            // Color fuel bar based on level
-            const fuelBar = document.getElementById('fuelBarFill');
-            if (fuelPercent <= 20) {
-                fuelBar.style.background = 'linear-gradient(90deg, #ff4444, #ff6666)';
-            } else if (fuelPercent <= 40) {
-                fuelBar.style.background = 'linear-gradient(90deg, #ffaa00, #ffcc44)';
+            // Health bar
+            const maxHP = gameState.maxHealth || 100;
+            const hpPct = Math.max(0, (gameState.health / maxHP) * 100);
+            const healthFill = document.getElementById('healthBarFill');
+            healthFill.style.width = `${hpPct}%`;
+            if (hpPct <= 25) {
+                healthFill.style.background = 'linear-gradient(90deg, #cc2222, #ff4444)';
+            } else if (hpPct <= 50) {
+                healthFill.style.background = 'linear-gradient(90deg, #ccaa22, #eecc44)';
             } else {
-                fuelBar.style.background = 'linear-gradient(90deg, #ff8800, #ffcc44)';
+                healthFill.style.background = 'linear-gradient(90deg, #22aa22, #66ee66)';
             }
 
-            // Hide fuel bar in arena mode
-            if (gameState.arenaMode) {
-                document.getElementById('fuelBar').style.display = 'none';
+            // Fuel stat
+            const fuelStat = document.getElementById('fuelStat');
+            if (fuelStat) {
+                if (gameState.arenaMode) {
+                    fuelStat.style.display = 'none';
+                } else {
+                    fuelStat.style.display = '';
+                    const fuelVal = document.getElementById('fuelValue');
+                    fuelVal.textContent = Math.max(0, Math.ceil(gameState.fuel));
+                    const fuelPct = gameState.fuel / gameState.maxFuel;
+                    if (fuelPct <= 0.2) {
+                        fuelStat.style.color = '#ff4444';
+                    } else if (fuelPct <= 0.4) {
+                        fuelStat.style.color = '#ffaa44';
+                    } else {
+                        fuelStat.style.color = '#ccc';
+                    }
+                }
+            }
+
+            // Shield bar row
+            const shieldRow = document.getElementById('shieldBarRow');
+            if (gameState.shieldEquipment && gameState.shieldMaxHP > 0) {
+                shieldRow.style.display = 'flex';
+                const shieldPct = Math.max(0, (gameState.shieldHP / gameState.shieldMaxHP) * 100);
+                document.getElementById('shieldBarFill').style.width = `${shieldPct}%`;
+            } else {
+                shieldRow.style.display = 'none';
+            }
+
+            // Secondary ability bar row
+            const secRow = document.getElementById('secondaryBarRow');
+            if (gameState.secondaryAbility) {
+                secRow.style.display = 'flex';
+                if (gameState.secondaryCooldown > 0) {
+                    const pct = Math.max(0, (1 - gameState.secondaryCooldown / gameState.secondaryMaxCooldown) * 100);
+                    document.getElementById('secondaryBarFill').style.width = `${pct}%`;
+                } else {
+                    document.getElementById('secondaryBarFill').style.width = '100%';
+                }
+            } else {
+                secRow.style.display = 'none';
             }
         }
 
@@ -7848,11 +10453,38 @@
             gameState.isPlaying = false;
 
             if (gameState.arenaMode) {
-                // Show arena-specific game over stats
                 document.getElementById('finalCredits').textContent =
                     `Wave ${gameState.arenaWave} | Score: ${gameState.score}`;
             } else {
                 document.getElementById('finalCredits').textContent = gameState.credits;
+            }
+
+            // Build run summary
+            const s = gameState.stats;
+            const summaryDiv = document.getElementById('runSummary');
+            summaryDiv.innerHTML = `
+                <span class="stat-label">Highest Level</span><span class="stat-value">${s.highestLevel}</span>
+                <span class="stat-label">Gates Passed</span><span class="stat-value">${s.totalGatesPassed}</span>
+                <span class="stat-label">System Gates</span><span class="stat-value">${s.systemGatesTaken}</span>
+                <span class="stat-label">Event Gates</span><span class="stat-value">${s.eventGatesTaken}</span>
+                <span class="stat-label">Events Completed</span><span class="stat-value">${s.eventsCompleted}</span>
+                <span class="stat-label">Enemies Killed</span><span class="stat-value">${s.enemiesKilled}</span>
+                <span class="stat-label">Planets Harvested</span><span class="stat-value">${s.planetsHarvested}</span>
+                <span class="stat-label">Stations Docked</span><span class="stat-value">${s.stationsDocked}</span>
+            `;
+
+            // Convert in-run resources to meta resources (not in arena mode)
+            const gainsDiv = document.getElementById('metaGains');
+            if (!gameState.arenaMode) {
+                const gains = convertRunResourcesToMeta();
+                gainsDiv.innerHTML = Object.entries(META_RESOURCES).map(([key, r]) =>
+                    `<span class="gain-label">${r.icon} ${r.name}</span><span class="gain-value">+${gains[key]}</span>`
+                ).join('');
+                gainsDiv.style.display = 'grid';
+                document.querySelector('.meta-gains-title').style.display = 'block';
+            } else {
+                gainsDiv.style.display = 'none';
+                document.querySelector('.meta-gains-title').style.display = 'none';
             }
 
             document.getElementById('gameOver').style.display = 'block';
@@ -7914,6 +10546,12 @@
             gameState.score = 0;
             gameState.health = 100;
             gameState.wave = 1;
+            gameState.gatesSinceEvent = 0;
+            gameState.stats = {
+                totalGatesPassed: 0, systemGatesTaken: 0, eventGatesTaken: 0,
+                eventsCompleted: 0, enemiesKilled: 0, creditsEarned: 0,
+                planetsHarvested: 0, stationsDocked: 0, highestLevel: 1
+            };
             gameState.lastFireTime = 0;
             gameState.waveTimer = 0;
             gameState.enemiesInWave = 0;
@@ -7971,7 +10609,8 @@
                 hardpoints: SHIP_DEFINITIONS.starter.hardpoints.map((hp, idx) => ({
                     ...hp,
                     equipped: idx === 0 ? starterWeapon : null  // Basic weapon on first hardpoint
-                }))
+                })),
+                secondary: { abilityId: 'gravity_pulse', cooldown: 30000 }
             }];
             gameState.ownedWeapons = [starterWeapon];
             gameState.equippedWeapons = [starterWeapon];  // Single medium hardpoint
@@ -7984,6 +10623,12 @@
                 });
             }
             gameState.beamMeshes = [];
+            // Cleanup equipment from previous game
+            cleanupDrones();
+            cleanupMissiles();
+            if (gameState.shieldBubble) { gameState.shieldBubble.dispose(); gameState.shieldBubble = null; }
+            gameState.shieldEquipment = null;
+            gameState.shieldHP = 0;
 
             // Reset level/river navigation state
             gameState.level = 1;
@@ -8002,6 +10647,15 @@
             gameState.showingGates = false;
             document.getElementById('warpGatePanel').style.display = 'none';
             document.getElementById('stationInterior').style.display = 'none';
+            // Clean up event objects and mystery events on new game
+            cleanupEventObject();
+            gameState.mysteryEventActive = false;
+            gameState.pendingEventConfig = null;
+            gameState.lastEventOutcome = null;
+            document.getElementById('mysteryEventDialog').style.display = 'none';
+            if (gameState.pauseReasons.has('mysteryEvent')) {
+                releasePause('mysteryEvent');
+            }
 
             initResources();
 
@@ -8031,6 +10685,7 @@
                 levelConfig: gameState.levelConfig,
                 stationsVisited: gameState.stationsVisited,
                 currentZone: gameState.currentZone,
+                currentZoneVariant: gameState.currentZoneVariant,
                 levelEndSpawned: gameState.levelEndSpawned,
                 credits: gameState.credits,
                 ownedWeapons: gameState.ownedWeapons,
@@ -8051,6 +10706,8 @@
                 enemiesInWave: gameState.enemiesInWave,
                 enemiesSpawned: gameState.enemiesSpawned,
                 gatesAtLevel: gameState.gatesAtLevel,
+                gatesSinceEvent: gameState.gatesSinceEvent,
+                stats: gameState.stats,
                 savedAt: Date.now()
             };
         }
@@ -8123,7 +10780,12 @@
             gameState.levelConfig = saveData.levelConfig || generateLevelConfig(1);
             gameState.stationsVisited = saveData.stationsVisited || 0;
             gameState.gatesAtLevel = saveData.gatesAtLevel || 0;
+            gameState.gatesSinceEvent = saveData.gatesSinceEvent || 0;
+            if (saveData.stats) {
+                gameState.stats = { ...gameState.stats, ...saveData.stats };
+            }
             gameState.currentZone = saveData.currentZone || 0;
+            gameState.currentZoneVariant = saveData.currentZoneVariant || 1;
             gameState.levelEndSpawned = saveData.levelEndSpawned || false;
             gameState.credits = saveData.credits || 0;
             gameState.ownedWeapons = saveData.ownedWeapons || ['basic'];
@@ -8132,6 +10794,10 @@
             // Restore fleet, or create default if not present (backward compatibility)
             if (saveData.fleet && saveData.fleet.length > 0) {
                 gameState.fleet = saveData.fleet;
+                // Ensure secondary slot exists (backward compatibility)
+                if (gameState.fleet[0] && !gameState.fleet[0].secondary) {
+                    gameState.fleet[0].secondary = { abilityId: 'gravity_pulse', cooldown: 30000 };
+                }
             } else {
                 // Create default fleet for old saves
                 const starterWeapon = { ...WEAPONS.basic, id: 'basic_' + Date.now() };
@@ -8141,7 +10807,8 @@
                     hardpoints: SHIP_DEFINITIONS.starter.hardpoints.map((hp, idx) => ({
                         ...hp,
                         equipped: idx === 0 ? starterWeapon : null
-                    }))
+                    })),
+                    secondary: { abilityId: 'gravity_pulse', cooldown: 30000 }
                 }];
                 // Also ensure ownedWeapons has the starter weapon
                 if (!gameState.ownedWeapons || gameState.ownedWeapons.length === 0) {
@@ -8165,6 +10832,9 @@
             // Apply upgrade effects (recalculates stats from upgrade levels)
             applyAllUpgrades();
 
+            // Sync equipped weapons from restored fleet hardpoints
+            syncEquippedWeapons();
+
             // Restore exploration/combat state
             gameState.inExploration = saveData.inExploration || false;
             gameState.explorationDistance = saveData.explorationDistance || 0;
@@ -8175,7 +10845,7 @@
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.dispose();
                 const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
-                const textureA = new BABYLON.Texture(getBackgroundPath(gameState.currentZone), scene);
+                const textureA = new BABYLON.Texture(getBackgroundPath(gameState.currentZone, gameState.currentZoneVariant), scene);
                 textureA.uScale = bgSize / 20;
                 textureA.vScale = bgSize * 2 / 20;
                 textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
@@ -8269,10 +10939,9 @@
                 // Reset arena mode
                 gameState.arenaMode = false;
                 gameState.arenaConfig = null;
-                document.getElementById('fuelBar').style.display = ''; // Show fuel bar again
+                // Fuel display handled in updateHUD now
 
                 document.getElementById('hud').style.display = 'none';
-                document.getElementById('fuelDisplay').style.display = 'none';
                 systemBtn.style.display = 'none';
                 document.getElementById('startScreen').style.display = 'flex';
                 document.getElementById('titleButtons').style.display = 'flex';
@@ -8299,7 +10968,6 @@
             // Reset arena mode if active
             gameState.arenaMode = false;
             gameState.arenaConfig = null;
-            document.getElementById('fuelBar').style.display = ''; // Show fuel bar again
 
             await resetGame();
             gameState.pauseReasons.clear();  // Clear all pause reasons for fresh start
@@ -8465,12 +11133,19 @@
             startScreen.style.display = 'none';
             document.getElementById('systemBtn').style.display = 'flex';
             document.getElementById('hud').style.display = 'block';
-            document.getElementById('fuelDisplay').style.display = 'flex';
 
             if (loadSave) {
                 const savedGame = loadGame();
                 if (savedGame) {
                     applySavedState(savedGame);
+
+                    // On continue, enemy meshes don't survive page reload.
+                    // Re-spawn the current wave so the game doesn't instantly fast-forward
+                    // through all remaining waves (since enemiesSpawned >= enemiesInWave
+                    // with enemies.length === 0 would trigger wave completion immediately).
+                    if (gameState.enemiesInWave > 0 && gameState.enemiesSpawned > 0) {
+                        gameState.enemiesSpawned = 0;
+                    }
                 }
             } else {
                 // New game - clear any existing save
@@ -8489,7 +11164,8 @@
                     hardpoints: SHIP_DEFINITIONS.starter.hardpoints.map((hp, idx) => ({
                         ...hp,
                         equipped: idx === 0 ? starterWeapon : null
-                    }))
+                    })),
+                    secondary: { abilityId: 'gravity_pulse', cooldown: 30000 }
                 }];
                 gameState.ownedWeapons = [starterWeapon];
 
@@ -8500,15 +11176,24 @@
                 gameState.wavesUntilStarbase = gameState.levelConfig.waveCount;
             }
 
-            // Only spawn wave if not in exploration mode and no enemies already pending
+            // Apply tech tree bonuses before equipment init (so shield/drone bonuses apply)
+            loadMetaState();
+            applyTechBonuses();
+
+            // Initialize equipment from fleet (shields, drones, secondary ability)
+            initEquipmentFromFleet();
+
+            // Only spawn wave if not in exploration mode, no enemies pending, and not in an event zone
             // This preserves state when continuing a saved game
-            if (!gameState.inExploration && gameState.enemiesInWave === 0) {
+            if (!gameState.inExploration && gameState.enemiesInWave === 0 && !(gameState.levelConfig && gameState.levelConfig.isEventZone)) {
                 spawnWave();
             }
 
             // Initialize solar system spawning
             gameState.nextSolarSystemY = orthoHeight + 15;
-            gameState.baseShields = 100;
+            if (!loadSave) {
+                gameState.baseShields = 100;
+            }
 
             gameState.isPlaying = true;
             gameState.lastFrameTime = performance.now();
@@ -8540,9 +11225,10 @@
 
                 // Spawn solar systems with spacing - only during active waves
                 // Stop spawning once level end content (reward + gates) has been generated
-                const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates;
+                // Don't spawn in event zones (event object is the focus, no distractions)
+                const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates && !gameState.eventObject;
 
-                gameState.nextSolarSystemY -= 0.015 * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                gameState.nextSolarSystemY -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 if (gameState.nextSolarSystemY < orthoHeight + 10 && shouldSpawnSolarSystems) {
                     createSolarSystem();
                 }
@@ -8552,7 +11238,8 @@
                 applySunLighting();
 
                 // Wave completion - enter exploration mode between waves
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration) {
+                // Skip this check when an event object is present (event zones handle their own flow)
+                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.eventObject && !gameState.mysteryEventActive) {
                     gameState.wave++;
                     gameState.levelWave++;
                     updateHUD();
@@ -8602,9 +11289,16 @@
                 updateEnemies(deltaTime, currentTime, scrollMultiplier);
                 updateBullets();
                 updateChallengerLasers();
+                updatePlayerBeams();
+                updateMissiles(deltaTime);
+                updateDrones(deltaTime, currentTime);
+                updateShieldEquipment(deltaTime);
+                updateSecondaryCooldown(deltaTime);
+                fireEquipmentWeapons(currentTime);
                 updateLoot(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
                 updateStarbase(scrollMultiplier, deltaTime);
+                updateEventObject(scrollMultiplier, deltaTime);
                 checkPlayerCollision();
             });
 
@@ -8613,9 +11307,21 @@
             });
         }
 
+        // Load meta state on page load
+        loadMetaState();
+
         // Button event handlers
         newGameBtn.addEventListener('click', () => startGame(false));
         continueBtn.addEventListener('click', () => startGame(true));
+
+        // Research Lab button
+        document.getElementById('researchBtn').addEventListener('click', openResearchScreen);
+        document.getElementById('researchBackBtn').addEventListener('click', closeResearchScreen);
+        document.getElementById('resetTreeBtn').addEventListener('click', resetAllTrees);
+        document.getElementById('upgradeSlotBtn').addEventListener('click', () => {
+            upgradeSpecialSlots();
+            renderResearchScreen();
+        });
 
         // Arena Mode Configuration
         const arenaConfig = {
@@ -8964,6 +11670,12 @@
                 updateEnemies(deltaTime, currentTime, scrollMultiplier);
                 updateBullets();
                 updateChallengerLasers();
+                updatePlayerBeams();
+                updateMissiles(deltaTime);
+                updateDrones(deltaTime, currentTime);
+                updateShieldEquipment(deltaTime);
+                updateSecondaryCooldown(deltaTime);
+                fireEquipmentWeapons(currentTime);
                 updateLoot(scrollMultiplier);
                 updateStars(scrollMultiplier);
             });
