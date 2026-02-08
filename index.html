@@ -3992,6 +3992,17 @@
             speedUp: false,         // Speed-up button pressed
             inExploration: false,   // Between waves - no combat, just exploration
             explorationDistance: 0, // Distance traveled in current exploration zone
+            // Zoomed-out exploration mode
+            explorationMode: false,         // Whether in zoomed-out exploration view
+            explorationFormations: [],      // Array of formation objects on the map
+            currentEncounter: null,         // Formation currently engaged in combat
+            encounterTransition: null,      // 'zooming_in', 'combat', 'zooming_out', 'victory_pause'
+            encounterTimer: 0,              // Timer for transitions
+            savedExplorePos: null,          // Player position saved before combat
+            zoomLevel: 1,                   // Current zoom multiplier (1=normal, 4=exploration)
+            zoomTarget: 1,                  // Target zoom for smooth interpolation
+            explorationCameraPos: {x: 0, y: 0}, // Camera position during exploration
+            formationsDefeated: 0,          // Count of defeated formations this level
             arenaMode: false,       // Arena mode active
             arenaConfig: null,      // Arena configuration
             arenaWave: 0,           // Current arena wave
@@ -5014,6 +5025,7 @@
 
         // Main game scene
         let scene, playerShip, playerShipMesh;
+        let gameCamera = null; // Global camera reference for zoom/follow
         let materials = {};
 
         function createMainScene() {
@@ -5023,16 +5035,23 @@
             const camera = new BABYLON.FreeCamera('camera', new BABYLON.Vector3(0, 0, -10), scene);
             camera.setTarget(new BABYLON.Vector3(0, 0, 0));
             camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+            gameCamera = camera; // Store global reference
 
             function updateCamera() {
                 updateGameDimensions();
                 const aspect = gameWidth / gameHeight;
-                camera.orthoTop = orthoHeight;
-                camera.orthoBottom = -orthoHeight;
-                camera.orthoLeft = -orthoHeight * aspect;
-                camera.orthoRight = orthoHeight * aspect;
+                // Use zoomLevel to scale the orthographic view
+                const effectiveOrtho = orthoHeight * gameState.zoomLevel;
+                camera.orthoTop = effectiveOrtho;
+                camera.orthoBottom = -effectiveOrtho;
+                camera.orthoLeft = -effectiveOrtho * aspect;
+                camera.orthoRight = effectiveOrtho * aspect;
+                // Camera position determines the center of the view in world space
+                camera.setTarget(new BABYLON.Vector3(camera.position.x, camera.position.y, 0));
             }
             updateCamera();
+            // Store updateCamera for use in render loop
+            gameState._updateCamera = updateCamera;
             window.addEventListener('resize', updateCamera);
 
             const light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, -1), scene);
@@ -5102,7 +5121,8 @@
 
         // Create background meshes
         function createBackgrounds() {
-            const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+            // Make background large enough to cover 4x zoom exploration view
+            const bgSize = Math.max(orthoWidth, orthoHeight) * 12;
 
             // Background A (current)
             backgroundMeshA = BABYLON.MeshBuilder.CreatePlane('backgroundA', { width: bgSize, height: bgSize * 2 }, scene);
@@ -5153,7 +5173,7 @@
 
         // Load texture into background B for transition
         function loadTransitionTexture(path) {
-            const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+            const bgSize = Math.max(orthoWidth, orthoHeight) * 12;
             const texture = new BABYLON.Texture(path, scene);
             texture.uScale = bgSize / 20;
             texture.vScale = bgSize * 2 / 20;
@@ -6037,11 +6057,15 @@
                 }
             }
 
-            // Remove if off screen - spawn next wave
+            // Remove if off screen - return to exploration or spawn next wave
             if (starbase.position.y < -orthoHeight - starbase.size) {
                 starbase.dispose();
                 gameState.starbase = null;
-                spawnWave(); // Spawn next wave
+                if (gameState.explorationFormations.length > 0 && !gameState.explorationFormations.every(f => f.defeated)) {
+                    enterExplorationMode(gameState.levelConfig);
+                } else {
+                    spawnWave(); // Fallback for non-exploration mode
+                }
             }
         }
 
@@ -6781,8 +6805,12 @@
                 gameState.starbase = null;
             }
 
-            // Spawn next wave
-            spawnWave();
+            // Return to exploration or spawn next wave
+            if (gameState.explorationFormations.length > 0 && !gameState.explorationFormations.every(f => f.defeated)) {
+                enterExplorationMode(gameState.levelConfig);
+            } else {
+                spawnWave();
+            }
 
             // Save game after departing
             saveGame();
@@ -7310,11 +7338,12 @@
             // Update HUD to show level
             updateHUD();
 
-            // Event zones spawn the event object; normal levels start waves
+            // Event zones spawn the event object; normal levels enter exploration mode
             if (config.isEventZone) {
                 spawnEventObject(config.eventType);
             } else {
-                spawnWave();
+                // Enter zoomed-out exploration mode with enemy formations
+                enterExplorationMode(config);
             }
         }
 
@@ -7411,6 +7440,26 @@
                 gameState.beamMesh = null;
             }
 
+            // Clean up exploration formations
+            cleanupFormations();
+
+            // Reset exploration state
+            gameState.explorationMode = false;
+            gameState.zoomLevel = 1;
+            gameState.zoomTarget = 1;
+            gameState.encounterTransition = null;
+            gameState.currentEncounter = null;
+
+            // Reset camera position
+            if (gameCamera) {
+                gameCamera.position.x = 0;
+                gameCamera.position.y = 0;
+            }
+            // Reset background positions
+            if (backgroundMeshA) { backgroundMeshA.position.x = 0; backgroundMeshA.position.y = 0; }
+            if (backgroundMeshB) { backgroundMeshB.position.x = 0; backgroundMeshB.position.y = 0; }
+            if (gameState._updateCamera) gameState._updateCamera();
+
             // Reset spawn timers
             gameState.enemiesInWave = 0;
             gameState.enemiesSpawned = 0;
@@ -7430,7 +7479,7 @@
             // Update background texture
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.dispose();
-                const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+                const bgSize = Math.max(orthoWidth, orthoHeight) * 12;
                 const newTexture = new BABYLON.Texture(getBackgroundPath(newZone), scene);
                 newTexture.uScale = bgSize / 20;
                 newTexture.vScale = bgSize * 2 / 20;
@@ -8986,7 +9035,9 @@
             // Keyboard movement (includes speed upgrade bonus and god mode)
             // Base speed halved for more sluggish starter ship feel
             const godModeSpeedMult = settings.godMode ? 3.0 : 1.0;
-            const keySpeed = 0.004 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * deltaTime;
+            // In exploration mode, scale movement with zoom for consistent feel
+            const exploreSpeedMult = gameState.explorationMode ? gameState.zoomLevel * 1.5 : 1.0;
+            const keySpeed = 0.004 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * exploreSpeedMult * deltaTime;
             if (keyState.left) playerShip.targetX -= keySpeed;
             if (keyState.right) playerShip.targetX += keySpeed;
             if (keyState.up) playerShip.targetY += keySpeed;
@@ -9003,23 +9054,37 @@
                 // Use CSS pixel dimensions (not render pixels) for input conversion
                 const cssWidth = canvas.clientWidth;
                 const cssHeight = canvas.clientHeight;
-                const worldDeltaX = (deltaX / cssWidth) * orthoWidth * 2;
-                const worldDeltaY = -(deltaY / cssHeight) * orthoHeight * 2;
+                // Scale touch input by zoom level for consistent movement feel
+                const effectiveOrthoW = orthoWidth * gameState.zoomLevel;
+                const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
+                const worldDeltaX = (deltaX / cssWidth) * effectiveOrthoW * 2;
+                const worldDeltaY = -(deltaY / cssHeight) * effectiveOrthoH * 2;
 
                 playerShip.targetX += worldDeltaX;
                 playerShip.targetY += worldDeltaY;
             }
 
-            // Allow wider movement when gates are showing so player can commit to a side
-            const maxX = gameState.showingGates ? orthoWidth + 2 : orthoWidth - 1;
-            playerShip.targetX = Math.max(-maxX, Math.min(maxX, playerShip.targetX));
+            // In exploration mode, allow movement across the entire map
+            if (gameState.explorationMode) {
+                const mapHalfWidth = orthoWidth * 4;
+                const mapMaxY = 220; // Top of the exploration map
+                const mapMinY = -20;
+                playerShip.targetX = Math.max(-mapHalfWidth, Math.min(mapHalfWidth, playerShip.targetX));
+                playerShip.targetY = Math.max(mapMinY, Math.min(mapMaxY, playerShip.targetY));
+            } else {
+                // Allow wider movement when gates are showing so player can commit to a side
+                const maxX = gameState.showingGates ? orthoWidth + 2 : orthoWidth - 1;
+                playerShip.targetX = Math.max(-maxX, Math.min(maxX, playerShip.targetX));
 
-            const minY = -orthoHeight + 1;
-            const maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight);
-            playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
+                const minY = -orthoHeight + 1;
+                const maxY = -orthoHeight + (orthoHeight * 2 * settings.maxHeight);
+                playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
+            }
 
             // Base speed 0.04 for very sluggish starter feel, god mode triples speed
-            const lerpFactor = 0.04 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult;
+            // Exploration mode gets faster response for navigating the larger map
+            const exploreLerp = gameState.explorationMode ? 2.0 : 1.0;
+            const lerpFactor = 0.04 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * exploreLerp;
             const prevX = playerShip.position.x;
             playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
             playerShip.position.y += (playerShip.targetY - playerShip.position.y) * lerpFactor;
@@ -9910,6 +9975,404 @@
             gameState.enemiesSpawned++;
         }
 
+        // Spawn enemy from encounter formation (uses pre-determined types)
+        async function spawnEncounterEnemy() {
+            if (gameState.enemiesSpawned >= gameState.enemiesInWave) return;
+            if (!gameState._encounterEnemyTypes || gameState._encounterEnemyTypes.length === 0) return;
+
+            const type = gameState._encounterEnemyTypes.shift();
+
+            const maxX = orthoWidth - 1;
+            const x = (Math.random() - 0.5) * maxX * 1.5;
+            const y = orthoHeight + 2;
+
+            const enemy = await createEnemy(type, x, y);
+            gameState.enemies.push(enemy);
+            gameState.enemiesSpawned++;
+        }
+
+        // ========== EXPLORATION FORMATION SYSTEM ==========
+
+        // Generate enemy formations for a level based on its config
+        function generateFormations(config) {
+            const formations = [];
+            const numFormations = config.waveCount; // One formation per wave equivalent
+            const mapSpreadY = 40 * 4; // Vertical space for formations (zoomed-out scale)
+            const mapSpreadX = orthoWidth * 3; // Horizontal spread
+
+            for (let i = 0; i < numFormations; i++) {
+                // Distribute formations vertically from 40 to mapSpreadY
+                const baseY = 40 + (i + 0.5) * (mapSpreadY / numFormations);
+                const baseX = (Math.random() - 0.5) * mapSpreadX;
+
+                // Determine enemy composition for this formation
+                const waveNum = Math.min(i + 1, 5);
+                const waveConfig = { 1: 5, 2: 7, 3: 8, 4: 10, 5: 12 };
+                let enemyCount = (waveConfig[waveNum] || 12) + Math.floor(Math.max(0, config.levelNum - 1));
+                if (config.enemyMultiplier) {
+                    enemyCount = Math.floor(enemyCount * config.enemyMultiplier);
+                }
+
+                // Build enemy type list for this formation
+                const enemyTypes = [];
+                const globalWave = (config.levelNum - 1) * 5 + i + 1;
+                const baseTypes = ['basic', 'basic', 'fast', 'shooter'];
+                const advancedTypes = ['basic', 'fast', 'shooter', 'light', 'light', 'heavy'];
+                const typePool = globalWave >= 3 ? advancedTypes : baseTypes;
+
+                for (let j = 0; j < enemyCount; j++) {
+                    let type = typePool[Math.floor(Math.random() * Math.min(typePool.length, 1 + globalWave))];
+                    // Chance for challenger at wave 4+
+                    if (globalWave >= 4 && j === 0 && Math.random() < 0.15) {
+                        type = 'challenger';
+                    }
+                    enemyTypes.push(type);
+                }
+
+                // Detection radius scales with enemy count
+                const detectionRadius = 10 + Math.min(enemyCount * 0.3, 5);
+
+                formations.push({
+                    id: i,
+                    baseX: baseX,
+                    baseY: baseY,
+                    currentX: baseX,
+                    currentY: baseY,
+                    detectionRadius: detectionRadius,
+                    patrolAngle: Math.random() * Math.PI * 2,
+                    patrolRadius: 6 + Math.random() * 10,
+                    patrolSpeed: 0.0003 + Math.random() * 0.0004,
+                    enemyCount: enemyCount,
+                    enemyTypes: enemyTypes,
+                    defeated: false,
+                    meshes: [],          // Ship indicator meshes
+                    detectionMesh: null,  // Red detection zone disc
+                    detectionRingMesh: null // Red ring outline
+                });
+            }
+
+            return formations;
+        }
+
+        // Create visual meshes for a formation on the exploration map
+        function createFormationVisuals(formation) {
+            if (!scene) return;
+
+            // Detection zone - red transparent disc
+            const disc = BABYLON.MeshBuilder.CreateDisc('detectionZone_' + formation.id, {
+                radius: formation.detectionRadius,
+                tessellation: 48
+            }, scene);
+            disc.position.x = formation.currentX;
+            disc.position.y = formation.currentY;
+            disc.position.z = 0.8;
+            disc.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
+
+            const discMat = new BABYLON.StandardMaterial('detectionMat_' + formation.id, scene);
+            discMat.emissiveColor = new BABYLON.Color3(0.6, 0.05, 0.05);
+            discMat.alpha = 0.08;
+            discMat.disableLighting = true;
+            discMat.backFaceCulling = false;
+            disc.material = discMat;
+            formation.detectionMesh = disc;
+
+            // Detection zone ring outline (brighter edge)
+            const ringOuter = formation.detectionRadius;
+            const ringInner = formation.detectionRadius - 0.4;
+            const ring = BABYLON.MeshBuilder.CreateTorus('detectionRing_' + formation.id, {
+                diameter: ringOuter * 2,
+                thickness: 0.5,
+                tessellation: 48
+            }, scene);
+            ring.position.x = formation.currentX;
+            ring.position.y = formation.currentY;
+            ring.position.z = 0.75;
+            ring.rotation.x = Math.PI / 2;
+
+            const ringMat = new BABYLON.StandardMaterial('ringMat_' + formation.id, scene);
+            ringMat.emissiveColor = new BABYLON.Color3(1.0, 0.15, 0.1);
+            ringMat.alpha = 0.35;
+            ringMat.disableLighting = true;
+            ringMat.backFaceCulling = false;
+            ring.material = ringMat;
+            formation.detectionRingMesh = ring;
+
+            // Exclude from glow layers
+            if (sunGlowLayer) {
+                sunGlowLayer.addExcludedMesh(disc);
+                sunGlowLayer.addExcludedMesh(ring);
+            }
+            if (lootGlowLayer) {
+                lootGlowLayer.addExcludedMesh(disc);
+                lootGlowLayer.addExcludedMesh(ring);
+            }
+
+            // Create ship indicator meshes arranged in formation pattern
+            const displayCount = Math.min(formation.enemyCount, 8);
+            const cols = Math.min(displayCount, 4);
+            const rows = Math.ceil(displayCount / cols);
+
+            for (let j = 0; j < displayCount; j++) {
+                const row = Math.floor(j / cols);
+                const col = j % cols;
+                const offsetX = (col - (cols - 1) / 2) * 2.5;
+                const offsetY = (row - (rows - 1) / 2) * 2.2;
+
+                // Small triangle indicator for each ship
+                const indicator = BABYLON.MeshBuilder.CreateDisc('formShip_' + formation.id + '_' + j, {
+                    radius: 0.8,
+                    tessellation: 3
+                }, scene);
+                indicator.position.x = formation.currentX + offsetX;
+                indicator.position.y = formation.currentY + offsetY;
+                indicator.position.z = 0.1;
+                indicator.rotation.z = Math.PI; // Point downward (enemy facing)
+
+                const mat = new BABYLON.StandardMaterial('formShipMat_' + formation.id + '_' + j, scene);
+                mat.emissiveColor = new BABYLON.Color3(1.0, 0.35, 0.2);
+                mat.disableLighting = true;
+                mat.backFaceCulling = false;
+                indicator.material = mat;
+
+                // Exclude from glow
+                if (sunGlowLayer) sunGlowLayer.addExcludedMesh(indicator);
+                if (lootGlowLayer) lootGlowLayer.addExcludedMesh(indicator);
+
+                formation.meshes.push(indicator);
+            }
+
+            // Add enemy count text as a small number near the formation
+            const countPlane = BABYLON.MeshBuilder.CreatePlane('formCount_' + formation.id, { width: 4, height: 2 }, scene);
+            countPlane.position.x = formation.currentX;
+            countPlane.position.y = formation.currentY - (rows * 1.1 + 2);
+            countPlane.position.z = 0.05;
+
+            // Dynamic texture for count display
+            const countTex = new BABYLON.DynamicTexture('formCountTex_' + formation.id, { width: 128, height: 64 }, scene, false);
+            countTex.hasAlpha = true;
+            const ctx = countTex.getContext();
+            ctx.clearRect(0, 0, 128, 64);
+            ctx.font = 'bold 32px Arial';
+            ctx.fillStyle = '#ff6644';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('x' + formation.enemyCount, 64, 32);
+            countTex.update();
+
+            const countMat = new BABYLON.StandardMaterial('formCountMat_' + formation.id, scene);
+            countMat.diffuseTexture = countTex;
+            countMat.emissiveTexture = countTex;
+            countMat.useAlphaFromDiffuseTexture = true;
+            countMat.disableLighting = true;
+            countMat.backFaceCulling = false;
+            countPlane.material = countMat;
+
+            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(countPlane);
+            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(countPlane);
+
+            formation.meshes.push(countPlane);
+        }
+
+        // Update formation patrol movement
+        function updateFormations(deltaTime) {
+            gameState.explorationFormations.forEach(f => {
+                if (f.defeated) return;
+
+                // Circular patrol around base position
+                f.patrolAngle += f.patrolSpeed * deltaTime;
+                const newX = f.baseX + Math.cos(f.patrolAngle) * f.patrolRadius;
+                const newY = f.baseY + Math.sin(f.patrolAngle) * f.patrolRadius * 0.6;
+
+                const dx = newX - f.currentX;
+                const dy = newY - f.currentY;
+                f.currentX = newX;
+                f.currentY = newY;
+
+                // Move all meshes with the formation
+                if (f.detectionMesh) {
+                    f.detectionMesh.position.x = newX;
+                    f.detectionMesh.position.y = newY;
+                }
+                if (f.detectionRingMesh) {
+                    f.detectionRingMesh.position.x = newX;
+                    f.detectionRingMesh.position.y = newY;
+                }
+                f.meshes.forEach((mesh, i) => {
+                    mesh.position.x += dx;
+                    mesh.position.y += dy;
+                });
+            });
+        }
+
+        // Check if player is inside any formation's detection zone
+        function checkFormationDetection() {
+            if (!playerShip || !gameState.explorationMode) return null;
+
+            for (const formation of gameState.explorationFormations) {
+                if (formation.defeated) continue;
+
+                const dx = playerShip.position.x - formation.currentX;
+                const dy = playerShip.position.y - formation.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < formation.detectionRadius) {
+                    return formation;
+                }
+            }
+            return null;
+        }
+
+        // Start a combat encounter with a formation (zoom in)
+        function startCombatEncounter(formation) {
+            gameState.explorationMode = false;
+            gameState.currentEncounter = formation;
+            gameState.encounterTransition = 'zooming_in';
+            gameState.encounterTimer = 0;
+            gameState.zoomTarget = 1; // Zoom to normal view
+
+            // Save player's exploration position
+            gameState.savedExplorePos = {
+                x: playerShip.position.x,
+                y: playerShip.position.y
+            };
+
+            // Save camera position
+            gameState.explorationCameraPos = {
+                x: gameCamera ? gameCamera.position.x : 0,
+                y: gameCamera ? gameCamera.position.y : 0
+            };
+
+            // Hide all formation meshes during combat
+            gameState.explorationFormations.forEach(f => {
+                if (f.detectionMesh) f.detectionMesh.setEnabled(false);
+                if (f.detectionRingMesh) f.detectionRingMesh.setEnabled(false);
+                f.meshes.forEach(m => m.setEnabled(false));
+            });
+        }
+
+        // Spawn the encounter's enemies after zoom-in completes
+        function spawnEncounterEnemies(formation) {
+            gameState.encounterTransition = 'combat';
+            gameState.enemiesInWave = formation.enemyCount;
+            gameState.enemiesSpawned = 0;
+            gameState.spawnTimer = 0;
+
+            // Override the spawn types with formation's pre-determined types
+            gameState._encounterEnemyTypes = [...formation.enemyTypes];
+        }
+
+        // Called when combat encounter is won (all enemies dead)
+        function onEncounterVictory() {
+            gameState.encounterTransition = 'victory_pause';
+            gameState.encounterTimer = 2000; // 2 second pause before zoom out
+        }
+
+        // Zoom back out and return to exploration
+        function returnToExploration() {
+            const formation = gameState.currentEncounter;
+            if (formation) {
+                formation.defeated = true;
+                gameState.formationsDefeated++;
+
+                // Dispose defeated formation meshes
+                if (formation.detectionMesh) {
+                    formation.detectionMesh.dispose();
+                    formation.detectionMesh = null;
+                }
+                if (formation.detectionRingMesh) {
+                    formation.detectionRingMesh.dispose();
+                    formation.detectionRingMesh = null;
+                }
+                formation.meshes.forEach(m => m.dispose());
+                formation.meshes = [];
+            }
+
+            gameState.currentEncounter = null;
+            gameState.encounterTransition = 'zooming_out';
+            gameState.encounterTimer = 0;
+            gameState.zoomTarget = 4; // Zoom back out
+            gameState._encounterEnemyTypes = null;
+
+            // Show remaining formation meshes
+            gameState.explorationFormations.forEach(f => {
+                if (!f.defeated) {
+                    if (f.detectionMesh) f.detectionMesh.setEnabled(true);
+                    if (f.detectionRingMesh) f.detectionRingMesh.setEnabled(true);
+                    f.meshes.forEach(m => m.setEnabled(true));
+                }
+            });
+        }
+
+        // Dispose all formation meshes (for level cleanup)
+        function cleanupFormations() {
+            gameState.explorationFormations.forEach(f => {
+                if (f.detectionMesh) f.detectionMesh.dispose();
+                if (f.detectionRingMesh) f.detectionRingMesh.dispose();
+                f.meshes.forEach(m => m.dispose());
+                f.meshes = [];
+            });
+            gameState.explorationFormations = [];
+            gameState.currentEncounter = null;
+            gameState.encounterTransition = null;
+            gameState.formationsDefeated = 0;
+            gameState._encounterEnemyTypes = null;
+        }
+
+        // Enter exploration mode for a level
+        function enterExplorationMode(config) {
+            gameState.explorationMode = true;
+            gameState.zoomLevel = 4;
+            gameState.zoomTarget = 4;
+            gameState.encounterTransition = null;
+            gameState.currentEncounter = null;
+            gameState.enemiesInWave = 0;
+            gameState.enemiesSpawned = 0;
+
+            // Only generate formations if none exist yet for this level
+            const hasActiveFormations = gameState.explorationFormations.length > 0 &&
+                !gameState.explorationFormations.every(f => f.defeated);
+            if (!hasActiveFormations) {
+                // Clean up any old formation meshes
+                cleanupFormations();
+
+                // Generate new formations
+                gameState.formationsDefeated = 0;
+                gameState.explorationFormations = generateFormations(config);
+
+                // Create visual representations
+                gameState.explorationFormations.forEach(f => createFormationVisuals(f));
+            } else {
+                // Re-show existing formation meshes
+                gameState.explorationFormations.forEach(f => {
+                    if (!f.defeated) {
+                        if (f.detectionMesh) f.detectionMesh.setEnabled(true);
+                        if (f.detectionRingMesh) f.detectionRingMesh.setEnabled(true);
+                        f.meshes.forEach(m => m.setEnabled(true));
+                    }
+                });
+            }
+
+            // Position player at bottom of exploration area
+            if (playerShip) {
+                playerShip.position.x = 0;
+                playerShip.position.y = 0;
+                playerShip.targetX = 0;
+                playerShip.targetY = 0;
+            }
+
+            // Set camera to follow player
+            if (gameCamera) {
+                gameCamera.position.x = 0;
+                gameCamera.position.y = 20; // Look ahead of player
+                gameState.explorationCameraPos = { x: 0, y: 20 };
+            }
+
+            // Update camera for new zoom
+            if (gameState._updateCamera) gameState._updateCamera();
+        }
+
+        // ========== END EXPLORATION FORMATION SYSTEM ==========
+
         // Update challenger's charging laser attack
         function updateChallengerLaser(enemy, currentTime) {
             if (!playerShip) return;
@@ -10565,6 +11028,18 @@
             gameState.lastFrameTime = performance.now();
             gameState.spawnTimer = 0;
 
+            // Clean up exploration formations
+            cleanupFormations();
+            gameState.explorationMode = false;
+            gameState.zoomLevel = 1;
+            gameState.zoomTarget = 1;
+            gameState.encounterTransition = null;
+            gameState.currentEncounter = null;
+            if (gameCamera) {
+                gameCamera.position.x = 0;
+                gameCamera.position.y = 0;
+            }
+
             // Reset zone state
             gameState.currentZone = 0;
             gameState.distanceTraveled = 0;
@@ -10574,7 +11049,7 @@
             // Reset background to first zone
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.dispose();
-                const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+                const bgSize = Math.max(orthoWidth, orthoHeight) * 12;
                 const textureA = new BABYLON.Texture(getBackgroundPath(0), scene);
                 textureA.uScale = bgSize / 20;
                 textureA.vScale = bgSize * 2 / 20;
@@ -10587,6 +11062,9 @@
             if (backgroundMaterialB) {
                 backgroundMaterialB.alpha = 0;
             }
+            // Reset background positions (may have been offset during exploration)
+            if (backgroundMeshA) { backgroundMeshA.position.x = 0; backgroundMeshA.position.y = 0; }
+            if (backgroundMeshB) { backgroundMeshB.position.x = 0; backgroundMeshB.position.y = 0; }
 
             // Reset starbase and weapons
             if (gameState.starbase) {
@@ -10667,7 +11145,7 @@
             }
 
             updateHUD();
-            spawnWave();
+            enterExplorationMode(gameState.levelConfig);
         }
 
         // =====================
@@ -10703,6 +11181,8 @@
                 maxShields: gameState.maxShields,
                 inExploration: gameState.inExploration,
                 explorationDistance: gameState.explorationDistance,
+                explorationMode: gameState.explorationMode,
+                formationsDefeated: gameState.formationsDefeated,
                 enemiesInWave: gameState.enemiesInWave,
                 enemiesSpawned: gameState.enemiesSpawned,
                 gatesAtLevel: gameState.gatesAtLevel,
@@ -10841,10 +11321,15 @@
             gameState.enemiesInWave = saveData.enemiesInWave || 0;
             gameState.enemiesSpawned = saveData.enemiesSpawned || 0;
 
+            // If saved during exploration mode, re-enter it (formations will be regenerated)
+            if (saveData.explorationMode) {
+                gameState.formationsDefeated = saveData.formationsDefeated || 0;
+            }
+
             // Update zone background
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.dispose();
-                const bgSize = Math.max(orthoWidth, orthoHeight) * 3;
+                const bgSize = Math.max(orthoWidth, orthoHeight) * 12;
                 const textureA = new BABYLON.Texture(getBackgroundPath(gameState.currentZone, gameState.currentZoneVariant), scene);
                 textureA.uScale = bgSize / 20;
                 textureA.vScale = bgSize * 2 / 20;
@@ -11183,10 +11668,10 @@
             // Initialize equipment from fleet (shields, drones, secondary ability)
             initEquipmentFromFleet();
 
-            // Only spawn wave if not in exploration mode, no enemies pending, and not in an event zone
+            // Enter exploration mode if not already in one, no enemies pending, and not in an event zone
             // This preserves state when continuing a saved game
-            if (!gameState.inExploration && gameState.enemiesInWave === 0 && !(gameState.levelConfig && gameState.levelConfig.isEventZone)) {
-                spawnWave();
+            if (!gameState.explorationMode && !gameState.inExploration && gameState.enemiesInWave === 0 && !(gameState.levelConfig && gameState.levelConfig.isEventZone)) {
+                enterExplorationMode(gameState.levelConfig);
             }
 
             // Initialize solar system spawning
@@ -11213,20 +11698,217 @@
                 // Update speed-up button visibility
                 updateSpeedUpButton();
 
+                // ========== ZOOM ANIMATION ==========
+                if (Math.abs(gameState.zoomLevel - gameState.zoomTarget) > 0.005) {
+                    const zoomLerp = 0.04;
+                    gameState.zoomLevel += (gameState.zoomTarget - gameState.zoomLevel) * zoomLerp * (deltaTime / 16);
+                    if (Math.abs(gameState.zoomLevel - gameState.zoomTarget) < 0.01) {
+                        gameState.zoomLevel = gameState.zoomTarget;
+                    }
+                    if (gameState._updateCamera) gameState._updateCamera();
+                }
+
+                // ========== ENCOUNTER TRANSITIONS ==========
+                if (gameState.encounterTransition === 'zooming_in') {
+                    // Smoothly move camera to (0, 0) and player to (0, -7)
+                    const zoomProgress = 1 - ((gameState.zoomLevel - 1) / 3); // 0 at zoom=4, 1 at zoom=1
+
+                    if (gameCamera && playerShip && gameState.savedExplorePos) {
+                        const targetPlayerX = 0;
+                        const targetPlayerY = -7;
+                        const startX = gameState.savedExplorePos.x;
+                        const startY = gameState.savedExplorePos.y;
+
+                        playerShip.position.x = startX + (targetPlayerX - startX) * zoomProgress;
+                        playerShip.position.y = startY + (targetPlayerY - startY) * zoomProgress;
+                        playerShip.targetX = playerShip.position.x;
+                        playerShip.targetY = playerShip.position.y;
+
+                        // Camera moves toward (0, 0)
+                        const camStartX = gameState.explorationCameraPos.x;
+                        const camStartY = gameState.explorationCameraPos.y;
+                        gameCamera.position.x = camStartX + (0 - camStartX) * zoomProgress;
+                        gameCamera.position.y = camStartY + (0 - camStartY) * zoomProgress;
+                        if (gameState._updateCamera) gameState._updateCamera();
+                    }
+
+                    // When zoom completes, start combat
+                    if (gameState.zoomLevel <= 1.01) {
+                        gameState.zoomLevel = 1;
+                        if (gameCamera) {
+                            gameCamera.position.x = 0;
+                            gameCamera.position.y = 0;
+                        }
+                        if (playerShip) {
+                            playerShip.position.x = 0;
+                            playerShip.position.y = -7;
+                            playerShip.targetX = 0;
+                            playerShip.targetY = -7;
+                        }
+                        if (gameState._updateCamera) gameState._updateCamera();
+                        // Reset backgrounds to center for combat
+                        if (backgroundMeshA) { backgroundMeshA.position.x = 0; backgroundMeshA.position.y = 0; }
+                        if (backgroundMeshB) { backgroundMeshB.position.x = 0; backgroundMeshB.position.y = 0; }
+                        spawnEncounterEnemies(gameState.currentEncounter);
+                    }
+
+                    // Move backgrounds with camera during zoom-in
+                    if (backgroundMeshA && gameCamera) {
+                        backgroundMeshA.position.x = gameCamera.position.x;
+                        backgroundMeshA.position.y = gameCamera.position.y;
+                    }
+                    if (backgroundMeshB && gameCamera) {
+                        backgroundMeshB.position.x = gameCamera.position.x;
+                        backgroundMeshB.position.y = gameCamera.position.y;
+                    }
+                    updateBackgrounds(0.3, deltaTime);
+                    return; // Skip normal updates during zoom
+                }
+
+                if (gameState.encounterTransition === 'victory_pause') {
+                    // Wait for timer then zoom back out
+                    gameState.encounterTimer -= deltaTime;
+                    updateBackgrounds(0.3, deltaTime);
+                    if (gameState.encounterTimer <= 0) {
+                        returnToExploration();
+                    }
+                    return;
+                }
+
+                if (gameState.encounterTransition === 'zooming_out') {
+                    // Smoothly move camera and player back to exploration positions
+                    const zoomProgress = (gameState.zoomLevel - 1) / 3; // 0 at zoom=1, 1 at zoom=4
+
+                    if (gameCamera && playerShip && gameState.savedExplorePos) {
+                        const targetX = gameState.savedExplorePos.x;
+                        const targetY = gameState.savedExplorePos.y;
+
+                        playerShip.position.x = 0 + (targetX - 0) * zoomProgress;
+                        playerShip.position.y = -7 + (targetY - (-7)) * zoomProgress;
+                        playerShip.targetX = playerShip.position.x;
+                        playerShip.targetY = playerShip.position.y;
+
+                        // Camera moves back to exploration follow
+                        const camTargetX = targetX * 0.5;
+                        const camTargetY = targetY + 20;
+                        gameCamera.position.x = 0 + (camTargetX - 0) * zoomProgress;
+                        gameCamera.position.y = 0 + (camTargetY - 0) * zoomProgress;
+                        if (gameState._updateCamera) gameState._updateCamera();
+                    }
+
+                    // When zoom completes, return to exploration
+                    if (gameState.zoomLevel >= 3.99) {
+                        gameState.zoomLevel = 4;
+                        gameState.encounterTransition = null;
+                        gameState.explorationMode = true;
+                        gameState.savedExplorePos = null;
+
+                        // Check if all formations are defeated → generate level end
+                        const allDefeated = gameState.explorationFormations.every(f => f.defeated);
+                        if (allDefeated) {
+                            // Zoom back in for the reward/gates area
+                            gameState.explorationMode = false;
+                            gameState.zoomTarget = 1;
+                            gameState.zoomLevel = 1;
+                            if (gameCamera) {
+                                gameCamera.position.x = 0;
+                                gameCamera.position.y = 0;
+                            }
+                            if (playerShip) {
+                                playerShip.position.x = 0;
+                                playerShip.position.y = -7;
+                                playerShip.targetX = 0;
+                                playerShip.targetY = -7;
+                            }
+                            if (backgroundMeshA) { backgroundMeshA.position.x = 0; backgroundMeshA.position.y = 0; }
+                            if (backgroundMeshB) { backgroundMeshB.position.x = 0; backgroundMeshB.position.y = 0; }
+                            if (gameState._updateCamera) gameState._updateCamera();
+                            gameState.levelWave = gameState.levelConfig.waveCount;
+                            generateLevelEndContent();
+                        }
+                    }
+
+                    // Move backgrounds with camera during zoom-out
+                    if (backgroundMeshA && gameCamera) {
+                        backgroundMeshA.position.x = gameCamera.position.x;
+                        backgroundMeshA.position.y = gameCamera.position.y;
+                    }
+                    if (backgroundMeshB && gameCamera) {
+                        backgroundMeshB.position.x = gameCamera.position.x;
+                        backgroundMeshB.position.y = gameCamera.position.y;
+                    }
+                    updateBackgrounds(0.3, deltaTime);
+                    return; // Skip normal updates during zoom
+                }
+
+                // ========== EXPLORATION MODE ==========
+                if (gameState.explorationMode) {
+                    const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
+                    updateBackgrounds(scrollMultiplier * 0.3, deltaTime); // Slower background scroll
+
+                    // Camera follows player in exploration
+                    if (gameCamera && playerShip) {
+                        const targetCamX = playerShip.position.x * 0.5;
+                        const targetCamY = playerShip.position.y + 20;
+                        gameCamera.position.x += (targetCamX - gameCamera.position.x) * 0.04 * (deltaTime / 16);
+                        gameCamera.position.y += (targetCamY - gameCamera.position.y) * 0.04 * (deltaTime / 16);
+                        if (gameState._updateCamera) gameState._updateCamera();
+                    }
+
+                    // Update formation patrols
+                    updateFormations(deltaTime);
+
+                    // Pulse detection zone opacity for visual effect
+                    const pulseAlpha = 0.06 + Math.sin(currentTime * 0.003) * 0.03;
+                    const ringAlpha = 0.25 + Math.sin(currentTime * 0.003) * 0.1;
+                    gameState.explorationFormations.forEach(f => {
+                        if (!f.defeated && f.detectionMesh) {
+                            f.detectionMesh.material.alpha = pulseAlpha;
+                        }
+                        if (!f.defeated && f.detectionRingMesh) {
+                            f.detectionRingMesh.material.alpha = ringAlpha;
+                        }
+                    });
+
+                    // Check if player entered a detection zone
+                    const detectedFormation = checkFormationDetection();
+                    if (detectedFormation) {
+                        startCombatEncounter(detectedFormation);
+                    }
+
+                    // Move background plane with camera in exploration mode
+                    if (backgroundMeshA) {
+                        backgroundMeshA.position.x = gameCamera ? gameCamera.position.x : 0;
+                        backgroundMeshA.position.y = gameCamera ? gameCamera.position.y : 0;
+                    }
+                    if (backgroundMeshB) {
+                        backgroundMeshB.position.x = gameCamera ? gameCamera.position.x : 0;
+                        backgroundMeshB.position.y = gameCamera ? gameCamera.position.y : 0;
+                    }
+
+                    return; // Skip normal combat updates in exploration mode
+                }
+
+                // ========== NORMAL COMBAT MODE (encounter or level-end) ==========
                 const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
                 updateBackgrounds(scrollMultiplier, deltaTime);
                 firePlayerWeapons(currentTime);
 
                 gameState.spawnTimer += deltaTime;
                 if (gameState.spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
-                    spawnEnemy();
+                    // Use encounter enemy types if in an encounter
+                    if (gameState._encounterEnemyTypes && gameState._encounterEnemyTypes.length > 0) {
+                        spawnEncounterEnemy();
+                    } else {
+                        spawnEnemy();
+                    }
                     gameState.spawnTimer = 0;
                 }
 
                 // Spawn solar systems with spacing - only during active waves
                 // Stop spawning once level end content (reward + gates) has been generated
                 // Don't spawn in event zones (event object is the focus, no distractions)
-                const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates && !gameState.eventObject;
+                const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates && !gameState.eventObject && !gameState.currentEncounter;
 
                 gameState.nextSolarSystemY -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 if (gameState.nextSolarSystemY < orthoHeight + 10 && shouldSpawnSolarSystems) {
@@ -11237,9 +11919,17 @@
                 updateSuns(scrollMultiplier);
                 applySunLighting();
 
-                // Wave completion - enter exploration mode between waves
-                // Skip this check when an event object is present (event zones handle their own flow)
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.eventObject && !gameState.mysteryEventActive) {
+                // Encounter combat completion - all enemies dead
+                if (gameState.encounterTransition === 'combat' && gameState.currentEncounter) {
+                    if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0) {
+                        gameState.wave++;
+                        gameState.levelWave++;
+                        updateHUD();
+                        onEncounterVictory();
+                    }
+                }
+                // Non-encounter wave completion (level end, stations, etc.)
+                else if (!gameState.currentEncounter && gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.eventObject && !gameState.mysteryEventActive) {
                     gameState.wave++;
                     gameState.levelWave++;
                     updateHUD();
@@ -11757,7 +12447,7 @@
                 spawnArenaWave();
             } else {
                 await resetGame();
-                spawnWave();
+                // resetGame already calls enterExplorationMode
             }
             gameState.isPlaying = true;
         });
