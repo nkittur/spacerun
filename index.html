@@ -9967,13 +9967,20 @@
                 type = 'challenger';
             }
 
+            // Increment SYNCHRONOUSLY before async createEnemy to prevent
+            // the render loop from spawning duplicates while awaiting
+            gameState.enemiesSpawned++;
+
             const maxX = orthoWidth - 1;
             const x = (Math.random() - 0.5) * maxX * 1.5;
             const y = orthoHeight + 2;
 
-            const enemy = await createEnemy(type, x, y);
-            gameState.enemies.push(enemy);
-            gameState.enemiesSpawned++;
+            try {
+                const enemy = await createEnemy(type, x, y);
+                gameState.enemies.push(enemy);
+            } catch(e) {
+                gameState.enemiesSpawned--;
+            }
         }
 
         // Spawn enemy from encounter formation (uses pre-determined types)
@@ -9982,14 +9989,27 @@
             if (!gameState._encounterEnemyTypes || gameState._encounterEnemyTypes.length === 0) return;
 
             const type = gameState._encounterEnemyTypes.shift();
+            // Increment SYNCHRONOUSLY before async createEnemy to prevent
+            // the render loop from spawning duplicates while awaiting
+            gameState.enemiesSpawned++;
 
             const maxX = orthoWidth - 1;
             const x = (Math.random() - 0.5) * maxX * 1.5;
             const y = orthoHeight + 2;
 
-            const enemy = await createEnemy(type, x, y);
-            gameState.enemies.push(enemy);
-            gameState.enemiesSpawned++;
+            try {
+                const enemy = await createEnemy(type, x, y);
+                if (gameState.encounterTransition === 'combat' || gameState.encounterTransition === null) {
+                    gameState.enemies.push(enemy);
+                } else {
+                    // Combat ended while we were loading - dispose the enemy
+                    enemy.getChildMeshes().forEach(m => m.dispose());
+                    enemy.dispose();
+                }
+            } catch(e) {
+                // If creation fails, decrement so the slot can be retried
+                gameState.enemiesSpawned--;
+            }
         }
 
         // ========== EXPLORATION FORMATION SYSTEM ==========
@@ -10294,6 +10314,45 @@
             gameState.encounterTimer = 0;
             gameState.zoomTarget = 4; // Zoom back out
             gameState._encounterEnemyTypes = null;
+
+            // Clean up all combat projectiles and remaining enemies
+            gameState.enemyBullets.forEach(b => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                b.getChildMeshes().forEach(m => m.dispose());
+                b.dispose();
+            });
+            gameState.enemyBullets = [];
+
+            gameState.playerBullets.forEach(b => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                b.getChildMeshes().forEach(m => m.dispose());
+                b.dispose();
+            });
+            gameState.playerBullets = [];
+
+            if (gameState.challengerLasers) {
+                gameState.challengerLasers.forEach(l => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(l);
+                    l.dispose();
+                });
+                gameState.challengerLasers = [];
+            }
+
+            cleanupMissiles();
+
+            // Clean up any remaining enemies
+            gameState.enemies.forEach(e => {
+                e.getChildMeshes().forEach(m => m.dispose());
+                e.dispose();
+            });
+            gameState.enemies = [];
+
+            // Clean up loot drops from combat
+            gameState.loot.forEach(l => {
+                l.getChildMeshes().forEach(m => m.dispose());
+                l.dispose();
+            });
+            gameState.loot = [];
 
             // Show remaining formation meshes
             gameState.explorationFormations.forEach(f => {
