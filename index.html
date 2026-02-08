@@ -5121,8 +5121,9 @@
 
         // Create background meshes
         function createBackgrounds() {
-            // Make background large enough to cover 4x zoom exploration view
+            // Physical size large enough for 4x zoom, UV scale stays at normal density
             const bgSize = Math.max(orthoWidth, orthoHeight) * 12;
+            const uvBase = Math.max(orthoWidth, orthoHeight) * 3; // Original UV scale
 
             // Background A (current)
             backgroundMeshA = BABYLON.MeshBuilder.CreatePlane('backgroundA', { width: bgSize, height: bgSize * 2 }, scene);
@@ -5131,8 +5132,8 @@
 
             backgroundMaterialA = new BABYLON.StandardMaterial('bgMatA', scene);
             const textureA = new BABYLON.Texture(getBackgroundPath(0), scene);
-            textureA.uScale = bgSize / 20;
-            textureA.vScale = bgSize * 2 / 20;
+            textureA.uScale = uvBase / 20;
+            textureA.vScale = uvBase * 2 / 20;
             textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
             textureA.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
             backgroundMaterialA.diffuseTexture = textureA;
@@ -5173,10 +5174,10 @@
 
         // Load texture into background B for transition
         function loadTransitionTexture(path) {
-            const bgSize = Math.max(orthoWidth, orthoHeight) * 12;
+            const uvBase = Math.max(orthoWidth, orthoHeight) * 3; // Original UV scale
             const texture = new BABYLON.Texture(path, scene);
-            texture.uScale = bgSize / 20;
-            texture.vScale = bgSize * 2 / 20;
+            texture.uScale = uvBase / 20;
+            texture.vScale = uvBase * 2 / 20;
             texture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
             texture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
             // Match current scroll offset
@@ -7479,10 +7480,10 @@
             // Update background texture
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.dispose();
-                const bgSize = Math.max(orthoWidth, orthoHeight) * 12;
+                const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
                 const newTexture = new BABYLON.Texture(getBackgroundPath(newZone), scene);
-                newTexture.uScale = bgSize / 20;
-                newTexture.vScale = bgSize * 2 / 20;
+                newTexture.uScale = uvBase / 20;
+                newTexture.vScale = uvBase * 2 / 20;
                 newTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
                 newTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
                 newTexture.vOffset = 0;
@@ -10255,7 +10256,8 @@
             gameState.encounterTransition = 'combat';
             gameState.enemiesInWave = formation.enemyCount;
             gameState.enemiesSpawned = 0;
-            gameState.spawnTimer = 0;
+            // Start timer past threshold so first enemy spawns immediately
+            gameState.spawnTimer = 1000;
 
             // Override the spawn types with formation's pre-determined types
             gameState._encounterEnemyTypes = [...formation.enemyTypes];
@@ -11049,10 +11051,10 @@
             // Reset background to first zone
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.dispose();
-                const bgSize = Math.max(orthoWidth, orthoHeight) * 12;
+                const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
                 const textureA = new BABYLON.Texture(getBackgroundPath(0), scene);
-                textureA.uScale = bgSize / 20;
-                textureA.vScale = bgSize * 2 / 20;
+                textureA.uScale = uvBase / 20;
+                textureA.vScale = uvBase * 2 / 20;
                 textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
                 textureA.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
                 textureA.vOffset = 0;
@@ -11329,10 +11331,10 @@
             // Update zone background
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.dispose();
-                const bgSize = Math.max(orthoWidth, orthoHeight) * 12;
+                const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
                 const textureA = new BABYLON.Texture(getBackgroundPath(gameState.currentZone, gameState.currentZoneVariant), scene);
-                textureA.uScale = bgSize / 20;
-                textureA.vScale = bgSize * 2 / 20;
+                textureA.uScale = uvBase / 20;
+                textureA.vScale = uvBase * 2 / 20;
                 textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
                 textureA.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
                 textureA.vOffset = 0;
@@ -11700,9 +11702,9 @@
 
                 // ========== ZOOM ANIMATION ==========
                 if (Math.abs(gameState.zoomLevel - gameState.zoomTarget) > 0.005) {
-                    const zoomLerp = 0.04;
+                    const zoomLerp = 0.12; // Fast, snappy zoom transition
                     gameState.zoomLevel += (gameState.zoomTarget - gameState.zoomLevel) * zoomLerp * (deltaTime / 16);
-                    if (Math.abs(gameState.zoomLevel - gameState.zoomTarget) < 0.01) {
+                    if (Math.abs(gameState.zoomLevel - gameState.zoomTarget) < 0.05) {
                         gameState.zoomLevel = gameState.zoomTarget;
                     }
                     if (gameState._updateCamera) gameState._updateCamera();
@@ -11896,9 +11898,14 @@
 
                 gameState.spawnTimer += deltaTime;
                 if (gameState.spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
-                    // Use encounter enemy types if in an encounter
-                    if (gameState._encounterEnemyTypes && gameState._encounterEnemyTypes.length > 0) {
-                        spawnEncounterEnemy();
+                    // Use encounter enemy types if in an encounter, fallback to regular spawn
+                    if (gameState.encounterTransition === 'combat' && gameState._encounterEnemyTypes) {
+                        if (gameState._encounterEnemyTypes.length > 0) {
+                            spawnEncounterEnemy();
+                        } else {
+                            // Fallback: types array exhausted but enemies remain - use regular spawn
+                            spawnEnemy();
+                        }
                     } else {
                         spawnEnemy();
                     }
