@@ -4003,6 +4003,7 @@
             zoomTarget: 1,                  // Target zoom for smooth interpolation
             explorationCameraPos: {x: 0, y: 0}, // Camera position during exploration
             formationsDefeated: 0,          // Count of defeated formations this level
+            explorationGoal: null,          // Goal sun at top of exploration map
             arenaMode: false,       // Arena mode active
             arenaConfig: null,      // Arena configuration
             arenaWave: 0,           // Current arena wave
@@ -5048,6 +5049,18 @@
                 camera.orthoRight = effectiveOrtho * aspect;
                 // Camera position determines the center of the view in world space
                 camera.setTarget(new BABYLON.Vector3(camera.position.x, camera.position.y, 0));
+
+                // Scale background UV to compensate for zoom so pattern density stays constant
+                const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
+                const zoomUV = gameState.zoomLevel; // UV multiplier matches zoom
+                if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
+                    backgroundMaterialA.diffuseTexture.uScale = (uvBase / 20) * zoomUV;
+                    backgroundMaterialA.diffuseTexture.vScale = (uvBase * 2 / 20) * zoomUV;
+                }
+                if (backgroundMaterialB && backgroundMaterialB.diffuseTexture) {
+                    backgroundMaterialB.diffuseTexture.uScale = (uvBase / 20) * zoomUV;
+                    backgroundMaterialB.diffuseTexture.vScale = (uvBase * 2 / 20) * zoomUV;
+                }
             }
             updateCamera();
             // Store updateCamera for use in render loop
@@ -10021,6 +10034,9 @@
             const mapSpreadY = 40 * 4; // Vertical space for formations (zoomed-out scale)
             const mapSpreadX = orthoWidth * 3; // Horizontal spread
 
+            // Enemy type power ranking for visual representation
+            const typePower = { 'basic': 0, 'fast': 1, 'shooter': 2, 'light': 3, 'heavy': 4, 'challenger': 5 };
+
             for (let i = 0; i < numFormations; i++) {
                 // Distribute formations vertically from 40 to mapSpreadY
                 const baseY = 40 + (i + 0.5) * (mapSpreadY / numFormations);
@@ -10050,8 +10066,26 @@
                     enemyTypes.push(type);
                 }
 
-                // Detection radius scales with enemy count
-                const detectionRadius = 10 + Math.min(enemyCount * 0.3, 5);
+                // Find the most powerful enemy type for visual representation
+                let strongestType = 'basic';
+                enemyTypes.forEach(t => {
+                    if ((typePower[t] || 0) > (typePower[strongestType] || 0)) {
+                        strongestType = t;
+                    }
+                });
+
+                // Detection radius - subtle, scales slightly with enemy count
+                const detectionRadius = 8 + Math.min(enemyCount * 0.2, 4);
+
+                // Natural wandering path - each formation gets random waypoints
+                const numWaypoints = 3 + Math.floor(Math.random() * 3); // 3-5 waypoints
+                const waypoints = [];
+                for (let w = 0; w < numWaypoints; w++) {
+                    waypoints.push({
+                        x: baseX + (Math.random() - 0.5) * 30,
+                        y: baseY + (Math.random() - 0.5) * 20
+                    });
+                }
 
                 formations.push({
                     id: i,
@@ -10060,13 +10094,16 @@
                     currentX: baseX,
                     currentY: baseY,
                     detectionRadius: detectionRadius,
-                    patrolAngle: Math.random() * Math.PI * 2,
-                    patrolRadius: 6 + Math.random() * 10,
-                    patrolSpeed: 0.0003 + Math.random() * 0.0004,
+                    // Waypoint-based natural movement
+                    waypoints: waypoints,
+                    waypointIndex: 0,
+                    moveSpeed: 0.003 + Math.random() * 0.004, // Units per ms
+                    heading: Math.random() * Math.PI * 2,
                     enemyCount: enemyCount,
                     enemyTypes: enemyTypes,
+                    strongestType: strongestType,
                     defeated: false,
-                    meshes: [],          // Ship indicator meshes
+                    meshes: [],          // Ship model mesh
                     detectionMesh: null,  // Red detection zone disc
                     detectionRingMesh: null // Red ring outline
                 });
@@ -10076,10 +10113,10 @@
         }
 
         // Create visual meshes for a formation on the exploration map
-        function createFormationVisuals(formation) {
+        async function createFormationVisuals(formation) {
             if (!scene) return;
 
-            // Detection zone - red transparent disc
+            // Detection zone - subtle red transparent disc
             const disc = BABYLON.MeshBuilder.CreateDisc('detectionZone_' + formation.id, {
                 radius: formation.detectionRadius,
                 tessellation: 48
@@ -10090,19 +10127,17 @@
             disc.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
 
             const discMat = new BABYLON.StandardMaterial('detectionMat_' + formation.id, scene);
-            discMat.emissiveColor = new BABYLON.Color3(0.6, 0.05, 0.05);
-            discMat.alpha = 0.08;
+            discMat.emissiveColor = new BABYLON.Color3(0.5, 0.03, 0.03);
+            discMat.alpha = 0.05;
             discMat.disableLighting = true;
             discMat.backFaceCulling = false;
             disc.material = discMat;
             formation.detectionMesh = disc;
 
-            // Detection zone ring outline (brighter edge)
-            const ringOuter = formation.detectionRadius;
-            const ringInner = formation.detectionRadius - 0.4;
+            // Subtle detection zone ring outline
             const ring = BABYLON.MeshBuilder.CreateTorus('detectionRing_' + formation.id, {
-                diameter: ringOuter * 2,
-                thickness: 0.5,
+                diameter: formation.detectionRadius * 2,
+                thickness: 0.3,
                 tessellation: 48
             }, scene);
             ring.position.x = formation.currentX;
@@ -10111,8 +10146,8 @@
             ring.rotation.x = Math.PI / 2;
 
             const ringMat = new BABYLON.StandardMaterial('ringMat_' + formation.id, scene);
-            ringMat.emissiveColor = new BABYLON.Color3(1.0, 0.15, 0.1);
-            ringMat.alpha = 0.35;
+            ringMat.emissiveColor = new BABYLON.Color3(0.8, 0.1, 0.08);
+            ringMat.alpha = 0.15;
             ringMat.disableLighting = true;
             ringMat.backFaceCulling = false;
             ring.material = ringMat;
@@ -10128,99 +10163,105 @@
                 lootGlowLayer.addExcludedMesh(ring);
             }
 
-            // Create ship indicator meshes arranged in formation pattern
-            const displayCount = Math.min(formation.enemyCount, 8);
-            const cols = Math.min(displayCount, 4);
-            const rows = Math.ceil(displayCount / cols);
+            // Load the actual strongest enemy ship model as the patrol visual
+            let shipModel, shipColor;
+            switch (formation.strongestType) {
+                case 'light':
+                    shipModel = 'Dispatcher'; shipColor = 'Purple'; break;
+                case 'heavy':
+                    shipModel = 'Imperial'; shipColor = 'Orange'; break;
+                case 'challenger':
+                    shipModel = 'Executioner'; shipColor = 'Red'; break;
+                default:
+                    shipModel = settings.enemyShip; shipColor = settings.enemyColor; break;
+            }
 
-            for (let j = 0; j < displayCount; j++) {
-                const row = Math.floor(j / cols);
-                const col = j % cols;
-                const offsetX = (col - (cols - 1) / 2) * 2.5;
-                const offsetY = (row - (rows - 1) / 2) * 2.2;
+            try {
+                const shipMesh = await loadShipModel(shipModel, shipColor, scene, 'down');
+                shipMesh.position.x = formation.currentX;
+                shipMesh.position.y = formation.currentY;
+                shipMesh.position.z = 0.1;
+                // Scale up the ship so it's visible in the zoomed-out view
+                shipMesh.scaling.scaleInPlace(3);
 
-                // Small triangle indicator for each ship
-                const indicator = BABYLON.MeshBuilder.CreateDisc('formShip_' + formation.id + '_' + j, {
-                    radius: 0.8,
+                // Exclude from glow layers
+                const shipMeshes = shipMesh.getChildMeshes(false) || [];
+                shipMeshes.push(shipMesh);
+                shipMeshes.forEach(m => {
+                    if (sunGlowLayer) sunGlowLayer.addExcludedMesh(m);
+                    if (lootGlowLayer) lootGlowLayer.addExcludedMesh(m);
+                    m.renderingGroupId = 2;
+                });
+
+                formation.meshes.push(shipMesh);
+            } catch (e) {
+                // Fallback: simple triangle indicator if model fails to load
+                const indicator = BABYLON.MeshBuilder.CreateDisc('formShip_' + formation.id, {
+                    radius: 1.5,
                     tessellation: 3
                 }, scene);
-                indicator.position.x = formation.currentX + offsetX;
-                indicator.position.y = formation.currentY + offsetY;
+                indicator.position.x = formation.currentX;
+                indicator.position.y = formation.currentY;
                 indicator.position.z = 0.1;
-                indicator.rotation.z = Math.PI; // Point downward (enemy facing)
+                indicator.rotation.z = Math.PI;
 
-                const mat = new BABYLON.StandardMaterial('formShipMat_' + formation.id + '_' + j, scene);
+                const mat = new BABYLON.StandardMaterial('formShipMat_' + formation.id, scene);
                 mat.emissiveColor = new BABYLON.Color3(1.0, 0.35, 0.2);
                 mat.disableLighting = true;
                 mat.backFaceCulling = false;
                 indicator.material = mat;
 
-                // Exclude from glow
                 if (sunGlowLayer) sunGlowLayer.addExcludedMesh(indicator);
                 if (lootGlowLayer) lootGlowLayer.addExcludedMesh(indicator);
 
                 formation.meshes.push(indicator);
             }
-
-            // Add enemy count text as a small number near the formation
-            const countPlane = BABYLON.MeshBuilder.CreatePlane('formCount_' + formation.id, { width: 4, height: 2 }, scene);
-            countPlane.position.x = formation.currentX;
-            countPlane.position.y = formation.currentY - (rows * 1.1 + 2);
-            countPlane.position.z = 0.05;
-
-            // Dynamic texture for count display
-            const countTex = new BABYLON.DynamicTexture('formCountTex_' + formation.id, { width: 128, height: 64 }, scene, false);
-            countTex.hasAlpha = true;
-            const ctx = countTex.getContext();
-            ctx.clearRect(0, 0, 128, 64);
-            ctx.font = 'bold 32px Arial';
-            ctx.fillStyle = '#ff6644';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('x' + formation.enemyCount, 64, 32);
-            countTex.update();
-
-            const countMat = new BABYLON.StandardMaterial('formCountMat_' + formation.id, scene);
-            countMat.diffuseTexture = countTex;
-            countMat.emissiveTexture = countTex;
-            countMat.useAlphaFromDiffuseTexture = true;
-            countMat.disableLighting = true;
-            countMat.backFaceCulling = false;
-            countPlane.material = countMat;
-
-            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(countPlane);
-            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(countPlane);
-
-            formation.meshes.push(countPlane);
         }
 
-        // Update formation patrol movement
+        // Update formation patrol movement - natural wandering paths
         function updateFormations(deltaTime) {
             gameState.explorationFormations.forEach(f => {
                 if (f.defeated) return;
 
-                // Circular patrol around base position
-                f.patrolAngle += f.patrolSpeed * deltaTime;
-                const newX = f.baseX + Math.cos(f.patrolAngle) * f.patrolRadius;
-                const newY = f.baseY + Math.sin(f.patrolAngle) * f.patrolRadius * 0.6;
+                // Move toward current waypoint
+                const wp = f.waypoints[f.waypointIndex];
+                const dx = wp.x - f.currentX;
+                const dy = wp.y - f.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
 
-                const dx = newX - f.currentX;
-                const dy = newY - f.currentY;
-                f.currentX = newX;
-                f.currentY = newY;
+                if (dist < 2) {
+                    // Reached waypoint, move to next
+                    f.waypointIndex = (f.waypointIndex + 1) % f.waypoints.length;
+                } else {
+                    // Smoothly turn toward waypoint (natural steering)
+                    const targetHeading = Math.atan2(dy, dx);
+                    let headingDiff = targetHeading - f.heading;
+                    // Normalize to -PI..PI
+                    while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
+                    while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
+                    f.heading += headingDiff * 0.002 * deltaTime; // Gentle turn rate
 
-                // Move all meshes with the formation
+                    const moveAmount = f.moveSpeed * deltaTime;
+                    const moveX = Math.cos(f.heading) * moveAmount;
+                    const moveY = Math.sin(f.heading) * moveAmount;
+                    f.currentX += moveX;
+                    f.currentY += moveY;
+                }
+
+                // Update mesh positions
                 if (f.detectionMesh) {
-                    f.detectionMesh.position.x = newX;
-                    f.detectionMesh.position.y = newY;
+                    f.detectionMesh.position.x = f.currentX;
+                    f.detectionMesh.position.y = f.currentY;
                 }
                 if (f.detectionRingMesh) {
-                    f.detectionRingMesh.position.x = newX;
-                    f.detectionRingMesh.position.y = newY;
+                    f.detectionRingMesh.position.x = f.currentX;
+                    f.detectionRingMesh.position.y = f.currentY;
                 }
-                f.meshes.forEach((mesh, i) => {
-                    mesh.position.x += dx;
-                    mesh.position.y += dy;
+                f.meshes.forEach(mesh => {
+                    mesh.position.x = f.currentX;
+                    mesh.position.y = f.currentY;
+                    // Rotate the ship mesh to face movement direction
+                    mesh.rotation.z = -f.heading + Math.PI / 2;
                 });
             });
         }
@@ -10251,6 +10292,11 @@
             gameState.encounterTimer = 0;
             gameState.zoomTarget = 1; // Zoom to normal view
 
+            // Reset player ship scale back to normal for combat
+            if (playerShipMesh) {
+                playerShipMesh.scaling.scaleInPlace(0.5);
+            }
+
             // Save player's exploration position
             gameState.savedExplorePos = {
                 x: playerShip.position.x,
@@ -10263,12 +10309,15 @@
                 y: gameCamera ? gameCamera.position.y : 0
             };
 
-            // Hide all formation meshes during combat
+            // Hide all formation meshes and goal during combat
             gameState.explorationFormations.forEach(f => {
                 if (f.detectionMesh) f.detectionMesh.setEnabled(false);
                 if (f.detectionRingMesh) f.detectionRingMesh.setEnabled(false);
                 f.meshes.forEach(m => m.setEnabled(false));
             });
+            if (gameState.explorationGoal && gameState.explorationGoal.node) {
+                gameState.explorationGoal.node.setEnabled(false);
+            }
         }
 
         // Spawn the encounter's enemies after zoom-in completes
@@ -10305,7 +10354,10 @@
                     formation.detectionRingMesh.dispose();
                     formation.detectionRingMesh = null;
                 }
-                formation.meshes.forEach(m => m.dispose());
+                formation.meshes.forEach(m => {
+                    m.getChildMeshes().forEach(cm => cm.dispose());
+                    m.dispose();
+                });
                 formation.meshes = [];
             }
 
@@ -10354,7 +10406,7 @@
             });
             gameState.loot = [];
 
-            // Show remaining formation meshes
+            // Show remaining formation meshes and goal
             gameState.explorationFormations.forEach(f => {
                 if (!f.defeated) {
                     if (f.detectionMesh) f.detectionMesh.setEnabled(true);
@@ -10362,6 +10414,9 @@
                     f.meshes.forEach(m => m.setEnabled(true));
                 }
             });
+            if (gameState.explorationGoal && gameState.explorationGoal.node) {
+                gameState.explorationGoal.node.setEnabled(true);
+            }
         }
 
         // Dispose all formation meshes (for level cleanup)
@@ -10369,7 +10424,10 @@
             gameState.explorationFormations.forEach(f => {
                 if (f.detectionMesh) f.detectionMesh.dispose();
                 if (f.detectionRingMesh) f.detectionRingMesh.dispose();
-                f.meshes.forEach(m => m.dispose());
+                f.meshes.forEach(m => {
+                    m.getChildMeshes().forEach(cm => cm.dispose());
+                    m.dispose();
+                });
                 f.meshes = [];
             });
             gameState.explorationFormations = [];
@@ -10377,6 +10435,123 @@
             gameState.encounterTransition = null;
             gameState.formationsDefeated = 0;
             gameState._encounterEnemyTypes = null;
+            cleanupExplorationGoal();
+        }
+
+        // Create the goal sun at the top of the exploration map
+        function createExplorationGoal() {
+            if (!scene || gameState.explorationGoal) return;
+
+            // Place goal beyond the formations
+            const mapSpreadY = 40 * 4;
+            const goalY = mapSpreadY + 50; // Past all formations
+            const goalX = 0;
+
+            // Create a mini sun
+            const sunTypeKeys = Object.keys(SUN_TYPES);
+            const sunTypeKey = sunTypeKeys[Math.floor(Math.random() * sunTypeKeys.length)];
+            const sunType = SUN_TYPES[sunTypeKey];
+
+            const variant = Math.floor(Math.random() * 5) + 1;
+            const variantStr = variant.toString().padStart(2, '0');
+            const imagePath = `assets/Medium Planets 256x256/Suns/${sunType.folder}/${sunType.prefix}_${variantStr}-256x256.png`;
+
+            const sunSize = 6;
+            const goalNode = new BABYLON.TransformNode('explorationGoal', scene);
+            goalNode.position.x = goalX;
+            goalNode.position.y = goalY;
+            goalNode.position.z = 1;
+
+            // Corona glow
+            const coronaSize = sunSize * 3;
+            const corona = BABYLON.MeshBuilder.CreatePlane('goalCorona', { size: coronaSize }, scene);
+            corona.parent = goalNode;
+            corona.position.z = 0.1;
+            const coronaTexture = createCoronaTexture(sunType.tint);
+            const coronaMat = new BABYLON.StandardMaterial('goalCoronaMat', scene);
+            coronaMat.diffuseTexture = coronaTexture;
+            coronaMat.emissiveTexture = coronaTexture;
+            coronaMat.opacityTexture = coronaTexture;
+            coronaMat.useAlphaFromDiffuseTexture = true;
+            coronaMat.disableLighting = true;
+            coronaMat.backFaceCulling = false;
+            coronaMat.disableDepthWrite = true;
+            corona.material = coronaMat;
+            corona.renderingGroupId = 1;
+
+            // Sun disc
+            const sun = BABYLON.MeshBuilder.CreatePlane('goalSun', { size: sunSize }, scene);
+            sun.parent = goalNode;
+            sun.position.z = 0;
+            const texture = new BABYLON.Texture(imagePath, scene);
+            texture.hasAlpha = true;
+            const mat = new BABYLON.StandardMaterial('goalSunMat', scene);
+            mat.diffuseTexture = texture;
+            mat.emissiveTexture = texture;
+            mat.emissiveColor = new BABYLON.Color3(sunType.tint[0], sunType.tint[1], sunType.tint[2]);
+            mat.useAlphaFromDiffuseTexture = true;
+            mat.backFaceCulling = false;
+            mat.disableLighting = true;
+            mat.disableDepthWrite = true;
+            sun.material = mat;
+            sun.renderingGroupId = 1;
+
+            // "System" label below the sun
+            const labelPlane = BABYLON.MeshBuilder.CreatePlane('goalLabel', { width: 12, height: 3 }, scene);
+            labelPlane.parent = goalNode;
+            labelPlane.position.y = -sunSize - 1;
+            labelPlane.position.z = 0;
+            const labelTex = new BABYLON.DynamicTexture('goalLabelTex', { width: 256, height: 64 }, scene, false);
+            labelTex.hasAlpha = true;
+            const ctx = labelTex.getContext();
+            ctx.clearRect(0, 0, 256, 64);
+            ctx.font = 'bold 28px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('★ System', 128, 32);
+            labelTex.update();
+            const labelMat = new BABYLON.StandardMaterial('goalLabelMat', scene);
+            labelMat.diffuseTexture = labelTex;
+            labelMat.emissiveTexture = labelTex;
+            labelMat.useAlphaFromDiffuseTexture = true;
+            labelMat.disableLighting = true;
+            labelMat.backFaceCulling = false;
+            labelPlane.material = labelMat;
+
+            // Exclude from glow layers
+            const allMeshes = goalNode.getChildMeshes(false);
+            allMeshes.forEach(m => {
+                if (sunGlowLayer) sunGlowLayer.addExcludedMesh(m);
+                if (lootGlowLayer) lootGlowLayer.addExcludedMesh(m);
+            });
+
+            gameState.explorationGoal = {
+                node: goalNode,
+                x: goalX,
+                y: goalY,
+                radius: sunSize * 1.5, // Detection radius to trigger level end
+                tint: sunType.tint
+            };
+        }
+
+        // Clean up exploration goal
+        function cleanupExplorationGoal() {
+            if (gameState.explorationGoal && gameState.explorationGoal.node) {
+                gameState.explorationGoal.node.getChildMeshes().forEach(m => m.dispose());
+                gameState.explorationGoal.node.dispose();
+            }
+            gameState.explorationGoal = null;
+        }
+
+        // Check if player reached the exploration goal
+        function checkExplorationGoalReached() {
+            if (!playerShip || !gameState.explorationGoal) return false;
+            const goal = gameState.explorationGoal;
+            const dx = playerShip.position.x - goal.x;
+            const dy = playerShip.position.y - goal.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            return dist < goal.radius;
         }
 
         // Enter exploration mode for a level
@@ -10402,6 +10577,10 @@
 
                 // Create visual representations
                 gameState.explorationFormations.forEach(f => createFormationVisuals(f));
+
+                // Create goal sun at top of exploration map
+                cleanupExplorationGoal();
+                createExplorationGoal();
             } else {
                 // Re-show existing formation meshes
                 gameState.explorationFormations.forEach(f => {
@@ -10411,6 +10590,10 @@
                         f.meshes.forEach(m => m.setEnabled(true));
                     }
                 });
+                // Re-show goal if it exists
+                if (gameState.explorationGoal && gameState.explorationGoal.node) {
+                    gameState.explorationGoal.node.setEnabled(true);
+                }
             }
 
             // Position player at bottom of exploration area
@@ -10419,6 +10602,11 @@
                 playerShip.position.y = 0;
                 playerShip.targetX = 0;
                 playerShip.targetY = 0;
+            }
+
+            // Scale player ship up 2x for visibility in zoomed-out view
+            if (playerShipMesh) {
+                playerShipMesh.scaling.scaleInPlace(2);
             }
 
             // Set camera to follow player
@@ -11830,6 +12018,10 @@
                     // Wait for timer then zoom back out
                     gameState.encounterTimer -= deltaTime;
                     updateBackgrounds(0.3, deltaTime);
+                    // Keep updating bullets/projectiles so they don't freeze in place
+                    updateBullets();
+                    updateMissiles(deltaTime);
+                    updateChallengerLasers();
                     if (gameState.encounterTimer <= 0) {
                         returnToExploration();
                     }
@@ -11862,31 +12054,12 @@
                         gameState.zoomLevel = 4;
                         gameState.encounterTransition = null;
                         gameState.explorationMode = true;
-                        gameState.savedExplorePos = null;
 
-                        // Check if all formations are defeated → generate level end
-                        const allDefeated = gameState.explorationFormations.every(f => f.defeated);
-                        if (allDefeated) {
-                            // Zoom back in for the reward/gates area
-                            gameState.explorationMode = false;
-                            gameState.zoomTarget = 1;
-                            gameState.zoomLevel = 1;
-                            if (gameCamera) {
-                                gameCamera.position.x = 0;
-                                gameCamera.position.y = 0;
-                            }
-                            if (playerShip) {
-                                playerShip.position.x = 0;
-                                playerShip.position.y = -7;
-                                playerShip.targetX = 0;
-                                playerShip.targetY = -7;
-                            }
-                            if (backgroundMeshA) { backgroundMeshA.position.x = 0; backgroundMeshA.position.y = 0; }
-                            if (backgroundMeshB) { backgroundMeshB.position.x = 0; backgroundMeshB.position.y = 0; }
-                            if (gameState._updateCamera) gameState._updateCamera();
-                            gameState.levelWave = gameState.levelConfig.waveCount;
-                            generateLevelEndContent();
+                        // Scale player ship back up for exploration visibility
+                        if (playerShipMesh) {
+                            playerShipMesh.scaling.scaleInPlace(2);
                         }
+                        gameState.savedExplorePos = null;
                     }
 
                     // Move backgrounds with camera during zoom-out
@@ -11919,9 +12092,9 @@
                     // Update formation patrols
                     updateFormations(deltaTime);
 
-                    // Pulse detection zone opacity for visual effect
-                    const pulseAlpha = 0.06 + Math.sin(currentTime * 0.003) * 0.03;
-                    const ringAlpha = 0.25 + Math.sin(currentTime * 0.003) * 0.1;
+                    // Pulse detection zone opacity for subtle visual effect
+                    const pulseAlpha = 0.04 + Math.sin(currentTime * 0.002) * 0.02;
+                    const ringAlpha = 0.12 + Math.sin(currentTime * 0.002) * 0.05;
                     gameState.explorationFormations.forEach(f => {
                         if (!f.defeated && f.detectionMesh) {
                             f.detectionMesh.material.alpha = pulseAlpha;
@@ -11935,6 +12108,36 @@
                     const detectedFormation = checkFormationDetection();
                     if (detectedFormation) {
                         startCombatEncounter(detectedFormation);
+                    }
+
+                    // Check if player reached the goal system
+                    if (checkExplorationGoalReached()) {
+                        // Scale player ship back to normal
+                        if (playerShipMesh) {
+                            playerShipMesh.scaling.scaleInPlace(0.5);
+                        }
+                        // Clean up exploration visuals
+                        cleanupFormations();
+                        // Transition to system/reward view
+                        gameState.explorationMode = false;
+                        gameState.zoomTarget = 1;
+                        gameState.zoomLevel = 1;
+                        if (gameCamera) {
+                            gameCamera.position.x = 0;
+                            gameCamera.position.y = 0;
+                        }
+                        if (playerShip) {
+                            playerShip.position.x = 0;
+                            playerShip.position.y = -7;
+                            playerShip.targetX = 0;
+                            playerShip.targetY = -7;
+                        }
+                        if (backgroundMeshA) { backgroundMeshA.position.x = 0; backgroundMeshA.position.y = 0; }
+                        if (backgroundMeshB) { backgroundMeshB.position.x = 0; backgroundMeshB.position.y = 0; }
+                        if (gameState._updateCamera) gameState._updateCamera();
+                        gameState.levelWave = gameState.levelConfig.waveCount;
+                        generateLevelEndContent();
+                        return;
                     }
 
                     // Move background plane with camera in exploration mode
