@@ -12099,12 +12099,14 @@
                     const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
                     updateBackgrounds(scrollMultiplier * 0.3, deltaTime); // Slower background scroll
 
-                    // Camera follows player in exploration
+                    // Camera follows player in exploration - tight follow, no visible drift
                     if (gameCamera && playerShip) {
                         const targetCamX = playerShip.position.x;
                         const targetCamY = playerShip.position.y + 15;
-                        gameCamera.position.x += (targetCamX - gameCamera.position.x) * 0.04 * (deltaTime / 16);
-                        gameCamera.position.y += (targetCamY - gameCamera.position.y) * 0.04 * (deltaTime / 16);
+                        // Snap camera to player with very tight lerp
+                        const camLerp = Math.min(1.0, 0.2 * (deltaTime / 16));
+                        gameCamera.position.x += (targetCamX - gameCamera.position.x) * camLerp;
+                        gameCamera.position.y += (targetCamY - gameCamera.position.y) * camLerp;
                         if (gameState._updateCamera) gameState._updateCamera();
                     }
 
