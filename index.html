@@ -9091,9 +9091,8 @@
             const godModeSpeedMult = settings.godMode ? 3.0 : 1.0;
 
             if (gameState.explorationMode) {
-                // Exploration mode: identical input to combat, just scaled for zoom
-                const exploreSpeedMult = gameState.zoomLevel * 1.5;
-                const keySpeed = 0.004 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * exploreSpeedMult * deltaTime;
+                // Exploration mode: same input as combat, ship stays within screen bounds
+                const keySpeed = 0.004 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * deltaTime;
                 if (keyState.left) playerShip.targetX -= keySpeed;
                 if (keyState.right) playerShip.targetX += keySpeed;
                 if (keyState.up) playerShip.targetY += keySpeed;
@@ -9146,13 +9145,16 @@
                 }
             }
 
-            // In exploration mode, allow movement across the entire map
+            // Both modes use screen-relative bounds
             if (gameState.explorationMode) {
-                const mapHalfWidth = orthoWidth * 4;
-                const mapMaxY = 220; // Top of the exploration map
-                const mapMinY = -20;
-                playerShip.targetX = Math.max(-mapHalfWidth, Math.min(mapHalfWidth, playerShip.targetX));
-                playerShip.targetY = Math.max(mapMinY, Math.min(mapMaxY, playerShip.targetY));
+                // Same bounds as combat but scaled for zoom
+                const eOrthoW = orthoWidth * gameState.zoomLevel;
+                const eOrthoH = orthoHeight * gameState.zoomLevel;
+                const maxX = eOrthoW - 1;
+                playerShip.targetX = Math.max(-maxX, Math.min(maxX, playerShip.targetX));
+                const minY = -eOrthoH + 1;
+                const maxY = -eOrthoH + (eOrthoH * 2 * settings.maxHeight);
+                playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
             } else {
                 // Allow wider movement when gates are showing so player can commit to a side
                 const maxX = gameState.showingGates ? orthoWidth + 2 : orthoWidth - 1;
@@ -10639,12 +10641,12 @@
                 }
             }
 
-            // Position player at bottom of exploration area
+            // Position player at normal combat starting position
             if (playerShip) {
                 playerShip.position.x = 0;
-                playerShip.position.y = 0;
+                playerShip.position.y = -7;
                 playerShip.targetX = 0;
-                playerShip.targetY = 0;
+                playerShip.targetY = -7;
             }
 
             // Scale player ship up 2x for visibility in zoomed-out view
@@ -10652,11 +10654,11 @@
                 playerShipMesh.scaling.scaleInPlace(2);
             }
 
-            // Set camera to follow player
+            // Camera stays fixed at origin (world scrolls toward player)
             if (gameCamera) {
                 gameCamera.position.x = 0;
-                gameCamera.position.y = 15; // Look ahead of player
-                gameState.explorationCameraPos = { x: 0, y: 15 };
+                gameCamera.position.y = 0;
+                gameState.explorationCameraPos = { x: 0, y: 0 };
             }
 
             // Update camera for new zoom
@@ -12236,37 +12238,33 @@
 
                 // ========== EXPLORATION MODE ==========
                 if (gameState.explorationMode) {
+                    // Same player movement and background scroll as combat
                     const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
-                    updateBackgrounds(scrollMultiplier * 0.3, deltaTime); // Slower background scroll
+                    updateBackgrounds(scrollMultiplier, deltaTime);
 
-                    // Camera follows player with dead zone - camera only moves when
-                    // the player approaches the edge of the visible area. This prevents
-                    // enemies from appearing to shift when the player makes small movements.
-                    if (gameCamera && playerShip) {
-                        const effectiveOrtho = orthoHeight * gameState.zoomLevel;
-                        const camAspect = gameWidth / gameHeight;
-                        // Dead zone: player can move within 60% of visible area before camera scrolls
-                        const dzX = effectiveOrtho * camAspect * 0.6;
-                        const dzY = effectiveOrtho * 0.5;
+                    // Camera fixed at (0,0) - world scrolls toward player
+                    // Auto-scroll formations and goal downward
+                    const exploreScrollSpeed = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                    const scrollDist = exploreScrollSpeed * deltaTime;
 
-                        let targetCamX = gameCamera.position.x;
-                        let targetCamY = gameCamera.position.y;
+                    // Scroll all formations downward
+                    gameState.explorationFormations.forEach(f => {
+                        if (f.defeated) return;
+                        f.currentY -= scrollDist;
+                        f.baseY -= scrollDist;
+                        // Update waypoints too
+                        f.waypoints.forEach(wp => { wp.y -= scrollDist; });
+                    });
 
-                        const offsetX = playerShip.position.x - gameCamera.position.x;
-                        const offsetY = playerShip.position.y - gameCamera.position.y;
-
-                        if (offsetX > dzX) targetCamX = playerShip.position.x - dzX;
-                        else if (offsetX < -dzX) targetCamX = playerShip.position.x + dzX;
-                        if (offsetY > dzY) targetCamY = playerShip.position.y - dzY;
-                        else if (offsetY < -dzY) targetCamY = playerShip.position.y + dzY;
-
-                        const camLerp = Math.min(1.0, 0.1 * (deltaTime / 16));
-                        gameCamera.position.x += (targetCamX - gameCamera.position.x) * camLerp;
-                        gameCamera.position.y += (targetCamY - gameCamera.position.y) * camLerp;
-                        if (gameState._updateCamera) gameState._updateCamera();
+                    // Scroll goal downward
+                    if (gameState.explorationGoal) {
+                        gameState.explorationGoal.y -= scrollDist;
+                        if (gameState.explorationGoal.node) {
+                            gameState.explorationGoal.node.position.y = gameState.explorationGoal.y;
+                        }
                     }
 
-                    // Update formation patrols
+                    // Update formation patrols (movement + mesh positions)
                     updateFormations(deltaTime);
 
                     // Pulse detection zone opacity for subtle visual effect
@@ -12278,6 +12276,21 @@
                         }
                         if (!f.defeated && f.detectionRingMesh) {
                             f.detectionRingMesh.material.alpha = ringAlpha;
+                        }
+                    });
+
+                    // Remove formations that have scrolled well past the bottom of the screen
+                    const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
+                    gameState.explorationFormations.forEach(f => {
+                        if (!f.defeated && f.currentY < -effectiveOrthoH - 20) {
+                            f.defeated = true; // Mark as gone
+                            if (f.detectionMesh) f.detectionMesh.dispose();
+                            if (f.detectionRingMesh) f.detectionRingMesh.dispose();
+                            f.meshes.forEach(m => {
+                                m.getChildMeshes().forEach(cm => cm.dispose());
+                                m.dispose();
+                            });
+                            f.meshes = [];
                         }
                     });
 
@@ -12301,32 +12314,16 @@
                         gameState.explorationMode = false;
                         gameState.zoomTarget = 1;
                         gameState.zoomLevel = 1;
-                        if (gameCamera) {
-                            gameCamera.position.x = 0;
-                            gameCamera.position.y = 0;
-                        }
                         if (playerShip) {
                             playerShip.position.x = 0;
                             playerShip.position.y = -7;
                             playerShip.targetX = 0;
                             playerShip.targetY = -7;
                         }
-                        if (backgroundMeshA) { backgroundMeshA.position.x = 0; backgroundMeshA.position.y = 0; }
-                        if (backgroundMeshB) { backgroundMeshB.position.x = 0; backgroundMeshB.position.y = 0; }
                         if (gameState._updateCamera) gameState._updateCamera();
                         gameState.levelWave = gameState.levelConfig.waveCount;
                         generateLevelEndContent();
                         return;
-                    }
-
-                    // Move background plane with camera in exploration mode
-                    if (backgroundMeshA) {
-                        backgroundMeshA.position.x = gameCamera ? gameCamera.position.x : 0;
-                        backgroundMeshA.position.y = gameCamera ? gameCamera.position.y : 0;
-                    }
-                    if (backgroundMeshB) {
-                        backgroundMeshB.position.x = gameCamera ? gameCamera.position.x : 0;
-                        backgroundMeshB.position.y = gameCamera ? gameCamera.position.y : 0;
                     }
 
                     // Update edge-of-screen indicators
