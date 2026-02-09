@@ -2593,6 +2593,39 @@
         .reset-tree-btn:hover {
             background: #664444;
         }
+        /* Edge indicators for off-screen objects in exploration mode */
+        #edgeIndicators {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 15;
+            overflow: hidden;
+        }
+        .edge-indicator {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-family: monospace;
+            font-weight: bold;
+            text-shadow: 0 0 4px rgba(0,0,0,0.9);
+            white-space: nowrap;
+            opacity: 0.85;
+        }
+        .edge-indicator .arrow {
+            width: 0; height: 0;
+            border: 6px solid transparent;
+            flex-shrink: 0;
+        }
+        .edge-indicator.type-system { color: #ffdd44; }
+        .edge-indicator.type-system .arrow { border-bottom-color: #ffdd44; }
+        .edge-indicator.type-enemy { color: #ff4444; }
+        .edge-indicator.type-enemy .arrow { border-bottom-color: #ff4444; }
+        .edge-indicator.type-friendly { color: #44ff88; }
+        .edge-indicator.type-friendly .arrow { border-bottom-color: #44ff88; }
+        .edge-indicator.type-neutral { color: #88aaff; }
+        .edge-indicator.type-neutral .arrow { border-bottom-color: #88aaff; }
     </style>
 </head>
 <body>
@@ -3073,6 +3106,7 @@
         </div>
     </div>
 
+    <div id="edgeIndicators"></div>
     <div id="warpOverlay"></div>
     <div id="warpFlash"></div>
 
@@ -10629,6 +10663,122 @@
             if (gameState._updateCamera) gameState._updateCamera();
         }
 
+        // Update edge-of-screen indicators for off-screen objects
+        function updateEdgeIndicators() {
+            const container = document.getElementById('edgeIndicators');
+            if (!container) return;
+
+            // Only show in exploration mode
+            if (!gameState.explorationMode || !gameCamera) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const effectiveOrtho = orthoHeight * gameState.zoomLevel;
+            const aspect = gameWidth / gameHeight;
+            const halfW = effectiveOrtho * aspect;
+            const halfH = effectiveOrtho;
+
+            // Camera view bounds in world space
+            const camX = gameCamera.position.x;
+            const camY = gameCamera.position.y;
+            const viewLeft = camX - halfW;
+            const viewRight = camX + halfW;
+            const viewTop = camY + halfH;
+            const viewBottom = camY - halfH;
+
+            // Screen dimensions for positioning
+            const screenW = container.offsetWidth || window.innerWidth;
+            const screenH = container.offsetHeight || window.innerHeight;
+            const margin = 30; // px from edge
+
+            // Collect off-screen targets
+            const targets = [];
+
+            // Goal system
+            if (gameState.explorationGoal) {
+                const g = gameState.explorationGoal;
+                targets.push({ x: g.x, y: g.y, type: 'system', label: 'System' });
+            }
+
+            // Enemy formations
+            gameState.explorationFormations.forEach(f => {
+                if (f.defeated) return;
+                targets.push({ x: f.currentX, y: f.currentY, type: 'enemy', label: '' });
+            });
+
+            // Build HTML
+            let html = '';
+            targets.forEach((t, i) => {
+                // Check if on screen
+                if (t.x >= viewLeft && t.x <= viewRight && t.y >= viewBottom && t.y <= viewTop) {
+                    return; // On screen, no indicator needed
+                }
+
+                // Direction from camera center to target
+                const dx = t.x - camX;
+                const dy = t.y - camY;
+                const angle = Math.atan2(dy, dx);
+
+                // Find intersection with screen edge
+                // Compute where the line from center to target hits the screen rect
+                let edgeX, edgeY;
+                const tanA = Math.tan(angle);
+                // Check right/left
+                if (Math.abs(Math.cos(angle)) > 0.001) {
+                    const testX = dx > 0 ? halfW : -halfW;
+                    const testY = testX * (dy / dx);
+                    if (Math.abs(testY) <= halfH) {
+                        edgeX = testX;
+                        edgeY = testY;
+                    }
+                }
+                if (edgeX === undefined) {
+                    // Hit top/bottom
+                    const testY = dy > 0 ? halfH : -halfH;
+                    const testX = testY * (dx / dy);
+                    edgeX = testX;
+                    edgeY = testY;
+                }
+
+                // Convert world offset to screen position
+                // World (-halfW, halfH) = screen (0, 0), world (halfW, -halfH) = screen (screenW, screenH)
+                let sx = ((edgeX + halfW) / (halfW * 2)) * screenW;
+                let sy = ((-edgeY + halfH) / (halfH * 2)) * screenH;
+
+                // Clamp with margin
+                sx = Math.max(margin, Math.min(screenW - margin, sx));
+                sy = Math.max(margin, Math.min(screenH - margin, sy));
+
+                // Distance from player
+                const px = playerShip ? playerShip.position.x : camX;
+                const py = playerShip ? playerShip.position.y : camY;
+                const dist = Math.sqrt((t.x - px) * (t.x - px) + (t.y - py) * (t.y - py));
+                const distLabel = dist < 100 ? Math.round(dist) : Math.round(dist);
+
+                // Arrow rotation: angle in degrees, CSS rotation
+                // Arrow points up by default (border-bottom trick), rotate to point toward target
+                const arrowDeg = -(angle * 180 / Math.PI) + 90; // Convert: 0=right → 90=up, 90=up → 0
+
+                const typeClass = 'type-' + t.type;
+                const label = t.label ? t.label : '';
+                const distText = distLabel;
+
+                html += `<div class="edge-indicator ${typeClass}" style="left:${sx}px;top:${sy}px;transform:translate(-50%,-50%)">` +
+                    `<div class="arrow" style="transform:rotate(${arrowDeg}deg)"></div>` +
+                    `<span>${label}${label ? ' ' : ''}${distText}</span>` +
+                    `</div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Clear edge indicators (for cleanup)
+        function clearEdgeIndicators() {
+            const container = document.getElementById('edgeIndicators');
+            if (container) container.innerHTML = '';
+        }
+
         // ========== END EXPLORATION FORMATION SYSTEM ==========
 
         // Update challenger's charging laser attack
@@ -12134,11 +12284,13 @@
                     // Check if player entered a detection zone
                     const detectedFormation = checkFormationDetection();
                     if (detectedFormation) {
+                        clearEdgeIndicators();
                         startCombatEncounter(detectedFormation);
                     }
 
                     // Check if player reached the goal system
                     if (checkExplorationGoalReached()) {
+                        clearEdgeIndicators();
                         // Scale back to normal
                         if (playerShipMesh) {
                             playerShipMesh.scaling.scaleInPlace(0.5);
@@ -12177,8 +12329,14 @@
                         backgroundMeshB.position.y = gameCamera ? gameCamera.position.y : 0;
                     }
 
+                    // Update edge-of-screen indicators
+                    updateEdgeIndicators();
+
                     return; // Skip normal combat updates in exploration mode
                 }
+
+                // Clear indicators when not in exploration
+                clearEdgeIndicators();
 
                 // ========== NORMAL COMBAT MODE (encounter or level-end) ==========
                 const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
