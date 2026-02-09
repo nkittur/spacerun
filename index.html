@@ -5051,10 +5051,12 @@
                 // Camera position determines the center of the view in world space
                 camera.setTarget(new BABYLON.Vector3(camera.position.x, camera.position.y, 0));
 
-                // Partially scale background UV with zoom - allows background to visibly
-                // zoom in/out while preventing extreme tiling at high zoom levels
+                // Scale background UV to keep pattern appearance identical at all zoom levels.
+                // At higher zoom the camera sees more of the plane, so we REDUCE the UV tiling
+                // (divide by zoomLevel) to compensate - fewer repeats across a larger visible area
+                // means each tile appears the same screen size.
                 const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
-                const zoomUV = Math.pow(gameState.zoomLevel, 0.5); // Partial compensation
+                const zoomUV = 1 / gameState.zoomLevel;
                 if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                     backgroundMaterialA.diffuseTexture.uScale = (uvBase / 20) * zoomUV;
                     backgroundMaterialA.diffuseTexture.vScale = (uvBase * 2 / 20) * zoomUV;
@@ -5189,10 +5191,11 @@
 
         // Load texture into background B for transition
         function loadTransitionTexture(path) {
-            const uvBase = Math.max(orthoWidth, orthoHeight) * 3; // Original UV scale
+            const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
+            const zoomUV = 1 / gameState.zoomLevel;
             const texture = new BABYLON.Texture(path, scene);
-            texture.uScale = uvBase / 20;
-            texture.vScale = uvBase * 2 / 20;
+            texture.uScale = (uvBase / 20) * zoomUV;
+            texture.vScale = (uvBase * 2 / 20) * zoomUV;
             texture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
             texture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
             // Match current scroll offset
@@ -5228,8 +5231,8 @@
 
             // Scroll both backgrounds
             // Very slow background scroll for ambient effect
-            // Scale with partial zoom compensation to match UV scaling
-            const scrollSpeed = 0.000075 * settings.scrollSpeed * Math.pow(gameState.zoomLevel, 0.5);
+            // Divide by zoomLevel to match UV scaling - keeps visual scroll rate constant
+            const scrollSpeed = 0.000075 * settings.scrollSpeed / gameState.zoomLevel;
             if (backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.vOffset += scrollSpeed * deltaTime;
             }
@@ -9054,40 +9057,40 @@
             const godModeSpeedMult = settings.godMode ? 3.0 : 1.0;
 
             if (gameState.explorationMode) {
-                // Exploration mode: same touch/keyboard controls as combat
-                // but scaled for the zoomed-out view with a speed cap
-                const exploreSpeedMult = gameState.zoomLevel * 1.5;
-                const keySpeed = 0.004 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * exploreSpeedMult * deltaTime;
-                if (keyState.left) playerShip.targetX -= keySpeed;
-                if (keyState.right) playerShip.targetX += keySpeed;
-                if (keyState.up) playerShip.targetY += keySpeed;
-                if (keyState.down) playerShip.targetY -= keySpeed;
+                // Exploration mode: joystick-style input
+                // Finger offset from initial touch = continuous velocity direction
+                // Holding finger to the right keeps the ship moving right
+                const exploreSpeed = 0.025 * gameState.zoomLevel * deltaTime;
+                let moveX = 0, moveY = 0;
 
-                // Touch/mouse movement
+                // Keyboard input
+                if (keyState.left) moveX -= 1;
+                if (keyState.right) moveX += 1;
+                if (keyState.up) moveY += 1;
+                if (keyState.down) moveY -= 1;
+
+                // Touch/mouse: use offset from initial touch-down as velocity
+                // (don't reset startX/Y each frame - use the original touch point)
                 if (inputState.isPressed) {
-                    const deltaX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
-                    const deltaY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
-
-                    inputState.startX = inputState.currentX;
-                    inputState.startY = inputState.currentY;
-
-                    const cssWidth = canvas.clientWidth;
-                    const cssHeight = canvas.clientHeight;
-                    const effectiveOrthoW = orthoWidth * gameState.zoomLevel;
-                    const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
-                    let worldDeltaX = (deltaX / cssWidth) * effectiveOrthoW * 2;
-                    let worldDeltaY = -(deltaY / cssHeight) * effectiveOrthoH * 2;
-
-                    // Cap movement speed per frame to prevent zooming past enemies
-                    const maxMovePerFrame = 0.8 * gameState.zoomLevel;
-                    const moveMag = Math.sqrt(worldDeltaX * worldDeltaX + worldDeltaY * worldDeltaY);
-                    if (moveMag > maxMovePerFrame) {
-                        worldDeltaX *= maxMovePerFrame / moveMag;
-                        worldDeltaY *= maxMovePerFrame / moveMag;
+                    const offsetX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
+                    const offsetY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
+                    // Normalize with a dead zone and max range
+                    const deadZone = 8;  // pixels
+                    const maxRange = 80; // pixels for full speed
+                    const dist = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+                    if (dist > deadZone) {
+                        const strength = Math.min((dist - deadZone) / (maxRange - deadZone), 1.0);
+                        moveX += (offsetX / dist) * strength;
+                        moveY -= (offsetY / dist) * strength; // Invert Y for screen coords
                     }
+                }
 
-                    playerShip.targetX += worldDeltaX;
-                    playerShip.targetY += worldDeltaY;
+                // Normalize if over 1.0 and apply constant speed
+                const mag = Math.sqrt(moveX * moveX + moveY * moveY);
+                if (mag > 0) {
+                    const clampedMag = Math.min(mag, 1.0);
+                    playerShip.targetX += (moveX / mag) * clampedMag * exploreSpeed;
+                    playerShip.targetY += (moveY / mag) * clampedMag * exploreSpeed;
                 }
             } else {
                 // Normal combat mode: direct input
