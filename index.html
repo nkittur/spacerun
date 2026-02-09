@@ -4004,6 +4004,7 @@
             explorationCameraPos: {x: 0, y: 0}, // Camera position during exploration
             formationsDefeated: 0,          // Count of defeated formations this level
             explorationGoal: null,          // Goal sun at top of exploration map
+            exploreHeading: Math.PI / 2,    // Ship heading in exploration (radians, PI/2 = up)
             arenaMode: false,       // Arena mode active
             arenaConfig: null,      // Arena configuration
             arenaWave: 0,           // Current arena wave
@@ -9052,39 +9053,39 @@
             const godModeSpeedMult = settings.godMode ? 3.0 : 1.0;
 
             if (gameState.explorationMode) {
-                // Exploration mode: constant speed movement
-                // Touch/swipe sets direction, ship moves at fixed speed
-                const exploreSpeed = 0.06 * gameState.zoomLevel * deltaTime;
-                let dirX = 0, dirY = 0;
+                // Escape Velocity-style movement:
+                // Left/right turns the ship, ship always moves forward at constant speed
+                const turnRate = 0.003 * deltaTime; // Radians per frame
+                const forwardSpeed = 0.03 * gameState.zoomLevel * deltaTime;
+                let turnInput = 0;
 
-                // Keyboard input
-                if (keyState.left) dirX -= 1;
-                if (keyState.right) dirX += 1;
-                if (keyState.up) dirY += 1;
-                if (keyState.down) dirY -= 1;
+                // Keyboard turning
+                if (keyState.left) turnInput += 1;  // Turn left (CCW)
+                if (keyState.right) turnInput -= 1; // Turn right (CW)
 
-                // Touch/mouse input - use drag direction
+                // Touch/mouse turning - horizontal drag turns the ship
                 if (inputState.isPressed) {
                     const deltaX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
-                    const deltaY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
                     inputState.startX = inputState.currentX;
                     inputState.startY = inputState.currentY;
 
-                    // Accumulate direction from touch
-                    if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
-                        dirX += deltaX > 0 ? 1 : deltaX < 0 ? -1 : 0;
-                        dirY += deltaY > 0 ? -1 : deltaY < 0 ? 1 : 0;
+                    // Horizontal drag controls turning
+                    if (Math.abs(deltaX) > 0.3) {
+                        turnInput -= deltaX * 0.08; // Drag right = turn right (CW)
                     }
                 }
 
-                // Normalize and apply constant speed
-                const mag = Math.sqrt(dirX * dirX + dirY * dirY);
-                if (mag > 0) {
-                    dirX /= mag;
-                    dirY /= mag;
-                    playerShip.targetX = playerShip.position.x + dirX * exploreSpeed;
-                    playerShip.targetY = playerShip.position.y + dirY * exploreSpeed;
-                }
+                // Clamp turn input
+                turnInput = Math.max(-1.5, Math.min(1.5, turnInput));
+
+                // Apply turning
+                gameState.exploreHeading += turnInput * turnRate;
+
+                // Move forward in the direction the ship is facing
+                const moveX = Math.cos(gameState.exploreHeading) * forwardSpeed;
+                const moveY = Math.sin(gameState.exploreHeading) * forwardSpeed;
+                playerShip.targetX = playerShip.position.x + moveX;
+                playerShip.targetY = playerShip.position.y + moveY;
             } else {
                 // Normal combat mode: direct input
                 const exploreSpeedMult = 1.0;
@@ -9131,13 +9132,18 @@
                 playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
             }
 
-            // Base speed 0.04 for very sluggish starter feel, god mode triples speed
-            // Exploration mode gets faster response for navigating the larger map
-            const exploreLerp = gameState.explorationMode ? 2.0 : 1.0;
-            const lerpFactor = 0.04 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * exploreLerp;
+            // Position interpolation
             const prevX = playerShip.position.x;
-            playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
-            playerShip.position.y += (playerShip.targetY - playerShip.position.y) * lerpFactor;
+            if (gameState.explorationMode) {
+                // In exploration, move directly to target (already set incrementally)
+                playerShip.position.x += (playerShip.targetX - playerShip.position.x) * 0.3;
+                playerShip.position.y += (playerShip.targetY - playerShip.position.y) * 0.3;
+            } else {
+                // Normal combat: sluggish lerp
+                const lerpFactor = 0.04 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult;
+                playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
+                playerShip.position.y += (playerShip.targetY - playerShip.position.y) * lerpFactor;
+            }
 
             playerShip.velocityX = playerShip.position.x - prevX;
 
@@ -9151,15 +9157,29 @@
                 gameState.stationaryTime = (gameState.stationaryTime || 0) + deltaTime / 1000;
             }
 
-            // Banking effect - tilt ship based on horizontal movement
-            const targetTilt = -playerShip.velocityX * 15;
-            const maxTilt = Math.PI / 4; // 45 degrees max bank
-            const clampedTilt = Math.max(-maxTilt, Math.min(maxTilt, targetTilt));
+            if (gameState.explorationMode) {
+                // Exploration: rotate ship mesh to face heading direction
+                // Ship model faces up (+Y) by default; heading 0 = right, PI/2 = up
+                if (playerShipMesh) {
+                    const targetRotZ = -(gameState.exploreHeading - Math.PI / 2);
+                    // Smooth rotation
+                    let rotDiff = targetRotZ - (playerShipMesh.rotation.z || 0);
+                    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+                    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+                    playerShipMesh.rotation.z = (playerShipMesh.rotation.z || 0) + rotDiff * 0.15;
+                    playerShipMesh.rotation.y = 0; // No banking tilt in exploration
+                }
+            } else {
+                // Combat: banking effect - tilt ship based on horizontal movement
+                const targetTilt = -playerShip.velocityX * 15;
+                const maxTilt = Math.PI / 4; // 45 degrees max bank
+                const clampedTilt = Math.max(-maxTilt, Math.min(maxTilt, targetTilt));
+                playerShip.currentTilt += (clampedTilt - playerShip.currentTilt) * 0.2;
 
-            playerShip.currentTilt += (clampedTilt - playerShip.currentTilt) * 0.2;
-
-            if (playerShipMesh) {
-                playerShipMesh.rotation.y = playerShip.currentTilt;
+                if (playerShipMesh) {
+                    playerShipMesh.rotation.y = playerShip.currentTilt;
+                    playerShipMesh.rotation.z = 0; // No heading rotation in combat
+                }
             }
 
             const normalizedY = (playerShip.position.y + orthoHeight) / (orthoHeight * 2);
@@ -10329,9 +10349,11 @@
             gameState.encounterTimer = 0;
             gameState.zoomTarget = 1; // Zoom to normal view
 
-            // Reset player ship scale back to normal for combat
+            // Reset player ship scale and rotation back to normal for combat
             if (playerShipMesh) {
                 playerShipMesh.scaling.scaleInPlace(0.5);
+                playerShipMesh.rotation.z = 0;
+                playerShipMesh.rotation.y = 0;
             }
 
             // Save player's exploration position
@@ -10623,11 +10645,14 @@
                 playerShipMesh.scaling.scaleInPlace(2);
             }
 
-            // Set camera to follow player
+            // Initialize heading to point up (toward goal)
+            gameState.exploreHeading = Math.PI / 2;
+
+            // Set camera to follow player - look ahead in heading direction
             if (gameCamera) {
                 gameCamera.position.x = 0;
-                gameCamera.position.y = 20; // Look ahead of player
-                gameState.explorationCameraPos = { x: 0, y: 20 };
+                gameCamera.position.y = 15; // Look ahead of player
+                gameState.explorationCameraPos = { x: 0, y: 15 };
             }
 
             // Update camera for new zoom
@@ -12055,9 +12080,9 @@
                         playerShip.targetX = playerShip.position.x;
                         playerShip.targetY = playerShip.position.y;
 
-                        // Camera moves back to exploration follow
-                        const camTargetX = targetX * 0.5;
-                        const camTargetY = targetY + 20;
+                        // Camera moves back to saved exploration camera position
+                        const camTargetX = gameState.explorationCameraPos.x;
+                        const camTargetY = gameState.explorationCameraPos.y;
                         gameCamera.position.x = 0 + (camTargetX - 0) * zoomProgress;
                         gameCamera.position.y = 0 + (camTargetY - 0) * zoomProgress;
                         if (gameState._updateCamera) gameState._updateCamera();
@@ -12094,12 +12119,13 @@
                     const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
                     updateBackgrounds(scrollMultiplier * 0.3, deltaTime); // Slower background scroll
 
-                    // Camera follows player in exploration
+                    // Camera follows player in exploration - look ahead in heading direction
                     if (gameCamera && playerShip) {
-                        const targetCamX = playerShip.position.x * 0.5;
-                        const targetCamY = playerShip.position.y + 20;
-                        gameCamera.position.x += (targetCamX - gameCamera.position.x) * 0.04 * (deltaTime / 16);
-                        gameCamera.position.y += (targetCamY - gameCamera.position.y) * 0.04 * (deltaTime / 16);
+                        const lookAhead = 15;
+                        const targetCamX = playerShip.position.x + Math.cos(gameState.exploreHeading) * lookAhead;
+                        const targetCamY = playerShip.position.y + Math.sin(gameState.exploreHeading) * lookAhead;
+                        gameCamera.position.x += (targetCamX - gameCamera.position.x) * 0.03 * (deltaTime / 16);
+                        gameCamera.position.y += (targetCamY - gameCamera.position.y) * 0.03 * (deltaTime / 16);
                         if (gameState._updateCamera) gameState._updateCamera();
                     }
 
@@ -12126,9 +12152,11 @@
 
                     // Check if player reached the goal system
                     if (checkExplorationGoalReached()) {
-                        // Scale player ship back to normal
+                        // Scale and rotation back to normal
                         if (playerShipMesh) {
                             playerShipMesh.scaling.scaleInPlace(0.5);
+                            playerShipMesh.rotation.z = 0;
+                            playerShipMesh.rotation.y = 0;
                         }
                         // Clean up exploration visuals
                         cleanupFormations();
