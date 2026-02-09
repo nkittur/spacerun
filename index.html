@@ -5226,7 +5226,8 @@
 
             // Scroll both backgrounds
             // Very slow background scroll for ambient effect
-            const scrollSpeed = 0.000075 * settings.scrollSpeed;
+            // Scale with zoomLevel so visual scroll speed stays consistent across zoom transitions
+            const scrollSpeed = 0.000075 * settings.scrollSpeed * gameState.zoomLevel;
             if (backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.vOffset += scrollSpeed * deltaTime;
             }
@@ -9049,33 +9050,68 @@
             // Keyboard movement (includes speed upgrade bonus and god mode)
             // Base speed halved for more sluggish starter ship feel
             const godModeSpeedMult = settings.godMode ? 3.0 : 1.0;
-            // In exploration mode, scale movement with zoom for consistent feel
-            const exploreSpeedMult = gameState.explorationMode ? gameState.zoomLevel * 1.5 : 1.0;
-            const keySpeed = 0.004 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * exploreSpeedMult * deltaTime;
-            if (keyState.left) playerShip.targetX -= keySpeed;
-            if (keyState.right) playerShip.targetX += keySpeed;
-            if (keyState.up) playerShip.targetY += keySpeed;
-            if (keyState.down) playerShip.targetY -= keySpeed;
 
-            // Touch/mouse movement
-            if (inputState.isPressed) {
-                const deltaX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
-                const deltaY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
+            if (gameState.explorationMode) {
+                // Exploration mode: constant speed movement
+                // Touch/swipe sets direction, ship moves at fixed speed
+                const exploreSpeed = 0.06 * gameState.zoomLevel * deltaTime;
+                let dirX = 0, dirY = 0;
 
-                inputState.startX = inputState.currentX;
-                inputState.startY = inputState.currentY;
+                // Keyboard input
+                if (keyState.left) dirX -= 1;
+                if (keyState.right) dirX += 1;
+                if (keyState.up) dirY += 1;
+                if (keyState.down) dirY -= 1;
 
-                // Use CSS pixel dimensions (not render pixels) for input conversion
-                const cssWidth = canvas.clientWidth;
-                const cssHeight = canvas.clientHeight;
-                // Scale touch input by zoom level for consistent movement feel
-                const effectiveOrthoW = orthoWidth * gameState.zoomLevel;
-                const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
-                const worldDeltaX = (deltaX / cssWidth) * effectiveOrthoW * 2;
-                const worldDeltaY = -(deltaY / cssHeight) * effectiveOrthoH * 2;
+                // Touch/mouse input - use drag direction
+                if (inputState.isPressed) {
+                    const deltaX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
+                    const deltaY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
+                    inputState.startX = inputState.currentX;
+                    inputState.startY = inputState.currentY;
 
-                playerShip.targetX += worldDeltaX;
-                playerShip.targetY += worldDeltaY;
+                    // Accumulate direction from touch
+                    if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
+                        dirX += deltaX > 0 ? 1 : deltaX < 0 ? -1 : 0;
+                        dirY += deltaY > 0 ? -1 : deltaY < 0 ? 1 : 0;
+                    }
+                }
+
+                // Normalize and apply constant speed
+                const mag = Math.sqrt(dirX * dirX + dirY * dirY);
+                if (mag > 0) {
+                    dirX /= mag;
+                    dirY /= mag;
+                    playerShip.targetX = playerShip.position.x + dirX * exploreSpeed;
+                    playerShip.targetY = playerShip.position.y + dirY * exploreSpeed;
+                }
+            } else {
+                // Normal combat mode: direct input
+                const exploreSpeedMult = 1.0;
+                const keySpeed = 0.004 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * exploreSpeedMult * deltaTime;
+                if (keyState.left) playerShip.targetX -= keySpeed;
+                if (keyState.right) playerShip.targetX += keySpeed;
+                if (keyState.up) playerShip.targetY += keySpeed;
+                if (keyState.down) playerShip.targetY -= keySpeed;
+
+                // Touch/mouse movement
+                if (inputState.isPressed) {
+                    const deltaX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
+                    const deltaY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
+
+                    inputState.startX = inputState.currentX;
+                    inputState.startY = inputState.currentY;
+
+                    const cssWidth = canvas.clientWidth;
+                    const cssHeight = canvas.clientHeight;
+                    const effectiveOrthoW = orthoWidth * gameState.zoomLevel;
+                    const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
+                    const worldDeltaX = (deltaX / cssWidth) * effectiveOrthoW * 2;
+                    const worldDeltaY = -(deltaY / cssHeight) * effectiveOrthoH * 2;
+
+                    playerShip.targetX += worldDeltaX;
+                    playerShip.targetY += worldDeltaY;
+                }
             }
 
             // In exploration mode, allow movement across the entire map
@@ -10261,7 +10297,8 @@
                     mesh.position.x = f.currentX;
                     mesh.position.y = f.currentY;
                     // Rotate the ship mesh to face movement direction
-                    mesh.rotation.z = -f.heading + Math.PI / 2;
+                    // Ship model faces down (-Y) by default; heading 0 = right (+X)
+                    mesh.rotation.z = f.heading + Math.PI / 2;
                 });
             });
         }
@@ -10495,29 +10532,6 @@
             mat.disableDepthWrite = true;
             sun.material = mat;
             sun.renderingGroupId = 1;
-
-            // "System" label below the sun
-            const labelPlane = BABYLON.MeshBuilder.CreatePlane('goalLabel', { width: 12, height: 3 }, scene);
-            labelPlane.parent = goalNode;
-            labelPlane.position.y = -sunSize - 1;
-            labelPlane.position.z = 0;
-            const labelTex = new BABYLON.DynamicTexture('goalLabelTex', { width: 256, height: 64 }, scene, false);
-            labelTex.hasAlpha = true;
-            const ctx = labelTex.getContext();
-            ctx.clearRect(0, 0, 256, 64);
-            ctx.font = 'bold 28px Arial';
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('★ System', 128, 32);
-            labelTex.update();
-            const labelMat = new BABYLON.StandardMaterial('goalLabelMat', scene);
-            labelMat.diffuseTexture = labelTex;
-            labelMat.emissiveTexture = labelTex;
-            labelMat.useAlphaFromDiffuseTexture = true;
-            labelMat.disableLighting = true;
-            labelMat.backFaceCulling = false;
-            labelPlane.material = labelMat;
 
             // Exclude from glow layers
             const allMeshes = goalNode.getChildMeshes(false);
