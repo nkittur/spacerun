@@ -9057,40 +9057,31 @@
             const godModeSpeedMult = settings.godMode ? 3.0 : 1.0;
 
             if (gameState.explorationMode) {
-                // Exploration mode: joystick-style input
-                // Finger offset from initial touch = continuous velocity direction
-                // Holding finger to the right keeps the ship moving right
-                const exploreSpeed = 0.025 * gameState.zoomLevel * deltaTime;
-                let moveX = 0, moveY = 0;
+                // Exploration mode: identical input to combat, just scaled for zoom
+                const exploreSpeedMult = gameState.zoomLevel * 1.5;
+                const keySpeed = 0.004 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * exploreSpeedMult * deltaTime;
+                if (keyState.left) playerShip.targetX -= keySpeed;
+                if (keyState.right) playerShip.targetX += keySpeed;
+                if (keyState.up) playerShip.targetY += keySpeed;
+                if (keyState.down) playerShip.targetY -= keySpeed;
 
-                // Keyboard input
-                if (keyState.left) moveX -= 1;
-                if (keyState.right) moveX += 1;
-                if (keyState.up) moveY += 1;
-                if (keyState.down) moveY -= 1;
-
-                // Touch/mouse: use offset from initial touch-down as velocity
-                // (don't reset startX/Y each frame - use the original touch point)
+                // Touch/mouse movement - same delta-based as combat
                 if (inputState.isPressed) {
-                    const offsetX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
-                    const offsetY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
-                    // Normalize with a dead zone and max range
-                    const deadZone = 8;  // pixels
-                    const maxRange = 80; // pixels for full speed
-                    const dist = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
-                    if (dist > deadZone) {
-                        const strength = Math.min((dist - deadZone) / (maxRange - deadZone), 1.0);
-                        moveX += (offsetX / dist) * strength;
-                        moveY -= (offsetY / dist) * strength; // Invert Y for screen coords
-                    }
-                }
+                    const deltaX = (inputState.currentX - inputState.startX) * settings.xSensitivity;
+                    const deltaY = (inputState.currentY - inputState.startY) * settings.ySensitivity;
 
-                // Normalize if over 1.0 and apply constant speed
-                const mag = Math.sqrt(moveX * moveX + moveY * moveY);
-                if (mag > 0) {
-                    const clampedMag = Math.min(mag, 1.0);
-                    playerShip.targetX += (moveX / mag) * clampedMag * exploreSpeed;
-                    playerShip.targetY += (moveY / mag) * clampedMag * exploreSpeed;
+                    inputState.startX = inputState.currentX;
+                    inputState.startY = inputState.currentY;
+
+                    const cssWidth = canvas.clientWidth;
+                    const cssHeight = canvas.clientHeight;
+                    const effectiveOrthoW = orthoWidth * gameState.zoomLevel;
+                    const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
+                    const worldDeltaX = (deltaX / cssWidth) * effectiveOrthoW * 2;
+                    const worldDeltaY = -(deltaY / cssHeight) * effectiveOrthoH * 2;
+
+                    playerShip.targetX += worldDeltaX;
+                    playerShip.targetY += worldDeltaY;
                 }
             } else {
                 // Normal combat mode: direct input
@@ -9138,9 +9129,8 @@
                 playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
             }
 
-            // Position interpolation
-            const exploreLerp = gameState.explorationMode ? 2.0 : 1.0;
-            const lerpFactor = 0.04 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * exploreLerp;
+            // Position interpolation - same factor for both modes
+            const lerpFactor = 0.04 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult;
             const prevX = playerShip.position.x;
             playerShip.position.x += (playerShip.targetX - playerShip.position.x) * lerpFactor;
             playerShip.position.y += (playerShip.targetY - playerShip.position.y) * lerpFactor;
@@ -12099,12 +12089,28 @@
                     const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
                     updateBackgrounds(scrollMultiplier * 0.3, deltaTime); // Slower background scroll
 
-                    // Camera follows player in exploration - tight follow, no visible drift
+                    // Camera follows player with dead zone - camera only moves when
+                    // the player approaches the edge of the visible area. This prevents
+                    // enemies from appearing to shift when the player makes small movements.
                     if (gameCamera && playerShip) {
-                        const targetCamX = playerShip.position.x;
-                        const targetCamY = playerShip.position.y + 15;
-                        // Snap camera to player with very tight lerp
-                        const camLerp = Math.min(1.0, 0.2 * (deltaTime / 16));
+                        const effectiveOrtho = orthoHeight * gameState.zoomLevel;
+                        const camAspect = gameWidth / gameHeight;
+                        // Dead zone: player can move within 60% of visible area before camera scrolls
+                        const dzX = effectiveOrtho * camAspect * 0.6;
+                        const dzY = effectiveOrtho * 0.5;
+
+                        let targetCamX = gameCamera.position.x;
+                        let targetCamY = gameCamera.position.y;
+
+                        const offsetX = playerShip.position.x - gameCamera.position.x;
+                        const offsetY = playerShip.position.y - gameCamera.position.y;
+
+                        if (offsetX > dzX) targetCamX = playerShip.position.x - dzX;
+                        else if (offsetX < -dzX) targetCamX = playerShip.position.x + dzX;
+                        if (offsetY > dzY) targetCamY = playerShip.position.y - dzY;
+                        else if (offsetY < -dzY) targetCamY = playerShip.position.y + dzY;
+
+                        const camLerp = Math.min(1.0, 0.1 * (deltaTime / 16));
                         gameCamera.position.x += (targetCamX - gameCamera.position.x) * camLerp;
                         gameCamera.position.y += (targetCamY - gameCamera.position.y) * camLerp;
                         if (gameState._updateCamera) gameState._updateCamera();
