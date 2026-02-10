@@ -5265,13 +5265,11 @@
             const scrollAmount = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
             gameState.distanceTraveled += scrollAmount * deltaTime * 0.1;
 
-            // Scroll both backgrounds
-            // Match background scroll to planet/world scroll speed
-            // UV offset = world scroll / worldUnitsPerTile
-            // planeHeight = max(orthoW,orthoH) * 24, tile size = planeHeight / vScale
+            // Scroll both backgrounds (slower than world for parallax depth effect)
             const bgPlaneH = Math.max(orthoWidth, orthoHeight) * 24;
             const currentVScale = (backgroundMaterialA.diffuseTexture ? backgroundMaterialA.diffuseTexture.vScale : 3);
-            const scrollSpeed = currentVScale > 0 ? scrollAmount / (bgPlaneH / currentVScale) : 0;
+            const parallaxFactor = 0.3;
+            const scrollSpeed = currentVScale > 0 ? scrollAmount / (bgPlaneH / currentVScale) * parallaxFactor : 0;
             if (backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.vOffset += scrollSpeed * deltaTime;
             }
