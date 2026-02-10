@@ -918,6 +918,77 @@
             50% { box-shadow: 0 0 18px rgba(255, 102, 0, 0.6), inset 0 0 12px rgba(255, 102, 0, 0.25); }
         }
 
+        /* Boarding prompt */
+        #boardingPrompt {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 24px;
+            background: rgba(0, 30, 60, 0.9);
+            border: 1px solid #44aaff;
+            color: #88ccff;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            z-index: 100;
+            display: none;
+            animation: boardPulse 1.5s ease-in-out infinite;
+            text-transform: uppercase;
+        }
+
+        @keyframes boardPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(68, 170, 255, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(68, 170, 255, 0.6); }
+        }
+
+        /* Boarding loot panel */
+        #boardingLootPanel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 30px;
+            background: rgba(0, 15, 30, 0.95);
+            border: 1px solid #44aaff;
+            color: #ccddff;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            z-index: 300;
+            display: none;
+            min-width: 280px;
+            text-align: center;
+        }
+
+        #boardingLootPanel h3 {
+            margin: 0 0 12px 0;
+            color: #88ccff;
+            font-size: 16px;
+            letter-spacing: 2px;
+        }
+
+        #boardingLootPanel .loot-item {
+            padding: 4px 0;
+            color: #ffcc44;
+        }
+
+        #boardingLootPanel .loot-close {
+            margin-top: 15px;
+            padding: 6px 20px;
+            background: rgba(40, 80, 120, 0.5);
+            border: 1px solid #44aaff;
+            color: #88ccff;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        #boardingLootPanel .loot-close:hover {
+            background: rgba(60, 100, 140, 0.7);
+        }
+
         /* Faction reputation toast */
         .faction-toast {
             position: absolute;
@@ -3194,6 +3265,12 @@
 
     <button id="speedUpBtn">&gt;&gt; WARP</button>
     <button id="weaponsToggleBtn">WEAPONS: SAFE</button>
+    <div id="boardingPrompt">[F] BOARD SHIP</div>
+    <div id="boardingLootPanel">
+        <h3>SALVAGE REPORT</h3>
+        <div id="boardingLootItems"></div>
+        <button class="loot-close" id="boardingLootClose">CONTINUE</button>
+    </div>
 
     <div id="gameOver">
         <h2>Game Over</h2>
@@ -4128,7 +4205,7 @@
             // NPC skirmish system
             explorationSkirmishes: [],      // Active NPC fights in exploration
             skirmishIdCounter: 0,           // Unique ID for skirmishes
-            weaponsHot: false,              // Player weapons toggle in exploration
+            weaponsHot: false,              // Player weapons toggle (exploration + combat)
             factionReputation: {            // Reputation with each faction (0-100)
                 federation: 50,
                 merchants: 50,
@@ -4136,6 +4213,12 @@
                 independent: 50
             },
             playerSkirmishTarget: null,     // Which skirmish combatant player is targeting
+            // Battle encounter system
+            encounterPaired: null,          // Paired formation in crossfire battle
+            encounterIsBattle: false,       // Whether current encounter is crossfire
+            disabledShips: [],              // Ships disabled during combat (boardable)
+            boardingTarget: null,           // Nearest boardable disabled ship
+            boardingInProgress: false,      // Whether boarding loot panel is open
             arenaMode: false,       // Arena mode active
             arenaConfig: null,      // Arena configuration
             arenaWave: 0,           // Current arena wave
@@ -9586,6 +9669,24 @@
                     activateSecondaryAbility();
                     e.preventDefault();
                     break;
+                case 'f':
+                case 'F':
+                    // Board disabled ship
+                    if (gameState.boardingTarget) {
+                        boardShip(gameState.boardingTarget);
+                        e.preventDefault();
+                    }
+                    // Also toggle weapons in exploration/encounter
+                    else if (gameState.explorationMode || gameState.currentEncounter) {
+                        gameState.weaponsHot = !gameState.weaponsHot;
+                        const wBtn = document.getElementById('weaponsToggleBtn');
+                        if (wBtn) {
+                            wBtn.textContent = gameState.weaponsHot ? 'WEAPONS: HOT' : 'WEAPONS: SAFE';
+                            wBtn.classList.toggle('weapons-hot', gameState.weaponsHot);
+                        }
+                        e.preventDefault();
+                    }
+                    break;
             }
         });
 
@@ -9733,6 +9834,8 @@
         function firePlayerWeapons(currentTime) {
             if (!playerShip) return;
             if (gameState.enemies.length === 0) return;
+            // In encounter combat, weapons must be toggled on
+            if (gameState.currentEncounter && !gameState.weaponsHot) return;
 
             // Get equipped weapons from fleet (or use default starter weapon)
             const equippedWeapons = gameState.equippedWeapons.length > 0
@@ -10482,6 +10585,8 @@
         function fireEquipmentWeapons(currentTime) {
             if (!playerShip) return;
             if (gameState.enemies.length === 0) return;
+            // In encounter combat, weapons must be toggled on
+            if (gameState.currentEncounter && !gameState.weaponsHot) return;
 
             // Check hardpoints for equipment (missiles)
             const ship = gameState.fleet.length > 0 ? gameState.fleet[0] : null;
@@ -10595,31 +10700,216 @@
             }
         }
 
+        // Disable a ship instead of destroying it - it drifts and can be boarded
+        function disableShip(enemy) {
+            enemy.isDisabled = true;
+            enemy.health = 1; // Keep alive but non-functional
+            enemy.disableTime = performance.now();
+            enemy.driftVX = (Math.random() - 0.5) * 0.01;
+            enemy.driftVY = (Math.random() - 0.5) * 0.005;
+
+            // Visual: make ship flicker and darken
+            if (enemy.mesh) {
+                const meshes = enemy.mesh.getChildMeshes(false) || [];
+                meshes.push(enemy.mesh);
+                meshes.forEach(m => {
+                    if (m.material) {
+                        m.material.emissiveColor = new BABYLON.Color3(0.3, 0.1, 0.0);
+                        m.material.alpha = 0.7;
+                    }
+                });
+            }
+            // Kill engine exhaust
+            if (enemy.exhausts) {
+                enemy.exhausts.forEach(ex => {
+                    if (ex.particleSystem) ex.particleSystem.stop();
+                });
+            }
+
+            // Add to disabled ships list for boarding
+            if (!gameState.disabledShips) gameState.disabledShips = [];
+            gameState.disabledShips.push(enemy);
+
+            // Small explosion effect
+            createExplosion(enemy.position.x, enemy.position.y, 'small', 'orange');
+        }
+
+        // Update disabled ships (drift, flicker)
+        function updateDisabledShips(deltaTime) {
+            if (!gameState.disabledShips) return;
+            const now = performance.now();
+            for (let i = gameState.disabledShips.length - 1; i >= 0; i--) {
+                const ship = gameState.disabledShips[i];
+                if (!ship || ship._isDisposed) {
+                    gameState.disabledShips.splice(i, 1);
+                    continue;
+                }
+                // Gentle drift
+                ship.position.x += ship.driftVX * deltaTime * 0.1;
+                ship.position.y += ship.driftVY * deltaTime * 0.1;
+
+                // Flicker effect
+                if (ship.mesh) {
+                    const flickerAlpha = 0.5 + Math.sin(now * 0.008 + i * 2) * 0.2;
+                    const meshes = ship.mesh.getChildMeshes(false) || [];
+                    meshes.forEach(m => {
+                        if (m.material) m.material.alpha = flickerAlpha;
+                    });
+                }
+
+                // Remove if scrolled off screen
+                if (ship.position.y < -orthoHeight - 5 || ship.position.y > orthoHeight + 5) {
+                    ship.getChildMeshes().forEach(m => m.dispose());
+                    ship.dispose();
+                    gameState.disabledShips.splice(i, 1);
+                    // Also remove from enemies array
+                    const idx = gameState.enemies.indexOf(ship);
+                    if (idx !== -1) gameState.enemies.splice(idx, 1);
+                }
+            }
+        }
+
+        // Check if player is near a disabled ship and show boarding prompt
+        function checkBoardingProximity() {
+            const prompt = document.getElementById('boardingPrompt');
+            if (!prompt) return;
+            if (!playerShip || !gameState.disabledShips || gameState.disabledShips.length === 0) {
+                prompt.style.display = 'none';
+                gameState.boardingTarget = null;
+                return;
+            }
+            // Don't show during boarding or if loot panel is open
+            if (gameState.boardingInProgress) {
+                prompt.style.display = 'none';
+                return;
+            }
+
+            let nearest = null;
+            let nearestDist = Infinity;
+            for (const ship of gameState.disabledShips) {
+                if (!ship || ship._isDisposed) continue;
+                const dx = playerShip.position.x - ship.position.x;
+                const dy = playerShip.position.y - ship.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 2.5 && dist < nearestDist) {
+                    nearestDist = dist;
+                    nearest = ship;
+                }
+            }
+
+            if (nearest) {
+                prompt.style.display = 'block';
+                gameState.boardingTarget = nearest;
+            } else {
+                prompt.style.display = 'none';
+                gameState.boardingTarget = null;
+            }
+        }
+
+        // Board a disabled ship and get loot
+        function boardShip(ship) {
+            if (!ship || ship._isDisposed || gameState.boardingInProgress) return;
+            gameState.boardingInProgress = true;
+
+            // Hide boarding prompt
+            const prompt = document.getElementById('boardingPrompt');
+            if (prompt) prompt.style.display = 'none';
+
+            // Generate loot based on ship type
+            const lootTable = [];
+            const shipType = ship.type || 'basic';
+            const baseCredits = shipType === 'heavy' ? 80 : shipType === 'challenger' ? 150 :
+                shipType === 'shooter' ? 50 : shipType === 'light' ? 40 : 30;
+            const credits = baseCredits + Math.floor(Math.random() * baseCredits);
+
+            lootTable.push({ label: credits + ' Credits', type: 'credits', value: credits });
+
+            // Chance for bonus items based on ship type
+            if (Math.random() < 0.4) {
+                const hpRestore = 10 + Math.floor(Math.random() * 20);
+                lootTable.push({ label: '+' + hpRestore + ' Hull Repair', type: 'hp', value: hpRestore });
+            }
+            if (shipType === 'heavy' && Math.random() < 0.3) {
+                const shieldRestore = 15 + Math.floor(Math.random() * 25);
+                lootTable.push({ label: '+' + shieldRestore + ' Shield Charge', type: 'shield', value: shieldRestore });
+            }
+
+            // Apply rewards
+            lootTable.forEach(item => {
+                if (item.type === 'credits') {
+                    gameState.credits += item.value;
+                    gameState.stats.creditsEarned += item.value;
+                } else if (item.type === 'hp') {
+                    gameState.health = Math.min(gameState.maxHealth, gameState.health + item.value);
+                } else if (item.type === 'shield') {
+                    gameState.shieldHP = Math.min(gameState.shieldMaxHP, gameState.shieldHP + item.value);
+                }
+            });
+            updateHUD();
+
+            // Show loot panel
+            const panel = document.getElementById('boardingLootPanel');
+            const itemsDiv = document.getElementById('boardingLootItems');
+            if (panel && itemsDiv) {
+                itemsDiv.innerHTML = lootTable.map(item =>
+                    '<div class="loot-item">' + item.label + '</div>'
+                ).join('');
+                panel.style.display = 'block';
+            }
+
+            // Remove the disabled ship
+            const dsIdx = gameState.disabledShips.indexOf(ship);
+            if (dsIdx !== -1) gameState.disabledShips.splice(dsIdx, 1);
+            const eIdx = gameState.enemies.indexOf(ship);
+            if (eIdx !== -1) gameState.enemies.splice(eIdx, 1);
+
+            // Dispose ship mesh
+            createExplosion(ship.position.x, ship.position.y, 'small', 'blue');
+            ship.getChildMeshes().forEach(m => m.dispose());
+            ship.dispose();
+
+            gameState.boardingTarget = null;
+        }
+
         // Spawn enemy from encounter formation (uses pre-determined types)
         async function spawnEncounterEnemy() {
             if (gameState.enemiesSpawned >= gameState.enemiesInWave) return;
             if (!gameState._encounterEnemyTypes || gameState._encounterEnemyTypes.length === 0) return;
 
-            const type = gameState._encounterEnemyTypes.shift();
+            const entry = gameState._encounterEnemyTypes.shift();
+            // Support both old format (string) and new format ({type, faction})
+            const type = typeof entry === 'string' ? entry : entry.type;
+            const enemyFaction = typeof entry === 'string' ? 'A' : entry.faction;
+
             // Increment SYNCHRONOUSLY before async createEnemy to prevent
             // the render loop from spawning duplicates while awaiting
             gameState.enemiesSpawned++;
 
             const maxX = orthoWidth - 1;
             const x = (Math.random() - 0.5) * maxX * 1.5;
-            const y = orthoHeight + 2;
+            // Faction B spawns from the bottom (facing up), Faction A from top (facing down)
+            const y = enemyFaction === 'B' ? (-orthoHeight - 2) : (orthoHeight + 2);
 
             try {
                 const enemy = await createEnemy(type, x, y);
+                enemy.enemyFaction = enemyFaction;
+
+                // Faction B: flip direction - move upward instead of downward
+                if (enemyFaction === 'B') {
+                    enemy.speed = -Math.abs(enemy.speed); // Negative = moving up
+                    // Flip the mesh to face upward
+                    if (enemy.mesh) {
+                        enemy.mesh.rotation.y = Math.PI;
+                    }
+                }
+
                 if (gameState.encounterTransition === 'combat' || gameState.encounterTransition === null) {
                     gameState.enemies.push(enemy);
                 } else {
-                    // Combat ended while we were loading - dispose the enemy
                     enemy.getChildMeshes().forEach(m => m.dispose());
                     enemy.dispose();
                 }
             } catch(e) {
-                // If creation fails, decrement so the slot can be retried
                 gameState.enemiesSpawned--;
             }
         }
@@ -10632,6 +10922,9 @@
             const numFormations = config.waveCount; // One formation per wave equivalent
             const mapSpreadY = 60; // Vertical space for formations (compact tactical map)
             const mapSpreadX = orthoWidth * 2.5; // Horizontal spread
+
+            // Faction pool for formations - alternates to create opposing groups
+            const factionPool = ['pirates', 'federation', 'merchants', 'independent'];
 
             // Enemy type power ranking for visual representation
             const typePower = { 'basic': 0, 'fast': 1, 'shooter': 2, 'light': 3, 'heavy': 4, 'challenger': 5 };
@@ -10686,8 +10979,12 @@
                     });
                 }
 
+                // Assign faction - alternate between pirates and others for conflict
+                const faction = (i % 2 === 0) ? 'pirates' : factionPool[1 + (i % 3)];
+
                 formations.push({
                     id: i,
+                    faction: faction,
                     baseX: baseX,
                     baseY: baseY,
                     currentX: baseX,
@@ -10702,20 +10999,79 @@
                     enemyTypes: enemyTypes,
                     strongestType: strongestType,
                     defeated: false,
+                    battlePairId: null,  // ID of paired formation in a battle
                     meshes: [],          // Ship model mesh
                     detectionMesh: null,  // Red detection zone disc
                     detectionRingMesh: null // Red ring outline
                 });
             }
 
+            // Pair nearby formations from different factions into battle zones
+            pairFormationBattles(formations);
+
             return formations;
+        }
+
+        // Pair formations from different factions that are nearby into active battles
+        function pairFormationBattles(formations) {
+            const unpaired = formations.filter(f => !f.battlePairId);
+            for (let i = 0; i < unpaired.length; i++) {
+                if (unpaired[i].battlePairId) continue;
+                let bestMatch = null;
+                let bestDist = Infinity;
+                for (let j = i + 1; j < unpaired.length; j++) {
+                    if (unpaired[j].battlePairId) continue;
+                    if (unpaired[j].faction === unpaired[i].faction) continue;
+                    const dx = unpaired[i].baseX - unpaired[j].baseX;
+                    const dy = unpaired[i].baseY - unpaired[j].baseY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < bestDist && dist < 40) {
+                        bestDist = dist;
+                        bestMatch = unpaired[j];
+                    }
+                }
+                if (bestMatch) {
+                    unpaired[i].battlePairId = bestMatch.id;
+                    bestMatch.battlePairId = unpaired[i].id;
+                    // Move paired formations closer together so they form a battle zone
+                    const midX = (unpaired[i].baseX + bestMatch.baseX) / 2;
+                    const midY = (unpaired[i].baseY + bestMatch.baseY) / 2;
+                    const offset = 6; // Each formation offsets from center
+                    unpaired[i].baseX = midX - offset;
+                    unpaired[i].currentX = unpaired[i].baseX;
+                    bestMatch.baseX = midX + offset;
+                    bestMatch.currentX = bestMatch.baseX;
+                    unpaired[i].baseY = midY;
+                    unpaired[i].currentY = midY;
+                    bestMatch.baseY = midY;
+                    bestMatch.currentY = midY;
+                    // Adjust waypoints around battle center
+                    unpaired[i].waypoints = unpaired[i].waypoints.map(wp => ({
+                        x: midX - offset + (Math.random() - 0.5) * 15,
+                        y: midY + (Math.random() - 0.5) * 10
+                    }));
+                    bestMatch.waypoints = bestMatch.waypoints.map(wp => ({
+                        x: midX + offset + (Math.random() - 0.5) * 15,
+                        y: midY + (Math.random() - 0.5) * 10
+                    }));
+                }
+            }
         }
 
         // Create visual meshes for a formation on the exploration map
         async function createFormationVisuals(formation) {
             if (!scene) return;
 
-            // Detection zone - subtle red transparent disc
+            // Faction-based colors for detection zones
+            const factionColors = {
+                pirates: { disc: new BABYLON.Color3(0.5, 0.03, 0.03), ring: new BABYLON.Color3(0.8, 0.1, 0.08) },
+                federation: { disc: new BABYLON.Color3(0.03, 0.15, 0.5), ring: new BABYLON.Color3(0.08, 0.3, 0.8) },
+                merchants: { disc: new BABYLON.Color3(0.03, 0.4, 0.1), ring: new BABYLON.Color3(0.08, 0.7, 0.2) },
+                independent: { disc: new BABYLON.Color3(0.4, 0.35, 0.03), ring: new BABYLON.Color3(0.7, 0.6, 0.08) }
+            };
+            const fc = factionColors[formation.faction] || factionColors.pirates;
+
+            // Detection zone - faction-colored transparent disc
             const disc = BABYLON.MeshBuilder.CreateDisc('detectionZone_' + formation.id, {
                 radius: formation.detectionRadius,
                 tessellation: 48
@@ -10726,7 +11082,7 @@
             disc.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
 
             const discMat = new BABYLON.StandardMaterial('detectionMat_' + formation.id, scene);
-            discMat.emissiveColor = new BABYLON.Color3(0.5, 0.03, 0.03);
+            discMat.emissiveColor = fc.disc;
             discMat.alpha = 0.05;
             discMat.disableLighting = true;
             discMat.backFaceCulling = false;
@@ -10745,7 +11101,7 @@
             ring.rotation.x = Math.PI / 2;
 
             const ringMat = new BABYLON.StandardMaterial('ringMat_' + formation.id, scene);
-            ringMat.emissiveColor = new BABYLON.Color3(0.8, 0.1, 0.08);
+            ringMat.emissiveColor = fc.ring;
             ringMat.alpha = 0.15;
             ringMat.disableLighting = true;
             ringMat.backFaceCulling = false;
@@ -10875,7 +11231,8 @@
             });
         }
 
-        // Check if player is inside any formation's detection zone
+        // Check if player is inside a formation battle zone or single formation (if weaponsHot)
+        // Returns { formation, pairedFormation, isBattle } or null
         function checkFormationDetection() {
             if (!playerShip || !gameState.explorationMode) return null;
 
@@ -10887,19 +11244,45 @@
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
                 if (dist < formation.detectionRadius) {
-                    return formation;
+                    // Check if this formation is part of a battle pair
+                    if (formation.battlePairId !== null) {
+                        const paired = gameState.explorationFormations.find(f => f.id === formation.battlePairId && !f.defeated);
+                        if (paired) {
+                            return { formation, pairedFormation: paired, isBattle: true };
+                        }
+                    }
+                    // Single formation - only engage if weapons are hot (attack mode)
+                    if (gameState.weaponsHot) {
+                        return { formation, pairedFormation: null, isBattle: false };
+                    }
                 }
             }
             return null;
         }
 
         // Start a combat encounter with a formation (zoom in)
-        function startCombatEncounter(formation) {
+        // pairedFormation: the opposing faction's formation in a battle (null if solo attack)
+        // isBattle: true if this is a crossfire battle between two factions
+        function startCombatEncounter(formation, pairedFormation, isBattle) {
             gameState.explorationMode = false;
             gameState.currentEncounter = formation;
+            gameState.encounterPaired = pairedFormation || null;
+            gameState.encounterIsBattle = isBattle || false;
             gameState.encounterTransition = 'zooming_in';
             gameState.encounterTimer = 0;
             gameState.zoomTarget = 1; // Zoom to normal view
+            gameState.disabledShips = gameState.disabledShips || [];
+
+            // In battle encounters, weapons start off (player is observer)
+            // In attack mode encounters, weapons stay hot
+            if (isBattle) {
+                gameState.weaponsHot = false;
+                const wBtn = document.getElementById('weaponsToggleBtn');
+                if (wBtn) {
+                    wBtn.textContent = 'WEAPONS: SAFE';
+                    wBtn.classList.remove('weapons-hot');
+                }
+            }
 
             // Reset player ship scale back to normal for combat
             if (playerShipMesh) {
@@ -10942,13 +11325,32 @@
         // Spawn the encounter's enemies after zoom-in completes
         function spawnEncounterEnemies(formation) {
             gameState.encounterTransition = 'combat';
-            gameState.enemiesInWave = formation.enemyCount;
-            gameState.enemiesSpawned = 0;
-            // Start timer past threshold so first enemy spawns immediately
-            gameState.spawnTimer = 1000;
 
-            // Override the spawn types with formation's pre-determined types
-            gameState._encounterEnemyTypes = [...formation.enemyTypes];
+            if (gameState.encounterIsBattle && gameState.encounterPaired) {
+                // Crossfire battle: spawn both factions' enemies
+                const paired = gameState.encounterPaired;
+                const totalEnemies = formation.enemyCount + paired.enemyCount;
+                gameState.enemiesInWave = totalEnemies;
+                gameState.enemiesSpawned = 0;
+                gameState.spawnTimer = 1000;
+
+                // Interleave enemy types from both factions with faction tags
+                const typesA = formation.enemyTypes.map(t => ({ type: t, faction: 'A' }));
+                const typesB = paired.enemyTypes.map(t => ({ type: t, faction: 'B' }));
+                const interleaved = [];
+                const maxLen = Math.max(typesA.length, typesB.length);
+                for (let i = 0; i < maxLen; i++) {
+                    if (i < typesA.length) interleaved.push(typesA[i]);
+                    if (i < typesB.length) interleaved.push(typesB[i]);
+                }
+                gameState._encounterEnemyTypes = interleaved;
+            } else {
+                // Single formation attack: enemies all hostile to player
+                gameState.enemiesInWave = formation.enemyCount;
+                gameState.enemiesSpawned = 0;
+                gameState.spawnTimer = 1000;
+                gameState._encounterEnemyTypes = formation.enemyTypes.map(t => ({ type: t, faction: 'A' }));
+            }
         }
 
         // Called when combat encounter is won (all enemies dead)
@@ -10960,31 +11362,49 @@
         // Zoom back out and return to exploration
         function returnToExploration() {
             const formation = gameState.currentEncounter;
-            if (formation) {
-                formation.defeated = true;
+            const defeatFormation = (f) => {
+                if (!f) return;
+                f.defeated = true;
                 gameState.formationsDefeated++;
-
-                // Dispose defeated formation meshes
-                if (formation.detectionMesh) {
-                    formation.detectionMesh.dispose();
-                    formation.detectionMesh = null;
-                }
-                if (formation.detectionRingMesh) {
-                    formation.detectionRingMesh.dispose();
-                    formation.detectionRingMesh = null;
-                }
-                formation.meshes.forEach(m => {
+                if (f.detectionMesh) { f.detectionMesh.dispose(); f.detectionMesh = null; }
+                if (f.detectionRingMesh) { f.detectionRingMesh.dispose(); f.detectionRingMesh = null; }
+                f.meshes.forEach(m => {
                     m.getChildMeshes().forEach(cm => cm.dispose());
                     m.dispose();
                 });
-                formation.meshes = [];
+                f.meshes = [];
+            };
+
+            defeatFormation(formation);
+            // Also defeat the paired formation in a battle
+            if (gameState.encounterPaired) {
+                defeatFormation(gameState.encounterPaired);
             }
 
             gameState.currentEncounter = null;
+            gameState.encounterPaired = null;
+            gameState.encounterIsBattle = false;
             gameState.encounterTransition = 'zooming_out';
             gameState.encounterTimer = 0;
             gameState.zoomTarget = 4; // Zoom back out
             gameState._encounterEnemyTypes = null;
+
+            // Clean up disabled ships
+            if (gameState.disabledShips) {
+                gameState.disabledShips.forEach(s => {
+                    if (s && !s._isDisposed) {
+                        s.getChildMeshes().forEach(m => m.dispose());
+                        s.dispose();
+                    }
+                });
+                gameState.disabledShips = [];
+            }
+            gameState.boardingTarget = null;
+            gameState.boardingInProgress = false;
+            const boardPanel = document.getElementById('boardingLootPanel');
+            if (boardPanel) boardPanel.style.display = 'none';
+            const boardPrompt = document.getElementById('boardingPrompt');
+            if (boardPrompt) boardPrompt.style.display = 'none';
 
             // Clean up all combat projectiles and remaining enemies
             gameState.enemyBullets.forEach(b => {
@@ -12545,46 +12965,81 @@
                 }
                 // All enemy types except 'fast' and 'challenger' can shoot bullets
                 else if (enemy.type !== 'fast' &&
-                    currentTime - enemy.lastFireTime > enemy.fireRate && playerShip) {
+                    currentTime - enemy.lastFireTime > enemy.fireRate) {
 
-                    const dx = playerShip.position.x - enemy.position.x;
-                    const dy = playerShip.position.y - enemy.position.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    // In crossfire encounters, enemies target opposing faction enemies
+                    let targetX, targetY;
+                    let hasTarget = false;
 
-                    if (dist > 0) {
-                        // Heavy enemies fire slower but with spread pattern
-                        if (enemy.type === 'heavy') {
-                            // Heavy fires a 3-shot spread
-                            const spreadAngles = [-0.2, 0, 0.2];
-                            spreadAngles.forEach(angle => {
-                                const cos = Math.cos(angle);
-                                const sin = Math.sin(angle);
-                                const vx = (dx / dist) * 0.08;
-                                const vy = (dy / dist) * 0.08;
-                                const rotatedVx = vx * cos - vy * sin;
-                                const rotatedVy = vx * sin + vy * cos;
-                                const bullet = createBullet(false, enemy.position.x, enemy.position.y - 0.3,
-                                    rotatedVx, rotatedVy, enemy.damage);
-                                gameState.enemyBullets.push(bullet);
-                            });
-                        } else {
-                            // Normal single shot for other types
-                            const bulletSpeed = enemy.type === 'light' ? 0.12 : 0.1;
-                            const bullet = createBullet(false, enemy.position.x, enemy.position.y - 0.3,
-                                (dx / dist) * bulletSpeed, (dy / dist) * bulletSpeed, enemy.damage);
-                            gameState.enemyBullets.push(bullet);
+                    if (gameState.encounterIsBattle && enemy.enemyFaction) {
+                        // Find nearest enemy from opposing faction
+                        let nearestDist = Infinity;
+                        for (const other of gameState.enemies) {
+                            if (other === enemy) continue;
+                            if (other.enemyFaction === enemy.enemyFaction) continue;
+                            if (other.isDisabled) continue;
+                            const odx = other.position.x - enemy.position.x;
+                            const ody = other.position.y - enemy.position.y;
+                            const odist = Math.sqrt(odx * odx + ody * ody);
+                            if (odist < nearestDist) {
+                                nearestDist = odist;
+                                targetX = other.position.x;
+                                targetY = other.position.y;
+                                hasTarget = true;
+                            }
                         }
                     }
 
-                    enemy.lastFireTime = currentTime;
+                    // Fall back to player if no faction target or not in crossfire
+                    if (!hasTarget && playerShip) {
+                        targetX = playerShip.position.x;
+                        targetY = playerShip.position.y;
+                        hasTarget = true;
+                    }
+
+                    if (hasTarget) {
+                        const dx = targetX - enemy.position.x;
+                        const dy = targetY - enemy.position.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        if (dist > 0) {
+                            if (enemy.type === 'heavy') {
+                                const spreadAngles = [-0.2, 0, 0.2];
+                                spreadAngles.forEach(angle => {
+                                    const cos = Math.cos(angle);
+                                    const sin = Math.sin(angle);
+                                    const vx = (dx / dist) * 0.08;
+                                    const vy = (dy / dist) * 0.08;
+                                    const rotatedVx = vx * cos - vy * sin;
+                                    const rotatedVy = vx * sin + vy * cos;
+                                    const bullet = createBullet(false, enemy.position.x, enemy.position.y - 0.3,
+                                        rotatedVx, rotatedVy, enemy.damage);
+                                    bullet.sourceFaction = enemy.enemyFaction || null;
+                                    gameState.enemyBullets.push(bullet);
+                                });
+                            } else {
+                                const bulletSpeed = enemy.type === 'light' ? 0.12 : 0.1;
+                                const bulletOffsetY = enemy.enemyFaction === 'B' ? 0.3 : -0.3;
+                                const bullet = createBullet(false, enemy.position.x, enemy.position.y + bulletOffsetY,
+                                    (dx / dist) * bulletSpeed, (dy / dist) * bulletSpeed, enemy.damage);
+                                bullet.sourceFaction = enemy.enemyFaction || null;
+                                gameState.enemyBullets.push(bullet);
+                            }
+                        }
+
+                        enemy.lastFireTime = currentTime;
+                    }
                 }
 
                 // Challengers don't escape - they stay at top until destroyed
+                // Skip disabled ships - they just drift
+                if (enemy.isDisabled) continue;
+
                 if (enemy.type === 'challenger') {
                     // Clamp to screen bounds
                     enemy.position.x = Math.max(-orthoWidth + 1, Math.min(orthoWidth - 1, enemy.position.x));
-                } else if (enemy.position.y < -orthoHeight - 2) {
-                    // Enemy escaped - just clean up (defense missions handle this differently)
+                } else if (enemy.position.y < -orthoHeight - 2 || enemy.position.y > orthoHeight + 4) {
+                    // Enemy escaped (check both directions for faction B)
                     gameState.escapedEnemies++;
 
                     enemy.getChildMeshes().forEach(m => m.dispose());
@@ -12604,6 +13059,7 @@
                 let bulletHit = false;
                 for (let j = gameState.enemies.length - 1; j >= 0; j--) {
                     const enemy = gameState.enemies[j];
+                    if (enemy.isDisabled) continue; // Skip disabled ships
                     const dx = bullet.position.x - enemy.position.x;
                     const dy = bullet.position.y - enemy.position.y;
                     // Use elliptical hitbox - wider for wings
@@ -12629,26 +13085,30 @@
                             bulletHit = true;
                         }
 
-                        if (enemy.health <= 0) {
-                            createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
-                            createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                        if (enemy.health <= 0 && !enemy.isDisabled) {
+                            // In encounters, chance to disable instead of destroy
+                            if (gameState.currentEncounter && Math.random() < 0.3 && enemy.type !== 'fast') {
+                                disableShip(enemy);
+                            } else {
+                                createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
+                                createLoot(enemy.position.x, enemy.position.y, enemy.type);
 
-                            const points = enemy.type === 'challenger' ? 50 :
-                                enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
-                            gameState.score += points * gameState.wave;
-                            gameState.credits += 10 + Math.floor(Math.random() * 15);
-                            gameState.stats.enemiesKilled++;
-                            updateHUD();
+                                const points = enemy.type === 'challenger' ? 50 :
+                                    enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
+                                gameState.score += points * gameState.wave;
+                                gameState.credits += 10 + Math.floor(Math.random() * 15);
+                                gameState.stats.enemiesKilled++;
+                                updateHUD();
 
-                            // Clean up challenger's laser preview if it exists
-                            if (enemy.laserPreviewMesh) {
-                                enemy.laserPreviewMesh.dispose();
+                                if (enemy.laserPreviewMesh) {
+                                    enemy.laserPreviewMesh.dispose();
+                                }
+
+                                enemy.getChildMeshes().forEach(m => m.dispose());
+                                enemy.dispose();
+                                gameState.enemies.splice(j, 1);
                             }
-
-                            enemy.getChildMeshes().forEach(m => m.dispose());
-                            enemy.dispose();
-                            gameState.enemies.splice(j, 1);
-                        } else {
+                        } else if (!enemy.isDisabled) {
                             flashShip(enemy.mesh);
                         }
                         break;
@@ -12707,6 +13167,46 @@
                         gameState.enemyBullets.splice(i, 1);
                         continue;
                     }
+                }
+
+                // Crossfire: enemy bullets can hit enemies from opposing factions
+                if (bullet.sourceFaction && gameState.encounterIsBattle) {
+                    let crossfireHit = false;
+                    for (let j = gameState.enemies.length - 1; j >= 0; j--) {
+                        const target = gameState.enemies[j];
+                        if (target.enemyFaction === bullet.sourceFaction) continue; // Same faction
+                        if (target.isDisabled) continue;
+                        const edx = bullet.position.x - target.position.x;
+                        const edy = bullet.position.y - target.position.y;
+                        const hitX = edx / (target.hitboxWidth || 0.9);
+                        const hitY = edy / (target.hitboxHeight || 0.6);
+                        const edist = Math.sqrt(hitX * hitX + hitY * hitY);
+                        if (edist < 1.0) {
+                            target.health -= (bullet.damage || 10);
+                            createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
+                            if (target.health <= 0) {
+                                // Chance to disable instead of destroy
+                                if (!target.isDisabled && Math.random() < 0.35) {
+                                    disableShip(target);
+                                } else {
+                                    createExplosion(target.position.x, target.position.y, 'large', 'orange');
+                                    if (target.laserPreviewMesh) target.laserPreviewMesh.dispose();
+                                    target.getChildMeshes().forEach(m => m.dispose());
+                                    target.dispose();
+                                    gameState.enemies.splice(j, 1);
+                                }
+                            } else {
+                                flashShip(target.mesh);
+                            }
+                            if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                            bullet.getChildMeshes().forEach(m => m.dispose());
+                            bullet.dispose();
+                            gameState.enemyBullets.splice(i, 1);
+                            crossfireHit = true;
+                            break;
+                        }
+                    }
+                    if (crossfireHit) continue;
                 }
 
                 if (bullet.position.y < -orthoHeight - 2 || bullet.position.y > orthoHeight + 2 ||
@@ -12970,8 +13470,17 @@
             gameState.zoomTarget = 1;
             gameState.encounterTransition = null;
             gameState.currentEncounter = null;
+            gameState.encounterPaired = null;
+            gameState.encounterIsBattle = false;
             gameState.weaponsHot = false;
+            gameState.disabledShips = [];
+            gameState.boardingTarget = null;
+            gameState.boardingInProgress = false;
             gameState.explorationSkirmishes = [];
+            const boardPanel = document.getElementById('boardingLootPanel');
+            if (boardPanel) boardPanel.style.display = 'none';
+            const boardPrompt = document.getElementById('boardingPrompt');
+            if (boardPrompt) boardPrompt.style.display = 'none';
             gameState.skirmishIdCounter = 0;
             gameState.factionReputation = { federation: 50, merchants: 50, pirates: 0, independent: 50 };
             // Reset weapons toggle button
@@ -13857,11 +14366,11 @@
                         }
                     });
 
-                    // Check if player entered a detection zone
-                    const detectedFormation = checkFormationDetection();
-                    if (detectedFormation) {
+                    // Check if player entered a detection zone (battle or attack mode)
+                    const detection = checkFormationDetection();
+                    if (detection) {
                         clearEdgeIndicators();
-                        startCombatEncounter(detectedFormation);
+                        startCombatEncounter(detection.formation, detection.pairedFormation, detection.isBattle);
                     }
 
                     // Check if player reached the goal system
@@ -13937,9 +14446,23 @@
                 updateSuns(scrollMultiplier);
                 applySunLighting();
 
-                // Encounter combat completion - all enemies dead
+                // Encounter combat completion check
                 if (gameState.encounterTransition === 'combat' && gameState.currentEncounter) {
-                    if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0) {
+                    const allSpawned = gameState.enemiesSpawned >= gameState.enemiesInWave;
+                    const activeEnemies = gameState.enemies.filter(e => !e.isDisabled);
+
+                    if (gameState.encounterIsBattle && allSpawned) {
+                        // Crossfire battle: ends when one faction is wiped out (active only)
+                        const factionA = activeEnemies.filter(e => e.enemyFaction === 'A');
+                        const factionB = activeEnemies.filter(e => e.enemyFaction === 'B');
+                        if (factionA.length === 0 || factionB.length === 0) {
+                            gameState.wave++;
+                            gameState.levelWave++;
+                            updateHUD();
+                            onEncounterVictory();
+                        }
+                    } else if (allSpawned && activeEnemies.length === 0) {
+                        // Normal encounter: all active enemies dead
                         gameState.wave++;
                         gameState.levelWave++;
                         updateHUD();
@@ -14003,6 +14526,8 @@
                 updateShieldEquipment(deltaTime);
                 updateSecondaryCooldown(deltaTime);
                 fireEquipmentWeapons(currentTime);
+                updateDisabledShips(deltaTime);
+                checkBoardingProximity();
                 updateLoot(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
                 updateSystemTraffic(scrollMultiplier, deltaTime);
@@ -14514,6 +15039,12 @@
             weaponsToggleBtn.click();
         });
 
+        // Boarding loot panel close button
+        document.getElementById('boardingLootClose').addEventListener('click', () => {
+            document.getElementById('boardingLootPanel').style.display = 'none';
+            gameState.boardingInProgress = false;
+        });
+
         // Update speed-up button visibility
         function updateSpeedUpButton() {
             const btn = document.getElementById('speedUpBtn');
@@ -14534,8 +15065,8 @@
                 btn.style.display = 'block';
             }
 
-            // Show weapons toggle only in exploration mode
-            if (gameState.explorationMode) {
+            // Show weapons toggle in exploration mode AND during encounter combat
+            if (gameState.explorationMode || gameState.currentEncounter) {
                 wBtn.style.display = 'block';
             } else {
                 wBtn.style.display = 'none';
