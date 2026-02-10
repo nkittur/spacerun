@@ -7001,37 +7001,55 @@
                     currentX: startX,
                     currentY: startY,
                     heading: Math.random() * Math.PI * 2,
-                    baseSpeed: 0.003 + Math.random() * 0.003, // world units per ms (matched to scroll)
+                    baseSpeed: 0.003 + Math.random() * 0.003, // world units per ms
                     currentSpeed: 0,
                     mesh: null,
                     alive: true,
                     systemX: systemX,
                     systemY: systemY,
-                    // Navigation state machine
+                    // Navigation - store reference to target object
                     navState: 'cruising', // cruising, approaching, docked, departing
-                    targetX: 0,
-                    targetY: 0,
+                    targetRef: null, // reference to actual game object (planet, sun, gate)
+                    targetOffsetX: 0, // small offset from target center
+                    targetOffsetY: 0,
                     targetType: null, // 'planet', 'sun', 'gate'
                     dockTimer: 0,
                     dockDuration: 0,
                     departHeading: 0,
+                    departTimer: 0,
                     // Smoothing
-                    turnRate: 0.002 + Math.random() * 0.002 // radians per ms
+                    turnRate: 0.002 + Math.random() * 0.002, // radians per ms
+                    // Scale tracking for live slider updates
+                    baseScale: type.scale,
+                    _lastExploreScale: settings.exploreShipScale
                 };
 
                 // Assign initial destination
                 assignTrafficDestination(ship);
 
                 // Spread initial ships along different states
-                if (Math.random() < 0.3) {
-                    ship.navState = 'cruising';
-                } else if (Math.random() < 0.5) {
-                    // Start some already partway to their destination
-                    const dx = ship.targetX - ship.currentX;
-                    const dy = ship.targetY - ship.currentY;
-                    const prog = 0.3 + Math.random() * 0.5;
-                    ship.currentX += dx * prog;
-                    ship.currentY += dy * prog;
+                const initRoll = Math.random();
+                if (initRoll < 0.3) {
+                    // Already at a target, start docked
+                    if (ship.targetRef) {
+                        const tPos = getTargetPosition(ship);
+                        if (tPos) {
+                            ship.currentX = tPos.x + ship.targetOffsetX;
+                            ship.currentY = tPos.y + ship.targetOffsetY;
+                            ship.navState = 'docked';
+                            ship.dockTimer = Math.random() * ship.dockDuration * 0.5;
+                        }
+                    }
+                } else if (initRoll < 0.7) {
+                    // Start partway to destination
+                    const tPos = getTargetPosition(ship);
+                    if (tPos) {
+                        const tx = tPos.x + ship.targetOffsetX;
+                        const ty = tPos.y + ship.targetOffsetY;
+                        const prog = 0.3 + Math.random() * 0.5;
+                        ship.currentX = ship.currentX + (tx - ship.currentX) * prog;
+                        ship.currentY = ship.currentY + (ty - ship.currentY) * prog;
+                    }
                 }
 
                 gameState.systemTraffic.push(ship);
@@ -7039,88 +7057,102 @@
             }
         }
 
-        // Find interesting destinations for traffic ships (planets, suns, gates)
-        function getTrafficDestinations() {
-            const destinations = [];
+        // Get live position of a target reference
+        function getTargetPosition(ship) {
+            const ref = ship.targetRef;
+            if (!ref) return null;
 
-            // Add all visible planets
+            if (ship.targetType === 'planet' && ref.position) {
+                return { x: ref.position.x, y: ref.position.y };
+            }
+            if (ship.targetType === 'sun') {
+                if (ref.mesh && ref.mesh.position) {
+                    return { x: ref.mesh.position.x, y: ref.mesh.position.y };
+                }
+                if (ref.position) {
+                    return { x: ref.position.x, y: ref.position.y };
+                }
+            }
+            if (ship.targetType === 'gate' && ref.position) {
+                return { x: ref.position.x, y: ref.position.y };
+            }
+            return null;
+        }
+
+        // Assign a destination to a traffic ship using live object references
+        function assignTrafficDestination(ship) {
+            const candidates = [];
+
+            // Add all visible planets with priority
             gameState.planets.forEach(p => {
+                if (!p.position) return;
                 const isLife = p.features && (p.features.includes('life') || ['Lush', 'Tropical', 'Ocean'].includes(p.planetType));
-                destinations.push({
-                    x: p.position.x,
-                    y: p.position.y,
+                candidates.push({
+                    ref: p,
                     type: 'planet',
-                    priority: isLife ? 3 : 1, // Life planets are higher priority
-                    dockTime: isLife ? (3000 + Math.random() * 4000) : (1500 + Math.random() * 2500)
+                    priority: isLife ? 3 : 1,
+                    dockTime: isLife ? (3000 + Math.random() * 4000) : (1500 + Math.random() * 2500),
+                    approachDist: 0
                 });
             });
 
             // Add suns (ships approach but keep distance)
             gameState.suns.forEach(s => {
-                if (s.mesh) {
-                    destinations.push({
-                        x: s.mesh.position.x,
-                        y: s.mesh.position.y,
-                        type: 'sun',
-                        priority: 1,
-                        approachDist: (s.size || 4) * 1.5, // Stay outside corona
-                        dockTime: 800 + Math.random() * 1200
-                    });
-                }
+                const pos = s.mesh ? s.mesh.position : s.position;
+                if (!pos) return;
+                candidates.push({
+                    ref: s,
+                    type: 'sun',
+                    priority: 1,
+                    approachDist: (s.size || 4) * 1.5,
+                    dockTime: 800 + Math.random() * 1200
+                });
             });
 
             // Add warp gates if visible
             gameState.warpGates.forEach(g => {
-                destinations.push({
-                    x: g.position.x,
-                    y: g.position.y,
+                if (!g.position) return;
+                candidates.push({
+                    ref: g,
                     type: 'gate',
                     priority: 2,
-                    dockTime: 500 + Math.random() * 1000
+                    dockTime: 500 + Math.random() * 1000,
+                    approachDist: 0
                 });
             });
 
-            return destinations;
-        }
-
-        // Assign a destination to a traffic ship
-        function assignTrafficDestination(ship) {
-            const dests = getTrafficDestinations();
-
-            if (dests.length === 0) {
-                // No destinations yet - cruise in a random direction around system
-                const angle = Math.random() * Math.PI * 2;
-                const dist = 5 + Math.random() * 10;
-                ship.targetX = ship.systemX + Math.cos(angle) * dist;
-                ship.targetY = ship.systemY + Math.sin(angle) * dist;
+            if (candidates.length === 0) {
+                // No destinations - cruise randomly near system center
+                ship.targetRef = null;
                 ship.targetType = null;
+                ship.navState = 'cruising';
                 ship.dockDuration = 0;
                 return;
             }
 
-            // Weight selection by priority, favoring life planets and stations
-            const weights = dests.map(d => d.priority);
-            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            // Weighted random selection by priority
+            const totalWeight = candidates.reduce((a, c) => a + c.priority, 0);
             let r = Math.random() * totalWeight;
-            let chosen = dests[0];
-            for (let i = 0; i < dests.length; i++) {
-                r -= weights[i];
-                if (r <= 0) { chosen = dests[i]; break; }
+            let chosen = candidates[0];
+            for (const c of candidates) {
+                r -= c.priority;
+                if (r <= 0) { chosen = c; break; }
             }
 
-            // For suns, offset the target to stay at approach distance
-            if (chosen.type === 'sun' && chosen.approachDist) {
-                const approachAngle = Math.atan2(ship.currentY - chosen.y, ship.currentX - chosen.x);
-                ship.targetX = chosen.x + Math.cos(approachAngle) * chosen.approachDist;
-                ship.targetY = chosen.y + Math.sin(approachAngle) * chosen.approachDist;
-            } else {
-                // Offset slightly so ships don't all converge on exact center
-                ship.targetX = chosen.x + (Math.random() - 0.5) * 2;
-                ship.targetY = chosen.y + (Math.random() - 0.5) * 2;
-            }
-
+            ship.targetRef = chosen.ref;
             ship.targetType = chosen.type;
-            ship.dockDuration = chosen.dockTime || (2000 + Math.random() * 3000);
+            ship.dockDuration = chosen.dockTime;
+
+            // Offset so ships don't all converge on exact center
+            if (chosen.type === 'sun' && chosen.approachDist) {
+                const approachAngle = Math.random() * Math.PI * 2;
+                ship.targetOffsetX = Math.cos(approachAngle) * chosen.approachDist;
+                ship.targetOffsetY = Math.sin(approachAngle) * chosen.approachDist;
+            } else {
+                ship.targetOffsetX = (Math.random() - 0.5) * 2;
+                ship.targetOffsetY = (Math.random() - 0.5) * 2;
+            }
+
             ship.navState = 'cruising';
         }
 
@@ -7132,7 +7164,7 @@
                 mesh.position.x = ship.currentX;
                 mesh.position.y = ship.currentY;
                 mesh.position.z = 0.15;
-                mesh.scaling.scaleInPlace(ship.type.scale);
+                mesh.scaling.scaleInPlace(ship.baseScale * settings.exploreShipScale);
 
                 // Apply heading rotation
                 const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
@@ -7149,6 +7181,7 @@
                 });
 
                 ship.mesh = mesh;
+                ship._lastExploreScale = settings.exploreShipScale;
             } catch (e) {
                 // Silently fail - traffic is decorative
             }
@@ -7166,9 +7199,10 @@
         }
 
         // Update system traffic in combat view - intelligent navigation
+        // Ships scroll at the same rate as planets (per-frame, NOT multiplied by deltaTime)
         function updateSystemTraffic(scrollMultiplier, deltaTime) {
-            const worldScroll = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
-            const scrollDist = worldScroll * deltaTime;
+            // Match planet/sun scroll formula exactly (per-frame, no deltaTime)
+            const scrollDist = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
             for (let i = gameState.systemTraffic.length - 1; i >= 0; i--) {
                 const ship = gameState.systemTraffic[i];
@@ -7177,23 +7211,43 @@
                     continue;
                 }
 
-                // Scroll with the world (same as planets)
+                // Scroll with the world at the SAME rate as planets/suns (per-frame)
                 ship.currentY -= scrollDist;
-                ship.targetY -= scrollDist;
                 ship.systemY -= scrollDist;
 
-                const dx = ship.targetX - ship.currentX;
-                const dy = ship.targetY - ship.currentY;
+                // Live-update scale if slider changed
+                if (ship.mesh && ship._lastExploreScale !== settings.exploreShipScale) {
+                    const ratio = settings.exploreShipScale / ship._lastExploreScale;
+                    ship.mesh.scaling.scaleInPlace(ratio);
+                    ship._lastExploreScale = settings.exploreShipScale;
+                }
+
+                // Read target position from live object reference (no double-scroll)
+                let targetX = ship.currentX;
+                let targetY = ship.currentY;
+                const tPos = getTargetPosition(ship);
+                if (tPos) {
+                    targetX = tPos.x + ship.targetOffsetX;
+                    targetY = tPos.y + ship.targetOffsetY;
+                } else if (ship.targetRef && ship.navState !== 'departing') {
+                    // Target was disposed (planet scrolled off) - pick new destination
+                    assignTrafficDestination(ship);
+                    const newPos = getTargetPosition(ship);
+                    if (newPos) {
+                        targetX = newPos.x + ship.targetOffsetX;
+                        targetY = newPos.y + ship.targetOffsetY;
+                    }
+                }
+
+                const dx = targetX - ship.currentX;
+                const dy = targetY - ship.currentY;
                 const distToTarget = Math.sqrt(dx * dx + dy * dy);
                 const targetHeading = Math.atan2(dy, dx);
 
                 switch (ship.navState) {
                     case 'cruising': {
-                        // Fly toward destination at full speed
                         ship.heading = turnToward(ship.heading, targetHeading, ship.turnRate, deltaTime);
                         ship.currentSpeed = ship.baseSpeed;
-
-                        // Transition to approaching when close
                         if (distToTarget < 4) {
                             ship.navState = 'approaching';
                         }
@@ -7201,14 +7255,9 @@
                     }
 
                     case 'approaching': {
-                        // Slow down as we get close, turn to face target
                         ship.heading = turnToward(ship.heading, targetHeading, ship.turnRate * 1.5, deltaTime);
-
-                        // Decelerate: speed proportional to distance (min 20% speed)
                         const speedFactor = Math.max(0.2, distToTarget / 4);
                         ship.currentSpeed = ship.baseSpeed * speedFactor;
-
-                        // Dock when very close
                         if (distToTarget < 0.8) {
                             ship.navState = 'docked';
                             ship.dockTimer = 0;
@@ -7218,19 +7267,13 @@
                     }
 
                     case 'docked': {
-                        // Stay stationary (relative to world scroll) for dock duration
                         ship.currentSpeed = 0;
                         ship.dockTimer += deltaTime;
-
                         if (ship.dockTimer >= ship.dockDuration) {
-                            ship.navState = 'departing';
-                            // Choose departure: either new random heading or toward a new destination
                             if (Math.random() < 0.6) {
-                                // Head to a new destination
                                 assignTrafficDestination(ship);
-                                ship.navState = 'cruising';
                             } else {
-                                // Depart on a random heading, then pick new destination after clearing
+                                ship.navState = 'departing';
                                 ship.departHeading = ship.heading + (Math.random() - 0.5) * Math.PI * 1.5;
                                 ship.departTimer = 0;
                             }
@@ -7239,23 +7282,18 @@
                     }
 
                     case 'departing': {
-                        // Accelerate away from dock on departure heading
                         ship.heading = turnToward(ship.heading, ship.departHeading, ship.turnRate, deltaTime);
-                        ship.departTimer = (ship.departTimer || 0) + deltaTime;
-                        // Accelerate over 1.5 seconds
+                        ship.departTimer += deltaTime;
                         const accelFactor = Math.min(1.0, ship.departTimer / 1500);
                         ship.currentSpeed = ship.baseSpeed * accelFactor;
-
-                        // After clearing dock area, pick new destination
                         if (ship.departTimer > 2000) {
                             assignTrafficDestination(ship);
-                            ship.navState = 'cruising';
                         }
                         break;
                     }
                 }
 
-                // Apply movement
+                // Apply own navigation movement (time-based)
                 if (ship.currentSpeed > 0) {
                     ship.currentX += Math.cos(ship.heading) * ship.currentSpeed * deltaTime;
                     ship.currentY += Math.sin(ship.heading) * ship.currentSpeed * deltaTime;
@@ -7271,8 +7309,9 @@
                     ship.mesh.rotationQuaternion = headQ.multiply(tipQ);
                 }
 
-                // Remove if scrolled way off screen
-                if (ship.currentY < -orthoHeight - 20) {
+                // Only remove if VERY far below screen (well past the system)
+                // Ships persist in the system even when off the visible screen
+                if (ship.currentY < -orthoHeight - 60) {
                     ship.alive = false;
                     if (ship.mesh) {
                         ship.mesh.getChildMeshes().forEach(m => m.dispose());
@@ -7283,39 +7322,55 @@
                 }
             }
 
-            // Respawn ships that scrolled off to maintain population
+            // Respawn ships near actual system objects to maintain population
             if (gameState.systemTraffic.length < 4 && gameState.levelEndSpawned) {
-                // Spawn a replacement from above the visible area
                 const type = SYSTEM_TRAFFIC_TYPES[Math.floor(Math.random() * SYSTEM_TRAFFIC_TYPES.length)];
-                const spawnX = (Math.random() - 0.5) * orthoWidth * 1.5;
-                const spawnY = orthoHeight + 5 + Math.random() * 5;
 
-                // Find system center from first sun if available
-                let sysX = 0, sysY = orthoHeight;
-                if (gameState.suns.length > 0 && gameState.suns[0].mesh) {
-                    sysX = gameState.suns[0].mesh.position.x;
-                    sysY = gameState.suns[0].mesh.position.y;
+                // Spawn near an existing planet or sun (not at arbitrary screen positions)
+                let spawnX, spawnY;
+                const visiblePlanets = gameState.planets.filter(p => p.position && p.position.y > -orthoHeight && p.position.y < orthoHeight + 10);
+                const visibleSuns = gameState.suns.filter(s => {
+                    const pos = s.mesh ? s.mesh.position : s.position;
+                    return pos && pos.y > -orthoHeight && pos.y < orthoHeight + 10;
+                });
+
+                if (visiblePlanets.length > 0 || visibleSuns.length > 0) {
+                    // Pick a random visible object as spawn anchor
+                    const allVisible = [...visiblePlanets.map(p => p.position), ...visibleSuns.map(s => s.mesh ? s.mesh.position : s.position)];
+                    const anchor = allVisible[Math.floor(Math.random() * allVisible.length)];
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = 6 + Math.random() * 8;
+                    spawnX = anchor.x + Math.cos(angle) * dist;
+                    spawnY = anchor.y + Math.sin(angle) * dist;
+                } else {
+                    // Fallback: spawn above visible area
+                    spawnX = (Math.random() - 0.5) * orthoWidth * 1.5;
+                    spawnY = orthoHeight + 5;
                 }
 
                 const ship = {
                     type,
                     currentX: spawnX,
                     currentY: spawnY,
-                    heading: -Math.PI / 2 + (Math.random() - 0.5) * 0.8,
+                    heading: Math.random() * Math.PI * 2,
                     baseSpeed: 0.003 + Math.random() * 0.003,
-                    currentSpeed: 0.003,
+                    currentSpeed: 0,
                     mesh: null,
                     alive: true,
-                    systemX: sysX,
-                    systemY: sysY,
+                    systemX: spawnX,
+                    systemY: spawnY,
                     navState: 'cruising',
-                    targetX: 0,
-                    targetY: 0,
+                    targetRef: null,
+                    targetOffsetX: 0,
+                    targetOffsetY: 0,
                     targetType: null,
                     dockTimer: 0,
                     dockDuration: 0,
                     departHeading: 0,
-                    turnRate: 0.002 + Math.random() * 0.002
+                    departTimer: 0,
+                    turnRate: 0.002 + Math.random() * 0.002,
+                    baseScale: type.scale,
+                    _lastExploreScale: settings.exploreShipScale
                 };
                 assignTrafficDestination(ship);
                 gameState.systemTraffic.push(ship);
@@ -10615,25 +10670,28 @@
             }
 
             // Load the actual strongest enemy ship model as the patrol visual
-            let shipModel, shipColor;
+            // Base scales per formation type (unified with traffic ship scaling)
+            let shipModel, shipColor, formBaseScale;
             switch (formation.strongestType) {
                 case 'light':
-                    shipModel = 'Dispatcher'; shipColor = 'Purple'; break;
+                    shipModel = 'Dispatcher'; shipColor = 'Purple'; formBaseScale = 1.0; break;
                 case 'heavy':
-                    shipModel = 'Imperial'; shipColor = 'Orange'; break;
+                    shipModel = 'Imperial'; shipColor = 'Orange'; formBaseScale = 1.5; break;
                 case 'challenger':
-                    shipModel = 'Executioner'; shipColor = 'Red'; break;
+                    shipModel = 'Executioner'; shipColor = 'Red'; formBaseScale = 1.8; break;
                 default:
-                    shipModel = settings.enemyShip; shipColor = settings.enemyColor; break;
+                    shipModel = settings.enemyShip; shipColor = settings.enemyColor; formBaseScale = 1.2; break;
             }
+            formation.baseScale = formBaseScale;
+            formation._lastExploreScale = settings.exploreShipScale;
 
             try {
                 const shipMesh = await loadShipModel(shipModel, shipColor, scene, 'down');
                 shipMesh.position.x = formation.currentX;
                 shipMesh.position.y = formation.currentY;
                 shipMesh.position.z = 0.1;
-                // Scale ship for zoomed-out view, using the exploration ship size setting
-                shipMesh.scaling.scaleInPlace(1.5 * settings.exploreShipScale);
+                // Unified scaling: baseScale * exploreShipScale (same system as traffic ships)
+                shipMesh.scaling.scaleInPlace(formBaseScale * settings.exploreShipScale);
 
                 // Exclude from glow layers
                 const shipMeshes = shipMesh.getChildMeshes(false) || [];
@@ -10708,12 +10766,15 @@
                     f.detectionRingMesh.position.x = f.currentX;
                     f.detectionRingMesh.position.y = f.currentY;
                 }
+                // Live-update scale if slider changed
+                if (f._lastExploreScale !== undefined && f._lastExploreScale !== settings.exploreShipScale) {
+                    const ratio = settings.exploreShipScale / f._lastExploreScale;
+                    f.meshes.forEach(mesh => mesh.scaling.scaleInPlace(ratio));
+                    f._lastExploreScale = settings.exploreShipScale;
+                }
                 f.meshes.forEach(mesh => {
                     mesh.position.x = f.currentX;
                     mesh.position.y = f.currentY;
-                    // Rotate ship to face movement direction using quaternions
-                    // Euler YXZ order applies Z before X, so rotation.z just rolls the ship.
-                    // Instead: first tip model into XY plane (X rotation), then rotate in screen plane (Z rotation)
                     const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
                     const headQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, f.heading + Math.PI / 2);
                     mesh.rotationQuaternion = headQ.multiply(tipQ);
@@ -11052,7 +11113,9 @@
                 speed: type.speed * (0.8 + Math.random() * 0.4),
                 progress: 0, // 0 to 1
                 mesh: null,
-                alive: true
+                alive: true,
+                baseScale: type.scale,
+                _lastExploreScale: settings.exploreShipScale
             };
         }
 
@@ -11081,6 +11144,7 @@
                 });
 
                 ship.mesh = mesh;
+                ship._lastExploreScale = settings.exploreShipScale;
             } catch (e) {
                 // Fallback: small colored dot
                 const dot = BABYLON.MeshBuilder.CreateDisc('traffic_' + Math.random(), { radius: 0.5, tessellation: 12 }, scene);
@@ -11094,6 +11158,7 @@
                 if (sunGlowLayer) sunGlowLayer.addExcludedMesh(dot);
                 if (lootGlowLayer) lootGlowLayer.addExcludedMesh(dot);
                 ship.mesh = dot;
+                ship._lastExploreScale = settings.exploreShipScale;
             }
         }
 
@@ -11135,6 +11200,13 @@
                 ship.startY -= scrollDist;
                 ship.endY -= scrollDist;
                 ship.currentY -= scrollDist;
+
+                // Live-update scale if slider changed
+                if (ship.mesh && ship._lastExploreScale !== settings.exploreShipScale) {
+                    const ratio = settings.exploreShipScale / ship._lastExploreScale;
+                    ship.mesh.scaling.scaleInPlace(ratio);
+                    ship._lastExploreScale = settings.exploreShipScale;
+                }
 
                 // Update mesh
                 if (ship.mesh) {
@@ -12496,10 +12568,18 @@
         exploreShipSlider.value = settings.exploreShipScale;
         exploreShipValue.textContent = settings.exploreShipScale.toFixed(1) + 'x';
         exploreShipSlider.addEventListener('input', () => {
+            const oldVal = settings.exploreShipScale;
             const val = parseFloat(exploreShipSlider.value);
             settings.exploreShipScale = val;
             exploreShipValue.textContent = val.toFixed(1) + 'x';
             localStorage.setItem('exploreShipScale', val);
+
+            // Immediately rescale player ship if in exploration mode
+            if (gameState.explorationMode && playerShipMesh && oldVal > 0) {
+                playerShipMesh.scaling.scaleInPlace(val / oldVal);
+            }
+            // Formation ships, exploration traffic, and system traffic will
+            // live-update on next frame via _lastExploreScale tracking
         });
 
         // Debug mode checkbox
