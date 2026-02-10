@@ -10950,12 +10950,17 @@
                 enemy.enemyFaction = enemyFaction;
 
                 if (gameState.encounterIsBattle) {
+                    // Crossfire enemies get extra health so battles last longer
+                    enemy.health = Math.round(enemy.health * 2.0);
+                    enemy.maxHealth = Math.round(enemy.maxHealth * 2.0);
                     // Crossfire: set up lateral movement toward the opposing side
                     enemy.movementPattern = 'crossfire';
                     // Faction A moves right, Faction B moves left
                     const lateralDir = enemyFaction === 'A' ? 1 : -1;
-                    enemy.crossfireVX = lateralDir * (0.02 + Math.random() * 0.02); // lateral speed
-                    enemy.crossfireVY = (Math.random() - 0.5) * 0.01; // slight vertical drift
+                    // Type-based speed: heavy/challenger ships crawl, light ships zip
+                    const typeSpeedMult = { 'heavy': 0.4, 'challenger': 0.35, 'shooter': 0.7, 'basic': 0.7, 'light': 1.0, 'fast': 1.2 };
+                    enemy.crossfireVX = lateralDir * (0.006 + Math.random() * 0.006) * (typeSpeedMult[type] || 0.7);
+                    enemy.crossfireVY = (Math.random() - 0.5) * 0.005; // slight vertical drift
                     enemy.crossfireBaseY = y;
                     enemy.crossfireWander = Math.random() * Math.PI * 2; // phase for vertical wobble
                     // Rotate mesh to face sideways
@@ -11050,6 +11055,10 @@
                 // Assign faction - alternate between pirates and others for conflict
                 const faction = (i % 2 === 0) ? 'pirates' : factionPool[1 + (i % 3)];
 
+                // Size factor - larger formations are slower and less maneuverable
+                const sizeFactors = { 'basic': 1.0, 'fast': 0.8, 'shooter': 1.0, 'light': 0.9, 'heavy': 1.8, 'challenger': 2.2 };
+                const sizeFactor = sizeFactors[strongestType] || 1.0;
+
                 formations.push({
                     id: i,
                     faction: faction,
@@ -11058,10 +11067,11 @@
                     currentX: baseX,
                     currentY: baseY,
                     detectionRadius: detectionRadius,
-                    // Waypoint-based natural movement
+                    // Waypoint-based natural movement - scaled by formation size
                     waypoints: waypoints,
                     waypointIndex: 0,
-                    moveSpeed: 0.001 + Math.random() * 0.0015, // Units per ms (slow patrol)
+                    moveSpeed: (0.0006 + Math.random() * 0.0009) / sizeFactor,
+                    turnRate: 0.0012 / sizeFactor,
                     heading: Math.random() * Math.PI * 2,
                     enemyCount: enemyCount,
                     enemyTypes: enemyTypes,
@@ -11082,18 +11092,18 @@
 
         // Pair formations from different factions that are nearby into active battles
         function pairFormationBattles(formations) {
-            const unpaired = formations.filter(f => !f.battlePairId);
+            const unpaired = formations.filter(f => f.battlePairId === null);
             for (let i = 0; i < unpaired.length; i++) {
-                if (unpaired[i].battlePairId) continue;
+                if (unpaired[i].battlePairId !== null) continue;
                 let bestMatch = null;
                 let bestDist = Infinity;
                 for (let j = i + 1; j < unpaired.length; j++) {
-                    if (unpaired[j].battlePairId) continue;
+                    if (unpaired[j].battlePairId !== null) continue;
                     if (unpaired[j].faction === unpaired[i].faction) continue;
                     const dx = unpaired[i].baseX - unpaired[j].baseX;
                     const dy = unpaired[i].baseY - unpaired[j].baseY;
                     const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < bestDist && dist < 40) {
+                    if (dist < bestDist && dist < 60) {
                         bestDist = dist;
                         bestMatch = unpaired[j];
                     }
@@ -11265,7 +11275,7 @@
                     // Normalize to -PI..PI
                     while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
                     while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
-                    f.heading += headingDiff * 0.002 * deltaTime; // Gentle turn rate
+                    f.heading += headingDiff * (f.turnRate || 0.0012) * deltaTime; // Size-scaled turn rate
 
                     const moveAmount = f.moveSpeed * deltaTime;
                     const moveX = Math.cos(f.heading) * moveAmount;
@@ -13012,8 +13022,10 @@
                 } else if (enemy.movementPattern === 'crossfire') {
                     // Crossfire battle: ships move laterally across screen with vertical wobble
                     enemy.crossfireWander += deltaTime * 0.002;
-                    // Lateral movement toward opposing side
-                    enemy.position.x += enemy.crossfireVX * deltaTime * 0.5;
+                    // Lateral movement - decelerate in center for sustained engagement
+                    const centerDist = Math.abs(enemy.position.x) / orthoWidth;
+                    const engageMult = 0.25 + 0.75 * Math.pow(Math.min(centerDist, 1.0), 1.2);
+                    enemy.position.x += enemy.crossfireVX * deltaTime * 0.5 * engageMult;
                     // Vertical drift + sinusoidal wobble
                     const wobbleAmplitude = enemy.type === 'light' ? 2.5 : enemy.type === 'heavy' ? 1.0 : 1.5;
                     enemy.position.y = enemy.crossfireBaseY + Math.sin(enemy.crossfireWander) * wobbleAmplitude;
@@ -14536,7 +14548,8 @@
                 firePlayerWeapons(currentTime);
 
                 gameState.spawnTimer += deltaTime;
-                if (gameState.spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
+                const spawnInterval = gameState.encounterIsBattle ? 400 : 800;
+                if (gameState.spawnTimer > spawnInterval && gameState.enemiesSpawned < gameState.enemiesInWave) {
                     // Use encounter enemy types if in an encounter, fallback to regular spawn
                     if (gameState.encounterTransition === 'combat' && gameState._encounterEnemyTypes) {
                         if (gameState._encounterEnemyTypes.length > 0) {
