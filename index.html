@@ -879,6 +879,83 @@
             cursor: not-allowed;
         }
 
+        /* Weapons Toggle Button - exploration mode */
+        #weaponsToggleBtn {
+            position: absolute;
+            bottom: 20px;
+            left: 160px;
+            padding: 10px 16px;
+            background: rgba(0, 20, 40, 0.85);
+            border: 1px solid #666;
+            border-radius: 0;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            cursor: pointer;
+            z-index: 60;
+            display: none;
+            transition: all 0.15s ease;
+            text-transform: uppercase;
+        }
+
+        #weaponsToggleBtn:hover {
+            background: rgba(40, 20, 0, 0.6);
+            box-shadow: 0 0 10px rgba(255, 136, 0, 0.2);
+        }
+
+        #weaponsToggleBtn.weapons-hot {
+            border-color: #ff6600;
+            color: #ff6600;
+            background: rgba(60, 20, 0, 0.85);
+            box-shadow: 0 0 12px rgba(255, 102, 0, 0.4), inset 0 0 8px rgba(255, 102, 0, 0.15);
+            animation: weaponsPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes weaponsPulse {
+            0%, 100% { box-shadow: 0 0 12px rgba(255, 102, 0, 0.4), inset 0 0 8px rgba(255, 102, 0, 0.15); }
+            50% { box-shadow: 0 0 18px rgba(255, 102, 0, 0.6), inset 0 0 12px rgba(255, 102, 0, 0.25); }
+        }
+
+        /* Faction reputation toast */
+        .faction-toast {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #ff4444;
+            color: #ff8888;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            letter-spacing: 1px;
+            z-index: 200;
+            pointer-events: none;
+            animation: factionToastFade 3s ease-out forwards;
+        }
+
+        .faction-toast.positive {
+            border-color: #44ff88;
+            color: #88ffaa;
+        }
+
+        @keyframes factionToastFade {
+            0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            70% { opacity: 1; }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
+
+        /* Edge indicator for skirmish */
+        .edge-indicator.type-skirmish .arrow {
+            border-bottom-color: #ffaa00 !important;
+        }
+        .edge-indicator.type-skirmish span {
+            color: #ffaa00 !important;
+        }
+
         #startScreen {
             position: absolute;
             top: 0;
@@ -3116,6 +3193,7 @@
     <div id="warpFlash"></div>
 
     <button id="speedUpBtn">&gt;&gt; WARP</button>
+    <button id="weaponsToggleBtn">WEAPONS: SAFE</button>
 
     <div id="gameOver">
         <h2>Game Over</h2>
@@ -4047,6 +4125,17 @@
             explorationGoal: null,          // Goal sun at top of exploration map
             explorationTraffic: [],         // Neutral ships (tankers, shuttles, carriers, traders)
             exploreHeading: Math.PI / 2,    // Ship heading in exploration (radians, PI/2 = up)
+            // NPC skirmish system
+            explorationSkirmishes: [],      // Active NPC fights in exploration
+            skirmishIdCounter: 0,           // Unique ID for skirmishes
+            weaponsHot: false,              // Player weapons toggle in exploration
+            factionReputation: {            // Reputation with each faction (0-100)
+                federation: 50,
+                merchants: 50,
+                pirates: 0,
+                independent: 50
+            },
+            playerSkirmishTarget: null,     // Which skirmish combatant player is targeting
             arenaMode: false,       // Arena mode active
             arenaConfig: null,      // Arena configuration
             arenaWave: 0,           // Current arena wave
@@ -10842,6 +10931,12 @@
             gameState.explorationTraffic.forEach(s => {
                 if (s.mesh) s.mesh.setEnabled(false);
             });
+            // Hide skirmish visuals during combat
+            gameState.explorationSkirmishes.forEach(s => {
+                if (s.iconMesh) s.iconMesh.setEnabled(false);
+                if (s.ringMesh) s.ringMesh.setEnabled(false);
+                if (s.playerBeamMesh) s.playerBeamMesh.setEnabled(false);
+            });
         }
 
         // Spawn the encounter's enemies after zoom-in completes
@@ -10945,6 +11040,13 @@
             gameState.explorationTraffic.forEach(s => {
                 if (s.mesh) s.mesh.setEnabled(true);
             });
+            // Show skirmish visuals again
+            gameState.explorationSkirmishes.forEach(s => {
+                if (!s.resolved) {
+                    if (s.iconMesh) s.iconMesh.setEnabled(true);
+                    if (s.ringMesh) s.ringMesh.setEnabled(true);
+                }
+            });
         }
 
         // Dispose all formation meshes (for level cleanup)
@@ -10965,6 +11067,7 @@
             gameState._encounterEnemyTypes = null;
             cleanupExplorationGoal();
             cleanupExplorationTraffic();
+            cleanupSkirmishes();
         }
 
         // Create the goal sun at the top of the exploration map
@@ -11051,43 +11154,59 @@
         }
 
         // ========== NEUTRAL TRAFFIC SYSTEM ==========
-        // Ship types for neutral traffic - each has a model, color, role, and speed profile
+
+        // Faction definitions
+        const FACTIONS = {
+            federation: { name: 'Federation', color: new BABYLON.Color3(0.27, 0.53, 1.0), cssColor: '#4488ff', hostile: false },
+            merchants:  { name: 'Merchant Guild', color: new BABYLON.Color3(0.27, 1.0, 0.53), cssColor: '#44ff88', hostile: false },
+            pirates:    { name: 'Pirates', color: new BABYLON.Color3(1.0, 0.27, 0.27), cssColor: '#ff4444', hostile: true },
+            independent:{ name: 'Independent', color: new BABYLON.Color3(1.0, 0.67, 0.27), cssColor: '#ffaa44', hostile: false }
+        };
+
+        // Ship types for neutral traffic - each has a model, color, role, speed, faction, and combat stats
         const TRAFFIC_TYPES = [
-            { role: 'tanker', model: 'Bob', color: 'Blue', speed: 0.0006, scale: 1.8 },
-            { role: 'tanker', model: 'Bob', color: 'Green', speed: 0.0005, scale: 1.8 },
-            { role: 'shuttle', model: 'Striker', color: 'Blue', speed: 0.0015, scale: 0.8 },
-            { role: 'shuttle', model: 'Spitfire', color: 'Green', speed: 0.0018, scale: 0.8 },
-            { role: 'carrier', model: 'Zenith', color: 'Blue', speed: 0.0004, scale: 2.2 },
-            { role: 'carrier', model: 'Imperial', color: 'Green', speed: 0.0004, scale: 2.0 },
-            { role: 'trader', model: 'Insurgent', color: 'Blue', speed: 0.001, scale: 1.2 },
-            { role: 'trader', model: 'Omen', color: 'Green', speed: 0.0008, scale: 1.2 },
-            { role: 'trader', model: 'Pancake', color: 'Blue', speed: 0.0009, scale: 1.0 },
+            // Civilian / merchant ships - weak in combat
+            { role: 'tanker', model: 'Bob', color: 'Blue', speed: 0.0006, scale: 1.8, faction: 'merchants', strength: 15, warship: false },
+            { role: 'tanker', model: 'Bob', color: 'Green', speed: 0.0005, scale: 1.8, faction: 'merchants', strength: 12, warship: false },
+            { role: 'shuttle', model: 'Spitfire', color: 'Blue', speed: 0.0015, scale: 0.8, faction: 'federation', strength: 8, warship: false },
+            { role: 'shuttle', model: 'Spitfire', color: 'Green', speed: 0.0018, scale: 0.8, faction: 'independent', strength: 8, warship: false },
+            { role: 'carrier', model: 'Zenith', color: 'Blue', speed: 0.0004, scale: 2.2, faction: 'federation', strength: 30, warship: false },
+            { role: 'carrier', model: 'Zenith', color: 'Green', speed: 0.0004, scale: 2.0, faction: 'merchants', strength: 25, warship: false },
+            { role: 'trader', model: 'Insurgent', color: 'Blue', speed: 0.001, scale: 1.2, faction: 'merchants', strength: 18, warship: false },
+            { role: 'trader', model: 'Omen', color: 'Green', speed: 0.0008, scale: 1.2, faction: 'independent', strength: 20, warship: false },
+            { role: 'trader', model: 'Pancake', color: 'Blue', speed: 0.0009, scale: 1.0, faction: 'merchants', strength: 10, warship: false },
+            // Warships - strong in combat, can join fights as allies
+            { role: 'warship', model: 'Imperial', color: 'Blue', speed: 0.0008, scale: 2.0, faction: 'federation', strength: 70, warship: true },
+            { role: 'warship', model: 'Challenger', color: 'Green', speed: 0.0007, scale: 1.8, faction: 'federation', strength: 65, warship: true },
+            { role: 'escort', model: 'Striker', color: 'Blue', speed: 0.0012, scale: 1.0, faction: 'merchants', strength: 40, warship: true },
+            // Pirates - hostile, will attack
+            { role: 'raider', model: 'Striker', color: 'Red', speed: 0.0014, scale: 1.0, faction: 'pirates', strength: 45, warship: true },
+            { role: 'raider', model: 'Omen', color: 'Red', speed: 0.0011, scale: 1.2, faction: 'pirates', strength: 50, warship: true },
+            { role: 'raider', model: 'Dispatcher', color: 'Purple', speed: 0.0013, scale: 1.1, faction: 'pirates', strength: 40, warship: true },
         ];
 
         // Generate a neutral traffic ship heading to or from the sun
-        function generateTrafficShip(goalY) {
-            const type = TRAFFIC_TYPES[Math.floor(Math.random() * TRAFFIC_TYPES.length)];
+        function generateTrafficShip(goalY, forceType) {
+            const type = forceType || TRAFFIC_TYPES[Math.floor(Math.random() * TRAFFIC_TYPES.length)];
             const effectiveOrtho = orthoHeight * 4; // zoom=4
             const aspect = gameWidth / gameHeight;
             const halfW = effectiveOrtho * aspect;
 
             // Sun is at x=0, y=goalY. Ships travel to/from the sun.
-            const towardSun = Math.random() < 0.6; // 60% heading toward sun
+            // Pirates don't go toward the sun as often - they lurk
+            const towardSun = type.faction === 'pirates' ? Math.random() < 0.3 : Math.random() < 0.6;
 
             let startX, startY, endX, endY;
             if (towardSun) {
                 // Start from edges/bottom, head toward sun
                 const side = Math.random();
                 if (side < 0.5) {
-                    // Start from left or right edge
                     startX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 5 + Math.random() * 20);
                     startY = goalY * (0.1 + Math.random() * 0.6);
                 } else {
-                    // Start from below visible area
                     startX = (Math.random() - 0.5) * halfW * 2;
                     startY = -effectiveOrtho - 5 - Math.random() * 20;
                 }
-                // End near the sun with some spread
                 endX = (Math.random() - 0.5) * 15;
                 endY = goalY + (Math.random() - 0.5) * 10;
             } else {
@@ -11108,18 +11227,35 @@
             const dy = endY - startY;
             const heading = Math.atan2(dy, dx);
 
+            // Combat stats
+            const maxHp = type.strength * (0.8 + Math.random() * 0.4);
+            const speedMult = 0.8 + Math.random() * 0.4;
+
             return {
                 type: type,
                 startX, startY, endX, endY,
                 currentX: startX,
                 currentY: startY,
                 heading: heading,
-                speed: type.speed * (0.8 + Math.random() * 0.4),
+                speed: type.speed * speedMult,
+                baseSpeed: type.speed * speedMult,
                 progress: 0, // 0 to 1
                 mesh: null,
                 alive: true,
                 baseScale: type.scale,
-                _lastExploreScale: settings.exploreShipScale
+                _lastExploreScale: settings.exploreShipScale,
+                // Faction & behavior
+                faction: type.faction,
+                behavior: 'traveling',  // 'traveling', 'fighting', 'fleeing', 'damaged_fleeing', 'joining_fight'
+                hp: maxHp,
+                maxHp: maxHp,
+                strength: type.strength,
+                isWarship: type.warship,
+                skirmishId: null,       // ID of skirmish this ship is in
+                behaviorTimer: 0,       // Generic timer for behavior states
+                fleeHeading: 0,         // Direction to flee
+                damaged: false,         // Whether ship took significant damage
+                playerDamageDealt: 0    // Damage from player (for faction rep tracking)
             };
         }
 
@@ -11169,11 +11305,27 @@
         // Generate initial batch of traffic for exploration mode
         function generateExplorationTraffic() {
             const goalY = gameState.explorationGoal ? gameState.explorationGoal.y : 85;
-            const count = 6 + Math.floor(Math.random() * 4); // 6-9 initial ships
-            for (let i = 0; i < count; i++) {
-                const ship = generateTrafficShip(goalY);
-                // Spread initial ships along their routes (not all at start)
+            const civilianTypes = TRAFFIC_TYPES.filter(t => t.faction !== 'pirates');
+            const pirateTypes = TRAFFIC_TYPES.filter(t => t.faction === 'pirates');
+
+            // Spawn civilian/merchant ships
+            const civCount = 6 + Math.floor(Math.random() * 3); // 6-8
+            for (let i = 0; i < civCount; i++) {
+                const type = civilianTypes[Math.floor(Math.random() * civilianTypes.length)];
+                const ship = generateTrafficShip(goalY, type);
                 ship.progress = Math.random() * 0.8;
+                ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
+                ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+                gameState.explorationTraffic.push(ship);
+                createTrafficVisual(ship);
+            }
+
+            // Spawn a couple pirates to create early tension
+            const pirateCount = 1 + Math.floor(Math.random() * 2); // 1-2
+            for (let i = 0; i < pirateCount; i++) {
+                const type = pirateTypes[Math.floor(Math.random() * pirateTypes.length)];
+                const ship = generateTrafficShip(goalY, type);
+                ship.progress = Math.random() * 0.5;
                 ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
                 ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
                 gameState.explorationTraffic.push(ship);
@@ -11189,21 +11341,59 @@
             gameState.explorationTraffic.forEach(ship => {
                 if (!ship.alive) return;
 
-                // Move along route
-                const dx = ship.endX - ship.startX;
-                const dy = ship.endY - ship.startY;
-                const routeLen = Math.sqrt(dx * dx + dy * dy);
-                if (routeLen > 0) {
-                    ship.progress += (ship.speed * deltaTime) / routeLen;
-                }
-
-                ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
-                ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
-
-                // Scroll with the world
+                // Scroll all ships with the world regardless of behavior
                 ship.startY -= scrollDist;
                 ship.endY -= scrollDist;
                 ship.currentY -= scrollDist;
+
+                // Behavior-specific movement
+                if (ship.behavior === 'traveling') {
+                    // Normal route following
+                    const dx = ship.endX - ship.startX;
+                    const dy = ship.endY - ship.startY;
+                    const routeLen = Math.sqrt(dx * dx + dy * dy);
+                    if (routeLen > 0) {
+                        ship.progress += (ship.speed * deltaTime) / routeLen;
+                    }
+                    ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
+                    ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+
+                    // Recalculate heading for mesh rotation
+                    const rdx = ship.endX - ship.startX;
+                    const rdy = ship.endY - ship.startY;
+                    ship.heading = Math.atan2(rdy, rdx);
+
+                } else if (ship.behavior === 'fighting') {
+                    // Handled by skirmish system - don't move independently
+                } else if (ship.behavior === 'joining_fight') {
+                    // Move toward the skirmish center
+                    const skirmish = gameState.explorationSkirmishes.find(s => s.id === ship.skirmishId);
+                    if (skirmish) {
+                        const tdx = skirmish.centerX - ship.currentX;
+                        const tdy = skirmish.centerY - ship.currentY;
+                        const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+                        if (tdist > 4) {
+                            ship.heading = Math.atan2(tdy, tdx);
+                            ship.currentX += Math.cos(ship.heading) * ship.speed * 2 * deltaTime;
+                            ship.currentY += Math.sin(ship.heading) * ship.speed * 2 * deltaTime;
+                        } else {
+                            ship.behavior = 'fighting';
+                        }
+                    }
+                } else if (ship.behavior === 'fleeing' || ship.behavior === 'damaged_fleeing') {
+                    // Flee in chosen direction
+                    const fleeSpeed = ship.behavior === 'damaged_fleeing'
+                        ? ship.baseSpeed * 0.4 * deltaTime  // Damaged ships are slow
+                        : ship.baseSpeed * 1.5 * deltaTime;  // Normal flee is fast
+                    ship.currentX += Math.cos(ship.fleeHeading) * fleeSpeed;
+                    ship.currentY += Math.sin(ship.fleeHeading) * fleeSpeed;
+                    ship.heading = ship.fleeHeading;
+
+                    ship.behaviorTimer -= deltaTime;
+                    if (ship.behaviorTimer <= 0) {
+                        ship.alive = false;
+                    }
+                }
 
                 // Live-update scale if slider changed
                 if (ship.mesh && ship._lastExploreScale !== settings.exploreShipScale) {
@@ -11212,30 +11402,58 @@
                     ship._lastExploreScale = settings.exploreShipScale;
                 }
 
-                // Update mesh
+                // Update mesh position and rotation
                 if (ship.mesh) {
                     ship.mesh.position.x = ship.currentX;
                     ship.mesh.position.y = ship.currentY;
+                    const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
+                    const headQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, ship.heading + Math.PI / 2);
+                    ship.mesh.rotationQuaternion = headQ.multiply(tipQ);
+
+                    // Damaged ships flicker
+                    if (ship.behavior === 'damaged_fleeing' && ship.mesh.getChildMeshes) {
+                        const flicker = Math.sin(Date.now() * 0.02) > 0 ? 0.4 : 0.8;
+                        ship.mesh.getChildMeshes().forEach(m => {
+                            if (m.material) m.material.alpha = flicker;
+                        });
+                    }
                 }
 
                 // Remove if route complete or scrolled way off screen
                 const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
-                if (ship.progress >= 1.0 || ship.currentY < -effectiveOrthoH - 40) {
+                if ((ship.behavior === 'traveling' && ship.progress >= 1.0) || ship.currentY < -effectiveOrthoH - 40) {
                     ship.alive = false;
-                    if (ship.mesh) {
-                        ship.mesh.getChildMeshes().forEach(m => m.dispose());
-                        ship.mesh.dispose();
-                        ship.mesh = null;
-                    }
+                }
+
+                // Cleanup dead ship meshes
+                if (!ship.alive && ship.mesh) {
+                    ship.mesh.getChildMeshes().forEach(m => m.dispose());
+                    ship.mesh.dispose();
+                    ship.mesh = null;
                 }
             });
 
             // Remove dead ships
             gameState.explorationTraffic = gameState.explorationTraffic.filter(s => s.alive);
 
-            // Spawn new traffic periodically (maintain ~6-8 ships)
-            if (gameState.explorationTraffic.length < 6 && Math.random() < 0.002 * deltaTime) {
-                const ship = generateTrafficShip(goalY);
+            // Spawn new traffic periodically (maintain ~8-10 ships including variety)
+            const aliveNonPirates = gameState.explorationTraffic.filter(s => s.faction !== 'pirates').length;
+            const alivePirates = gameState.explorationTraffic.filter(s => s.faction === 'pirates').length;
+
+            if (aliveNonPirates < 6 && Math.random() < 0.002 * deltaTime) {
+                // Spawn non-pirate ship
+                const civilianTypes = TRAFFIC_TYPES.filter(t => t.faction !== 'pirates');
+                const type = civilianTypes[Math.floor(Math.random() * civilianTypes.length)];
+                const ship = generateTrafficShip(goalY, type);
+                gameState.explorationTraffic.push(ship);
+                createTrafficVisual(ship);
+            }
+
+            // Occasionally spawn pirates (they create the skirmish tension)
+            if (alivePirates < 3 && Math.random() < 0.0008 * deltaTime) {
+                const pirateTypes = TRAFFIC_TYPES.filter(t => t.faction === 'pirates');
+                const type = pirateTypes[Math.floor(Math.random() * pirateTypes.length)];
+                const ship = generateTrafficShip(goalY, type);
                 gameState.explorationTraffic.push(ship);
                 createTrafficVisual(ship);
             }
@@ -11251,6 +11469,633 @@
             });
             gameState.explorationTraffic = [];
         }
+
+        // ========== NPC SKIRMISH SYSTEM ==========
+
+        // Create crossed swords icon for a skirmish using dynamic texture
+        function createSkirmishIcon(skirmish) {
+            if (!scene) return;
+
+            const iconSize = 3.5;
+            const plane = BABYLON.MeshBuilder.CreatePlane('skirmishIcon_' + skirmish.id, {
+                size: iconSize
+            }, scene);
+            plane.position.x = skirmish.centerX;
+            plane.position.y = skirmish.centerY + 2.5;
+            plane.position.z = 0.05;
+            plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
+
+            // Dynamic texture with crossed swords drawn on canvas
+            const texSize = 128;
+            const dynTex = new BABYLON.DynamicTexture('skirmishTex_' + skirmish.id, texSize, scene, false);
+            const ctx = dynTex.getContext();
+            ctx.clearRect(0, 0, texSize, texSize);
+
+            // Draw crossed swords
+            ctx.strokeStyle = '#ffaa00';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+
+            // Sword 1 (top-left to bottom-right)
+            ctx.beginPath();
+            ctx.moveTo(25, 25);
+            ctx.lineTo(103, 103);
+            ctx.stroke();
+            // Blade widening
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(25, 25);
+            ctx.lineTo(30, 20);
+            ctx.stroke();
+            // Guard 1
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(50, 78);
+            ctx.lineTo(78, 50);
+            ctx.stroke();
+
+            // Sword 2 (top-right to bottom-left)
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(103, 25);
+            ctx.lineTo(25, 103);
+            ctx.stroke();
+            // Blade widening
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(103, 25);
+            ctx.lineTo(98, 20);
+            ctx.stroke();
+            // Guard 2
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(50, 50);
+            ctx.lineTo(78, 78);
+            ctx.stroke();
+
+            dynTex.update();
+
+            const mat = new BABYLON.StandardMaterial('skirmishIconMat_' + skirmish.id, scene);
+            mat.diffuseTexture = dynTex;
+            mat.emissiveTexture = dynTex;
+            mat.opacityTexture = dynTex;
+            mat.useAlphaFromDiffuseTexture = true;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            mat.alpha = 0.9;
+            plane.material = mat;
+            plane.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(plane);
+            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(plane);
+
+            skirmish.iconMesh = plane;
+
+            // Create a subtle circle indicator around the fight area
+            const ring = BABYLON.MeshBuilder.CreateTorus('skirmishRing_' + skirmish.id, {
+                diameter: skirmish.orbitRadius * 3,
+                thickness: 0.2,
+                tessellation: 32
+            }, scene);
+            ring.position.x = skirmish.centerX;
+            ring.position.y = skirmish.centerY;
+            ring.position.z = 0.75;
+            ring.rotation.x = Math.PI / 2;
+
+            const ringMat = new BABYLON.StandardMaterial('skirmishRingMat_' + skirmish.id, scene);
+            ringMat.emissiveColor = new BABYLON.Color3(1.0, 0.67, 0.0);
+            ringMat.alpha = 0.2;
+            ringMat.disableLighting = true;
+            ringMat.backFaceCulling = false;
+            ring.material = ringMat;
+            ring.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(ring);
+            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(ring);
+
+            skirmish.ringMesh = ring;
+        }
+
+        // Start a skirmish between two ships
+        function startSkirmish(attacker, defender) {
+            if (attacker.behavior !== 'traveling' || defender.behavior !== 'traveling') return;
+            if (attacker.skirmishId !== null || defender.skirmishId !== null) return;
+
+            const id = gameState.skirmishIdCounter++;
+            const centerX = (attacker.currentX + defender.currentX) / 2;
+            const centerY = (attacker.currentY + defender.currentY) / 2;
+
+            const skirmish = {
+                id: id,
+                attacker: attacker,
+                defender: defender,
+                allies: [],         // Additional ships that joined
+                centerX: centerX,
+                centerY: centerY,
+                orbitRadius: 3.5,
+                orbitAngle: Math.random() * Math.PI * 2,
+                timer: 0,
+                duration: 8000 + Math.random() * 12000, // 8-20 seconds
+                iconMesh: null,
+                ringMesh: null,
+                resolved: false,
+                playerDamageToAttacker: 0,
+                playerDamageToDefender: 0,
+                playerBeamMesh: null
+            };
+
+            // Set ships to fighting state
+            attacker.behavior = 'fighting';
+            attacker.skirmishId = id;
+            defender.behavior = 'fighting';
+            defender.skirmishId = id;
+
+            gameState.explorationSkirmishes.push(skirmish);
+            createSkirmishIcon(skirmish);
+        }
+
+        // Check if pirates should attack nearby ships
+        function checkSkirmishStarts(deltaTime) {
+            const pirates = gameState.explorationTraffic.filter(s =>
+                s.alive && s.faction === 'pirates' && s.behavior === 'traveling'
+            );
+            const targets = gameState.explorationTraffic.filter(s =>
+                s.alive && s.faction !== 'pirates' && s.behavior === 'traveling'
+            );
+
+            pirates.forEach(pirate => {
+                targets.forEach(target => {
+                    const dx = pirate.currentX - target.currentX;
+                    const dy = pirate.currentY - target.currentY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    // Pirates attack within detection range (~12 units)
+                    // Prefer weaker targets (non-warships)
+                    const attackRange = target.isWarship ? 8 : 14;
+                    if (dist < attackRange && Math.random() < 0.0003 * deltaTime) {
+                        startSkirmish(pirate, target);
+                    }
+                });
+            });
+        }
+
+        // Check if allied warships should join nearby skirmishes
+        function checkAlliedJoins(deltaTime) {
+            gameState.explorationSkirmishes.forEach(skirmish => {
+                if (skirmish.resolved) return;
+                if (skirmish.allies.length >= 2) return; // Max 2 allies per fight
+
+                const warships = gameState.explorationTraffic.filter(s =>
+                    s.alive && s.isWarship && s.behavior === 'traveling' &&
+                    s.faction !== 'pirates' && s.skirmishId === null
+                );
+
+                warships.forEach(warship => {
+                    const dx = warship.currentX - skirmish.centerX;
+                    const dy = warship.currentY - skirmish.centerY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    // Allied warships join if close enough and same faction as defender
+                    if (dist < 20 && warship.faction === skirmish.defender.faction) {
+                        if (Math.random() < 0.001 * deltaTime) {
+                            warship.behavior = 'joining_fight';
+                            warship.skirmishId = skirmish.id;
+                            skirmish.allies.push(warship);
+                        }
+                    }
+                });
+            });
+        }
+
+        // Update all active skirmishes
+        function updateSkirmishes(deltaTime, scrollDist) {
+            gameState.explorationSkirmishes.forEach(skirmish => {
+                if (skirmish.resolved) return;
+
+                // Scroll skirmish center with the world
+                skirmish.centerY -= scrollDist;
+
+                // Advance orbit angle (ships circle each other)
+                skirmish.orbitAngle += 0.003 * deltaTime;
+                skirmish.timer += deltaTime;
+
+                // Position attacker and defender orbiting center
+                const attackerAngle = skirmish.orbitAngle;
+                const defenderAngle = skirmish.orbitAngle + Math.PI;
+
+                if (skirmish.attacker.alive) {
+                    skirmish.attacker.currentX = skirmish.centerX + Math.cos(attackerAngle) * skirmish.orbitRadius;
+                    skirmish.attacker.currentY = skirmish.centerY + Math.sin(attackerAngle) * skirmish.orbitRadius;
+                    // Face toward center (the opponent)
+                    skirmish.attacker.heading = Math.atan2(
+                        skirmish.centerY - skirmish.attacker.currentY,
+                        skirmish.centerX - skirmish.attacker.currentX
+                    );
+                }
+
+                if (skirmish.defender.alive) {
+                    skirmish.defender.currentX = skirmish.centerX + Math.cos(defenderAngle) * skirmish.orbitRadius;
+                    skirmish.defender.currentY = skirmish.centerY + Math.sin(defenderAngle) * skirmish.orbitRadius;
+                    skirmish.defender.heading = Math.atan2(
+                        skirmish.centerY - skirmish.defender.currentY,
+                        skirmish.centerX - skirmish.defender.currentX
+                    );
+                }
+
+                // Position allies around the fight (on defender's side)
+                skirmish.allies.forEach((ally, idx) => {
+                    if (!ally.alive || ally.behavior !== 'fighting') return;
+                    const allyAngle = defenderAngle + (idx + 1) * 0.8;
+                    ally.currentX = skirmish.centerX + Math.cos(allyAngle) * (skirmish.orbitRadius + 1.5);
+                    ally.currentY = skirmish.centerY + Math.sin(allyAngle) * (skirmish.orbitRadius + 1.5);
+                    ally.heading = Math.atan2(
+                        skirmish.centerY - ally.currentY,
+                        skirmish.centerX - ally.currentX
+                    );
+                });
+
+                // Update icon position (spin)
+                if (skirmish.iconMesh) {
+                    skirmish.iconMesh.position.x = skirmish.centerX;
+                    skirmish.iconMesh.position.y = skirmish.centerY + 2.5;
+                    skirmish.iconMesh.rotation.z = Math.sin(Date.now() * 0.003) * 0.3;
+                    // Pulse alpha
+                    if (skirmish.iconMesh.material) {
+                        skirmish.iconMesh.material.alpha = 0.7 + Math.sin(Date.now() * 0.005) * 0.3;
+                    }
+                }
+                if (skirmish.ringMesh) {
+                    skirmish.ringMesh.position.x = skirmish.centerX;
+                    skirmish.ringMesh.position.y = skirmish.centerY;
+                }
+
+                // Apply combat damage over time (abstract DPS)
+                if (skirmish.timer > 2000) { // 2s grace period before damage starts
+                    const dps = 0.005 * deltaTime; // Base damage rate
+                    // Attacker damages defender
+                    if (skirmish.defender.alive) {
+                        skirmish.defender.hp -= skirmish.attacker.strength * dps;
+                    }
+                    // Defender fights back (weaker if not a warship)
+                    if (skirmish.attacker.alive) {
+                        const defPower = skirmish.defender.isWarship ? skirmish.defender.strength : skirmish.defender.strength * 0.5;
+                        skirmish.attacker.hp -= defPower * dps;
+                    }
+                    // Allies damage attacker
+                    skirmish.allies.forEach(ally => {
+                        if (ally.alive && ally.behavior === 'fighting') {
+                            skirmish.attacker.hp -= ally.strength * dps * 0.7;
+                        }
+                    });
+
+                    // Player damage (applied by checkPlayerSkirmishInteraction)
+                    // is tracked separately per side
+                }
+
+                // Check for death
+                if (skirmish.attacker.hp <= 0 || skirmish.defender.hp <= 0 || skirmish.timer >= skirmish.duration) {
+                    resolveSkirmish(skirmish);
+                }
+
+                // Cull skirmishes that scrolled off screen
+                const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
+                if (skirmish.centerY < -effectiveOrthoH - 30) {
+                    resolveSkirmish(skirmish);
+                }
+            });
+
+            // Clean up resolved skirmishes
+            gameState.explorationSkirmishes = gameState.explorationSkirmishes.filter(s => !s.resolved);
+        }
+
+        // Resolve a skirmish - determine winner and loser
+        function resolveSkirmish(skirmish) {
+            if (skirmish.resolved) return;
+            skirmish.resolved = true;
+
+            // Determine who won based on remaining HP
+            const attackerHp = Math.max(0, skirmish.attacker.hp);
+            const defenderHp = Math.max(0, skirmish.defender.hp);
+            // Count ally HP as bonus for defender
+            const allyHp = skirmish.allies.reduce((sum, a) => sum + Math.max(0, a.alive ? a.hp : 0), 0);
+            const defenderTotal = defenderHp + allyHp * 0.5;
+
+            const attackerWins = attackerHp > defenderTotal;
+
+            const winner = attackerWins ? skirmish.attacker : skirmish.defender;
+            const loser = attackerWins ? skirmish.defender : skirmish.attacker;
+
+            // Winner flies away with new route
+            if (winner.alive) {
+                winner.behavior = 'fleeing';
+                winner.skirmishId = null;
+                winner.fleeHeading = Math.random() * Math.PI * 2;
+                winner.behaviorTimer = 6000 + Math.random() * 4000;
+                winner.speed = winner.baseSpeed * 1.2;
+            }
+
+            // Loser: 40% chance destroyed, 60% damaged and fleeing
+            if (loser.alive) {
+                if (Math.random() < 0.4 || loser.hp <= 0) {
+                    // Destroyed - create brief flash and remove
+                    loser.alive = false;
+                    if (loser.mesh) {
+                        // Quick destruction flash
+                        createShipDestructionEffect(loser.currentX, loser.currentY);
+                        loser.mesh.getChildMeshes().forEach(m => m.dispose());
+                        loser.mesh.dispose();
+                        loser.mesh = null;
+                    }
+                } else {
+                    // Damaged, flee slowly
+                    loser.behavior = 'damaged_fleeing';
+                    loser.skirmishId = null;
+                    loser.fleeHeading = Math.atan2(
+                        loser.currentY - skirmish.centerY,
+                        loser.currentX - skirmish.centerX
+                    );
+                    loser.behaviorTimer = 8000 + Math.random() * 5000;
+                    loser.damaged = true;
+                }
+            }
+
+            // Free allies
+            skirmish.allies.forEach(ally => {
+                if (ally.alive) {
+                    ally.behavior = 'fleeing';
+                    ally.skirmishId = null;
+                    ally.fleeHeading = Math.random() * Math.PI * 2;
+                    ally.behaviorTimer = 5000 + Math.random() * 3000;
+                }
+            });
+
+            // Check player faction reputation impact
+            checkPlayerFactionImpact(skirmish);
+
+            // Dispose skirmish visuals
+            disposeSkirmishVisuals(skirmish);
+        }
+
+        // Create brief destruction effect for a ship
+        function createShipDestructionEffect(x, y) {
+            if (!scene) return;
+            // Orange flash disc that fades out
+            const flash = BABYLON.MeshBuilder.CreateDisc('destructFlash', {
+                radius: 2, tessellation: 16
+            }, scene);
+            flash.position.x = x;
+            flash.position.y = y;
+            flash.position.z = 0.05;
+            const mat = new BABYLON.StandardMaterial('destructFlashMat', scene);
+            mat.emissiveColor = new BABYLON.Color3(1.0, 0.6, 0.1);
+            mat.alpha = 0.8;
+            mat.disableLighting = true;
+            flash.material = mat;
+            flash.renderingGroupId = 2;
+            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(flash);
+            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(flash);
+
+            // Fade out and dispose
+            let fadeTimer = 0;
+            const fadeInterval = setInterval(() => {
+                fadeTimer += 30;
+                mat.alpha = Math.max(0, 0.8 - fadeTimer / 500);
+                flash.scaling.x = 1 + fadeTimer / 200;
+                flash.scaling.y = 1 + fadeTimer / 200;
+                if (fadeTimer >= 500) {
+                    clearInterval(fadeInterval);
+                    flash.dispose();
+                    mat.dispose();
+                }
+            }, 30);
+        }
+
+        // Dispose skirmish visual elements
+        function disposeSkirmishVisuals(skirmish) {
+            if (skirmish.iconMesh) {
+                if (skirmish.iconMesh.material) {
+                    if (skirmish.iconMesh.material.diffuseTexture) skirmish.iconMesh.material.diffuseTexture.dispose();
+                    skirmish.iconMesh.material.dispose();
+                }
+                skirmish.iconMesh.dispose();
+                skirmish.iconMesh = null;
+            }
+            if (skirmish.ringMesh) {
+                if (skirmish.ringMesh.material) skirmish.ringMesh.material.dispose();
+                skirmish.ringMesh.dispose();
+                skirmish.ringMesh = null;
+            }
+            if (skirmish.playerBeamMesh) {
+                if (skirmish.playerBeamMesh.material) skirmish.playerBeamMesh.material.dispose();
+                skirmish.playerBeamMesh.dispose();
+                skirmish.playerBeamMesh = null;
+            }
+        }
+
+        // Check if player is near a skirmish and apply weapon damage
+        function checkPlayerSkirmishInteraction(deltaTime) {
+            if (!playerShip || !gameState.weaponsHot) {
+                // Clean up any player beam visuals
+                gameState.explorationSkirmishes.forEach(s => {
+                    if (s.playerBeamMesh) {
+                        s.playerBeamMesh.material.dispose();
+                        s.playerBeamMesh.dispose();
+                        s.playerBeamMesh = null;
+                    }
+                });
+                return;
+            }
+
+            const playerX = playerShip.position.x;
+            const playerY = playerShip.position.y;
+            const weaponRange = 12; // Range in exploration units
+
+            gameState.explorationSkirmishes.forEach(skirmish => {
+                if (skirmish.resolved) return;
+
+                const dx = playerX - skirmish.centerX;
+                const dy = playerY - skirmish.centerY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < weaponRange) {
+                    // Player is in range - determine which combatant is closer
+                    const distToAttacker = Math.sqrt(
+                        (playerX - skirmish.attacker.currentX) ** 2 +
+                        (playerY - skirmish.attacker.currentY) ** 2
+                    );
+                    const distToDefender = Math.sqrt(
+                        (playerX - skirmish.defender.currentX) ** 2 +
+                        (playerY - skirmish.defender.currentY) ** 2
+                    );
+
+                    const targetShip = distToAttacker < distToDefender ? skirmish.attacker : skirmish.defender;
+                    const isTargetingAttacker = distToAttacker < distToDefender;
+
+                    // Calculate player DPS (scales with equipped weapons)
+                    const equippedWeapons = gameState.equippedWeapons.length > 0
+                        ? gameState.equippedWeapons : [{ damage: 5 }];
+                    const totalDps = equippedWeapons.reduce((sum, w) => sum + (w && !w.isEquipment ? (w.damage || 5) : 0), 0);
+                    const playerDps = totalDps * 0.003 * deltaTime; // Scale to exploration time
+
+                    // Apply damage to target
+                    if (targetShip.alive) {
+                        targetShip.hp -= playerDps;
+                        targetShip.playerDamageDealt = (targetShip.playerDamageDealt || 0) + playerDps;
+
+                        // Track damage to sides for faction rep
+                        if (isTargetingAttacker) {
+                            skirmish.playerDamageToAttacker += playerDps;
+                        } else {
+                            skirmish.playerDamageToDefender += playerDps;
+                        }
+                    }
+
+                    // Visual: beam from player to target
+                    updatePlayerAttackBeam(skirmish, targetShip);
+                } else {
+                    // Out of range, remove beam
+                    if (skirmish.playerBeamMesh) {
+                        skirmish.playerBeamMesh.material.dispose();
+                        skirmish.playerBeamMesh.dispose();
+                        skirmish.playerBeamMesh = null;
+                    }
+                }
+            });
+        }
+
+        // Create/update a visual beam from player to their target in a skirmish
+        function updatePlayerAttackBeam(skirmish, target) {
+            if (!playerShip || !scene) return;
+
+            const px = playerShip.position.x;
+            const py = playerShip.position.y;
+            const tx = target.currentX;
+            const ty = target.currentY;
+            const dx = tx - px;
+            const dy = ty - py;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
+
+            if (skirmish.playerBeamMesh) {
+                // Update existing beam
+                skirmish.playerBeamMesh.position.x = (px + tx) / 2;
+                skirmish.playerBeamMesh.position.y = (py + ty) / 2;
+                skirmish.playerBeamMesh.scaling.x = length / 1.0; // Plane is 1 unit wide by default
+                skirmish.playerBeamMesh.rotation.z = angle;
+                // Flicker
+                if (skirmish.playerBeamMesh.material) {
+                    skirmish.playerBeamMesh.material.alpha = 0.3 + Math.sin(Date.now() * 0.02) * 0.2;
+                }
+            } else {
+                // Create beam
+                const beam = BABYLON.MeshBuilder.CreatePlane('playerBeam_' + skirmish.id, {
+                    width: 1, height: 0.15
+                }, scene);
+                beam.position.x = (px + tx) / 2;
+                beam.position.y = (py + ty) / 2;
+                beam.position.z = 0.03;
+                beam.scaling.x = length;
+                beam.rotation.z = angle;
+
+                const mat = new BABYLON.StandardMaterial('playerBeamMat_' + skirmish.id, scene);
+                mat.emissiveColor = new BABYLON.Color3(1.0, 0.5, 0.1);
+                mat.alpha = 0.5;
+                mat.disableLighting = true;
+                mat.backFaceCulling = false;
+                beam.material = mat;
+                beam.renderingGroupId = 2;
+
+                if (sunGlowLayer) sunGlowLayer.addExcludedMesh(beam);
+                if (lootGlowLayer) lootGlowLayer.addExcludedMesh(beam);
+
+                skirmish.playerBeamMesh = beam;
+            }
+        }
+
+        // Check player faction reputation impact from skirmish participation
+        function checkPlayerFactionImpact(skirmish) {
+            const significantDamageThreshold = skirmish.attacker.maxHp * 0.15;
+
+            // Check damage to attacker (usually pirates)
+            if (skirmish.playerDamageToAttacker > significantDamageThreshold) {
+                const attackerFaction = skirmish.attacker.faction;
+                const defenderFaction = skirmish.defender.faction;
+
+                // Helping the defender: small rep boost with their faction
+                if (FACTIONS[defenderFaction] && !FACTIONS[defenderFaction].hostile) {
+                    adjustFactionReputation(defenderFaction, 3);
+                }
+                // Attacking a pirate doesn't matter much (they already hate you)
+                if (attackerFaction === 'pirates') {
+                    adjustFactionReputation('pirates', -2);
+                } else if (FACTIONS[attackerFaction]) {
+                    // Attacking a non-pirate faction is bad
+                    adjustFactionReputation(attackerFaction, -8);
+                }
+            }
+
+            // Check damage to defender
+            if (skirmish.playerDamageToDefender > significantDamageThreshold) {
+                const defenderFaction = skirmish.defender.faction;
+                const attackerFaction = skirmish.attacker.faction;
+
+                // Attacking a neutral faction is very bad
+                if (FACTIONS[defenderFaction] && !FACTIONS[defenderFaction].hostile) {
+                    adjustFactionReputation(defenderFaction, -12);
+                    showFactionToast(defenderFaction, false);
+                }
+                // Helping pirates gives tiny pirate rep
+                if (attackerFaction === 'pirates') {
+                    adjustFactionReputation('pirates', 2);
+                }
+            }
+        }
+
+        // Adjust a faction's reputation
+        function adjustFactionReputation(faction, amount) {
+            if (!gameState.factionReputation[faction] && gameState.factionReputation[faction] !== 0) return;
+            const oldVal = gameState.factionReputation[faction];
+            gameState.factionReputation[faction] = Math.max(0, Math.min(100, oldVal + amount));
+        }
+
+        // Show a faction reputation change toast notification
+        function showFactionToast(faction, positive) {
+            const factionData = FACTIONS[faction];
+            if (!factionData) return;
+
+            const existing = document.querySelector('.faction-toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.className = 'faction-toast' + (positive ? ' positive' : '');
+            const arrow = positive ? '+' : '-';
+            const rep = gameState.factionReputation[faction];
+            toast.textContent = `${factionData.name} reputation ${positive ? 'increased' : 'decreased'} (${rep}/100)`;
+            toast.style.borderColor = factionData.cssColor;
+            toast.style.color = factionData.cssColor;
+            document.body.appendChild(toast);
+
+            setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3500);
+        }
+
+        // Clean up all skirmishes
+        function cleanupSkirmishes() {
+            gameState.explorationSkirmishes.forEach(s => {
+                disposeSkirmishVisuals(s);
+                // Free any ships still fighting
+                [s.attacker, s.defender, ...s.allies].forEach(ship => {
+                    if (ship && ship.skirmishId === s.id) {
+                        ship.skirmishId = null;
+                        if (ship.behavior === 'fighting' || ship.behavior === 'joining_fight') {
+                            ship.behavior = 'traveling';
+                        }
+                    }
+                });
+            });
+            gameState.explorationSkirmishes = [];
+        }
+
+        // ========== END NPC SKIRMISH SYSTEM ==========
 
         // Check if player reached the exploration goal
         function checkExplorationGoalReached() {
@@ -11379,7 +12224,14 @@
             // Neutral traffic (only show off-screen ones to avoid clutter)
             gameState.explorationTraffic.forEach(s => {
                 if (!s.alive) return;
-                targets.push({ x: s.currentX, y: s.currentY, type: 'neutral', label: '' });
+                const shipType = s.faction === 'pirates' ? 'enemy' : 'neutral';
+                targets.push({ x: s.currentX, y: s.currentY, type: shipType, label: '' });
+            });
+
+            // Active skirmishes
+            gameState.explorationSkirmishes.forEach(s => {
+                if (s.resolved) return;
+                targets.push({ x: s.centerX, y: s.centerY, type: 'skirmish', label: 'Fight' });
             });
 
             // Build HTML
@@ -12111,13 +12963,23 @@
             gameState.lastFrameTime = performance.now();
             gameState.spawnTimer = 0;
 
-            // Clean up exploration formations
+            // Clean up exploration formations and skirmishes
             cleanupFormations();
             gameState.explorationMode = false;
             gameState.zoomLevel = 1;
             gameState.zoomTarget = 1;
             gameState.encounterTransition = null;
             gameState.currentEncounter = null;
+            gameState.weaponsHot = false;
+            gameState.explorationSkirmishes = [];
+            gameState.skirmishIdCounter = 0;
+            gameState.factionReputation = { federation: 50, merchants: 50, pirates: 0, independent: 50 };
+            // Reset weapons toggle button
+            const wBtn = document.getElementById('weaponsToggleBtn');
+            if (wBtn) {
+                wBtn.textContent = 'WEAPONS: SAFE';
+                wBtn.classList.remove('weapons-hot');
+            }
             if (gameCamera) {
                 gameCamera.position.x = 0;
                 gameCamera.position.y = 0;
@@ -12962,6 +13824,12 @@
                     // Update neutral traffic ships
                     updateExplorationTraffic(deltaTime, scrollDist);
 
+                    // Update NPC skirmishes (fights between ships)
+                    updateSkirmishes(deltaTime, scrollDist);
+                    checkSkirmishStarts(deltaTime);
+                    checkAlliedJoins(deltaTime);
+                    checkPlayerSkirmishInteraction(deltaTime);
+
                     // Pulse detection zone opacity for subtle visual effect
                     const pulseAlpha = 0.04 + Math.sin(currentTime * 0.002) * 0.02;
                     const ringAlpha = 0.12 + Math.sin(currentTime * 0.002) * 0.05;
@@ -13634,11 +14502,25 @@
             speedUpBtn.classList.remove('active');
         });
 
+        // Weapons toggle button handler
+        const weaponsToggleBtn = document.getElementById('weaponsToggleBtn');
+        weaponsToggleBtn.addEventListener('click', () => {
+            gameState.weaponsHot = !gameState.weaponsHot;
+            weaponsToggleBtn.textContent = gameState.weaponsHot ? 'WEAPONS: HOT' : 'WEAPONS: SAFE';
+            weaponsToggleBtn.classList.toggle('weapons-hot', gameState.weaponsHot);
+        });
+        weaponsToggleBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            weaponsToggleBtn.click();
+        });
+
         // Update speed-up button visibility
         function updateSpeedUpButton() {
             const btn = document.getElementById('speedUpBtn');
+            const wBtn = document.getElementById('weaponsToggleBtn');
             if (!gameState.isPlaying || isPaused() || gameState.isDocked) {
                 btn.style.display = 'none';
+                wBtn.style.display = 'none';
                 return;
             }
 
@@ -13650,6 +14532,14 @@
                 gameState.speedUp = false;
             } else {
                 btn.style.display = 'block';
+            }
+
+            // Show weapons toggle only in exploration mode
+            if (gameState.explorationMode) {
+                wBtn.style.display = 'block';
+            } else {
+                wBtn.style.display = 'none';
+                // Don't reset weaponsHot - keep the toggle state
             }
         }
 
