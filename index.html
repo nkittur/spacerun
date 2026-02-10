@@ -2859,6 +2859,11 @@
             <input type="range" id="scrollSpeed" min="0.5" max="2" step="0.1" value="1">
             <div class="setting-value" id="scrollSpeedValue">1.0x</div>
         </div>
+        <div class="setting-group">
+            <label>Exploration Ship Size</label>
+            <input type="range" id="exploreShipScale" min="1" max="4" step="0.5" value="2">
+            <div class="setting-value" id="exploreShipScaleValue">2.0x</div>
+        </div>
         <div class="setting-group checkbox-group">
             <label>
                 <input type="checkbox" id="debugMode">
@@ -3644,7 +3649,8 @@
             engineGlowEnabled: localStorage.getItem('engineGlowEnabled') !== 'false', // Default on
             sunGlowIntensity: parseFloat(localStorage.getItem('sunGlowIntensity')) || 0.7,
             lootGlowIntensity: parseFloat(localStorage.getItem('lootGlowIntensity')) || 0.4,
-            lightIntensity: parseFloat(localStorage.getItem('lightIntensity')) || 1.0
+            lightIntensity: parseFloat(localStorage.getItem('lightIntensity')) || 1.0,
+            exploreShipScale: parseFloat(localStorage.getItem('exploreShipScale')) || 2.0
         };
 
         // Loaded model templates
@@ -10523,7 +10529,7 @@
 
             // Reset player ship scale back to normal for combat
             if (playerShipMesh) {
-                playerShipMesh.scaling.scaleInPlace(0.5);
+                playerShipMesh.scaling.scaleInPlace(1 / settings.exploreShipScale);
             }
 
             // Save player's exploration position
@@ -11014,9 +11020,9 @@
                 playerShip.targetY = -7;
             }
 
-            // Scale player ship up 2x for visibility in zoomed-out view
+            // Scale player ship up for visibility in zoomed-out view
             if (playerShipMesh) {
-                playerShipMesh.scaling.scaleInPlace(2);
+                playerShipMesh.scaling.scaleInPlace(settings.exploreShipScale);
             }
 
             // Camera stays fixed at origin (world scrolls toward player)
@@ -12264,6 +12270,18 @@
         setupSlider('fireRate', 'fireRate', 'x');
         setupSlider('scrollSpeed', 'scrollSpeed', 'x');
 
+        // Exploration ship scale slider (persisted)
+        const exploreShipSlider = document.getElementById('exploreShipScale');
+        const exploreShipValue = document.getElementById('exploreShipScaleValue');
+        exploreShipSlider.value = settings.exploreShipScale;
+        exploreShipValue.textContent = settings.exploreShipScale.toFixed(1) + 'x';
+        exploreShipSlider.addEventListener('input', () => {
+            const val = parseFloat(exploreShipSlider.value);
+            settings.exploreShipScale = val;
+            exploreShipValue.textContent = val.toFixed(1) + 'x';
+            localStorage.setItem('exploreShipScale', val);
+        });
+
         // Debug mode checkbox
         const debugModeCheckbox = document.getElementById('debugMode');
         debugModeCheckbox.checked = settings.debugMode;
@@ -12589,7 +12607,7 @@
 
                         // Scale player ship back up for exploration visibility
                         if (playerShipMesh) {
-                            playerShipMesh.scaling.scaleInPlace(2);
+                            playerShipMesh.scaling.scaleInPlace(settings.exploreShipScale);
                         }
                         gameState.savedExplorePos = null;
                     }
@@ -12679,7 +12697,7 @@
                         clearEdgeIndicators();
                         // Scale back to normal
                         if (playerShipMesh) {
-                            playerShipMesh.scaling.scaleInPlace(0.5);
+                            playerShipMesh.scaling.scaleInPlace(1 / settings.exploreShipScale);
                         }
                         // Clean up exploration visuals
                         cleanupFormations();
@@ -12709,7 +12727,11 @@
                 clearEdgeIndicators();
 
                 // ========== NORMAL COMBAT MODE (encounter or level-end) ==========
-                const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
+                let scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
+                // Slow scroll in system/reward view for calmer pace after exploration
+                if (gameState.levelEndSpawned || gameState.showingGates) {
+                    scrollMultiplier *= 0.35;
+                }
                 updateBackgrounds(scrollMultiplier, deltaTime);
                 firePlayerWeapons(currentTime);
 
