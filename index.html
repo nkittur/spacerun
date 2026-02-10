@@ -3968,6 +3968,7 @@
             planets: [],
             suns: [],
             solarSystems: [],
+            systemTraffic: [],          // Neutral ships in system zones (combat view)
             stars: [],
             lastFireTime: 0,
             waveTimer: 0,
@@ -5265,9 +5266,12 @@
             gameState.distanceTraveled += scrollAmount * deltaTime * 0.1;
 
             // Scroll both backgrounds
-            // Very slow background scroll for ambient effect
-            // Divide by zoomLevel to match UV scaling - keeps visual scroll rate constant
-            const scrollSpeed = 0.000075 * settings.scrollSpeed / gameState.zoomLevel;
+            // Match background scroll to planet/world scroll speed
+            // UV offset = world scroll / worldUnitsPerTile
+            // planeHeight = max(orthoW,orthoH) * 24, tile size = planeHeight / vScale
+            const bgPlaneH = Math.max(orthoWidth, orthoHeight) * 24;
+            const currentVScale = (backgroundMaterialA.diffuseTexture ? backgroundMaterialA.diffuseTexture.vScale : 3);
+            const scrollSpeed = currentVScale > 0 ? scrollAmount / (bgPlaneH / currentVScale) : 0;
             if (backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.vOffset += scrollSpeed * deltaTime;
             }
@@ -6018,6 +6022,9 @@
 
             // Mid-level systems only get 1-2 planets (scenery, not major harvest opportunities)
             placePlanetsAroundSun(centerX, centerY, sunSize, 1 + Math.floor(Math.random() * 2));
+
+            // Add traffic ships around this system
+            spawnSystemTraffic(centerX, centerY);
 
             const spacing = orthoHeight * 2 * (0.7 + Math.random() * 0.6);
             gameState.nextSolarSystemY = centerY + spacing;
@@ -6952,6 +6959,155 @@
             }
 
             placePlanetsAroundSun(centerX, centerY, sunSize);
+
+            // Spawn traffic ships around this system
+            spawnSystemTraffic(centerX, centerY);
+        }
+
+        // System traffic ship types (combat-view scale, smaller than exploration)
+        const SYSTEM_TRAFFIC_TYPES = [
+            { role: 'tanker', model: 'Bob', color: 'Blue', scale: 0.6 },
+            { role: 'tanker', model: 'Bob', color: 'Green', scale: 0.6 },
+            { role: 'shuttle', model: 'Striker', color: 'Blue', scale: 0.3 },
+            { role: 'shuttle', model: 'Spitfire', color: 'Green', scale: 0.3 },
+            { role: 'carrier', model: 'Zenith', color: 'Blue', scale: 0.7 },
+            { role: 'carrier', model: 'Imperial', color: 'Green', scale: 0.7 },
+            { role: 'trader', model: 'Insurgent', color: 'Blue', scale: 0.4 },
+            { role: 'trader', model: 'Omen', color: 'Green', scale: 0.4 },
+            { role: 'trader', model: 'Pancake', color: 'Blue', scale: 0.35 },
+        ];
+
+        // Spawn neutral traffic around a solar system in combat view
+        function spawnSystemTraffic(systemX, systemY) {
+            if (!scene) return;
+            const count = 3 + Math.floor(Math.random() * 4); // 3-6 ships per system
+
+            for (let i = 0; i < count; i++) {
+                const type = SYSTEM_TRAFFIC_TYPES[Math.floor(Math.random() * SYSTEM_TRAFFIC_TYPES.length)];
+
+                // Ships fly curved paths around the system
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 4 + Math.random() * 8;
+                const startX = systemX + Math.cos(angle) * (radius + 8);
+                const startY = systemY + Math.sin(angle) * (radius + 5);
+
+                // End point: opposite side of system or heading away
+                const endAngle = angle + Math.PI * (0.5 + Math.random());
+                const endRadius = 4 + Math.random() * 10;
+                const endX = systemX + Math.cos(endAngle) * (endRadius + 8);
+                const endY = systemY + Math.sin(endAngle) * (endRadius + 5);
+
+                const dx = endX - startX;
+                const dy = endY - startY;
+                const heading = Math.atan2(dy, dx);
+                const speed = 0.001 + Math.random() * 0.002; // world units per ms
+
+                const ship = {
+                    type, startX, startY, endX, endY,
+                    currentX: startX, currentY: startY,
+                    heading, speed, progress: Math.random() * 0.3, // Spread out start
+                    mesh: null, alive: true, systemY: systemY
+                };
+
+                // Interpolate to start progress position
+                ship.currentX = startX + (endX - startX) * ship.progress;
+                ship.currentY = startY + (endY - startY) * ship.progress;
+
+                gameState.systemTraffic.push(ship);
+                createSystemTrafficVisual(ship);
+            }
+        }
+
+        // Create visual mesh for a system traffic ship
+        async function createSystemTrafficVisual(ship) {
+            if (!scene) return;
+            try {
+                const mesh = await loadShipModel(ship.type.model, ship.type.color, scene, 'down');
+                mesh.position.x = ship.currentX;
+                mesh.position.y = ship.currentY;
+                mesh.position.z = 0.15;
+                mesh.scaling.scaleInPlace(ship.type.scale);
+
+                // Apply heading rotation
+                const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
+                const headQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, ship.heading + Math.PI / 2);
+                mesh.rotationQuaternion = headQ.multiply(tipQ);
+
+                // Exclude from glow layers
+                const allMeshes = mesh.getChildMeshes(false) || [];
+                allMeshes.push(mesh);
+                allMeshes.forEach(m => {
+                    if (sunGlowLayer) sunGlowLayer.addExcludedMesh(m);
+                    if (lootGlowLayer) lootGlowLayer.addExcludedMesh(m);
+                    m.renderingGroupId = 2;
+                });
+
+                ship.mesh = mesh;
+            } catch (e) {
+                // Silently fail - traffic is decorative
+            }
+        }
+
+        // Update system traffic in combat view
+        function updateSystemTraffic(scrollMultiplier, deltaTime) {
+            const worldScroll = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
+
+            for (let i = gameState.systemTraffic.length - 1; i >= 0; i--) {
+                const ship = gameState.systemTraffic[i];
+                if (!ship.alive) {
+                    gameState.systemTraffic.splice(i, 1);
+                    continue;
+                }
+
+                // Progress along route
+                const dx = ship.endX - ship.startX;
+                const dy = ship.endY - ship.startY;
+                const routeLen = Math.sqrt(dx * dx + dy * dy);
+                if (routeLen > 0) {
+                    ship.progress += (ship.speed * deltaTime) / routeLen;
+                }
+
+                // Interpolate position along route
+                const routeX = ship.startX + (ship.endX - ship.startX) * ship.progress;
+                const routeY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+
+                // Scroll with the world (same as planets)
+                const scrollDist = worldScroll * deltaTime;
+                ship.startY -= scrollDist;
+                ship.endY -= scrollDist;
+                ship.systemY -= scrollDist;
+
+                ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
+                ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+
+                // Update mesh
+                if (ship.mesh) {
+                    ship.mesh.position.x = ship.currentX;
+                    ship.mesh.position.y = ship.currentY;
+                }
+
+                // Remove if route complete or off screen
+                if (ship.progress >= 1.0 || ship.currentY < -orthoHeight - 15) {
+                    ship.alive = false;
+                    if (ship.mesh) {
+                        ship.mesh.getChildMeshes().forEach(m => m.dispose());
+                        ship.mesh.dispose();
+                        ship.mesh = null;
+                    }
+                    gameState.systemTraffic.splice(i, 1);
+                }
+            }
+        }
+
+        // Clean up all system traffic
+        function cleanupSystemTraffic() {
+            gameState.systemTraffic.forEach(ship => {
+                if (ship.mesh) {
+                    ship.mesh.getChildMeshes().forEach(m => m.dispose());
+                    ship.mesh.dispose();
+                }
+            });
+            gameState.systemTraffic = [];
         }
 
         // Gate type definitions - each type has visual and behavioral properties
@@ -7462,6 +7618,9 @@
                 s.dispose();
             });
             gameState.suns = [];
+
+            // Clear system traffic
+            cleanupSystemTraffic();
 
             // Clear starbase
             if (gameState.starbase) {
@@ -12654,6 +12813,7 @@
                 fireEquipmentWeapons(currentTime);
                 updateLoot(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
+                updateSystemTraffic(scrollMultiplier, deltaTime);
                 updateStarbase(scrollMultiplier, deltaTime);
                 updateEventObject(scrollMultiplier, deltaTime);
                 checkPlayerCollision();
