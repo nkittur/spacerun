@@ -5967,8 +5967,13 @@
             const planetCount = maxPlanets || (4 + Math.floor(Math.random() * 4));
             const placedPlanets = [];
             const minPlanetSpacing = 2.5;
-            const minSunDist = sunSize * 1.3; // Keep planets outside the corona
             const margin = 0.8;
+            // Use a large Y spread so planets can be placed above/below the sun
+            // on narrow screens where horizontal space is limited
+            const ySpread = 20;
+            // Cap minSunDist so it never exceeds what the screen geometry allows
+            const maxAvailDist = Math.sqrt(Math.pow(orthoWidth - margin, 2) + Math.pow(ySpread / 2, 2));
+            const minSunDist = Math.min(sunSize * 1.3, maxAvailDist * 0.7);
 
             for (let i = 0; i < planetCount; i++) {
                 let attempts = 0;
@@ -5976,7 +5981,6 @@
 
                 while (!placed && attempts < 80) {
                     const px = -orthoWidth + margin + Math.random() * (orthoWidth * 2 - margin * 2);
-                    const ySpread = 10;
                     const py = centerY + (Math.random() - 0.5) * ySpread;
 
                     const sunDist = Math.sqrt(Math.pow(px - centerX, 2) + Math.pow(py - centerY, 2));
