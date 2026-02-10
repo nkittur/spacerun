@@ -6982,44 +6982,146 @@
         ];
 
         // Spawn neutral traffic around a solar system in combat view
+        // Ships navigate intelligently between planets, stations, suns, and gates
         function spawnSystemTraffic(systemX, systemY) {
             if (!scene) return;
-            const count = 3 + Math.floor(Math.random() * 4); // 3-6 ships per system
+            const count = 5 + Math.floor(Math.random() * 4); // 5-8 ships per system
 
             for (let i = 0; i < count; i++) {
                 const type = SYSTEM_TRAFFIC_TYPES[Math.floor(Math.random() * SYSTEM_TRAFFIC_TYPES.length)];
 
-                // Ships fly curved paths around the system
+                // Pick a random starting position spread around the system
                 const angle = Math.random() * Math.PI * 2;
-                const radius = 4 + Math.random() * 8;
-                const startX = systemX + Math.cos(angle) * (radius + 8);
-                const startY = systemY + Math.sin(angle) * (radius + 5);
-
-                // End point: opposite side of system or heading away
-                const endAngle = angle + Math.PI * (0.5 + Math.random());
-                const endRadius = 4 + Math.random() * 10;
-                const endX = systemX + Math.cos(endAngle) * (endRadius + 8);
-                const endY = systemY + Math.sin(endAngle) * (endRadius + 5);
-
-                const dx = endX - startX;
-                const dy = endY - startY;
-                const heading = Math.atan2(dy, dx);
-                const speed = 0.001 + Math.random() * 0.002; // world units per ms
+                const radius = 3 + Math.random() * 12;
+                const startX = systemX + Math.cos(angle) * radius;
+                const startY = systemY + Math.sin(angle) * radius;
 
                 const ship = {
-                    type, startX, startY, endX, endY,
-                    currentX: startX, currentY: startY,
-                    heading, speed, progress: Math.random() * 0.3, // Spread out start
-                    mesh: null, alive: true, systemY: systemY
+                    type,
+                    currentX: startX,
+                    currentY: startY,
+                    heading: Math.random() * Math.PI * 2,
+                    baseSpeed: 0.003 + Math.random() * 0.003, // world units per ms (matched to scroll)
+                    currentSpeed: 0,
+                    mesh: null,
+                    alive: true,
+                    systemX: systemX,
+                    systemY: systemY,
+                    // Navigation state machine
+                    navState: 'cruising', // cruising, approaching, docked, departing
+                    targetX: 0,
+                    targetY: 0,
+                    targetType: null, // 'planet', 'sun', 'gate'
+                    dockTimer: 0,
+                    dockDuration: 0,
+                    departHeading: 0,
+                    // Smoothing
+                    turnRate: 0.002 + Math.random() * 0.002 // radians per ms
                 };
 
-                // Interpolate to start progress position
-                ship.currentX = startX + (endX - startX) * ship.progress;
-                ship.currentY = startY + (endY - startY) * ship.progress;
+                // Assign initial destination
+                assignTrafficDestination(ship);
+
+                // Spread initial ships along different states
+                if (Math.random() < 0.3) {
+                    ship.navState = 'cruising';
+                } else if (Math.random() < 0.5) {
+                    // Start some already partway to their destination
+                    const dx = ship.targetX - ship.currentX;
+                    const dy = ship.targetY - ship.currentY;
+                    const prog = 0.3 + Math.random() * 0.5;
+                    ship.currentX += dx * prog;
+                    ship.currentY += dy * prog;
+                }
 
                 gameState.systemTraffic.push(ship);
                 createSystemTrafficVisual(ship);
             }
+        }
+
+        // Find interesting destinations for traffic ships (planets, suns, gates)
+        function getTrafficDestinations() {
+            const destinations = [];
+
+            // Add all visible planets
+            gameState.planets.forEach(p => {
+                const isLife = p.features && (p.features.includes('life') || ['Lush', 'Tropical', 'Ocean'].includes(p.planetType));
+                destinations.push({
+                    x: p.position.x,
+                    y: p.position.y,
+                    type: 'planet',
+                    priority: isLife ? 3 : 1, // Life planets are higher priority
+                    dockTime: isLife ? (3000 + Math.random() * 4000) : (1500 + Math.random() * 2500)
+                });
+            });
+
+            // Add suns (ships approach but keep distance)
+            gameState.suns.forEach(s => {
+                if (s.mesh) {
+                    destinations.push({
+                        x: s.mesh.position.x,
+                        y: s.mesh.position.y,
+                        type: 'sun',
+                        priority: 1,
+                        approachDist: (s.size || 4) * 1.5, // Stay outside corona
+                        dockTime: 800 + Math.random() * 1200
+                    });
+                }
+            });
+
+            // Add warp gates if visible
+            gameState.warpGates.forEach(g => {
+                destinations.push({
+                    x: g.position.x,
+                    y: g.position.y,
+                    type: 'gate',
+                    priority: 2,
+                    dockTime: 500 + Math.random() * 1000
+                });
+            });
+
+            return destinations;
+        }
+
+        // Assign a destination to a traffic ship
+        function assignTrafficDestination(ship) {
+            const dests = getTrafficDestinations();
+
+            if (dests.length === 0) {
+                // No destinations yet - cruise in a random direction around system
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 5 + Math.random() * 10;
+                ship.targetX = ship.systemX + Math.cos(angle) * dist;
+                ship.targetY = ship.systemY + Math.sin(angle) * dist;
+                ship.targetType = null;
+                ship.dockDuration = 0;
+                return;
+            }
+
+            // Weight selection by priority, favoring life planets and stations
+            const weights = dests.map(d => d.priority);
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            let r = Math.random() * totalWeight;
+            let chosen = dests[0];
+            for (let i = 0; i < dests.length; i++) {
+                r -= weights[i];
+                if (r <= 0) { chosen = dests[i]; break; }
+            }
+
+            // For suns, offset the target to stay at approach distance
+            if (chosen.type === 'sun' && chosen.approachDist) {
+                const approachAngle = Math.atan2(ship.currentY - chosen.y, ship.currentX - chosen.x);
+                ship.targetX = chosen.x + Math.cos(approachAngle) * chosen.approachDist;
+                ship.targetY = chosen.y + Math.sin(approachAngle) * chosen.approachDist;
+            } else {
+                // Offset slightly so ships don't all converge on exact center
+                ship.targetX = chosen.x + (Math.random() - 0.5) * 2;
+                ship.targetY = chosen.y + (Math.random() - 0.5) * 2;
+            }
+
+            ship.targetType = chosen.type;
+            ship.dockDuration = chosen.dockTime || (2000 + Math.random() * 3000);
+            ship.navState = 'cruising';
         }
 
         // Create visual mesh for a system traffic ship
@@ -7052,9 +7154,21 @@
             }
         }
 
-        // Update system traffic in combat view
+        // Smoothly turn heading toward target angle
+        function turnToward(currentHeading, targetHeading, turnRate, dt) {
+            let diff = targetHeading - currentHeading;
+            // Normalize to [-PI, PI]
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            const maxTurn = turnRate * dt;
+            if (Math.abs(diff) < maxTurn) return targetHeading;
+            return currentHeading + Math.sign(diff) * maxTurn;
+        }
+
+        // Update system traffic in combat view - intelligent navigation
         function updateSystemTraffic(scrollMultiplier, deltaTime) {
             const worldScroll = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            const scrollDist = worldScroll * deltaTime;
 
             for (let i = gameState.systemTraffic.length - 1; i >= 0; i--) {
                 const ship = gameState.systemTraffic[i];
@@ -7063,35 +7177,102 @@
                     continue;
                 }
 
-                // Progress along route
-                const dx = ship.endX - ship.startX;
-                const dy = ship.endY - ship.startY;
-                const routeLen = Math.sqrt(dx * dx + dy * dy);
-                if (routeLen > 0) {
-                    ship.progress += (ship.speed * deltaTime) / routeLen;
-                }
-
-                // Interpolate position along route
-                const routeX = ship.startX + (ship.endX - ship.startX) * ship.progress;
-                const routeY = ship.startY + (ship.endY - ship.startY) * ship.progress;
-
                 // Scroll with the world (same as planets)
-                const scrollDist = worldScroll * deltaTime;
-                ship.startY -= scrollDist;
-                ship.endY -= scrollDist;
+                ship.currentY -= scrollDist;
+                ship.targetY -= scrollDist;
                 ship.systemY -= scrollDist;
 
-                ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
-                ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+                const dx = ship.targetX - ship.currentX;
+                const dy = ship.targetY - ship.currentY;
+                const distToTarget = Math.sqrt(dx * dx + dy * dy);
+                const targetHeading = Math.atan2(dy, dx);
 
-                // Update mesh
+                switch (ship.navState) {
+                    case 'cruising': {
+                        // Fly toward destination at full speed
+                        ship.heading = turnToward(ship.heading, targetHeading, ship.turnRate, deltaTime);
+                        ship.currentSpeed = ship.baseSpeed;
+
+                        // Transition to approaching when close
+                        if (distToTarget < 4) {
+                            ship.navState = 'approaching';
+                        }
+                        break;
+                    }
+
+                    case 'approaching': {
+                        // Slow down as we get close, turn to face target
+                        ship.heading = turnToward(ship.heading, targetHeading, ship.turnRate * 1.5, deltaTime);
+
+                        // Decelerate: speed proportional to distance (min 20% speed)
+                        const speedFactor = Math.max(0.2, distToTarget / 4);
+                        ship.currentSpeed = ship.baseSpeed * speedFactor;
+
+                        // Dock when very close
+                        if (distToTarget < 0.8) {
+                            ship.navState = 'docked';
+                            ship.dockTimer = 0;
+                            ship.currentSpeed = 0;
+                        }
+                        break;
+                    }
+
+                    case 'docked': {
+                        // Stay stationary (relative to world scroll) for dock duration
+                        ship.currentSpeed = 0;
+                        ship.dockTimer += deltaTime;
+
+                        if (ship.dockTimer >= ship.dockDuration) {
+                            ship.navState = 'departing';
+                            // Choose departure: either new random heading or toward a new destination
+                            if (Math.random() < 0.6) {
+                                // Head to a new destination
+                                assignTrafficDestination(ship);
+                                ship.navState = 'cruising';
+                            } else {
+                                // Depart on a random heading, then pick new destination after clearing
+                                ship.departHeading = ship.heading + (Math.random() - 0.5) * Math.PI * 1.5;
+                                ship.departTimer = 0;
+                            }
+                        }
+                        break;
+                    }
+
+                    case 'departing': {
+                        // Accelerate away from dock on departure heading
+                        ship.heading = turnToward(ship.heading, ship.departHeading, ship.turnRate, deltaTime);
+                        ship.departTimer = (ship.departTimer || 0) + deltaTime;
+                        // Accelerate over 1.5 seconds
+                        const accelFactor = Math.min(1.0, ship.departTimer / 1500);
+                        ship.currentSpeed = ship.baseSpeed * accelFactor;
+
+                        // After clearing dock area, pick new destination
+                        if (ship.departTimer > 2000) {
+                            assignTrafficDestination(ship);
+                            ship.navState = 'cruising';
+                        }
+                        break;
+                    }
+                }
+
+                // Apply movement
+                if (ship.currentSpeed > 0) {
+                    ship.currentX += Math.cos(ship.heading) * ship.currentSpeed * deltaTime;
+                    ship.currentY += Math.sin(ship.heading) * ship.currentSpeed * deltaTime;
+                }
+
+                // Update mesh position and rotation
                 if (ship.mesh) {
                     ship.mesh.position.x = ship.currentX;
                     ship.mesh.position.y = ship.currentY;
+
+                    const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
+                    const headQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, ship.heading + Math.PI / 2);
+                    ship.mesh.rotationQuaternion = headQ.multiply(tipQ);
                 }
 
-                // Remove if route complete or off screen
-                if (ship.progress >= 1.0 || ship.currentY < -orthoHeight - 15) {
+                // Remove if scrolled way off screen
+                if (ship.currentY < -orthoHeight - 20) {
                     ship.alive = false;
                     if (ship.mesh) {
                         ship.mesh.getChildMeshes().forEach(m => m.dispose());
@@ -7100,6 +7281,45 @@
                     }
                     gameState.systemTraffic.splice(i, 1);
                 }
+            }
+
+            // Respawn ships that scrolled off to maintain population
+            if (gameState.systemTraffic.length < 4 && gameState.levelEndSpawned) {
+                // Spawn a replacement from above the visible area
+                const type = SYSTEM_TRAFFIC_TYPES[Math.floor(Math.random() * SYSTEM_TRAFFIC_TYPES.length)];
+                const spawnX = (Math.random() - 0.5) * orthoWidth * 1.5;
+                const spawnY = orthoHeight + 5 + Math.random() * 5;
+
+                // Find system center from first sun if available
+                let sysX = 0, sysY = orthoHeight;
+                if (gameState.suns.length > 0 && gameState.suns[0].mesh) {
+                    sysX = gameState.suns[0].mesh.position.x;
+                    sysY = gameState.suns[0].mesh.position.y;
+                }
+
+                const ship = {
+                    type,
+                    currentX: spawnX,
+                    currentY: spawnY,
+                    heading: -Math.PI / 2 + (Math.random() - 0.5) * 0.8,
+                    baseSpeed: 0.003 + Math.random() * 0.003,
+                    currentSpeed: 0.003,
+                    mesh: null,
+                    alive: true,
+                    systemX: sysX,
+                    systemY: sysY,
+                    navState: 'cruising',
+                    targetX: 0,
+                    targetY: 0,
+                    targetType: null,
+                    dockTimer: 0,
+                    dockDuration: 0,
+                    departHeading: 0,
+                    turnRate: 0.002 + Math.random() * 0.002
+                };
+                assignTrafficDestination(ship);
+                gameState.systemTraffic.push(ship);
+                createSystemTrafficVisual(ship);
             }
         }
 
@@ -10412,8 +10632,8 @@
                 shipMesh.position.x = formation.currentX;
                 shipMesh.position.y = formation.currentY;
                 shipMesh.position.z = 0.1;
-                // Scale ship for zoomed-out view (1.5x - compact tactical look)
-                shipMesh.scaling.scaleInPlace(1.5);
+                // Scale ship for zoomed-out view, using the exploration ship size setting
+                shipMesh.scaling.scaleInPlace(1.5 * settings.exploreShipScale);
 
                 // Exclude from glow layers
                 const shipMeshes = shipMesh.getChildMeshes(false) || [];
@@ -10844,7 +11064,7 @@
                 mesh.position.x = ship.currentX;
                 mesh.position.y = ship.currentY;
                 mesh.position.z = 0.2;
-                mesh.scaling.scaleInPlace(ship.type.scale);
+                mesh.scaling.scaleInPlace(ship.type.scale * settings.exploreShipScale);
 
                 // Apply heading rotation using quaternion (same as formations)
                 const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
