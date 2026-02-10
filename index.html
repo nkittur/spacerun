@@ -3265,7 +3265,7 @@
 
     <button id="speedUpBtn">&gt;&gt; WARP</button>
     <button id="weaponsToggleBtn">WEAPONS: SAFE</button>
-    <div id="boardingPrompt">[F] BOARD SHIP</div>
+    <div id="boardingPrompt">BOARDING...</div>
     <div id="boardingLootPanel">
         <h3>SALVAGE REPORT</h3>
         <div id="boardingLootItems"></div>
@@ -4219,6 +4219,7 @@
             disabledShips: [],              // Ships disabled during combat (boardable)
             boardingTarget: null,           // Nearest boardable disabled ship
             boardingInProgress: false,      // Whether boarding loot panel is open
+            boardingProgress: 0,            // Auto-board progress (0-1, like harvesting)
             arenaMode: false,       // Arena mode active
             arenaConfig: null,      // Arena configuration
             arenaWave: 0,           // Current arena wave
@@ -9671,13 +9672,8 @@
                     break;
                 case 'f':
                 case 'F':
-                    // Board disabled ship
-                    if (gameState.boardingTarget) {
-                        boardShip(gameState.boardingTarget);
-                        e.preventDefault();
-                    }
-                    // Also toggle weapons in exploration/encounter
-                    else if (gameState.explorationMode || gameState.currentEncounter) {
+                    // Toggle weapons in exploration/encounter
+                    if (gameState.explorationMode || gameState.currentEncounter) {
                         gameState.weaponsHot = !gameState.weaponsHot;
                         const wBtn = document.getElementById('weaponsToggleBtn');
                         if (wBtn) {
@@ -10757,8 +10753,9 @@
                     });
                 }
 
-                // Remove if scrolled off screen
-                if (ship.position.y < -orthoHeight - 5 || ship.position.y > orthoHeight + 5) {
+                // Remove if drifted off screen (check all edges for crossfire)
+                if (ship.position.y < -orthoHeight - 5 || ship.position.y > orthoHeight + 5 ||
+                    ship.position.x < -orthoWidth - 5 || ship.position.x > orthoWidth + 5) {
                     ship.getChildMeshes().forEach(m => m.dispose());
                     ship.dispose();
                     gameState.disabledShips.splice(i, 1);
@@ -10769,16 +10766,17 @@
             }
         }
 
-        // Check if player is near a disabled ship and show boarding prompt
-        function checkBoardingProximity() {
+        // Check if player is near a disabled ship and auto-board with progress (like harvesting)
+        function checkBoardingProximity(deltaTime) {
             const prompt = document.getElementById('boardingPrompt');
             if (!prompt) return;
             if (!playerShip || !gameState.disabledShips || gameState.disabledShips.length === 0) {
                 prompt.style.display = 'none';
                 gameState.boardingTarget = null;
+                gameState.boardingProgress = 0;
                 return;
             }
-            // Don't show during boarding or if loot panel is open
+            // Don't process during boarding loot panel
             if (gameState.boardingInProgress) {
                 prompt.style.display = 'none';
                 return;
@@ -10791,18 +10789,59 @@
                 const dx = playerShip.position.x - ship.position.x;
                 const dy = playerShip.position.y - ship.position.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 2.5 && dist < nearestDist) {
+                if (dist < 2.0 && dist < nearestDist) {
                     nearestDist = dist;
                     nearest = ship;
                 }
             }
 
             if (nearest) {
+                // New target - reset progress
+                if (gameState.boardingTarget !== nearest) {
+                    gameState.boardingTarget = nearest;
+                    gameState.boardingProgress = 0;
+                }
+                // Accumulate boarding progress (1.5 seconds to board)
+                gameState.boardingProgress = (gameState.boardingProgress || 0) + deltaTime / 1500;
+                // Show progress bar using the harvest bar
+                const harvestBar = document.getElementById('harvestBar');
+                const harvestBarFill = document.getElementById('harvestBarFill');
+                if (harvestBar && harvestBarFill) {
+                    harvestBar.style.display = 'block';
+                    harvestBarFill.style.width = `${Math.min(100, gameState.boardingProgress * 100)}%`;
+                    // Position bar near the disabled ship
+                    const canvas = document.querySelector('canvas');
+                    if (canvas && gameCamera) {
+                        const screenPos = BABYLON.Vector3.Project(
+                            new BABYLON.Vector3(nearest.position.x, nearest.position.y, 0),
+                            BABYLON.Matrix.Identity(),
+                            scene.getTransformMatrix(),
+                            gameCamera.viewport.toGlobal(canvas.width, canvas.height)
+                        );
+                        const barWidth = 60;
+                        harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+                        harvestBar.style.top = (screenPos.y + 20) + 'px';
+                        harvestBar.style.width = barWidth + 'px';
+                        harvestBar.style.transform = 'none';
+                    }
+                }
+                // Show boarding label
                 prompt.style.display = 'block';
-                gameState.boardingTarget = nearest;
+                prompt.textContent = 'BOARDING...';
+
+                // Auto-board when progress completes
+                if (gameState.boardingProgress >= 1) {
+                    gameState.boardingProgress = 0;
+                    if (harvestBar) harvestBar.style.display = 'none';
+                    boardShip(nearest);
+                }
             } else {
                 prompt.style.display = 'none';
                 gameState.boardingTarget = null;
+                if (gameState.boardingProgress > 0) {
+                    gameState.boardingProgress = 0;
+                    document.getElementById('harvestBar').style.display = 'none';
+                }
             }
         }
 
@@ -10811,9 +10850,12 @@
             if (!ship || ship._isDisposed || gameState.boardingInProgress) return;
             gameState.boardingInProgress = true;
 
-            // Hide boarding prompt
+            // Hide boarding prompt and progress bar
             const prompt = document.getElementById('boardingPrompt');
             if (prompt) prompt.style.display = 'none';
+            const harvestBar = document.getElementById('harvestBar');
+            if (harvestBar) harvestBar.style.display = 'none';
+            gameState.boardingProgress = 0;
 
             // Generate loot based on ship type
             const lootTable = [];
@@ -10885,17 +10927,43 @@
             // the render loop from spawning duplicates while awaiting
             gameState.enemiesSpawned++;
 
-            const maxX = orthoWidth - 1;
-            const x = (Math.random() - 0.5) * maxX * 1.5;
-            // Faction B spawns from the bottom (facing up), Faction A from top (facing down)
-            const y = enemyFaction === 'B' ? (-orthoHeight - 2) : (orthoHeight + 2);
+            // In crossfire battles, factions spawn from left/right sides
+            // In solo encounters, enemies spawn from top as normal
+            let x, y;
+            if (gameState.encounterIsBattle) {
+                // Faction A spawns from left, Faction B from right
+                const spawnY = (Math.random() - 0.5) * orthoHeight * 1.2;
+                if (enemyFaction === 'A') {
+                    x = -orthoWidth - 2;
+                } else {
+                    x = orthoWidth + 2;
+                }
+                y = spawnY;
+            } else {
+                const maxX = orthoWidth - 1;
+                x = (Math.random() - 0.5) * maxX * 1.5;
+                y = orthoHeight + 2;
+            }
 
             try {
                 const enemy = await createEnemy(type, x, y);
                 enemy.enemyFaction = enemyFaction;
 
-                // Faction B: flip direction - move upward instead of downward
-                if (enemyFaction === 'B') {
+                if (gameState.encounterIsBattle) {
+                    // Crossfire: set up lateral movement toward the opposing side
+                    enemy.movementPattern = 'crossfire';
+                    // Faction A moves right, Faction B moves left
+                    const lateralDir = enemyFaction === 'A' ? 1 : -1;
+                    enemy.crossfireVX = lateralDir * (0.02 + Math.random() * 0.02); // lateral speed
+                    enemy.crossfireVY = (Math.random() - 0.5) * 0.01; // slight vertical drift
+                    enemy.crossfireBaseY = y;
+                    enemy.crossfireWander = Math.random() * Math.PI * 2; // phase for vertical wobble
+                    // Rotate mesh to face sideways
+                    if (enemy.mesh) {
+                        // Faction A faces right, B faces left
+                        enemy.mesh.rotation.y = enemyFaction === 'A' ? -Math.PI / 2 : Math.PI / 2;
+                    }
+                } else if (enemyFaction === 'B') {
                     enemy.speed = -Math.abs(enemy.speed); // Negative = moving up
                     // Flip the mesh to face upward
                     if (enemy.mesh) {
@@ -11401,6 +11469,7 @@
             }
             gameState.boardingTarget = null;
             gameState.boardingInProgress = false;
+            gameState.boardingProgress = 0;
             const boardPanel = document.getElementById('boardingLootPanel');
             if (boardPanel) boardPanel.style.display = 'none';
             const boardPrompt = document.getElementById('boardingPrompt');
@@ -12940,6 +13009,26 @@
                         const dx = enemy.randomTargetX - enemy.position.x;
                         enemy.position.x += dx * enemy.speed;
                     }
+                } else if (enemy.movementPattern === 'crossfire') {
+                    // Crossfire battle: ships move laterally across screen with vertical wobble
+                    enemy.crossfireWander += deltaTime * 0.002;
+                    // Lateral movement toward opposing side
+                    enemy.position.x += enemy.crossfireVX * deltaTime * 0.5;
+                    // Vertical drift + sinusoidal wobble
+                    const wobbleAmplitude = enemy.type === 'light' ? 2.5 : enemy.type === 'heavy' ? 1.0 : 1.5;
+                    enemy.position.y = enemy.crossfireBaseY + Math.sin(enemy.crossfireWander) * wobbleAmplitude;
+                    // Slight drift toward nearby opposing faction enemies (approach behavior)
+                    if (Math.random() < 0.01) {
+                        // Occasionally adjust vertical drift toward a target
+                        for (const other of gameState.enemies) {
+                            if (other === enemy || other.enemyFaction === enemy.enemyFaction || other.isDisabled) continue;
+                            const dy = other.position.y - enemy.position.y;
+                            enemy.crossfireBaseY += dy * 0.05;
+                            break;
+                        }
+                    }
+                    // Clamp to screen bounds vertically
+                    enemy.crossfireBaseY = Math.max(-orthoHeight + 1, Math.min(orthoHeight - 1, enemy.crossfireBaseY));
                 } else if (enemy.movementPattern === 'sine') {
                     // Light enemies weave more aggressively, heavy enemies barely weave
                     const waveAmplitude = enemy.type === 'light' ? 3 : enemy.type === 'heavy' ? 1 : 2;
@@ -12956,14 +13045,20 @@
                 enemy.currentTilt += (clampedTilt - enemy.currentTilt) * 0.15;
 
                 if (enemy.mesh) {
-                    enemy.mesh.rotation.y = enemy.currentTilt;
+                    if (enemy.movementPattern === 'crossfire') {
+                        // Crossfire: maintain sideways facing with subtle tilt
+                        const baseRot = enemy.enemyFaction === 'A' ? -Math.PI / 2 : Math.PI / 2;
+                        enemy.mesh.rotation.y = baseRot + enemy.currentTilt * 0.3;
+                    } else {
+                        enemy.mesh.rotation.y = enemy.currentTilt;
+                    }
                 }
 
-                // Challenger has special laser attack handled separately
-                if (enemy.type === 'challenger') {
+                // Challenger has special laser attack handled separately (not in crossfire - laser is vertical)
+                if (enemy.type === 'challenger' && enemy.movementPattern !== 'crossfire') {
                     updateChallengerLaser(enemy, currentTime);
                 }
-                // All enemy types except 'fast' and 'challenger' can shoot bullets
+                // All enemy types except 'fast' can shoot bullets (challengers in crossfire use bullets too)
                 else if (enemy.type !== 'fast' &&
                     currentTime - enemy.lastFireTime > enemy.fireRate) {
 
@@ -13012,15 +13107,30 @@
                                     const vy = (dy / dist) * 0.08;
                                     const rotatedVx = vx * cos - vy * sin;
                                     const rotatedVy = vx * sin + vy * cos;
-                                    const bullet = createBullet(false, enemy.position.x, enemy.position.y - 0.3,
+                                    // Crossfire: offset bullet laterally; normal: offset downward
+                                    let hbx = enemy.position.x;
+                                    let hby = enemy.position.y;
+                                    if (enemy.movementPattern === 'crossfire') {
+                                        hbx += enemy.enemyFaction === 'A' ? 0.3 : -0.3;
+                                    } else {
+                                        hby -= 0.3;
+                                    }
+                                    const bullet = createBullet(false, hbx, hby,
                                         rotatedVx, rotatedVy, enemy.damage);
                                     bullet.sourceFaction = enemy.enemyFaction || null;
                                     gameState.enemyBullets.push(bullet);
                                 });
                             } else {
                                 const bulletSpeed = enemy.type === 'light' ? 0.12 : 0.1;
-                                const bulletOffsetY = enemy.enemyFaction === 'B' ? 0.3 : -0.3;
-                                const bullet = createBullet(false, enemy.position.x, enemy.position.y + bulletOffsetY,
+                                // Crossfire: offset bullet spawn laterally; normal: offset vertically
+                                let bulletSpawnX = enemy.position.x;
+                                let bulletSpawnY = enemy.position.y;
+                                if (enemy.movementPattern === 'crossfire') {
+                                    bulletSpawnX += enemy.enemyFaction === 'A' ? 0.3 : -0.3;
+                                } else {
+                                    bulletSpawnY += enemy.enemyFaction === 'B' ? 0.3 : -0.3;
+                                }
+                                const bullet = createBullet(false, bulletSpawnX, bulletSpawnY,
                                     (dx / dist) * bulletSpeed, (dy / dist) * bulletSpeed, enemy.damage);
                                 bullet.sourceFaction = enemy.enemyFaction || null;
                                 gameState.enemyBullets.push(bullet);
@@ -13035,8 +13145,16 @@
                 // Skip disabled ships - they just drift
                 if (enemy.isDisabled) continue;
 
-                if (enemy.type === 'challenger') {
-                    // Clamp to screen bounds
+                if (enemy.movementPattern === 'crossfire') {
+                    // Crossfire enemies escape off the far side (past opposing spawn edge)
+                    if (enemy.position.x < -orthoWidth - 4 || enemy.position.x > orthoWidth + 4) {
+                        gameState.escapedEnemies++;
+                        enemy.getChildMeshes().forEach(m => m.dispose());
+                        enemy.dispose();
+                        gameState.enemies.splice(i, 1);
+                    }
+                } else if (enemy.type === 'challenger') {
+                    // Challengers don't escape - clamp to screen bounds
                     enemy.position.x = Math.max(-orthoWidth + 1, Math.min(orthoWidth - 1, enemy.position.x));
                 } else if (enemy.position.y < -orthoHeight - 2 || enemy.position.y > orthoHeight + 4) {
                     // Enemy escaped (check both directions for faction B)
@@ -13476,6 +13594,7 @@
             gameState.disabledShips = [];
             gameState.boardingTarget = null;
             gameState.boardingInProgress = false;
+            gameState.boardingProgress = 0;
             gameState.explorationSkirmishes = [];
             const boardPanel = document.getElementById('boardingLootPanel');
             if (boardPanel) boardPanel.style.display = 'none';
@@ -14527,7 +14646,7 @@
                 updateSecondaryCooldown(deltaTime);
                 fireEquipmentWeapons(currentTime);
                 updateDisabledShips(deltaTime);
-                checkBoardingProximity();
+                checkBoardingProximity(deltaTime);
                 updateLoot(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
                 updateSystemTraffic(scrollMultiplier, deltaTime);
@@ -15043,6 +15162,7 @@
         document.getElementById('boardingLootClose').addEventListener('click', () => {
             document.getElementById('boardingLootPanel').style.display = 'none';
             gameState.boardingInProgress = false;
+            gameState.boardingProgress = 0;
         });
 
         // Update speed-up button visibility
