@@ -4038,6 +4038,7 @@
             explorationCameraPos: {x: 0, y: 0}, // Camera position during exploration
             formationsDefeated: 0,          // Count of defeated formations this level
             explorationGoal: null,          // Goal sun at top of exploration map
+            explorationTraffic: [],         // Neutral ships (tankers, shuttles, carriers, traders)
             exploreHeading: Math.PI / 2,    // Ship heading in exploration (radians, PI/2 = up)
             arenaMode: false,       // Arena mode active
             arenaConfig: null,      // Arena configuration
@@ -10098,15 +10099,15 @@
         function generateFormations(config) {
             const formations = [];
             const numFormations = config.waveCount; // One formation per wave equivalent
-            const mapSpreadY = 40 * 4; // Vertical space for formations (zoomed-out scale)
-            const mapSpreadX = orthoWidth * 3; // Horizontal spread
+            const mapSpreadY = 60; // Vertical space for formations (compact tactical map)
+            const mapSpreadX = orthoWidth * 2.5; // Horizontal spread
 
             // Enemy type power ranking for visual representation
             const typePower = { 'basic': 0, 'fast': 1, 'shooter': 2, 'light': 3, 'heavy': 4, 'challenger': 5 };
 
             for (let i = 0; i < numFormations; i++) {
-                // Distribute formations vertically from 40 to mapSpreadY
-                const baseY = 40 + (i + 0.5) * (mapSpreadY / numFormations);
+                // Distribute formations vertically across the exploration map
+                const baseY = 20 + (i + 0.5) * (mapSpreadY / numFormations);
                 const baseX = (Math.random() - 0.5) * mapSpreadX;
 
                 // Determine enemy composition for this formation
@@ -10164,7 +10165,7 @@
                     // Waypoint-based natural movement
                     waypoints: waypoints,
                     waypointIndex: 0,
-                    moveSpeed: 0.003 + Math.random() * 0.004, // Units per ms
+                    moveSpeed: 0.001 + Math.random() * 0.0015, // Units per ms (slow patrol)
                     heading: Math.random() * Math.PI * 2,
                     enemyCount: enemyCount,
                     enemyTypes: enemyTypes,
@@ -10248,8 +10249,8 @@
                 shipMesh.position.x = formation.currentX;
                 shipMesh.position.y = formation.currentY;
                 shipMesh.position.z = 0.1;
-                // Scale up the ship so it's visible in the zoomed-out view
-                shipMesh.scaling.scaleInPlace(3);
+                // Scale ship for zoomed-out view (1.5x - compact tactical look)
+                shipMesh.scaling.scaleInPlace(1.5);
 
                 // Exclude from glow layers
                 const shipMeshes = shipMesh.getChildMeshes(false) || [];
@@ -10327,9 +10328,12 @@
                 f.meshes.forEach(mesh => {
                     mesh.position.x = f.currentX;
                     mesh.position.y = f.currentY;
-                    // Rotate the ship mesh to face movement direction
-                    // Ship model faces down (-Y) by default; heading 0 = right (+X)
-                    mesh.rotation.z = f.heading + Math.PI / 2;
+                    // Rotate ship to face movement direction using quaternions
+                    // Euler YXZ order applies Z before X, so rotation.z just rolls the ship.
+                    // Instead: first tip model into XY plane (X rotation), then rotate in screen plane (Z rotation)
+                    const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
+                    const headQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, f.heading + Math.PI / 2);
+                    mesh.rotationQuaternion = headQ.multiply(tipQ);
                 });
             });
         }
@@ -10386,6 +10390,10 @@
             if (gameState.explorationGoal && gameState.explorationGoal.node) {
                 gameState.explorationGoal.node.setEnabled(false);
             }
+            // Hide traffic during combat
+            gameState.explorationTraffic.forEach(s => {
+                if (s.mesh) s.mesh.setEnabled(false);
+            });
         }
 
         // Spawn the encounter's enemies after zoom-in completes
@@ -10485,6 +10493,10 @@
             if (gameState.explorationGoal && gameState.explorationGoal.node) {
                 gameState.explorationGoal.node.setEnabled(true);
             }
+            // Show traffic again
+            gameState.explorationTraffic.forEach(s => {
+                if (s.mesh) s.mesh.setEnabled(true);
+            });
         }
 
         // Dispose all formation meshes (for level cleanup)
@@ -10504,15 +10516,16 @@
             gameState.formationsDefeated = 0;
             gameState._encounterEnemyTypes = null;
             cleanupExplorationGoal();
+            cleanupExplorationTraffic();
         }
 
         // Create the goal sun at the top of the exploration map
         function createExplorationGoal() {
             if (!scene || gameState.explorationGoal) return;
 
-            // Place goal beyond the formations
-            const mapSpreadY = 40 * 4;
-            const goalY = mapSpreadY + 50; // Past all formations
+            // Place goal beyond the formations - visible from relatively early
+            const mapSpreadY = 60;
+            const goalY = mapSpreadY + 25; // Past all formations
             const goalX = 0;
 
             // Create a mini sun
@@ -10524,7 +10537,7 @@
             const variantStr = variant.toString().padStart(2, '0');
             const imagePath = `assets/Medium Planets 256x256/Suns/${sunType.folder}/${sunType.prefix}_${variantStr}-256x256.png`;
 
-            const sunSize = 6;
+            const sunSize = 12; // Larger sun so it's visible from a distance
             const goalNode = new BABYLON.TransformNode('explorationGoal', scene);
             goalNode.position.x = goalX;
             goalNode.position.y = goalY;
@@ -10589,6 +10602,197 @@
             gameState.explorationGoal = null;
         }
 
+        // ========== NEUTRAL TRAFFIC SYSTEM ==========
+        // Ship types for neutral traffic - each has a model, color, role, and speed profile
+        const TRAFFIC_TYPES = [
+            { role: 'tanker', model: 'Bob', color: 'Blue', speed: 0.0006, scale: 1.8 },
+            { role: 'tanker', model: 'Bob', color: 'Green', speed: 0.0005, scale: 1.8 },
+            { role: 'shuttle', model: 'Striker', color: 'Blue', speed: 0.0015, scale: 0.8 },
+            { role: 'shuttle', model: 'Spitfire', color: 'Green', speed: 0.0018, scale: 0.8 },
+            { role: 'carrier', model: 'Zenith', color: 'Blue', speed: 0.0004, scale: 2.2 },
+            { role: 'carrier', model: 'Imperial', color: 'Green', speed: 0.0004, scale: 2.0 },
+            { role: 'trader', model: 'Insurgent', color: 'Blue', speed: 0.001, scale: 1.2 },
+            { role: 'trader', model: 'Omen', color: 'Green', speed: 0.0008, scale: 1.2 },
+            { role: 'trader', model: 'Pancake', color: 'Blue', speed: 0.0009, scale: 1.0 },
+        ];
+
+        // Generate a neutral traffic ship heading to or from the sun
+        function generateTrafficShip(goalY) {
+            const type = TRAFFIC_TYPES[Math.floor(Math.random() * TRAFFIC_TYPES.length)];
+            const effectiveOrtho = orthoHeight * 4; // zoom=4
+            const aspect = gameWidth / gameHeight;
+            const halfW = effectiveOrtho * aspect;
+
+            // Sun is at x=0, y=goalY. Ships travel to/from the sun.
+            const towardSun = Math.random() < 0.6; // 60% heading toward sun
+
+            let startX, startY, endX, endY;
+            if (towardSun) {
+                // Start from edges/bottom, head toward sun
+                const side = Math.random();
+                if (side < 0.5) {
+                    // Start from left or right edge
+                    startX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 5 + Math.random() * 20);
+                    startY = goalY * (0.1 + Math.random() * 0.6);
+                } else {
+                    // Start from below visible area
+                    startX = (Math.random() - 0.5) * halfW * 2;
+                    startY = -effectiveOrtho - 5 - Math.random() * 20;
+                }
+                // End near the sun with some spread
+                endX = (Math.random() - 0.5) * 15;
+                endY = goalY + (Math.random() - 0.5) * 10;
+            } else {
+                // Start near sun, head outward
+                startX = (Math.random() - 0.5) * 15;
+                startY = goalY + (Math.random() - 0.5) * 10;
+                const side = Math.random();
+                if (side < 0.5) {
+                    endX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 10 + Math.random() * 20);
+                    endY = goalY * (0.1 + Math.random() * 0.5);
+                } else {
+                    endX = (Math.random() - 0.5) * halfW * 2;
+                    endY = -effectiveOrtho - 10 - Math.random() * 20;
+                }
+            }
+
+            const dx = endX - startX;
+            const dy = endY - startY;
+            const heading = Math.atan2(dy, dx);
+
+            return {
+                type: type,
+                startX, startY, endX, endY,
+                currentX: startX,
+                currentY: startY,
+                heading: heading,
+                speed: type.speed * (0.8 + Math.random() * 0.4),
+                progress: 0, // 0 to 1
+                mesh: null,
+                alive: true
+            };
+        }
+
+        // Create visual mesh for a traffic ship
+        async function createTrafficVisual(ship) {
+            if (!scene) return;
+            try {
+                const mesh = await loadShipModel(ship.type.model, ship.type.color, scene, 'down');
+                mesh.position.x = ship.currentX;
+                mesh.position.y = ship.currentY;
+                mesh.position.z = 0.2;
+                mesh.scaling.scaleInPlace(ship.type.scale);
+
+                // Apply heading rotation using quaternion (same as formations)
+                const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
+                const headQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, ship.heading + Math.PI / 2);
+                mesh.rotationQuaternion = headQ.multiply(tipQ);
+
+                // Exclude from glow layers
+                const allMeshes = mesh.getChildMeshes(false) || [];
+                allMeshes.push(mesh);
+                allMeshes.forEach(m => {
+                    if (sunGlowLayer) sunGlowLayer.addExcludedMesh(m);
+                    if (lootGlowLayer) lootGlowLayer.addExcludedMesh(m);
+                    m.renderingGroupId = 2;
+                });
+
+                ship.mesh = mesh;
+            } catch (e) {
+                // Fallback: small colored dot
+                const dot = BABYLON.MeshBuilder.CreateDisc('traffic_' + Math.random(), { radius: 0.5, tessellation: 12 }, scene);
+                dot.position.x = ship.currentX;
+                dot.position.y = ship.currentY;
+                dot.position.z = 0.2;
+                const mat = new BABYLON.StandardMaterial('trafficMat_' + Math.random(), scene);
+                mat.emissiveColor = new BABYLON.Color3(0.3, 0.5, 0.8);
+                mat.disableLighting = true;
+                dot.material = mat;
+                if (sunGlowLayer) sunGlowLayer.addExcludedMesh(dot);
+                if (lootGlowLayer) lootGlowLayer.addExcludedMesh(dot);
+                ship.mesh = dot;
+            }
+        }
+
+        // Generate initial batch of traffic for exploration mode
+        function generateExplorationTraffic() {
+            const goalY = gameState.explorationGoal ? gameState.explorationGoal.y : 85;
+            const count = 6 + Math.floor(Math.random() * 4); // 6-9 initial ships
+            for (let i = 0; i < count; i++) {
+                const ship = generateTrafficShip(goalY);
+                // Spread initial ships along their routes (not all at start)
+                ship.progress = Math.random() * 0.8;
+                ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
+                ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+                gameState.explorationTraffic.push(ship);
+                createTrafficVisual(ship);
+            }
+        }
+
+        // Update traffic ship positions and spawn new ones
+        function updateExplorationTraffic(deltaTime, scrollDist) {
+            const goalY = gameState.explorationGoal ? gameState.explorationGoal.y : 85;
+
+            // Update existing traffic
+            gameState.explorationTraffic.forEach(ship => {
+                if (!ship.alive) return;
+
+                // Move along route
+                const dx = ship.endX - ship.startX;
+                const dy = ship.endY - ship.startY;
+                const routeLen = Math.sqrt(dx * dx + dy * dy);
+                if (routeLen > 0) {
+                    ship.progress += (ship.speed * deltaTime) / routeLen;
+                }
+
+                ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
+                ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+
+                // Scroll with the world
+                ship.startY -= scrollDist;
+                ship.endY -= scrollDist;
+                ship.currentY -= scrollDist;
+
+                // Update mesh
+                if (ship.mesh) {
+                    ship.mesh.position.x = ship.currentX;
+                    ship.mesh.position.y = ship.currentY;
+                }
+
+                // Remove if route complete or scrolled way off screen
+                const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
+                if (ship.progress >= 1.0 || ship.currentY < -effectiveOrthoH - 40) {
+                    ship.alive = false;
+                    if (ship.mesh) {
+                        ship.mesh.getChildMeshes().forEach(m => m.dispose());
+                        ship.mesh.dispose();
+                        ship.mesh = null;
+                    }
+                }
+            });
+
+            // Remove dead ships
+            gameState.explorationTraffic = gameState.explorationTraffic.filter(s => s.alive);
+
+            // Spawn new traffic periodically (maintain ~6-8 ships)
+            if (gameState.explorationTraffic.length < 6 && Math.random() < 0.002 * deltaTime) {
+                const ship = generateTrafficShip(goalY);
+                gameState.explorationTraffic.push(ship);
+                createTrafficVisual(ship);
+            }
+        }
+
+        // Clean up all traffic ships
+        function cleanupExplorationTraffic() {
+            gameState.explorationTraffic.forEach(ship => {
+                if (ship.mesh) {
+                    ship.mesh.getChildMeshes().forEach(m => m.dispose());
+                    ship.mesh.dispose();
+                }
+            });
+            gameState.explorationTraffic = [];
+        }
+
         // Check if player reached the exploration goal
         function checkExplorationGoalReached() {
             if (!playerShip || !gameState.explorationGoal) return false;
@@ -10626,6 +10830,10 @@
                 // Create goal sun at top of exploration map
                 cleanupExplorationGoal();
                 createExplorationGoal();
+
+                // Generate neutral traffic heading to/from sun
+                cleanupExplorationTraffic();
+                generateExplorationTraffic();
             } else {
                 // Re-show existing formation meshes
                 gameState.explorationFormations.forEach(f => {
@@ -10707,6 +10915,12 @@
             gameState.explorationFormations.forEach(f => {
                 if (f.defeated) return;
                 targets.push({ x: f.currentX, y: f.currentY, type: 'enemy', label: '' });
+            });
+
+            // Neutral traffic (only show off-screen ones to avoid clutter)
+            gameState.explorationTraffic.forEach(s => {
+                if (!s.alive) return;
+                targets.push({ x: s.currentX, y: s.currentY, type: 'neutral', label: '' });
             });
 
             // Build HTML
@@ -12242,9 +12456,8 @@
                     const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
                     updateBackgrounds(scrollMultiplier, deltaTime);
 
-                    // Camera fixed at (0,0) - world scrolls toward player
-                    // Auto-scroll formations and goal downward
-                    const exploreScrollSpeed = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
+                    // Camera fixed at (0,0) - world scrolls toward player (slow tactical pace)
+                    const exploreScrollSpeed = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier) * 0.18;
                     const scrollDist = exploreScrollSpeed * deltaTime;
 
                     // Scroll all formations downward
@@ -12266,6 +12479,9 @@
 
                     // Update formation patrols (movement + mesh positions)
                     updateFormations(deltaTime);
+
+                    // Update neutral traffic ships
+                    updateExplorationTraffic(deltaTime, scrollDist);
 
                     // Pulse detection zone opacity for subtle visual effect
                     const pulseAlpha = 0.04 + Math.sin(currentTime * 0.002) * 0.02;
