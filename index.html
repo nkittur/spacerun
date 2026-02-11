@@ -11100,6 +11100,11 @@
                 ship.engineGlowMesh.dispose();
                 ship.engineGlowMesh = null;
             }
+            if (ship.engineCoreMesh) {
+                if (ship.engineCoreMesh.material) ship.engineCoreMesh.material.dispose();
+                ship.engineCoreMesh.dispose();
+                ship.engineCoreMesh = null;
+            }
             if (ship.detectionMesh) {
                 if (ship.detectionMesh.material) ship.detectionMesh.material.dispose();
                 ship.detectionMesh.dispose();
@@ -11522,6 +11527,7 @@
                 // Detection zone (hostile factions only)
                 detectionRadius: (FACTIONS[type.faction] && FACTIONS[type.faction].hostile) ? (5 + Math.random() * 3) : 0,
                 engineGlowMesh: null,
+                engineCoreMesh: null,
                 detectionMesh: null,
                 detectionRingMesh: null
             };
@@ -11569,32 +11575,56 @@
                 ship._lastExploreScale = settings.exploreShipScale;
             }
 
-            // Add faction-colored engine glow behind the ship
+            // Add faction-colored engine exhaust behind the ship (sphere glow + core, like player engines)
             const factionData = FACTIONS[ship.faction];
             if (factionData) {
-                const engineSize = (ship.type.scale || 1.0) * settings.exploreShipScale * 0.2;
-                const engineGlow = BABYLON.MeshBuilder.CreateDisc('engineGlow_' + Math.random(), {
-                    radius: engineSize,
-                    tessellation: 16
+                const shipScale = (ship.type.scale || 1.0) * settings.exploreShipScale;
+                const glowDiameter = shipScale * 0.35;
+                const coreDiameter = shipScale * 0.12;
+
+                // Outer glow sphere
+                const engineGlow = BABYLON.MeshBuilder.CreateSphere('engineGlow_' + Math.random(), {
+                    diameter: glowDiameter
                 }, scene);
-                const engineDist = (ship.type.scale || 1.0) * settings.exploreShipScale * 0.6;
+                const engineDist = shipScale * 0.6;
                 engineGlow.position.x = ship.currentX - Math.cos(ship.heading) * engineDist;
                 engineGlow.position.y = ship.currentY - Math.sin(ship.heading) * engineDist;
                 engineGlow.position.z = 0.15;
 
-                const engineMat = new BABYLON.StandardMaterial('engineGlowMat_' + Math.random(), scene);
-                engineMat.emissiveColor = factionData.color;
-                engineMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
-                engineMat.alpha = 0.9;
-                engineMat.disableLighting = true;
-                engineMat.backFaceCulling = false;
-                engineGlow.material = engineMat;
+                const glowMat = new BABYLON.StandardMaterial('engineGlowMat_' + Math.random(), scene);
+                glowMat.emissiveColor = factionData.color;
+                glowMat.alpha = 0.3;
+                glowMat.disableLighting = true;
+                glowMat.backFaceCulling = false;
+                engineGlow.material = glowMat;
                 engineGlow.renderingGroupId = 2;
 
-                // Include in sun glow layer for engine glow effect
-                if (lootGlowLayer) lootGlowLayer.addExcludedMesh(engineGlow);
+                // Inner core sphere (white hot center)
+                const engineCore = BABYLON.MeshBuilder.CreateSphere('engineCore_' + Math.random(), {
+                    diameter: coreDiameter
+                }, scene);
+                engineCore.position.x = engineGlow.position.x;
+                engineCore.position.y = engineGlow.position.y;
+                engineCore.position.z = 0.15;
+
+                const coreMat = new BABYLON.StandardMaterial('engineCoreMat_' + Math.random(), scene);
+                coreMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                coreMat.disableLighting = true;
+                engineCore.material = coreMat;
+                engineCore.renderingGroupId = 2;
+
+                // Add to glow layer for bloom effect
+                if (sunGlowLayer && settings.engineGlowEnabled) {
+                    sunGlowLayer.addIncludedOnlyMesh(engineGlow);
+                    sunGlowLayer.addIncludedOnlyMesh(engineCore);
+                }
+                if (lootGlowLayer) {
+                    lootGlowLayer.addExcludedMesh(engineGlow);
+                    lootGlowLayer.addExcludedMesh(engineCore);
+                }
 
                 ship.engineGlowMesh = engineGlow;
+                ship.engineCoreMesh = engineCore;
             }
 
             // Add subtle detection zone for hostile faction ships only
@@ -11766,11 +11796,17 @@
                     }
                 }
 
-                // Update engine glow position (offset behind ship based on heading)
+                // Update engine exhaust position (offset behind ship based on heading)
                 if (ship.engineGlowMesh) {
                     const engineDist = (ship.type.scale || 1.0) * settings.exploreShipScale * 0.6;
-                    ship.engineGlowMesh.position.x = ship.currentX - Math.cos(ship.heading) * engineDist;
-                    ship.engineGlowMesh.position.y = ship.currentY - Math.sin(ship.heading) * engineDist;
+                    const ex = ship.currentX - Math.cos(ship.heading) * engineDist;
+                    const ey = ship.currentY - Math.sin(ship.heading) * engineDist;
+                    ship.engineGlowMesh.position.x = ex;
+                    ship.engineGlowMesh.position.y = ey;
+                    if (ship.engineCoreMesh) {
+                        ship.engineCoreMesh.position.x = ex;
+                        ship.engineCoreMesh.position.y = ey;
+                    }
                 }
 
                 // Update detection zone positions (hostile ships only)
@@ -11960,7 +11996,9 @@
                 resolved: false,
                 playerDamageToAttacker: 0,
                 playerDamageToDefender: 0,
-                playerBeamMesh: null
+                playerBeamMesh: null,
+                combatBeams: [],        // Visual beams between fighting ships
+                nextBeamTime: 0         // Timer for next beam spawn
             };
 
             // Set ships to fighting state
@@ -12037,6 +12075,75 @@
             });
         }
 
+        // Spawn a small beam/laser between fighting ships in a skirmish
+        function spawnSkirmishBeam(skirmish) {
+            if (!scene) return;
+
+            // Build list of combatants: attacker vs defender+allies
+            const shooters = [];
+            if (skirmish.attacker.alive) shooters.push({ ship: skirmish.attacker, side: 'attacker' });
+            if (skirmish.defender.alive) shooters.push({ ship: skirmish.defender, side: 'defender' });
+            skirmish.allies.forEach(a => {
+                if (a.alive && a.behavior === 'fighting') shooters.push({ ship: a, side: 'defender' });
+            });
+            if (shooters.length < 2) return;
+
+            // Pick a random shooter
+            const shooterInfo = shooters[Math.floor(Math.random() * shooters.length)];
+            // Pick a random target from the other side
+            const targets = shooters.filter(s => s.side !== shooterInfo.side);
+            if (targets.length === 0) return;
+            const targetInfo = targets[Math.floor(Math.random() * targets.length)];
+
+            const sx = shooterInfo.ship.currentX;
+            const sy = shooterInfo.ship.currentY;
+            const tx = targetInfo.ship.currentX;
+            const ty = targetInfo.ship.currentY;
+
+            // Add slight random offset so beams don't all come from exact center
+            const offsetX = (Math.random() - 0.5) * 0.8;
+            const offsetY = (Math.random() - 0.5) * 0.8;
+
+            const dx = (tx + offsetX) - sx;
+            const dy = (ty + offsetY) - sy;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
+
+            // Randomly choose beam or laser style
+            const isLaser = Math.random() < 0.4; // 40% chance of thicker laser
+            const beamWidth = isLaser ? 0.12 : 0.05;
+            const maxAlpha = isLaser ? 0.7 : 0.5;
+
+            const beam = BABYLON.MeshBuilder.CreatePlane('skirmBeam_' + Math.random(), {
+                width: length, height: beamWidth
+            }, scene);
+            beam.position.x = (sx + tx + offsetX) / 2;
+            beam.position.y = (sy + ty + offsetY) / 2;
+            beam.position.z = 0.03;
+            beam.rotation.z = angle;
+
+            // Use faction color for the beam
+            const factionData = FACTIONS[shooterInfo.ship.faction];
+            const beamColor = factionData ? factionData.color : new BABYLON.Color3(1, 0.5, 0.2);
+
+            const mat = new BABYLON.StandardMaterial('skirmBeamMat_' + Math.random(), scene);
+            mat.emissiveColor = beamColor;
+            mat.alpha = maxAlpha;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            beam.material = mat;
+            beam.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(beam);
+            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(beam);
+
+            skirmish.combatBeams.push({
+                mesh: beam,
+                life: 120 + Math.random() * 80, // Lasts 120-200ms then fades
+                maxAlpha: maxAlpha
+            });
+        }
+
         // Update all active skirmishes
         function updateSkirmishes(deltaTime, scrollDist) {
             gameState.explorationSkirmishes.forEach(skirmish => {
@@ -12045,18 +12152,16 @@
                 // Scroll skirmish center with the world
                 skirmish.centerY -= scrollDist;
 
-                // Advance orbit angle (ships circle each other)
-                skirmish.orbitAngle += 0.003 * deltaTime;
                 skirmish.timer += deltaTime;
 
-                // Position attacker and defender orbiting center
+                // Position attacker and defender facing each other (stationary)
                 const attackerAngle = skirmish.orbitAngle;
                 const defenderAngle = skirmish.orbitAngle + Math.PI;
 
                 if (skirmish.attacker.alive) {
                     skirmish.attacker.currentX = skirmish.centerX + Math.cos(attackerAngle) * skirmish.orbitRadius;
                     skirmish.attacker.currentY = skirmish.centerY + Math.sin(attackerAngle) * skirmish.orbitRadius;
-                    // Face toward center (the opponent)
+                    // Face toward opponent
                     skirmish.attacker.heading = Math.atan2(
                         skirmish.centerY - skirmish.attacker.currentY,
                         skirmish.centerX - skirmish.attacker.currentX
@@ -12084,11 +12189,36 @@
                     );
                 });
 
-                // Update icon position (spin)
+                // Fire combat beams between ships
+                if (skirmish.timer > 1000) { // 1s grace before firing starts
+                    skirmish.nextBeamTime -= deltaTime;
+                    if (skirmish.nextBeamTime <= 0) {
+                        skirmish.nextBeamTime = 200 + Math.random() * 400; // Fire every 200-600ms
+                        spawnSkirmishBeam(skirmish);
+                    }
+                }
+
+                // Update existing combat beams (fade and cleanup)
+                for (let i = skirmish.combatBeams.length - 1; i >= 0; i--) {
+                    const b = skirmish.combatBeams[i];
+                    b.life -= deltaTime;
+                    if (b.life <= 0 || !b.mesh || b.mesh._isDisposed) {
+                        if (b.mesh && !b.mesh._isDisposed) {
+                            if (b.mesh.material) b.mesh.material.dispose();
+                            b.mesh.dispose();
+                        }
+                        skirmish.combatBeams.splice(i, 1);
+                    } else {
+                        // Fade out
+                        const alpha = Math.min(1, b.life / 80) * b.maxAlpha;
+                        if (b.mesh.material) b.mesh.material.alpha = alpha;
+                    }
+                }
+
+                // Update icon position
                 if (skirmish.iconMesh) {
                     skirmish.iconMesh.position.x = skirmish.centerX;
                     skirmish.iconMesh.position.y = skirmish.centerY + 2.5;
-                    skirmish.iconMesh.rotation.z = Math.sin(Date.now() * 0.003) * 0.3;
                     // Pulse alpha
                     if (skirmish.iconMesh.material) {
                         skirmish.iconMesh.material.alpha = 0.7 + Math.sin(Date.now() * 0.005) * 0.3;
@@ -12259,6 +12389,16 @@
                 if (skirmish.playerBeamMesh.material) skirmish.playerBeamMesh.material.dispose();
                 skirmish.playerBeamMesh.dispose();
                 skirmish.playerBeamMesh = null;
+            }
+            // Clean up combat beams
+            if (skirmish.combatBeams) {
+                skirmish.combatBeams.forEach(b => {
+                    if (b.mesh && !b.mesh._isDisposed) {
+                        if (b.mesh.material) b.mesh.material.dispose();
+                        b.mesh.dispose();
+                    }
+                });
+                skirmish.combatBeams = [];
             }
         }
 
