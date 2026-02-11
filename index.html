@@ -5265,8 +5265,18 @@
                 // Camera position determines the center of the view in world space
                 camera.setTarget(new BABYLON.Vector3(camera.position.x, camera.position.y, 0));
 
-                // Background UV stays constant - stars naturally appear smaller when
-                // zoomed out, giving a proper sense of scale in exploration mode.
+                // Scale background UV inversely with zoom so stars appear the same
+                // size at all zoom levels (matching the exploration-mode density)
+                const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
+                const zoomUV = 4 / (gameState.zoomLevel || 1);
+                if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
+                    backgroundMaterialA.diffuseTexture.uScale = (uvBase / 20) * zoomUV;
+                    backgroundMaterialA.diffuseTexture.vScale = (uvBase * 2 / 20) * zoomUV;
+                }
+                if (backgroundMaterialB && backgroundMaterialB.diffuseTexture) {
+                    backgroundMaterialB.diffuseTexture.uScale = (uvBase / 20) * zoomUV;
+                    backgroundMaterialB.diffuseTexture.vScale = (uvBase * 2 / 20) * zoomUV;
+                }
             }
             updateCamera();
             // Store updateCamera for use in render loop
@@ -5342,7 +5352,8 @@
         function createBackgrounds() {
             // Physical size large enough for 4x zoom, UV scale stays at normal density
             const bgSize = Math.max(orthoWidth, orthoHeight) * 12;
-            const uvBase = Math.max(orthoWidth, orthoHeight) * 3; // Original UV scale
+            const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
+            const zoomUV = 4 / (gameState.zoomLevel || 1);
 
             // Background A (current)
             backgroundMeshA = BABYLON.MeshBuilder.CreatePlane('backgroundA', { width: bgSize, height: bgSize * 2 }, scene);
@@ -5351,8 +5362,8 @@
 
             backgroundMaterialA = new BABYLON.StandardMaterial('bgMatA', scene);
             const textureA = new BABYLON.Texture(getBackgroundPath(0), scene);
-            textureA.uScale = uvBase / 20;
-            textureA.vScale = uvBase * 2 / 20;
+            textureA.uScale = (uvBase / 20) * zoomUV;
+            textureA.vScale = (uvBase * 2 / 20) * zoomUV;
             textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
             textureA.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
             backgroundMaterialA.diffuseTexture = textureA;
@@ -5394,9 +5405,10 @@
         // Load texture into background B for transition
         function loadTransitionTexture(path) {
             const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
+            const zoomUV = 4 / (gameState.zoomLevel || 1);
             const texture = new BABYLON.Texture(path, scene);
-            texture.uScale = uvBase / 20;
-            texture.vScale = uvBase * 2 / 20;
+            texture.uScale = (uvBase / 20) * zoomUV;
+            texture.vScale = (uvBase * 2 / 20) * zoomUV;
             texture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
             texture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
             // Match current scroll offset
@@ -8128,9 +8140,10 @@
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.dispose();
                 const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
+                const zoomUV = 4 / (gameState.zoomLevel || 1);
                 const newTexture = new BABYLON.Texture(getBackgroundPath(newZone), scene);
-                newTexture.uScale = uvBase / 20;
-                newTexture.vScale = uvBase * 2 / 20;
+                newTexture.uScale = (uvBase / 20) * zoomUV;
+                newTexture.vScale = (uvBase * 2 / 20) * zoomUV;
                 newTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
                 newTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
                 newTexture.vOffset = 0;
@@ -11082,10 +11095,10 @@
                 ship.mesh.dispose();
                 ship.mesh = null;
             }
-            if (ship.factionRingMesh) {
-                if (ship.factionRingMesh.material) ship.factionRingMesh.material.dispose();
-                ship.factionRingMesh.dispose();
-                ship.factionRingMesh = null;
+            if (ship.engineGlowMesh) {
+                if (ship.engineGlowMesh.material) ship.engineGlowMesh.material.dispose();
+                ship.engineGlowMesh.dispose();
+                ship.engineGlowMesh = null;
             }
             if (ship.detectionMesh) {
                 if (ship.detectionMesh.material) ship.detectionMesh.material.dispose();
@@ -11150,10 +11163,10 @@
             if (gameState.explorationGoal && gameState.explorationGoal.node) {
                 gameState.explorationGoal.node.setEnabled(false);
             }
-            // Hide traffic during combat (including faction rings and detection zones)
+            // Hide traffic during combat (including engine glows and detection zones)
             gameState.explorationTraffic.forEach(s => {
                 if (s.mesh) s.mesh.setEnabled(false);
-                if (s.factionRingMesh) s.factionRingMesh.setEnabled(false);
+                if (s.engineGlowMesh) s.engineGlowMesh.setEnabled(false);
                 if (s.detectionMesh) s.detectionMesh.setEnabled(false);
                 if (s.detectionRingMesh) s.detectionRingMesh.setEnabled(false);
             });
@@ -11293,10 +11306,10 @@
             if (gameState.explorationGoal && gameState.explorationGoal.node) {
                 gameState.explorationGoal.node.setEnabled(true);
             }
-            // Show traffic again (including faction rings and detection zones)
+            // Show traffic again (including engine glows and detection zones)
             gameState.explorationTraffic.forEach(s => {
                 if (s.mesh) s.mesh.setEnabled(true);
-                if (s.factionRingMesh) s.factionRingMesh.setEnabled(true);
+                if (s.engineGlowMesh) s.engineGlowMesh.setEnabled(true);
                 if (s.detectionMesh) s.detectionMesh.setEnabled(true);
                 if (s.detectionRingMesh) s.detectionRingMesh.setEnabled(true);
             });
@@ -11508,7 +11521,7 @@
                 playerDamageDealt: 0,   // Damage from player (for faction rep tracking)
                 // Detection zone (hostile factions only)
                 detectionRadius: (FACTIONS[type.faction] && FACTIONS[type.faction].hostile) ? (5 + Math.random() * 3) : 0,
-                factionRingMesh: null,
+                engineGlowMesh: null,
                 detectionMesh: null,
                 detectionRingMesh: null
             };
@@ -11556,32 +11569,32 @@
                 ship._lastExploreScale = settings.exploreShipScale;
             }
 
-            // Add faction-colored ring indicator around the ship
+            // Add faction-colored engine glow behind the ship
             const factionData = FACTIONS[ship.faction];
             if (factionData) {
-                const ringSize = (ship.type.scale || 1.0) * settings.exploreShipScale * 1.2;
-                const factionRing = BABYLON.MeshBuilder.CreateTorus('factionRing_' + Math.random(), {
-                    diameter: ringSize * 2,
-                    thickness: ringSize * 0.12,
-                    tessellation: 24
+                const engineSize = (ship.type.scale || 1.0) * settings.exploreShipScale * 0.2;
+                const engineGlow = BABYLON.MeshBuilder.CreateDisc('engineGlow_' + Math.random(), {
+                    radius: engineSize,
+                    tessellation: 16
                 }, scene);
-                factionRing.position.x = ship.currentX;
-                factionRing.position.y = ship.currentY;
-                factionRing.position.z = 0.25;
-                factionRing.rotation.x = Math.PI / 2;
+                const engineDist = (ship.type.scale || 1.0) * settings.exploreShipScale * 0.6;
+                engineGlow.position.x = ship.currentX - Math.cos(ship.heading) * engineDist;
+                engineGlow.position.y = ship.currentY - Math.sin(ship.heading) * engineDist;
+                engineGlow.position.z = 0.15;
 
-                const ringMat = new BABYLON.StandardMaterial('factionRingMat_' + Math.random(), scene);
-                ringMat.emissiveColor = factionData.color;
-                ringMat.alpha = 0.5;
-                ringMat.disableLighting = true;
-                ringMat.backFaceCulling = false;
-                factionRing.material = ringMat;
-                factionRing.renderingGroupId = 2;
+                const engineMat = new BABYLON.StandardMaterial('engineGlowMat_' + Math.random(), scene);
+                engineMat.emissiveColor = factionData.color;
+                engineMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                engineMat.alpha = 0.9;
+                engineMat.disableLighting = true;
+                engineMat.backFaceCulling = false;
+                engineGlow.material = engineMat;
+                engineGlow.renderingGroupId = 2;
 
-                if (sunGlowLayer) sunGlowLayer.addExcludedMesh(factionRing);
-                if (lootGlowLayer) lootGlowLayer.addExcludedMesh(factionRing);
+                // Include in sun glow layer for engine glow effect
+                if (lootGlowLayer) lootGlowLayer.addExcludedMesh(engineGlow);
 
-                ship.factionRingMesh = factionRing;
+                ship.engineGlowMesh = engineGlow;
             }
 
             // Add subtle detection zone for hostile faction ships only
@@ -11753,10 +11766,11 @@
                     }
                 }
 
-                // Update faction ring position
-                if (ship.factionRingMesh) {
-                    ship.factionRingMesh.position.x = ship.currentX;
-                    ship.factionRingMesh.position.y = ship.currentY;
+                // Update engine glow position (offset behind ship based on heading)
+                if (ship.engineGlowMesh) {
+                    const engineDist = (ship.type.scale || 1.0) * settings.exploreShipScale * 0.6;
+                    ship.engineGlowMesh.position.x = ship.currentX - Math.cos(ship.heading) * engineDist;
+                    ship.engineGlowMesh.position.y = ship.currentY - Math.sin(ship.heading) * engineDist;
                 }
 
                 // Update detection zone positions (hostile ships only)
@@ -12498,7 +12512,7 @@
                 }
                 gameState.explorationTraffic.forEach(s => {
                     if (s.mesh) s.mesh.setEnabled(true);
-                    if (s.factionRingMesh) s.factionRingMesh.setEnabled(true);
+                    if (s.engineGlowMesh) s.engineGlowMesh.setEnabled(true);
                     if (s.detectionMesh) s.detectionMesh.setEnabled(true);
                     if (s.detectionRingMesh) s.detectionRingMesh.setEnabled(true);
                 });
@@ -13479,9 +13493,10 @@
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.dispose();
                 const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
+                const zoomUV = 4 / (gameState.zoomLevel || 1);
                 const textureA = new BABYLON.Texture(getBackgroundPath(0), scene);
-                textureA.uScale = uvBase / 20;
-                textureA.vScale = uvBase * 2 / 20;
+                textureA.uScale = (uvBase / 20) * zoomUV;
+                textureA.vScale = (uvBase * 2 / 20) * zoomUV;
                 textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
                 textureA.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
                 textureA.vOffset = 0;
@@ -13759,9 +13774,10 @@
             if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
                 backgroundMaterialA.diffuseTexture.dispose();
                 const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
+                const zoomUV = 4 / (gameState.zoomLevel || 1);
                 const textureA = new BABYLON.Texture(getBackgroundPath(gameState.currentZone, gameState.currentZoneVariant), scene);
-                textureA.uScale = uvBase / 20;
-                textureA.vScale = uvBase * 2 / 20;
+                textureA.uScale = (uvBase / 20) * zoomUV;
+                textureA.vScale = (uvBase * 2 / 20) * zoomUV;
                 textureA.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
                 textureA.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
                 textureA.vOffset = 0;
