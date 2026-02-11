@@ -10918,18 +10918,18 @@
             // the render loop from spawning duplicates while awaiting
             gameState.enemiesSpawned++;
 
-            // In crossfire battles, factions spawn from left/right sides
+            // In crossfire battles, factions spawn from top on opposing sides
             // In solo encounters, enemies spawn from top as normal
             let x, y;
             if (gameState.encounterIsBattle) {
-                // Faction A spawns from left, Faction B from right
-                const spawnY = (Math.random() - 0.5) * orthoHeight * 1.2;
+                // Faction A spawns on left half, Faction B on right half
+                const halfW = orthoWidth * 0.8;
                 if (enemyFaction === 'A') {
-                    x = -orthoWidth - 2;
+                    x = -halfW * 0.1 - Math.random() * halfW * 0.8;
                 } else {
-                    x = orthoWidth + 2;
+                    x = halfW * 0.1 + Math.random() * halfW * 0.8;
                 }
-                y = spawnY;
+                y = orthoHeight + 2;
             } else {
                 const maxX = orthoWidth - 1;
                 x = (Math.random() - 0.5) * maxX * 1.5;
@@ -10941,19 +10941,18 @@
                 enemy.enemyFaction = enemyFaction;
 
                 if (gameState.encounterIsBattle) {
-                    // Crossfire: set up lateral movement toward the opposing side
+                    // Crossfire: enemies drift down from top and hold position
                     enemy.movementPattern = 'crossfire';
-                    // Faction A moves right, Faction B moves left
+                    // Target Y position where this enemy will settle
+                    const settleRange = orthoHeight * 0.7;
+                    enemy.crossfireTargetY = orthoHeight - 1 - Math.random() * settleRange;
+                    enemy.crossfireSettled = false;
+                    enemy.crossfireWander = Math.random() * Math.PI * 2;
+                    // Slight lateral drift toward opposing faction
                     const lateralDir = enemyFaction === 'A' ? 1 : -1;
-                    enemy.crossfireVX = lateralDir * (0.02 + Math.random() * 0.02); // lateral speed
-                    enemy.crossfireVY = (Math.random() - 0.5) * 0.01; // slight vertical drift
-                    enemy.crossfireBaseY = y;
-                    enemy.crossfireWander = Math.random() * Math.PI * 2; // phase for vertical wobble
-                    // Rotate mesh to face sideways
-                    if (enemy.mesh) {
-                        // Faction A faces right, B faces left
-                        enemy.mesh.rotation.y = enemyFaction === 'A' ? -Math.PI / 2 : Math.PI / 2;
-                    }
+                    enemy.crossfireVX = lateralDir * (0.002 + Math.random() * 0.003);
+                    enemy.crossfireBaseX = x;
+                    // No sideways rotation - enemies face forward (downward)
                 } else if (enemyFaction === 'B') {
                     enemy.speed = -Math.abs(enemy.speed); // Negative = moving up
                     // Flip the mesh to face upward
@@ -11095,15 +11094,18 @@
                 ship.mesh.dispose();
                 ship.mesh = null;
             }
-            if (ship.engineGlowMesh) {
-                if (ship.engineGlowMesh.material) ship.engineGlowMesh.material.dispose();
-                ship.engineGlowMesh.dispose();
-                ship.engineGlowMesh = null;
-            }
-            if (ship.engineCoreMesh) {
-                if (ship.engineCoreMesh.material) ship.engineCoreMesh.material.dispose();
-                ship.engineCoreMesh.dispose();
-                ship.engineCoreMesh = null;
+            if (ship.engineGlows) {
+                ship.engineGlows.forEach(eg => {
+                    if (eg.glow) {
+                        if (eg.glow.material) eg.glow.material.dispose();
+                        eg.glow.dispose();
+                    }
+                    if (eg.core) {
+                        if (eg.core.material) eg.core.material.dispose();
+                        eg.core.dispose();
+                    }
+                });
+                ship.engineGlows = [];
             }
             if (ship.detectionMesh) {
                 if (ship.detectionMesh.material) ship.detectionMesh.material.dispose();
@@ -11171,7 +11173,7 @@
             // Hide traffic during combat (including engine glows and detection zones)
             gameState.explorationTraffic.forEach(s => {
                 if (s.mesh) s.mesh.setEnabled(false);
-                if (s.engineGlowMesh) s.engineGlowMesh.setEnabled(false);
+                if (s.engineGlows) s.engineGlows.forEach(eg => { eg.glow.setEnabled(false); if (eg.core) eg.core.setEnabled(false); });
                 if (s.detectionMesh) s.detectionMesh.setEnabled(false);
                 if (s.detectionRingMesh) s.detectionRingMesh.setEnabled(false);
             });
@@ -11314,7 +11316,7 @@
             // Show traffic again (including engine glows and detection zones)
             gameState.explorationTraffic.forEach(s => {
                 if (s.mesh) s.mesh.setEnabled(true);
-                if (s.engineGlowMesh) s.engineGlowMesh.setEnabled(true);
+                if (s.engineGlows) s.engineGlows.forEach(eg => { eg.glow.setEnabled(true); if (eg.core) eg.core.setEnabled(true); });
                 if (s.detectionMesh) s.detectionMesh.setEnabled(true);
                 if (s.detectionRingMesh) s.detectionRingMesh.setEnabled(true);
             });
@@ -11526,8 +11528,7 @@
                 playerDamageDealt: 0,   // Damage from player (for faction rep tracking)
                 // Detection zone (hostile factions only)
                 detectionRadius: (FACTIONS[type.faction] && FACTIONS[type.faction].hostile) ? (5 + Math.random() * 3) : 0,
-                engineGlowMesh: null,
-                engineCoreMesh: null,
+                engineGlows: [], // Array of {glow, core} engine meshes
                 detectionMesh: null,
                 detectionRingMesh: null
             };
@@ -11575,56 +11576,80 @@
                 ship._lastExploreScale = settings.exploreShipScale;
             }
 
-            // Add faction-colored engine exhaust behind the ship (sphere glow + core, like player engines)
+            // Add faction-colored engine exhaust behind the ship
             const factionData = FACTIONS[ship.faction];
             if (factionData) {
                 const shipScale = (ship.type.scale || 1.0) * settings.exploreShipScale;
-                const glowDiameter = shipScale * 0.35;
-                const coreDiameter = shipScale * 0.12;
+                const engineDist = shipScale * 0.35;
 
-                // Outer glow sphere
-                const engineGlow = BABYLON.MeshBuilder.CreateSphere('engineGlow_' + Math.random(), {
-                    diameter: glowDiameter
-                }, scene);
-                const engineDist = shipScale * 0.6;
-                engineGlow.position.x = ship.currentX - Math.cos(ship.heading) * engineDist;
-                engineGlow.position.y = ship.currentY - Math.sin(ship.heading) * engineDist;
-                engineGlow.position.z = 0.15;
-
-                const glowMat = new BABYLON.StandardMaterial('engineGlowMat_' + Math.random(), scene);
-                glowMat.emissiveColor = factionData.color;
-                glowMat.alpha = 0.3;
-                glowMat.disableLighting = true;
-                glowMat.backFaceCulling = false;
-                engineGlow.material = glowMat;
-                engineGlow.renderingGroupId = 2;
-
-                // Inner core sphere (white hot center)
-                const engineCore = BABYLON.MeshBuilder.CreateSphere('engineCore_' + Math.random(), {
-                    diameter: coreDiameter
-                }, scene);
-                engineCore.position.x = engineGlow.position.x;
-                engineCore.position.y = engineGlow.position.y;
-                engineCore.position.z = 0.15;
-
-                const coreMat = new BABYLON.StandardMaterial('engineCoreMat_' + Math.random(), scene);
-                coreMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
-                coreMat.disableLighting = true;
-                engineCore.material = coreMat;
-                engineCore.renderingGroupId = 2;
-
-                // Add to glow layer for bloom effect
-                if (sunGlowLayer && settings.engineGlowEnabled) {
-                    sunGlowLayer.addIncludedOnlyMesh(engineGlow);
-                    sunGlowLayer.addIncludedOnlyMesh(engineCore);
-                }
-                if (lootGlowLayer) {
-                    lootGlowLayer.addExcludedMesh(engineGlow);
-                    lootGlowLayer.addExcludedMesh(engineCore);
+                // Determine engine count and layout based on ship size
+                // Larger ships get multiple smaller engines
+                let engineOffsets; // perpendicular offsets from center
+                if (shipScale >= 2.5) {
+                    // Very large ships: 3 engines
+                    const spread = shipScale * 0.18;
+                    engineOffsets = [-spread, 0, spread];
+                } else if (shipScale >= 1.5) {
+                    // Medium-large ships: 2 engines
+                    const spread = shipScale * 0.14;
+                    engineOffsets = [-spread, spread];
+                } else {
+                    // Small ships: 1 engine
+                    engineOffsets = [0];
                 }
 
-                ship.engineGlowMesh = engineGlow;
-                ship.engineCoreMesh = engineCore;
+                const engineCount = engineOffsets.length;
+                // Scale down individual engines when there are multiple
+                const sizeScale = engineCount > 1 ? 0.6 : 1.0;
+                const glowDiameter = shipScale * 0.3 * sizeScale;
+                const coreDiameter = shipScale * 0.1 * sizeScale;
+
+                // Perpendicular direction to heading (for spreading engines sideways)
+                const perpX = -Math.sin(ship.heading);
+                const perpY = Math.cos(ship.heading);
+
+                engineOffsets.forEach(offset => {
+                    const engineGlow = BABYLON.MeshBuilder.CreateSphere('engineGlow_' + Math.random(), {
+                        diameter: glowDiameter
+                    }, scene);
+                    const baseX = ship.currentX - Math.cos(ship.heading) * engineDist;
+                    const baseY = ship.currentY - Math.sin(ship.heading) * engineDist;
+                    engineGlow.position.x = baseX + perpX * offset;
+                    engineGlow.position.y = baseY + perpY * offset;
+                    engineGlow.position.z = 0.15;
+
+                    const glowMat = new BABYLON.StandardMaterial('engineGlowMat_' + Math.random(), scene);
+                    glowMat.emissiveColor = factionData.color;
+                    glowMat.alpha = 0.3;
+                    glowMat.disableLighting = true;
+                    glowMat.backFaceCulling = false;
+                    engineGlow.material = glowMat;
+                    engineGlow.renderingGroupId = 2;
+
+                    const engineCore = BABYLON.MeshBuilder.CreateSphere('engineCore_' + Math.random(), {
+                        diameter: coreDiameter
+                    }, scene);
+                    engineCore.position.x = engineGlow.position.x;
+                    engineCore.position.y = engineGlow.position.y;
+                    engineCore.position.z = 0.15;
+
+                    const coreMat = new BABYLON.StandardMaterial('engineCoreMat_' + Math.random(), scene);
+                    coreMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                    coreMat.disableLighting = true;
+                    engineCore.material = coreMat;
+                    engineCore.renderingGroupId = 2;
+
+                    if (sunGlowLayer && settings.engineGlowEnabled) {
+                        sunGlowLayer.addIncludedOnlyMesh(engineGlow);
+                        sunGlowLayer.addIncludedOnlyMesh(engineCore);
+                    }
+                    if (lootGlowLayer) {
+                        lootGlowLayer.addExcludedMesh(engineGlow);
+                        lootGlowLayer.addExcludedMesh(engineCore);
+                    }
+
+                    ship.engineGlows.push({ glow: engineGlow, core: engineCore, offset: offset });
+                });
             }
 
             // Add subtle detection zone for hostile faction ships only
@@ -11796,17 +11821,23 @@
                     }
                 }
 
-                // Update engine exhaust position (offset behind ship based on heading)
-                if (ship.engineGlowMesh) {
-                    const engineDist = (ship.type.scale || 1.0) * settings.exploreShipScale * 0.6;
-                    const ex = ship.currentX - Math.cos(ship.heading) * engineDist;
-                    const ey = ship.currentY - Math.sin(ship.heading) * engineDist;
-                    ship.engineGlowMesh.position.x = ex;
-                    ship.engineGlowMesh.position.y = ey;
-                    if (ship.engineCoreMesh) {
-                        ship.engineCoreMesh.position.x = ex;
-                        ship.engineCoreMesh.position.y = ey;
-                    }
+                // Update engine exhaust positions (offset behind ship based on heading)
+                if (ship.engineGlows && ship.engineGlows.length > 0) {
+                    const engineDist = (ship.type.scale || 1.0) * settings.exploreShipScale * 0.35;
+                    const baseX = ship.currentX - Math.cos(ship.heading) * engineDist;
+                    const baseY = ship.currentY - Math.sin(ship.heading) * engineDist;
+                    const perpX = -Math.sin(ship.heading);
+                    const perpY = Math.cos(ship.heading);
+                    ship.engineGlows.forEach(eg => {
+                        const ex = baseX + perpX * eg.offset;
+                        const ey = baseY + perpY * eg.offset;
+                        eg.glow.position.x = ex;
+                        eg.glow.position.y = ey;
+                        if (eg.core) {
+                            eg.core.position.x = ex;
+                            eg.core.position.y = ey;
+                        }
+                    });
                 }
 
                 // Update detection zone positions (hostile ships only)
@@ -12652,7 +12683,7 @@
                 }
                 gameState.explorationTraffic.forEach(s => {
                     if (s.mesh) s.mesh.setEnabled(true);
-                    if (s.engineGlowMesh) s.engineGlowMesh.setEnabled(true);
+                    if (s.engineGlows) s.engineGlows.forEach(eg => { eg.glow.setEnabled(true); if (eg.core) eg.core.setEnabled(true); });
                     if (s.detectionMesh) s.detectionMesh.setEnabled(true);
                     if (s.detectionRingMesh) s.detectionRingMesh.setEnabled(true);
                 });
@@ -13020,25 +13051,30 @@
                         enemy.position.x += dx * enemy.speed;
                     }
                 } else if (enemy.movementPattern === 'crossfire') {
-                    // Crossfire battle: ships move laterally across screen with vertical wobble
-                    enemy.crossfireWander += deltaTime * 0.002;
-                    // Lateral movement toward opposing side
-                    enemy.position.x += enemy.crossfireVX * deltaTime * 0.5;
-                    // Vertical drift + sinusoidal wobble
-                    const wobbleAmplitude = enemy.type === 'light' ? 2.5 : enemy.type === 'heavy' ? 1.0 : 1.5;
-                    enemy.position.y = enemy.crossfireBaseY + Math.sin(enemy.crossfireWander) * wobbleAmplitude;
-                    // Slight drift toward nearby opposing faction enemies (approach behavior)
-                    if (Math.random() < 0.01) {
-                        // Occasionally adjust vertical drift toward a target
-                        for (const other of gameState.enemies) {
-                            if (other === enemy || other.enemyFaction === enemy.enemyFaction || other.isDisabled) continue;
-                            const dy = other.position.y - enemy.position.y;
-                            enemy.crossfireBaseY += dy * 0.05;
-                            break;
+                    // Crossfire battle: ships drift down from top and hold position
+                    enemy.crossfireWander += deltaTime * 0.0015;
+
+                    if (!enemy.crossfireSettled) {
+                        // Drift down toward target position
+                        const dy = enemy.crossfireTargetY - enemy.position.y;
+                        enemy.position.y += dy * 0.03;
+                        if (Math.abs(dy) < 0.3) {
+                            enemy.crossfireSettled = true;
                         }
+                    } else {
+                        // Hold position with gentle vertical wobble
+                        const wobbleAmp = enemy.type === 'light' ? 1.2 : enemy.type === 'heavy' ? 0.4 : 0.7;
+                        enemy.position.y = enemy.crossfireTargetY + Math.sin(enemy.crossfireWander) * wobbleAmp;
                     }
-                    // Clamp to screen bounds vertically
-                    enemy.crossfireBaseY = Math.max(-orthoHeight + 1, Math.min(orthoHeight - 1, enemy.crossfireBaseY));
+
+                    // Gentle lateral drift toward opposing faction side
+                    enemy.crossfireBaseX += enemy.crossfireVX * deltaTime * 0.3;
+                    const lateralWobble = Math.sin(enemy.crossfireWander * 0.7) * 0.5;
+                    enemy.position.x = enemy.crossfireBaseX + lateralWobble;
+
+                    // Clamp to screen bounds
+                    enemy.position.x = Math.max(-orthoWidth + 1, Math.min(orthoWidth - 1, enemy.position.x));
+                    enemy.crossfireBaseX = Math.max(-orthoWidth + 1.5, Math.min(orthoWidth - 1.5, enemy.crossfireBaseX));
                 } else if (enemy.movementPattern === 'sine') {
                     // Light enemies weave more aggressively, heavy enemies barely weave
                     const waveAmplitude = enemy.type === 'light' ? 3 : enemy.type === 'heavy' ? 1 : 2;
@@ -13055,13 +13091,7 @@
                 enemy.currentTilt += (clampedTilt - enemy.currentTilt) * 0.15;
 
                 if (enemy.mesh) {
-                    if (enemy.movementPattern === 'crossfire') {
-                        // Crossfire: maintain sideways facing with subtle tilt
-                        const baseRot = enemy.enemyFaction === 'A' ? -Math.PI / 2 : Math.PI / 2;
-                        enemy.mesh.rotation.y = baseRot + enemy.currentTilt * 0.3;
-                    } else {
-                        enemy.mesh.rotation.y = enemy.currentTilt;
-                    }
+                    enemy.mesh.rotation.y = enemy.currentTilt;
                 }
 
                 // Challenger has special laser attack handled separately (not in crossfire - laser is vertical)
@@ -13117,14 +13147,8 @@
                                     const vy = (dy / dist) * 0.08;
                                     const rotatedVx = vx * cos - vy * sin;
                                     const rotatedVy = vx * sin + vy * cos;
-                                    // Crossfire: offset bullet laterally; normal: offset downward
                                     let hbx = enemy.position.x;
-                                    let hby = enemy.position.y;
-                                    if (enemy.movementPattern === 'crossfire') {
-                                        hbx += enemy.enemyFaction === 'A' ? 0.3 : -0.3;
-                                    } else {
-                                        hby -= 0.3;
-                                    }
+                                    let hby = enemy.position.y - 0.3;
                                     const bullet = createBullet(false, hbx, hby,
                                         rotatedVx, rotatedVy, enemy.damage);
                                     bullet.sourceFaction = enemy.enemyFaction || null;
@@ -13132,14 +13156,9 @@
                                 });
                             } else {
                                 const bulletSpeed = enemy.type === 'light' ? 0.12 : 0.1;
-                                // Crossfire: offset bullet spawn laterally; normal: offset vertically
                                 let bulletSpawnX = enemy.position.x;
                                 let bulletSpawnY = enemy.position.y;
-                                if (enemy.movementPattern === 'crossfire') {
-                                    bulletSpawnX += enemy.enemyFaction === 'A' ? 0.3 : -0.3;
-                                } else {
-                                    bulletSpawnY += enemy.enemyFaction === 'B' ? 0.3 : -0.3;
-                                }
+                                bulletSpawnY += enemy.enemyFaction === 'B' ? 0.3 : -0.3;
                                 const bullet = createBullet(false, bulletSpawnX, bulletSpawnY,
                                     (dx / dist) * bulletSpeed, (dy / dist) * bulletSpeed, enemy.damage);
                                 bullet.sourceFaction = enemy.enemyFaction || null;
@@ -13156,8 +13175,8 @@
                 if (enemy.isDisabled) continue;
 
                 if (enemy.movementPattern === 'crossfire') {
-                    // Crossfire enemies escape off the far side (past opposing spawn edge)
-                    if (enemy.position.x < -orthoWidth - 4 || enemy.position.x > orthoWidth + 4) {
+                    // Crossfire enemies hold position - only escape if somehow off-screen bottom
+                    if (enemy.position.y < -orthoHeight - 3) {
                         gameState.escapedEnemies++;
                         enemy.getChildMeshes().forEach(m => m.dispose());
                         enemy.dispose();
