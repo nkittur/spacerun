@@ -11016,6 +11016,26 @@
                 const enemy = await createEnemy(type, x, y);
                 enemy.enemyFaction = enemyFaction;
 
+                // Tint enemy ship meshes with faction color
+                const factionName = enemyFaction === 'A'
+                    ? (gameState.currentEncounter && gameState.currentEncounter.faction)
+                    : (gameState.encounterPaired && gameState.encounterPaired.faction);
+                if (factionName && FACTIONS[factionName] && enemy.mesh) {
+                    const fColor = FACTIONS[factionName].color;
+                    const tintMeshes = enemy.mesh.getChildMeshes(false) || [];
+                    tintMeshes.push(enemy.mesh);
+                    tintMeshes.forEach(m => {
+                        if (m.material) {
+                            // Blend faction color into emissive for a visible tint
+                            m.material.emissiveColor = new BABYLON.Color3(
+                                (m.material.emissiveColor.r || 0) * 0.3 + fColor.r * 0.7,
+                                (m.material.emissiveColor.g || 0) * 0.3 + fColor.g * 0.7,
+                                (m.material.emissiveColor.b || 0) * 0.3 + fColor.b * 0.7
+                            );
+                        }
+                    });
+                }
+
                 if (gameState.encounterIsBattle) {
                     // Crossfire: enemies drift down from top and hold position
                     enemy.movementPattern = 'crossfire';
@@ -11028,7 +11048,6 @@
                     const lateralDir = enemyFaction === 'A' ? 1 : -1;
                     enemy.crossfireVX = lateralDir * (0.002 + Math.random() * 0.003);
                     enemy.crossfireBaseX = x;
-                    // No sideways rotation - enemies face forward (downward)
                 } else if (enemyFaction === 'B') {
                     enemy.speed = -Math.abs(enemy.speed); // Negative = moving up
                     // Flip the mesh to face upward
@@ -11954,8 +11973,8 @@
                 createTrafficVisual(ship);
             }
 
-            // Occasionally spawn pirates (they create conflict tension)
-            if (alivePirates < 3 && Math.random() < 0.0008 * deltaTime) {
+            // Spawn pirates frequently (they create conflict tension)
+            if (alivePirates < 5 && Math.random() < 0.002 * deltaTime) {
                 const pirateTypes = TRAFFIC_TYPES.filter(t => t.faction === 'pirates');
                 const type = pirateTypes[Math.floor(Math.random() * pirateTypes.length)];
                 const ship = generateTrafficShip(goalY, type);
@@ -12134,9 +12153,9 @@
                 s.alive && s.faction !== 'pirates' && s.behavior === 'traveling'
             );
 
-            // Don't start skirmishes near the goal system
+            // Don't start skirmishes right on top of the goal system
             const goal = gameState.explorationGoal;
-            const goalExcludeRadius = 25;
+            const goalExcludeRadius = 12;
 
             pirates.forEach(pirate => {
                 // Skip pirates near the goal system
@@ -12151,10 +12170,10 @@
                     const dy = pirate.currentY - target.currentY;
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    // Pirates attack within detection range (~12 units)
+                    // Pirates aggressively attack nearby ships
                     // Prefer weaker targets (non-warships)
-                    const attackRange = target.isWarship ? 8 : 14;
-                    if (dist < attackRange && Math.random() < 0.0003 * deltaTime) {
+                    const attackRange = target.isWarship ? 12 : 20;
+                    if (dist < attackRange && Math.random() < 0.0012 * deltaTime) {
                         startSkirmish(pirate, target);
                     }
                 });
@@ -13209,14 +13228,47 @@
                     enemy.position.y -= enemy.speed * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 }
 
-                const velocityX = enemy.position.x - prevX;
-                const targetTilt = -velocityX * 8;
-                const maxTilt = Math.PI / 6;
-                const clampedTilt = Math.max(-maxTilt, Math.min(maxTilt, targetTilt));
-                enemy.currentTilt += (clampedTilt - enemy.currentTilt) * 0.15;
+                if (enemy.movementPattern === 'crossfire') {
+                    // Crossfire: rotate entire enemy node to face nearest opposing faction enemy
+                    let faceTargetX = null, faceTargetY = null;
+                    let nearestFaceDist = Infinity;
+                    for (const other of gameState.enemies) {
+                        if (other === enemy || other.enemyFaction === enemy.enemyFaction || other.isDisabled) continue;
+                        const fdx = other.position.x - enemy.position.x;
+                        const fdy = other.position.y - enemy.position.y;
+                        const fdist = Math.sqrt(fdx * fdx + fdy * fdy);
+                        if (fdist < nearestFaceDist) {
+                            nearestFaceDist = fdist;
+                            faceTargetX = other.position.x;
+                            faceTargetY = other.position.y;
+                        }
+                    }
+                    if (faceTargetX !== null) {
+                        const fdx = faceTargetX - enemy.position.x;
+                        const fdy = faceTargetY - enemy.position.y;
+                        // Ship default faces -Y (downward); rotate Z to face target
+                        const targetAngle = Math.atan2(fdx, fdy) + Math.PI;
+                        // Smooth rotation
+                        if (enemy._crossfireRotZ === undefined) enemy._crossfireRotZ = targetAngle;
+                        let angleDiff = targetAngle - enemy._crossfireRotZ;
+                        // Normalize to -PI..PI
+                        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                        enemy._crossfireRotZ += angleDiff * 0.08;
+                        // Rotate parent TransformNode so mesh + exhausts rotate together
+                        enemy.rotation.z = enemy._crossfireRotZ;
+                        if (enemy.mesh) enemy.mesh.rotation.y = 0;
+                    }
+                } else {
+                    const velocityX = enemy.position.x - prevX;
+                    const targetTilt = -velocityX * 8;
+                    const maxTilt = Math.PI / 6;
+                    const clampedTilt = Math.max(-maxTilt, Math.min(maxTilt, targetTilt));
+                    enemy.currentTilt += (clampedTilt - enemy.currentTilt) * 0.15;
 
-                if (enemy.mesh) {
-                    enemy.mesh.rotation.y = enemy.currentTilt;
+                    if (enemy.mesh) {
+                        enemy.mesh.rotation.y = enemy.currentTilt;
+                    }
                 }
 
                 // Challenger has special laser attack handled separately (not in crossfire - laser is vertical)
