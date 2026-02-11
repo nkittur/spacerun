@@ -11527,7 +11527,7 @@
                 node: goalNode,
                 x: goalX,
                 y: goalY,
-                radius: sunSize * 1.5, // Detection radius to trigger level end
+                radius: sunSize * 0.75, // Detection radius to trigger level end (close to sun surface)
                 tint: sunType.tint
             };
         }
@@ -11581,8 +11581,9 @@
             const halfW = effectiveOrtho * aspect;
 
             // Sun is at x=0, y=goalY. Ships travel to/from the sun.
-            // Pirates don't go toward the sun as often - they lurk
-            const towardSun = type.faction === 'pirates' ? Math.random() < 0.3 : Math.random() < 0.6;
+            // Pirates stay away from the sun - they lurk in the outskirts
+            const isPirate = type.faction === 'pirates';
+            const towardSun = isPirate ? Math.random() < 0.1 : Math.random() < 0.6;
 
             let startX, startY, endX, endY;
             if (towardSun) {
@@ -11595,19 +11596,34 @@
                     startX = (Math.random() - 0.5) * halfW * 2;
                     startY = -effectiveOrtho - 5 - Math.random() * 20;
                 }
-                endX = (Math.random() - 0.5) * 15;
-                endY = goalY + (Math.random() - 0.5) * 10;
-            } else {
-                // Start near sun, head outward
-                startX = (Math.random() - 0.5) * 15;
-                startY = goalY + (Math.random() - 0.5) * 10;
-                const side = Math.random();
-                if (side < 0.5) {
-                    endX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 10 + Math.random() * 20);
-                    endY = goalY * (0.1 + Math.random() * 0.5);
+                if (isPirate) {
+                    // Pirates don't get close to the sun - offset endpoint away
+                    endX = (Math.random() - 0.5) * halfW * 1.2;
+                    endY = goalY * (0.3 + Math.random() * 0.4);
                 } else {
-                    endX = (Math.random() - 0.5) * halfW * 2;
-                    endY = -effectiveOrtho - 10 - Math.random() * 20;
+                    endX = (Math.random() - 0.5) * 15;
+                    endY = goalY + (Math.random() - 0.5) * 10;
+                }
+            } else {
+                if (isPirate) {
+                    // Pirates patrol the outskirts, far from the sun
+                    const patrolY = goalY * (0.1 + Math.random() * 0.5);
+                    startX = (Math.random() < 0.5 ? -1 : 1) * (halfW * 0.3 + Math.random() * halfW * 0.5);
+                    startY = patrolY + (Math.random() - 0.5) * 20;
+                    endX = -startX + (Math.random() - 0.5) * 10;
+                    endY = patrolY + (Math.random() - 0.5) * 20;
+                } else {
+                    // Start near sun, head outward
+                    startX = (Math.random() - 0.5) * 15;
+                    startY = goalY + (Math.random() - 0.5) * 10;
+                    const side = Math.random();
+                    if (side < 0.5) {
+                        endX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 10 + Math.random() * 20);
+                        endY = goalY * (0.1 + Math.random() * 0.5);
+                    } else {
+                        endX = (Math.random() - 0.5) * halfW * 2;
+                        endY = -effectiveOrtho - 10 - Math.random() * 20;
+                    }
                 }
             }
 
@@ -11996,8 +12012,8 @@
                 createTrafficVisual(ship);
             }
 
-            // Spawn pirates frequently (they create conflict tension)
-            if (alivePirates < 5 && Math.random() < 0.002 * deltaTime) {
+            // Spawn pirates (they create conflict tension)
+            if (alivePirates < 3 && Math.random() < 0.002 * deltaTime) {
                 const pirateTypes = TRAFFIC_TYPES.filter(t => t.faction === 'pirates');
                 const type = pirateTypes[Math.floor(Math.random() * pirateTypes.length)];
                 const ship = generateTrafficShip(goalY, type);
@@ -12176,9 +12192,21 @@
                 s.alive && s.faction !== 'pirates' && s.behavior === 'traveling'
             );
 
-            // Don't start skirmishes right on top of the goal system
+            // Don't start skirmishes near the goal system
             const goal = gameState.explorationGoal;
-            const goalExcludeRadius = 12;
+            const goalExcludeRadius = 25;
+
+            // Only trigger conflicts that are on screen (with margin)
+            const camX = gameCamera ? gameCamera.position.x : 0;
+            const camY = gameCamera ? gameCamera.position.y : 0;
+            const zoom = gameState.zoomLevel || 4;
+            const visH = orthoHeight * zoom;
+            const visW = visH * (gameWidth / gameHeight);
+            const margin = 5; // Small margin beyond visible area
+
+            function isOnScreen(x, y) {
+                return Math.abs(x - camX) < (visW + margin) && Math.abs(y - camY) < (visH + margin);
+            }
 
             pirates.forEach(pirate => {
                 // Skip pirates near the goal system
@@ -12188,7 +12216,13 @@
                     if (Math.sqrt(gx * gx + gy * gy) < goalExcludeRadius) return;
                 }
 
+                // Skip if pirate is offscreen
+                if (!isOnScreen(pirate.currentX, pirate.currentY)) return;
+
                 targets.forEach(target => {
+                    // Skip if target is offscreen
+                    if (!isOnScreen(target.currentX, target.currentY)) return;
+
                     const dx = pirate.currentX - target.currentX;
                     const dy = pirate.currentY - target.currentY;
                     const dist = Math.sqrt(dx * dx + dy * dy);
