@@ -11250,6 +11250,7 @@
             gameState.encounterIsBattle = isBattle || false;
             gameState.encounterTransition = 'zooming_in';
             gameState.encounterTimer = 0;
+            gameState.encounterEscapeTimer = 0;
             gameState.zoomTarget = 1; // Zoom to normal view
             gameState.disabledShips = gameState.disabledShips || [];
 
@@ -11847,16 +11848,50 @@
             const civilianTypes = TRAFFIC_TYPES.filter(t => t.faction !== 'pirates');
             const pirateTypes = TRAFFIC_TYPES.filter(t => t.faction === 'pirates');
 
-            // Spawn civilian/merchant ships
-            const civCount = 6 + Math.floor(Math.random() * 3); // 6-8
-            for (let i = 0; i < civCount; i++) {
-                const type = civilianTypes[Math.floor(Math.random() * civilianTypes.length)];
-                const ship = generateTrafficShip(goalY, type);
-                ship.progress = Math.random() * 0.8;
-                ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
-                ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
-                gameState.explorationTraffic.push(ship);
-                createTrafficVisual(ship);
+            // Spawn civilian/merchant ships in small convoys with aligned headings
+            let civSpawned = 0;
+            const civTarget = 6 + Math.floor(Math.random() * 3); // 6-8
+            while (civSpawned < civTarget) {
+                // Each convoy has 2-3 ships traveling in the same general direction
+                const convoySize = Math.min(2 + Math.floor(Math.random() * 2), civTarget - civSpawned);
+                const leadType = civilianTypes[Math.floor(Math.random() * civilianTypes.length)];
+                const leadShip = generateTrafficShip(goalY, leadType);
+                leadShip.progress = Math.random() * 0.8;
+                leadShip.currentX = leadShip.startX + (leadShip.endX - leadShip.startX) * leadShip.progress;
+                leadShip.currentY = leadShip.startY + (leadShip.endY - leadShip.startY) * leadShip.progress;
+                gameState.explorationTraffic.push(leadShip);
+                createTrafficVisual(leadShip);
+                civSpawned++;
+
+                // Spawn wingmen with similar heading, offset perpendicular to the lead
+                for (let w = 1; w < convoySize; w++) {
+                    const wingType = civilianTypes[Math.floor(Math.random() * civilianTypes.length)];
+                    const wingShip = generateTrafficShip(goalY, wingType);
+
+                    // Override route to parallel the lead ship with small angle variation (±8°)
+                    const routeLen = Math.sqrt((leadShip.endX - leadShip.startX) ** 2 + (leadShip.endY - leadShip.startY) ** 2);
+                    const angleVariation = (Math.random() - 0.5) * 0.28; // ±8 degrees in radians
+                    const wingHeading = leadShip.heading + angleVariation;
+
+                    // Offset perpendicular to heading (spacing between convoy ships)
+                    const perpX = -Math.sin(leadShip.heading);
+                    const perpY = Math.cos(leadShip.heading);
+                    const offset = (w % 2 === 0 ? 1 : -1) * (3 + Math.random() * 4);
+
+                    wingShip.startX = leadShip.startX + perpX * offset + (Math.random() - 0.5) * 2;
+                    wingShip.startY = leadShip.startY + perpY * offset + (Math.random() - 0.5) * 2;
+                    wingShip.endX = wingShip.startX + Math.cos(wingHeading) * routeLen;
+                    wingShip.endY = wingShip.startY + Math.sin(wingHeading) * routeLen;
+                    wingShip.heading = wingHeading;
+
+                    wingShip.progress = leadShip.progress + (Math.random() - 0.5) * 0.15;
+                    wingShip.progress = Math.max(0, Math.min(0.9, wingShip.progress));
+                    wingShip.currentX = wingShip.startX + (wingShip.endX - wingShip.startX) * wingShip.progress;
+                    wingShip.currentY = wingShip.startY + (wingShip.endY - wingShip.startY) * wingShip.progress;
+                    gameState.explorationTraffic.push(wingShip);
+                    createTrafficVisual(wingShip);
+                    civSpawned++;
+                }
             }
 
             // Spawn a couple pirates to create early tension
@@ -14738,8 +14773,9 @@
                     const scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
                     updateBackgrounds(scrollMultiplier, deltaTime);
 
-                    // Camera fixed at (0,0) - world scrolls toward player (slow tactical pace)
-                    const exploreScrollSpeed = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier) * 0.10;
+                    // Camera fixed at (0,0) - world scrolls toward player
+                    // Speed scales with player Y position: faster at top (pushing forward), slower at bottom
+                    const exploreScrollSpeed = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier) * 0.40;
                     const scrollDist = exploreScrollSpeed * deltaTime;
 
                     // Scroll goal downward
@@ -14856,7 +14892,24 @@
                     const allSpawned = gameState.enemiesSpawned >= gameState.enemiesInWave;
                     const activeEnemies = gameState.enemies.filter(e => !e.isDisabled);
 
-                    if (gameState.encounterIsBattle && allSpawned) {
+                    // Escape: player reached the top of the screen - fly past the encounter
+                    // Only available for exploration encounters (not regular level combat)
+                    let escaped = false;
+                    if (gameState.savedExplorePos) {
+                        const escapeThreshold = -orthoHeight + (orthoHeight * 2 * settings.maxHeight) - 0.5;
+                        if (playerShip && playerShip.position.y >= escapeThreshold) {
+                            gameState.encounterEscapeTimer = (gameState.encounterEscapeTimer || 0) + deltaTime;
+                            if (gameState.encounterEscapeTimer > 1500) { // 1.5s at top to escape
+                                gameState.encounterEscapeTimer = 0;
+                                returnToExploration();
+                                escaped = true;
+                            }
+                        } else {
+                            gameState.encounterEscapeTimer = 0;
+                        }
+                    }
+
+                    if (!escaped && gameState.encounterIsBattle && allSpawned) {
                         // Crossfire battle: ends when one faction is wiped out (active only)
                         const factionA = activeEnemies.filter(e => e.enemyFaction === 'A');
                         const factionB = activeEnemies.filter(e => e.enemyFaction === 'B');
@@ -14866,7 +14919,7 @@
                             updateHUD();
                             onEncounterVictory();
                         }
-                    } else if (allSpawned && activeEnemies.length === 0) {
+                    } else if (!escaped && allSpawned && activeEnemies.length === 0) {
                         // Normal encounter: all active enemies dead
                         gameState.wave++;
                         gameState.levelWave++;
