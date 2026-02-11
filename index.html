@@ -4190,15 +4190,14 @@
             explorationDistance: 0, // Distance traveled in current exploration zone
             // Zoomed-out exploration mode
             explorationMode: false,         // Whether in zoomed-out exploration view
-            explorationFormations: [],      // Array of formation objects on the map
-            currentEncounter: null,         // Formation currently engaged in combat
+            currentEncounter: null,         // Encounter currently engaged in combat
             encounterTransition: null,      // 'zooming_in', 'combat', 'zooming_out', 'victory_pause'
             encounterTimer: 0,              // Timer for transitions
             savedExplorePos: null,          // Player position saved before combat
             zoomLevel: 1,                   // Current zoom multiplier (1=normal, 4=exploration)
             zoomTarget: 1,                  // Target zoom for smooth interpolation
             explorationCameraPos: {x: 0, y: 0}, // Camera position during exploration
-            formationsDefeated: 0,          // Count of defeated formations this level
+            encountersDefeated: 0,          // Count of defeated encounters this level
             explorationGoal: null,          // Goal sun at top of exploration map
             explorationTraffic: [],         // Neutral ships (tankers, shuttles, carriers, traders)
             exploreHeading: Math.PI / 2,    // Ship heading in exploration (radians, PI/2 = up)
@@ -4214,7 +4213,7 @@
             },
             playerSkirmishTarget: null,     // Which skirmish combatant player is targeting
             // Battle encounter system
-            encounterPaired: null,          // Paired formation in crossfire battle
+            encounterPaired: null,          // Paired encounter in crossfire battle
             encounterIsBattle: false,       // Whether current encounter is crossfire
             disabledShips: [],              // Ships disabled during combat (boardable)
             boardingTarget: null,           // Nearest boardable disabled ship
@@ -5266,20 +5265,8 @@
                 // Camera position determines the center of the view in world space
                 camera.setTarget(new BABYLON.Vector3(camera.position.x, camera.position.y, 0));
 
-                // Scale background UV to keep pattern appearance identical at all zoom levels.
-                // At higher zoom the camera sees more of the plane, so we REDUCE the UV tiling
-                // (divide by zoomLevel) to compensate - fewer repeats across a larger visible area
-                // means each tile appears the same screen size.
-                const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
-                const zoomUV = 1 / gameState.zoomLevel;
-                if (backgroundMaterialA && backgroundMaterialA.diffuseTexture) {
-                    backgroundMaterialA.diffuseTexture.uScale = (uvBase / 20) * zoomUV;
-                    backgroundMaterialA.diffuseTexture.vScale = (uvBase * 2 / 20) * zoomUV;
-                }
-                if (backgroundMaterialB && backgroundMaterialB.diffuseTexture) {
-                    backgroundMaterialB.diffuseTexture.uScale = (uvBase / 20) * zoomUV;
-                    backgroundMaterialB.diffuseTexture.vScale = (uvBase * 2 / 20) * zoomUV;
-                }
+                // Background UV stays constant - stars naturally appear smaller when
+                // zoomed out, giving a proper sense of scale in exploration mode.
             }
             updateCamera();
             // Store updateCamera for use in render loop
@@ -5407,10 +5394,9 @@
         // Load texture into background B for transition
         function loadTransitionTexture(path) {
             const uvBase = Math.max(orthoWidth, orthoHeight) * 3;
-            const zoomUV = 1 / gameState.zoomLevel;
             const texture = new BABYLON.Texture(path, scene);
-            texture.uScale = (uvBase / 20) * zoomUV;
-            texture.vScale = (uvBase * 2 / 20) * zoomUV;
+            texture.uScale = uvBase / 20;
+            texture.vScale = uvBase * 2 / 20;
             texture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
             texture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
             // Match current scroll offset
@@ -8001,7 +7987,7 @@
             if (config.isEventZone) {
                 spawnEventObject(config.eventType);
             } else {
-                // Enter zoomed-out exploration mode with enemy formations
+                // Enter zoomed-out exploration mode
                 enterExplorationMode(config);
             }
         }
@@ -8102,8 +8088,8 @@
                 gameState.beamMesh = null;
             }
 
-            // Clean up exploration formations
-            cleanupFormations();
+            // Clean up exploration state
+            cleanupExploration();
 
             // Reset exploration state
             gameState.explorationMode = false;
@@ -10905,7 +10891,7 @@
             gameState.boardingTarget = null;
         }
 
-        // Spawn enemy from encounter formation (uses pre-determined types)
+        // Spawn enemy from encounter (uses pre-determined types)
         async function spawnEncounterEnemy() {
             if (gameState.enemiesSpawned >= gameState.enemiesInWave) return;
             if (!gameState._encounterEnemyTypes || gameState._encounterEnemyTypes.length === 0) return;
@@ -10974,17 +10960,7 @@
             }
         }
 
-        // ========== EXPLORATION FORMATION SYSTEM ==========
-
-        // Formations removed - ships are individual entities in the traffic system
-        // Kept as stub for compatibility
-        function generateFormations(config) {
-            return [];
-        }
-
-        function pairFormationBattles(formations) {
-            // No-op: formations no longer auto-pair
-        }
+        // ========== EXPLORATION ENCOUNTER SYSTEM ==========
 
         // Map a traffic ship's strength to combat enemy types for encounters
         function getEnemyTypesFromShip(ship) {
@@ -11002,7 +10978,7 @@
             return types;
         }
 
-        // Create an encounter object from a traffic ship (compatible with formation encounter interface)
+        // Create an encounter object from a traffic ship
         function createEncounterFromShip(ship) {
             const types = getEnemyTypesFromShip(ship);
             return {
@@ -11018,19 +10994,9 @@
             };
         }
 
-        // Formation visuals removed - ships are individual entities
-        async function createFormationVisuals(formation) {
-            // No-op: formations no longer have visuals
-        }
-
-        // No formations to update
-        function updateFormations(deltaTime) {
-            // No-op: ships are individual traffic entities
-        }
-
         // Check if player is inside a hostile ship's detection zone or a conflict zone
-        // Returns { formation, pairedFormation, isBattle } or null
-        function checkFormationDetection() {
+        // Returns { encounter, pairedEncounter, isBattle } or null
+        function checkEncounterDetection() {
             if (!playerShip || !gameState.explorationMode) return null;
 
             // Check hostile (pirate) traffic ships - entering detection radius triggers solo combat
@@ -11061,7 +11027,7 @@
 
                     // Remove the source hostile ship
                     disposeTrafficShip(ship);
-                    return { formation: encounter, pairedFormation: null, isBattle: false };
+                    return { encounter, pairedEncounter: null, isBattle: false };
                 }
             }
 
@@ -11101,7 +11067,7 @@
                     conflict.resolved = true;
                     disposeSkirmishVisuals(conflict);
 
-                    return { formation: encounterA, pairedFormation: encounterB, isBattle: true };
+                    return { encounter: encounterA, pairedEncounter: encounterB, isBattle: true };
                 }
             }
 
@@ -11133,13 +11099,13 @@
             }
         }
 
-        // Start a combat encounter with a formation (zoom in)
-        // pairedFormation: the opposing faction's formation in a battle (null if solo attack)
+        // Start a combat encounter (zoom in)
+        // pairedEncounter: the opposing faction's encounter in a battle (null if solo attack)
         // isBattle: true if this is a crossfire battle between two factions
-        function startCombatEncounter(formation, pairedFormation, isBattle) {
+        function startCombatEncounter(encounter, pairedEncounter, isBattle) {
             gameState.explorationMode = false;
-            gameState.currentEncounter = formation;
-            gameState.encounterPaired = pairedFormation || null;
+            gameState.currentEncounter = encounter;
+            gameState.encounterPaired = pairedEncounter || null;
             gameState.encounterIsBattle = isBattle || false;
             gameState.encounterTransition = 'zooming_in';
             gameState.encounterTimer = 0;
@@ -11200,19 +11166,19 @@
         }
 
         // Spawn the encounter's enemies after zoom-in completes
-        function spawnEncounterEnemies(formation) {
+        function spawnEncounterEnemies(encounter) {
             gameState.encounterTransition = 'combat';
 
             if (gameState.encounterIsBattle && gameState.encounterPaired) {
                 // Crossfire battle: spawn both factions' enemies
                 const paired = gameState.encounterPaired;
-                const totalEnemies = formation.enemyCount + paired.enemyCount;
+                const totalEnemies = encounter.enemyCount + paired.enemyCount;
                 gameState.enemiesInWave = totalEnemies;
                 gameState.enemiesSpawned = 0;
                 gameState.spawnTimer = 1000;
 
                 // Interleave enemy types from both factions with faction tags
-                const typesA = formation.enemyTypes.map(t => ({ type: t, faction: 'A' }));
+                const typesA = encounter.enemyTypes.map(t => ({ type: t, faction: 'A' }));
                 const typesB = paired.enemyTypes.map(t => ({ type: t, faction: 'B' }));
                 const interleaved = [];
                 const maxLen = Math.max(typesA.length, typesB.length);
@@ -11222,11 +11188,11 @@
                 }
                 gameState._encounterEnemyTypes = interleaved;
             } else {
-                // Single formation attack: enemies all hostile to player
-                gameState.enemiesInWave = formation.enemyCount;
+                // Single encounter: enemies all hostile to player
+                gameState.enemiesInWave = encounter.enemyCount;
                 gameState.enemiesSpawned = 0;
                 gameState.spawnTimer = 1000;
-                gameState._encounterEnemyTypes = formation.enemyTypes.map(t => ({ type: t, faction: 'A' }));
+                gameState._encounterEnemyTypes = encounter.enemyTypes.map(t => ({ type: t, faction: 'A' }));
             }
         }
 
@@ -11238,24 +11204,24 @@
 
         // Zoom back out and return to exploration
         function returnToExploration() {
-            const formation = gameState.currentEncounter;
-            const defeatFormation = (f) => {
-                if (!f) return;
-                f.defeated = true;
-                gameState.formationsDefeated++;
-                if (f.detectionMesh) { f.detectionMesh.dispose(); f.detectionMesh = null; }
-                if (f.detectionRingMesh) { f.detectionRingMesh.dispose(); f.detectionRingMesh = null; }
-                f.meshes.forEach(m => {
+            const encounter = gameState.currentEncounter;
+            const defeatEncounter = (e) => {
+                if (!e) return;
+                e.defeated = true;
+                gameState.encountersDefeated++;
+                if (e.detectionMesh) { e.detectionMesh.dispose(); e.detectionMesh = null; }
+                if (e.detectionRingMesh) { e.detectionRingMesh.dispose(); e.detectionRingMesh = null; }
+                e.meshes.forEach(m => {
                     m.getChildMeshes().forEach(cm => cm.dispose());
                     m.dispose();
                 });
-                f.meshes = [];
+                e.meshes = [];
             };
 
-            defeatFormation(formation);
-            // Also defeat the paired formation in a battle
+            defeatEncounter(encounter);
+            // Also defeat the paired encounter in a battle
             if (gameState.encounterPaired) {
-                defeatFormation(gameState.encounterPaired);
+                defeatEncounter(gameState.encounterPaired);
             }
 
             gameState.currentEncounter = null;
@@ -11343,21 +11309,11 @@
             });
         }
 
-        // Dispose all formation meshes (for level cleanup)
-        function cleanupFormations() {
-            gameState.explorationFormations.forEach(f => {
-                if (f.detectionMesh) f.detectionMesh.dispose();
-                if (f.detectionRingMesh) f.detectionRingMesh.dispose();
-                f.meshes.forEach(m => {
-                    m.getChildMeshes().forEach(cm => cm.dispose());
-                    m.dispose();
-                });
-                f.meshes = [];
-            });
-            gameState.explorationFormations = [];
+        // Clean up all exploration state (encounters, traffic, goal, skirmishes)
+        function cleanupExploration() {
             gameState.currentEncounter = null;
             gameState.encounterTransition = null;
-            gameState.formationsDefeated = 0;
+            gameState.encountersDefeated = 0;
             gameState._encounterEnemyTypes = null;
             cleanupExplorationGoal();
             cleanupExplorationTraffic();
@@ -11368,9 +11324,9 @@
         function createExplorationGoal() {
             if (!scene || gameState.explorationGoal) return;
 
-            // Place goal beyond the formations - visible from relatively early
+            // Place goal at top of exploration map
             const mapSpreadY = 60;
-            const goalY = mapSpreadY + 25; // Past all formations
+            const goalY = mapSpreadY + 25;
             const goalX = 0;
 
             // Create a mini sun
@@ -12524,16 +12480,15 @@
 
             if (!hasActiveGoal || !hasTraffic) {
                 // Fresh exploration setup
-                cleanupFormations();
+                cleanupExploration();
 
-                gameState.formationsDefeated = 0;
-                gameState.explorationFormations = [];
+                gameState.encountersDefeated = 0;
 
                 // Create goal sun at top of exploration map
                 cleanupExplorationGoal();
                 createExplorationGoal();
 
-                // Generate traffic ships (individual ships, no formations)
+                // Generate traffic ships
                 cleanupExplorationTraffic();
                 generateExplorationTraffic();
             } else {
@@ -12696,7 +12651,7 @@
             if (container) container.innerHTML = '';
         }
 
-        // ========== END EXPLORATION FORMATION SYSTEM ==========
+        // ========== END EXPLORATION ENCOUNTER SYSTEM ==========
 
         // Update challenger's charging laser attack
         function updateChallengerLaser(enemy, currentTime) {
@@ -13482,8 +13437,8 @@
             gameState.lastFrameTime = performance.now();
             gameState.spawnTimer = 0;
 
-            // Clean up exploration formations and skirmishes
-            cleanupFormations();
+            // Clean up exploration state and skirmishes
+            cleanupExploration();
             gameState.explorationMode = false;
             gameState.zoomLevel = 1;
             gameState.zoomTarget = 1;
@@ -13656,7 +13611,7 @@
                 inExploration: gameState.inExploration,
                 explorationDistance: gameState.explorationDistance,
                 explorationMode: gameState.explorationMode,
-                formationsDefeated: gameState.formationsDefeated,
+                encountersDefeated: gameState.encountersDefeated,
                 enemiesInWave: gameState.enemiesInWave,
                 enemiesSpawned: gameState.enemiesSpawned,
                 gatesAtLevel: gameState.gatesAtLevel,
@@ -13795,9 +13750,9 @@
             gameState.enemiesInWave = saveData.enemiesInWave || 0;
             gameState.enemiesSpawned = saveData.enemiesSpawned || 0;
 
-            // If saved during exploration mode, re-enter it (formations will be regenerated)
+            // If saved during exploration mode, re-enter it (traffic will be regenerated)
             if (saveData.explorationMode) {
-                gameState.formationsDefeated = saveData.formationsDefeated || 0;
+                gameState.encountersDefeated = saveData.encountersDefeated || 0;
             }
 
             // Update zone background
@@ -13973,7 +13928,7 @@
             if (gameState.explorationMode && playerShipMesh && oldVal > 0) {
                 playerShipMesh.scaling.scaleInPlace(val / oldVal);
             }
-            // Formation ships, exploration traffic, and system traffic will
+            // Exploration traffic and system traffic will
             // live-update on next frame via _lastExploreScale tracking
         });
 
@@ -14338,7 +14293,7 @@
                         }
                     }
 
-                    // Update traffic ships (individual ships, no formations)
+                    // Update traffic ships
                     updateExplorationTraffic(deltaTime, scrollDist);
 
                     // Update NPC conflicts (fights between ships)
@@ -14360,10 +14315,10 @@
                     });
 
                     // Check if player entered a hostile detection zone or conflict zone
-                    const detection = checkFormationDetection();
+                    const detection = checkEncounterDetection();
                     if (detection) {
                         clearEdgeIndicators();
-                        startCombatEncounter(detection.formation, detection.pairedFormation, detection.isBattle);
+                        startCombatEncounter(detection.encounter, detection.pairedEncounter, detection.isBattle);
                     }
 
                     // Check if player reached the goal system
@@ -14374,7 +14329,7 @@
                             playerShipMesh.scaling.scaleInPlace(1 / settings.exploreShipScale);
                         }
                         // Clean up exploration visuals
-                        cleanupFormations();
+                        cleanupExploration();
                         // Transition to system/reward view
                         gameState.explorationMode = false;
                         gameState.zoomTarget = 1;
