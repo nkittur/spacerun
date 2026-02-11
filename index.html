@@ -11071,7 +11071,7 @@
                         : orthoWidth * (0.35 + Math.random() * 0.3);
                     // Spawn facing toward the opposing faction side
                     const faceDir = enemyFaction === 'A' ? 1 : -1; // A faces right, B faces left
-                    const initialAngle = Math.atan2(faceDir, 0) + Math.PI; // face horizontally toward enemy
+                    const initialAngle = Math.atan2(faceDir, 0); // face horizontally toward enemy
                     enemy._crossfireRotZ = initialAngle;
                     enemy.rotation.z = initialAngle;
                 } else if (enemyFaction === 'B') {
@@ -13353,7 +13353,7 @@
                     const fdx = faceTargetX - enemy.position.x;
                     const fdy = faceTargetY - enemy.position.y;
                     // Ship default faces -Y (downward); rotate Z to face target
-                    const targetAngle = Math.atan2(fdx, fdy) + Math.PI;
+                    const targetAngle = Math.atan2(fdx, fdy);
                     // Smooth rotation with faster interpolation
                     if (enemy._crossfireRotZ === undefined) enemy._crossfireRotZ = targetAngle;
                     let angleDiff = targetAngle - enemy._crossfireRotZ;
