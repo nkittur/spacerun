@@ -6304,11 +6304,7 @@
             if (starbase.position.y < -orthoHeight - starbase.size) {
                 starbase.dispose();
                 gameState.starbase = null;
-                if (gameState.explorationFormations.length > 0 && !gameState.explorationFormations.every(f => f.defeated)) {
-                    enterExplorationMode(gameState.levelConfig);
-                } else {
-                    spawnWave(); // Fallback for non-exploration mode
-                }
+                enterExplorationMode(gameState.levelConfig);
             }
         }
 
@@ -7048,12 +7044,8 @@
                 gameState.starbase = null;
             }
 
-            // Return to exploration or spawn next wave
-            if (gameState.explorationFormations.length > 0 && !gameState.explorationFormations.every(f => f.defeated)) {
-                enterExplorationMode(gameState.levelConfig);
-            } else {
-                spawnWave();
-            }
+            // Return to exploration mode
+            enterExplorationMode(gameState.levelConfig);
 
             // Save game after departing
             saveGame();
@@ -10984,346 +10976,161 @@
 
         // ========== EXPLORATION FORMATION SYSTEM ==========
 
-        // Generate enemy formations for a level based on its config
+        // Formations removed - ships are individual entities in the traffic system
+        // Kept as stub for compatibility
         function generateFormations(config) {
-            const formations = [];
-            const numFormations = config.waveCount; // One formation per wave equivalent
-            const mapSpreadY = 60; // Vertical space for formations (compact tactical map)
-            const mapSpreadX = orthoWidth * 2.5; // Horizontal spread
-
-            // Faction pool for formations - alternates to create opposing groups
-            const factionPool = ['pirates', 'federation', 'merchants', 'independent'];
-
-            // Enemy type power ranking for visual representation
-            const typePower = { 'basic': 0, 'fast': 1, 'shooter': 2, 'light': 3, 'heavy': 4, 'challenger': 5 };
-
-            for (let i = 0; i < numFormations; i++) {
-                // Distribute formations vertically across the exploration map
-                const baseY = 20 + (i + 0.5) * (mapSpreadY / numFormations);
-                const baseX = (Math.random() - 0.5) * mapSpreadX;
-
-                // Determine enemy composition for this formation
-                const waveNum = Math.min(i + 1, 5);
-                const waveConfig = { 1: 5, 2: 7, 3: 8, 4: 10, 5: 12 };
-                let enemyCount = (waveConfig[waveNum] || 12) + Math.floor(Math.max(0, config.levelNum - 1));
-                if (config.enemyMultiplier) {
-                    enemyCount = Math.floor(enemyCount * config.enemyMultiplier);
-                }
-
-                // Build enemy type list for this formation
-                const enemyTypes = [];
-                const globalWave = (config.levelNum - 1) * 5 + i + 1;
-                const baseTypes = ['basic', 'basic', 'fast', 'shooter'];
-                const advancedTypes = ['basic', 'fast', 'shooter', 'light', 'light', 'heavy'];
-                const typePool = globalWave >= 3 ? advancedTypes : baseTypes;
-
-                for (let j = 0; j < enemyCount; j++) {
-                    let type = typePool[Math.floor(Math.random() * Math.min(typePool.length, 1 + globalWave))];
-                    // Chance for challenger at wave 4+
-                    if (globalWave >= 4 && j === 0 && Math.random() < 0.15) {
-                        type = 'challenger';
-                    }
-                    enemyTypes.push(type);
-                }
-
-                // Find the most powerful enemy type for visual representation
-                let strongestType = 'basic';
-                enemyTypes.forEach(t => {
-                    if ((typePower[t] || 0) > (typePower[strongestType] || 0)) {
-                        strongestType = t;
-                    }
-                });
-
-                // Detection radius - subtle, scales slightly with enemy count
-                const detectionRadius = 8 + Math.min(enemyCount * 0.2, 4);
-
-                // Natural wandering path - each formation gets random waypoints
-                const numWaypoints = 3 + Math.floor(Math.random() * 3); // 3-5 waypoints
-                const waypoints = [];
-                for (let w = 0; w < numWaypoints; w++) {
-                    waypoints.push({
-                        x: baseX + (Math.random() - 0.5) * 30,
-                        y: baseY + (Math.random() - 0.5) * 20
-                    });
-                }
-
-                // Assign faction - alternate between pirates and others for conflict
-                const faction = (i % 2 === 0) ? 'pirates' : factionPool[1 + (i % 3)];
-
-                formations.push({
-                    id: i,
-                    faction: faction,
-                    baseX: baseX,
-                    baseY: baseY,
-                    currentX: baseX,
-                    currentY: baseY,
-                    detectionRadius: detectionRadius,
-                    // Waypoint-based natural movement
-                    waypoints: waypoints,
-                    waypointIndex: 0,
-                    moveSpeed: 0.001 + Math.random() * 0.0015, // Units per ms (slow patrol)
-                    heading: Math.random() * Math.PI * 2,
-                    enemyCount: enemyCount,
-                    enemyTypes: enemyTypes,
-                    strongestType: strongestType,
-                    defeated: false,
-                    battlePairId: null,  // ID of paired formation in a battle
-                    meshes: [],          // Ship model mesh
-                    detectionMesh: null,  // Red detection zone disc
-                    detectionRingMesh: null // Red ring outline
-                });
-            }
-
-            // Pair nearby formations from different factions into battle zones
-            pairFormationBattles(formations);
-
-            return formations;
+            return [];
         }
 
-        // Pair formations from different factions that are nearby into active battles
         function pairFormationBattles(formations) {
-            const unpaired = formations.filter(f => f.battlePairId === null);
-            for (let i = 0; i < unpaired.length; i++) {
-                if (unpaired[i].battlePairId !== null) continue;
-                let bestMatch = null;
-                let bestDist = Infinity;
-                for (let j = i + 1; j < unpaired.length; j++) {
-                    if (unpaired[j].battlePairId !== null) continue;
-                    if (unpaired[j].faction === unpaired[i].faction) continue;
-                    const dx = unpaired[i].baseX - unpaired[j].baseX;
-                    const dy = unpaired[i].baseY - unpaired[j].baseY;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < bestDist && dist < 60) {
-                        bestDist = dist;
-                        bestMatch = unpaired[j];
-                    }
-                }
-                if (bestMatch) {
-                    unpaired[i].battlePairId = bestMatch.id;
-                    bestMatch.battlePairId = unpaired[i].id;
-                    // Move paired formations closer together so they form a battle zone
-                    const midX = (unpaired[i].baseX + bestMatch.baseX) / 2;
-                    const midY = (unpaired[i].baseY + bestMatch.baseY) / 2;
-                    const offset = 6; // Each formation offsets from center
-                    unpaired[i].baseX = midX - offset;
-                    unpaired[i].currentX = unpaired[i].baseX;
-                    bestMatch.baseX = midX + offset;
-                    bestMatch.currentX = bestMatch.baseX;
-                    unpaired[i].baseY = midY;
-                    unpaired[i].currentY = midY;
-                    bestMatch.baseY = midY;
-                    bestMatch.currentY = midY;
-                    // Adjust waypoints around battle center
-                    unpaired[i].waypoints = unpaired[i].waypoints.map(wp => ({
-                        x: midX - offset + (Math.random() - 0.5) * 15,
-                        y: midY + (Math.random() - 0.5) * 10
-                    }));
-                    bestMatch.waypoints = bestMatch.waypoints.map(wp => ({
-                        x: midX + offset + (Math.random() - 0.5) * 15,
-                        y: midY + (Math.random() - 0.5) * 10
-                    }));
-                }
-            }
+            // No-op: formations no longer auto-pair
         }
 
-        // Create visual meshes for a formation on the exploration map
-        async function createFormationVisuals(formation) {
-            if (!scene) return;
+        // Map a traffic ship's strength to combat enemy types for encounters
+        function getEnemyTypesFromShip(ship) {
+            const types = [];
+            const str = ship.strength || 20;
+            const count = Math.max(2, Math.min(8, Math.floor(str / 10)));
 
-            // Faction-based colors for detection zones
-            const factionColors = {
-                pirates: { disc: new BABYLON.Color3(0.5, 0.03, 0.03), ring: new BABYLON.Color3(0.8, 0.1, 0.08) },
-                federation: { disc: new BABYLON.Color3(0.03, 0.15, 0.5), ring: new BABYLON.Color3(0.08, 0.3, 0.8) },
-                merchants: { disc: new BABYLON.Color3(0.03, 0.4, 0.1), ring: new BABYLON.Color3(0.08, 0.7, 0.2) },
-                independent: { disc: new BABYLON.Color3(0.4, 0.35, 0.03), ring: new BABYLON.Color3(0.7, 0.6, 0.08) }
+            for (let i = 0; i < count; i++) {
+                if (str >= 60 && i === 0) types.push('heavy');
+                else if (str >= 35 && Math.random() < 0.4) types.push('light');
+                else if (str >= 20 && Math.random() < 0.3) types.push('shooter');
+                else if (Math.random() < 0.4) types.push('fast');
+                else types.push('basic');
+            }
+            return types;
+        }
+
+        // Create an encounter object from a traffic ship (compatible with formation encounter interface)
+        function createEncounterFromShip(ship) {
+            const types = getEnemyTypesFromShip(ship);
+            return {
+                id: 'traffic_' + Math.random(),
+                faction: ship.faction,
+                enemyCount: types.length,
+                enemyTypes: types,
+                defeated: false,
+                meshes: [],
+                detectionMesh: null,
+                detectionRingMesh: null,
+                sourceShip: ship
             };
-            const fc = factionColors[formation.faction] || factionColors.pirates;
-
-            // Detection zone - faction-colored transparent disc
-            const disc = BABYLON.MeshBuilder.CreateDisc('detectionZone_' + formation.id, {
-                radius: formation.detectionRadius,
-                tessellation: 48
-            }, scene);
-            disc.position.x = formation.currentX;
-            disc.position.y = formation.currentY;
-            disc.position.z = 0.8;
-            disc.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
-
-            const discMat = new BABYLON.StandardMaterial('detectionMat_' + formation.id, scene);
-            discMat.emissiveColor = fc.disc;
-            discMat.alpha = 0.05;
-            discMat.disableLighting = true;
-            discMat.backFaceCulling = false;
-            disc.material = discMat;
-            formation.detectionMesh = disc;
-
-            // Subtle detection zone ring outline
-            const ring = BABYLON.MeshBuilder.CreateTorus('detectionRing_' + formation.id, {
-                diameter: formation.detectionRadius * 2,
-                thickness: 0.3,
-                tessellation: 48
-            }, scene);
-            ring.position.x = formation.currentX;
-            ring.position.y = formation.currentY;
-            ring.position.z = 0.75;
-            ring.rotation.x = Math.PI / 2;
-
-            const ringMat = new BABYLON.StandardMaterial('ringMat_' + formation.id, scene);
-            ringMat.emissiveColor = fc.ring;
-            ringMat.alpha = 0.15;
-            ringMat.disableLighting = true;
-            ringMat.backFaceCulling = false;
-            ring.material = ringMat;
-            formation.detectionRingMesh = ring;
-
-            // Exclude from glow layers
-            if (sunGlowLayer) {
-                sunGlowLayer.addExcludedMesh(disc);
-                sunGlowLayer.addExcludedMesh(ring);
-            }
-            if (lootGlowLayer) {
-                lootGlowLayer.addExcludedMesh(disc);
-                lootGlowLayer.addExcludedMesh(ring);
-            }
-
-            // Load the actual strongest enemy ship model as the patrol visual
-            // Base scales per formation type (unified with traffic ship scaling)
-            let shipModel, shipColor, formBaseScale;
-            switch (formation.strongestType) {
-                case 'light':
-                    shipModel = 'Dispatcher'; shipColor = 'Purple'; formBaseScale = 1.0; break;
-                case 'heavy':
-                    shipModel = 'Imperial'; shipColor = 'Orange'; formBaseScale = 1.5; break;
-                case 'challenger':
-                    shipModel = 'Executioner'; shipColor = 'Red'; formBaseScale = 1.8; break;
-                default:
-                    shipModel = settings.enemyShip; shipColor = settings.enemyColor; formBaseScale = 1.2; break;
-            }
-            formation.baseScale = formBaseScale;
-            formation._lastExploreScale = settings.exploreShipScale;
-
-            try {
-                const shipMesh = await loadShipModel(shipModel, shipColor, scene, 'down');
-                shipMesh.position.x = formation.currentX;
-                shipMesh.position.y = formation.currentY;
-                shipMesh.position.z = 0.1;
-                // Unified scaling: baseScale * exploreShipScale (same system as traffic ships)
-                shipMesh.scaling.scaleInPlace(formBaseScale * settings.exploreShipScale);
-
-                // Exclude from glow layers
-                const shipMeshes = shipMesh.getChildMeshes(false) || [];
-                shipMeshes.push(shipMesh);
-                shipMeshes.forEach(m => {
-                    if (sunGlowLayer) sunGlowLayer.addExcludedMesh(m);
-                    if (lootGlowLayer) lootGlowLayer.addExcludedMesh(m);
-                    m.renderingGroupId = 2;
-                });
-
-                formation.meshes.push(shipMesh);
-            } catch (e) {
-                // Fallback: simple triangle indicator if model fails to load
-                const indicator = BABYLON.MeshBuilder.CreateDisc('formShip_' + formation.id, {
-                    radius: 1.5,
-                    tessellation: 3
-                }, scene);
-                indicator.position.x = formation.currentX;
-                indicator.position.y = formation.currentY;
-                indicator.position.z = 0.1;
-                indicator.rotation.z = Math.PI;
-
-                const mat = new BABYLON.StandardMaterial('formShipMat_' + formation.id, scene);
-                mat.emissiveColor = new BABYLON.Color3(1.0, 0.35, 0.2);
-                mat.disableLighting = true;
-                mat.backFaceCulling = false;
-                indicator.material = mat;
-
-                if (sunGlowLayer) sunGlowLayer.addExcludedMesh(indicator);
-                if (lootGlowLayer) lootGlowLayer.addExcludedMesh(indicator);
-
-                formation.meshes.push(indicator);
-            }
         }
 
-        // Update formation patrol movement - natural wandering paths
+        // Formation visuals removed - ships are individual entities
+        async function createFormationVisuals(formation) {
+            // No-op: formations no longer have visuals
+        }
+
+        // No formations to update
         function updateFormations(deltaTime) {
-            gameState.explorationFormations.forEach(f => {
-                if (f.defeated) return;
-
-                // Move toward current waypoint
-                const wp = f.waypoints[f.waypointIndex];
-                const dx = wp.x - f.currentX;
-                const dy = wp.y - f.currentY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                if (dist < 2) {
-                    // Reached waypoint, move to next
-                    f.waypointIndex = (f.waypointIndex + 1) % f.waypoints.length;
-                } else {
-                    // Smoothly turn toward waypoint (natural steering)
-                    const targetHeading = Math.atan2(dy, dx);
-                    let headingDiff = targetHeading - f.heading;
-                    // Normalize to -PI..PI
-                    while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
-                    while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
-                    f.heading += headingDiff * 0.002 * deltaTime; // Gentle turn rate
-
-                    const moveAmount = f.moveSpeed * deltaTime;
-                    const moveX = Math.cos(f.heading) * moveAmount;
-                    const moveY = Math.sin(f.heading) * moveAmount;
-                    f.currentX += moveX;
-                    f.currentY += moveY;
-                }
-
-                // Update mesh positions
-                if (f.detectionMesh) {
-                    f.detectionMesh.position.x = f.currentX;
-                    f.detectionMesh.position.y = f.currentY;
-                }
-                if (f.detectionRingMesh) {
-                    f.detectionRingMesh.position.x = f.currentX;
-                    f.detectionRingMesh.position.y = f.currentY;
-                }
-                // Live-update scale if slider changed
-                if (f._lastExploreScale !== undefined && f._lastExploreScale !== settings.exploreShipScale) {
-                    const ratio = settings.exploreShipScale / f._lastExploreScale;
-                    f.meshes.forEach(mesh => mesh.scaling.scaleInPlace(ratio));
-                    f._lastExploreScale = settings.exploreShipScale;
-                }
-                f.meshes.forEach(mesh => {
-                    mesh.position.x = f.currentX;
-                    mesh.position.y = f.currentY;
-                    const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
-                    const headQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, f.heading + Math.PI / 2);
-                    mesh.rotationQuaternion = headQ.multiply(tipQ);
-                });
-            });
+            // No-op: ships are individual traffic entities
         }
 
-        // Check if player is inside a formation detection zone
+        // Check if player is inside a hostile ship's detection zone or a conflict zone
         // Returns { formation, pairedFormation, isBattle } or null
         function checkFormationDetection() {
             if (!playerShip || !gameState.explorationMode) return null;
 
-            for (const formation of gameState.explorationFormations) {
-                if (formation.defeated) continue;
+            // Check hostile (pirate) traffic ships - entering detection radius triggers solo combat
+            for (const ship of gameState.explorationTraffic) {
+                if (!ship.alive || !FACTIONS[ship.faction] || !FACTIONS[ship.faction].hostile) continue;
+                if (ship.behavior !== 'traveling') continue;
 
-                const dx = playerShip.position.x - formation.currentX;
-                const dy = playerShip.position.y - formation.currentY;
+                const dx = playerShip.position.x - ship.currentX;
+                const dy = playerShip.position.y - ship.currentY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
+                const detRadius = ship.detectionRadius || 6;
 
-                if (dist < formation.detectionRadius) {
-                    // Check if this formation is part of a battle pair
-                    if (formation.battlePairId !== null) {
-                        const paired = gameState.explorationFormations.find(f => f.id === formation.battlePairId && !f.defeated);
-                        if (paired) {
-                            return { formation, pairedFormation: paired, isBattle: true };
-                        }
-                    }
-                    // Single formation - always enterable, player starts with weapons hot
-                    return { formation, pairedFormation: null, isBattle: false };
+                if (dist < detRadius) {
+                    // Create encounter from this hostile ship
+                    const encounter = createEncounterFromShip(ship);
+
+                    // Nearby same-faction ships join the fight
+                    const nearbyAllies = gameState.explorationTraffic.filter(s =>
+                        s !== ship && s.alive && s.faction === ship.faction &&
+                        s.behavior === 'traveling' &&
+                        Math.sqrt((s.currentX - ship.currentX) ** 2 + (s.currentY - ship.currentY) ** 2) < 20
+                    );
+                    nearbyAllies.forEach(p => {
+                        encounter.enemyTypes.push(...getEnemyTypesFromShip(p));
+                        encounter.enemyCount = encounter.enemyTypes.length;
+                        disposeTrafficShip(p);
+                    });
+
+                    // Remove the source hostile ship
+                    disposeTrafficShip(ship);
+                    return { formation: encounter, pairedFormation: null, isBattle: false };
                 }
             }
+
+            // Check active conflicts - player can fly into them to enter combat
+            for (const conflict of gameState.explorationSkirmishes) {
+                if (conflict.resolved) continue;
+
+                const dx = playerShip.position.x - conflict.centerX;
+                const dy = playerShip.position.y - conflict.centerY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < 6) {
+                    // Create encounter objects from conflict participants
+                    const encounterA = createEncounterFromShip(conflict.attacker);
+                    const encounterB = createEncounterFromShip(conflict.defender);
+
+                    // Add allies to appropriate sides
+                    conflict.allies.forEach(ally => {
+                        if (ally.alive) {
+                            const allyTypes = getEnemyTypesFromShip(ally);
+                            if (ally.faction === conflict.attacker.faction) {
+                                encounterA.enemyTypes.push(...allyTypes);
+                                encounterA.enemyCount = encounterA.enemyTypes.length;
+                            } else {
+                                encounterB.enemyTypes.push(...allyTypes);
+                                encounterB.enemyCount = encounterB.enemyTypes.length;
+                            }
+                        }
+                    });
+
+                    // Dispose all conflict participants
+                    [conflict.attacker, conflict.defender, ...conflict.allies].forEach(s => {
+                        disposeTrafficShip(s);
+                    });
+
+                    // Clean up conflict visuals
+                    conflict.resolved = true;
+                    disposeSkirmishVisuals(conflict);
+
+                    return { formation: encounterA, pairedFormation: encounterB, isBattle: true };
+                }
+            }
+
             return null;
+        }
+
+        // Dispose a traffic ship and all its associated meshes
+        function disposeTrafficShip(ship) {
+            ship.alive = false;
+            if (ship.mesh) {
+                ship.mesh.getChildMeshes().forEach(m => m.dispose());
+                ship.mesh.dispose();
+                ship.mesh = null;
+            }
+            if (ship.factionRingMesh) {
+                if (ship.factionRingMesh.material) ship.factionRingMesh.material.dispose();
+                ship.factionRingMesh.dispose();
+                ship.factionRingMesh = null;
+            }
+            if (ship.detectionMesh) {
+                if (ship.detectionMesh.material) ship.detectionMesh.material.dispose();
+                ship.detectionMesh.dispose();
+                ship.detectionMesh = null;
+            }
+            if (ship.detectionRingMesh) {
+                if (ship.detectionRingMesh.material) ship.detectionRingMesh.material.dispose();
+                ship.detectionRingMesh.dispose();
+                ship.detectionRingMesh = null;
+            }
         }
 
         // Start a combat encounter with a formation (zoom in)
@@ -11373,20 +11180,18 @@
                 y: gameCamera ? gameCamera.position.y : 0
             };
 
-            // Hide all formation meshes and goal during combat
-            gameState.explorationFormations.forEach(f => {
-                if (f.detectionMesh) f.detectionMesh.setEnabled(false);
-                if (f.detectionRingMesh) f.detectionRingMesh.setEnabled(false);
-                f.meshes.forEach(m => m.setEnabled(false));
-            });
+            // Hide goal during combat
             if (gameState.explorationGoal && gameState.explorationGoal.node) {
                 gameState.explorationGoal.node.setEnabled(false);
             }
-            // Hide traffic during combat
+            // Hide traffic during combat (including faction rings and detection zones)
             gameState.explorationTraffic.forEach(s => {
                 if (s.mesh) s.mesh.setEnabled(false);
+                if (s.factionRingMesh) s.factionRingMesh.setEnabled(false);
+                if (s.detectionMesh) s.detectionMesh.setEnabled(false);
+                if (s.detectionRingMesh) s.detectionRingMesh.setEnabled(false);
             });
-            // Hide skirmish visuals during combat
+            // Hide conflict visuals during combat
             gameState.explorationSkirmishes.forEach(s => {
                 if (s.iconMesh) s.iconMesh.setEnabled(false);
                 if (s.ringMesh) s.ringMesh.setEnabled(false);
@@ -11518,22 +11323,18 @@
             });
             gameState.loot = [];
 
-            // Show remaining formation meshes and goal
-            gameState.explorationFormations.forEach(f => {
-                if (!f.defeated) {
-                    if (f.detectionMesh) f.detectionMesh.setEnabled(true);
-                    if (f.detectionRingMesh) f.detectionRingMesh.setEnabled(true);
-                    f.meshes.forEach(m => m.setEnabled(true));
-                }
-            });
+            // Show exploration goal
             if (gameState.explorationGoal && gameState.explorationGoal.node) {
                 gameState.explorationGoal.node.setEnabled(true);
             }
-            // Show traffic again
+            // Show traffic again (including faction rings and detection zones)
             gameState.explorationTraffic.forEach(s => {
                 if (s.mesh) s.mesh.setEnabled(true);
+                if (s.factionRingMesh) s.factionRingMesh.setEnabled(true);
+                if (s.detectionMesh) s.detectionMesh.setEnabled(true);
+                if (s.detectionRingMesh) s.detectionRingMesh.setEnabled(true);
             });
-            // Show skirmish visuals again
+            // Show conflict visuals again
             gameState.explorationSkirmishes.forEach(s => {
                 if (!s.resolved) {
                     if (s.iconMesh) s.iconMesh.setEnabled(true);
@@ -11744,11 +11545,16 @@
                 maxHp: maxHp,
                 strength: type.strength,
                 isWarship: type.warship,
-                skirmishId: null,       // ID of skirmish this ship is in
+                skirmishId: null,       // ID of conflict this ship is in
                 behaviorTimer: 0,       // Generic timer for behavior states
                 fleeHeading: 0,         // Direction to flee
                 damaged: false,         // Whether ship took significant damage
-                playerDamageDealt: 0    // Damage from player (for faction rep tracking)
+                playerDamageDealt: 0,   // Damage from player (for faction rep tracking)
+                // Detection zone (hostile factions only)
+                detectionRadius: (FACTIONS[type.faction] && FACTIONS[type.faction].hostile) ? (5 + Math.random() * 3) : 0,
+                factionRingMesh: null,
+                detectionMesh: null,
+                detectionRingMesh: null
             };
         }
 
@@ -11762,7 +11568,7 @@
                 mesh.position.z = 0.2;
                 mesh.scaling.scaleInPlace(ship.type.scale * settings.exploreShipScale);
 
-                // Apply heading rotation using quaternion (same as formations)
+                // Apply heading rotation using quaternion
                 const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
                 const headQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, ship.heading + Math.PI / 2);
                 mesh.rotationQuaternion = headQ.multiply(tipQ);
@@ -11792,6 +11598,85 @@
                 if (lootGlowLayer) lootGlowLayer.addExcludedMesh(dot);
                 ship.mesh = dot;
                 ship._lastExploreScale = settings.exploreShipScale;
+            }
+
+            // Add faction-colored ring indicator around the ship
+            const factionData = FACTIONS[ship.faction];
+            if (factionData) {
+                const ringSize = (ship.type.scale || 1.0) * settings.exploreShipScale * 1.2;
+                const factionRing = BABYLON.MeshBuilder.CreateTorus('factionRing_' + Math.random(), {
+                    diameter: ringSize * 2,
+                    thickness: ringSize * 0.12,
+                    tessellation: 24
+                }, scene);
+                factionRing.position.x = ship.currentX;
+                factionRing.position.y = ship.currentY;
+                factionRing.position.z = 0.25;
+                factionRing.rotation.x = Math.PI / 2;
+
+                const ringMat = new BABYLON.StandardMaterial('factionRingMat_' + Math.random(), scene);
+                ringMat.emissiveColor = factionData.color;
+                ringMat.alpha = 0.5;
+                ringMat.disableLighting = true;
+                ringMat.backFaceCulling = false;
+                factionRing.material = ringMat;
+                factionRing.renderingGroupId = 2;
+
+                if (sunGlowLayer) sunGlowLayer.addExcludedMesh(factionRing);
+                if (lootGlowLayer) lootGlowLayer.addExcludedMesh(factionRing);
+
+                ship.factionRingMesh = factionRing;
+            }
+
+            // Add subtle detection zone for hostile faction ships only
+            if (factionData && factionData.hostile) {
+                const detRadius = ship.detectionRadius || 6;
+
+                // Very subtle detection disc
+                const disc = BABYLON.MeshBuilder.CreateDisc('hostileDetect_' + Math.random(), {
+                    radius: detRadius,
+                    tessellation: 32
+                }, scene);
+                disc.position.x = ship.currentX;
+                disc.position.y = ship.currentY;
+                disc.position.z = 0.85;
+
+                const discMat = new BABYLON.StandardMaterial('hostileDetectMat_' + Math.random(), scene);
+                discMat.emissiveColor = new BABYLON.Color3(0.4, 0.02, 0.02);
+                discMat.alpha = 0.02;
+                discMat.disableLighting = true;
+                discMat.backFaceCulling = false;
+                disc.material = discMat;
+                disc.renderingGroupId = 1;
+
+                if (sunGlowLayer) sunGlowLayer.addExcludedMesh(disc);
+                if (lootGlowLayer) lootGlowLayer.addExcludedMesh(disc);
+
+                ship.detectionMesh = disc;
+
+                // Very subtle detection ring
+                const ring = BABYLON.MeshBuilder.CreateTorus('hostileRing_' + Math.random(), {
+                    diameter: detRadius * 2,
+                    thickness: 0.15,
+                    tessellation: 32
+                }, scene);
+                ring.position.x = ship.currentX;
+                ring.position.y = ship.currentY;
+                ring.position.z = 0.8;
+                ring.rotation.x = Math.PI / 2;
+
+                const ringMat2 = new BABYLON.StandardMaterial('hostileRingMat_' + Math.random(), scene);
+                ringMat2.emissiveColor = new BABYLON.Color3(0.6, 0.08, 0.05);
+                ringMat2.alpha = 0.06;
+                ringMat2.disableLighting = true;
+                ringMat2.backFaceCulling = false;
+                ring.material = ringMat2;
+                ring.renderingGroupId = 1;
+
+                if (sunGlowLayer) sunGlowLayer.addExcludedMesh(ring);
+                if (lootGlowLayer) lootGlowLayer.addExcludedMesh(ring);
+
+                ship.detectionRingMesh = ring;
             }
         }
 
@@ -11912,17 +11797,31 @@
                     }
                 }
 
+                // Update faction ring position
+                if (ship.factionRingMesh) {
+                    ship.factionRingMesh.position.x = ship.currentX;
+                    ship.factionRingMesh.position.y = ship.currentY;
+                }
+
+                // Update detection zone positions (hostile ships only)
+                if (ship.detectionMesh) {
+                    ship.detectionMesh.position.x = ship.currentX;
+                    ship.detectionMesh.position.y = ship.currentY;
+                }
+                if (ship.detectionRingMesh) {
+                    ship.detectionRingMesh.position.x = ship.currentX;
+                    ship.detectionRingMesh.position.y = ship.currentY;
+                }
+
                 // Remove if route complete or scrolled way off screen
                 const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
                 if ((ship.behavior === 'traveling' && ship.progress >= 1.0) || ship.currentY < -effectiveOrthoH - 40) {
                     ship.alive = false;
                 }
 
-                // Cleanup dead ship meshes
-                if (!ship.alive && ship.mesh) {
-                    ship.mesh.getChildMeshes().forEach(m => m.dispose());
-                    ship.mesh.dispose();
-                    ship.mesh = null;
+                // Cleanup dead ship meshes and associated visuals
+                if (!ship.alive) {
+                    disposeTrafficShip(ship);
                 }
             });
 
@@ -11942,7 +11841,7 @@
                 createTrafficVisual(ship);
             }
 
-            // Occasionally spawn pirates (they create the skirmish tension)
+            // Occasionally spawn pirates (they create conflict tension)
             if (alivePirates < 3 && Math.random() < 0.0008 * deltaTime) {
                 const pirateTypes = TRAFFIC_TYPES.filter(t => t.faction === 'pirates');
                 const type = pirateTypes[Math.floor(Math.random() * pirateTypes.length)];
@@ -11955,15 +11854,12 @@
         // Clean up all traffic ships
         function cleanupExplorationTraffic() {
             gameState.explorationTraffic.forEach(ship => {
-                if (ship.mesh) {
-                    ship.mesh.getChildMeshes().forEach(m => m.dispose());
-                    ship.mesh.dispose();
-                }
+                disposeTrafficShip(ship);
             });
             gameState.explorationTraffic = [];
         }
 
-        // ========== NPC SKIRMISH SYSTEM ==========
+        // ========== NPC CONFLICT SYSTEM ==========
 
         // Create crossed swords icon for a skirmish using dynamic texture
         function createSkirmishIcon(skirmish) {
@@ -12600,7 +12496,7 @@
             gameState.explorationSkirmishes = [];
         }
 
-        // ========== END NPC SKIRMISH SYSTEM ==========
+        // ========== END NPC CONFLICT SYSTEM ==========
 
         // Check if player reached the exploration goal
         function checkExplorationGoalReached() {
@@ -12622,40 +12518,35 @@
             gameState.enemiesInWave = 0;
             gameState.enemiesSpawned = 0;
 
-            // Only generate formations if none exist yet for this level
-            const hasActiveFormations = gameState.explorationFormations.length > 0 &&
-                !gameState.explorationFormations.every(f => f.defeated);
-            if (!hasActiveFormations) {
-                // Clean up any old formation meshes
+            // Check if exploration is already set up (returning from encounter/station)
+            const hasActiveGoal = gameState.explorationGoal && gameState.explorationGoal.node;
+            const hasTraffic = gameState.explorationTraffic.length > 0;
+
+            if (!hasActiveGoal || !hasTraffic) {
+                // Fresh exploration setup
                 cleanupFormations();
 
-                // Generate new formations
                 gameState.formationsDefeated = 0;
-                gameState.explorationFormations = generateFormations(config);
-
-                // Create visual representations
-                gameState.explorationFormations.forEach(f => createFormationVisuals(f));
+                gameState.explorationFormations = [];
 
                 // Create goal sun at top of exploration map
                 cleanupExplorationGoal();
                 createExplorationGoal();
 
-                // Generate neutral traffic heading to/from sun
+                // Generate traffic ships (individual ships, no formations)
                 cleanupExplorationTraffic();
                 generateExplorationTraffic();
             } else {
-                // Re-show existing formation meshes
-                gameState.explorationFormations.forEach(f => {
-                    if (!f.defeated) {
-                        if (f.detectionMesh) f.detectionMesh.setEnabled(true);
-                        if (f.detectionRingMesh) f.detectionRingMesh.setEnabled(true);
-                        f.meshes.forEach(m => m.setEnabled(true));
-                    }
-                });
-                // Re-show goal if it exists
+                // Re-show existing traffic and goal
                 if (gameState.explorationGoal && gameState.explorationGoal.node) {
                     gameState.explorationGoal.node.setEnabled(true);
                 }
+                gameState.explorationTraffic.forEach(s => {
+                    if (s.mesh) s.mesh.setEnabled(true);
+                    if (s.factionRingMesh) s.factionRingMesh.setEnabled(true);
+                    if (s.detectionMesh) s.detectionMesh.setEnabled(true);
+                    if (s.detectionRingMesh) s.detectionRingMesh.setEnabled(true);
+                });
             }
 
             // Position player at normal combat starting position
@@ -12720,23 +12611,17 @@
                 targets.push({ x: g.x, y: g.y, type: 'system', label: 'System' });
             }
 
-            // Enemy formations
-            gameState.explorationFormations.forEach(f => {
-                if (f.defeated) return;
-                targets.push({ x: f.currentX, y: f.currentY, type: 'enemy', label: '' });
-            });
-
-            // Neutral traffic (only show off-screen ones to avoid clutter)
+            // Traffic ships (pirates shown as enemies, others as neutral)
             gameState.explorationTraffic.forEach(s => {
                 if (!s.alive) return;
-                const shipType = s.faction === 'pirates' ? 'enemy' : 'neutral';
-                targets.push({ x: s.currentX, y: s.currentY, type: shipType, label: '' });
+                const isHostile = FACTIONS[s.faction] && FACTIONS[s.faction].hostile;
+                targets.push({ x: s.currentX, y: s.currentY, type: isHostile ? 'enemy' : 'neutral', label: '' });
             });
 
-            // Active skirmishes
+            // Active conflicts
             gameState.explorationSkirmishes.forEach(s => {
                 if (s.resolved) return;
-                targets.push({ x: s.centerX, y: s.centerY, type: 'skirmish', label: 'Fight' });
+                targets.push({ x: s.centerX, y: s.centerY, type: 'skirmish', label: 'Conflict' });
             });
 
             // Build HTML
@@ -14445,15 +14330,6 @@
                     const exploreScrollSpeed = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier) * 0.18;
                     const scrollDist = exploreScrollSpeed * deltaTime;
 
-                    // Scroll all formations downward
-                    gameState.explorationFormations.forEach(f => {
-                        if (f.defeated) return;
-                        f.currentY -= scrollDist;
-                        f.baseY -= scrollDist;
-                        // Update waypoints too
-                        f.waypoints.forEach(wp => { wp.y -= scrollDist; });
-                    });
-
                     // Scroll goal downward
                     if (gameState.explorationGoal) {
                         gameState.explorationGoal.y -= scrollDist;
@@ -14462,46 +14338,28 @@
                         }
                     }
 
-                    // Update formation patrols (movement + mesh positions)
-                    updateFormations(deltaTime);
-
-                    // Update neutral traffic ships
+                    // Update traffic ships (individual ships, no formations)
                     updateExplorationTraffic(deltaTime, scrollDist);
 
-                    // Update NPC skirmishes (fights between ships)
+                    // Update NPC conflicts (fights between ships)
                     updateSkirmishes(deltaTime, scrollDist);
                     checkSkirmishStarts(deltaTime);
                     checkAlliedJoins(deltaTime);
                     checkPlayerSkirmishInteraction(deltaTime);
 
-                    // Pulse detection zone opacity for subtle visual effect
-                    const pulseAlpha = 0.04 + Math.sin(currentTime * 0.002) * 0.02;
-                    const ringAlpha = 0.12 + Math.sin(currentTime * 0.002) * 0.05;
-                    gameState.explorationFormations.forEach(f => {
-                        if (!f.defeated && f.detectionMesh) {
-                            f.detectionMesh.material.alpha = pulseAlpha;
+                    // Pulse hostile detection zone opacity for subtle visual effect
+                    const pulseAlpha = 0.015 + Math.sin(currentTime * 0.002) * 0.008;
+                    const ringAlpha = 0.04 + Math.sin(currentTime * 0.002) * 0.02;
+                    gameState.explorationTraffic.forEach(s => {
+                        if (s.alive && s.detectionMesh && s.detectionMesh.material) {
+                            s.detectionMesh.material.alpha = pulseAlpha;
                         }
-                        if (!f.defeated && f.detectionRingMesh) {
-                            f.detectionRingMesh.material.alpha = ringAlpha;
-                        }
-                    });
-
-                    // Remove formations that have scrolled well past the bottom of the screen
-                    const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
-                    gameState.explorationFormations.forEach(f => {
-                        if (!f.defeated && f.currentY < -effectiveOrthoH - 20) {
-                            f.defeated = true; // Mark as gone
-                            if (f.detectionMesh) f.detectionMesh.dispose();
-                            if (f.detectionRingMesh) f.detectionRingMesh.dispose();
-                            f.meshes.forEach(m => {
-                                m.getChildMeshes().forEach(cm => cm.dispose());
-                                m.dispose();
-                            });
-                            f.meshes = [];
+                        if (s.alive && s.detectionRingMesh && s.detectionRingMesh.material) {
+                            s.detectionRingMesh.material.alpha = ringAlpha;
                         }
                     });
 
-                    // Check if player entered a detection zone (battle or attack mode)
+                    // Check if player entered a hostile detection zone or conflict zone
                     const detection = checkFormationDetection();
                     if (detection) {
                         clearEdgeIndicators();
