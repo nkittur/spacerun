@@ -10999,12 +10999,12 @@
             // In solo encounters, enemies spawn from top as normal
             let x, y;
             if (gameState.encounterIsBattle) {
-                // Faction A spawns on left half, Faction B on right half
-                const halfW = orthoWidth * 0.8;
+                // Faction A spawns on left side, Faction B on right side
+                // Keep factions well-separated from the start
                 if (enemyFaction === 'A') {
-                    x = -halfW * 0.1 - Math.random() * halfW * 0.8;
+                    x = -orthoWidth * 0.3 - Math.random() * orthoWidth * 0.5;
                 } else {
-                    x = halfW * 0.1 + Math.random() * halfW * 0.8;
+                    x = orthoWidth * 0.3 + Math.random() * orthoWidth * 0.5;
                 }
                 y = orthoHeight + 2;
             } else {
@@ -11055,17 +11055,20 @@
                 }
 
                 if (gameState.encounterIsBattle) {
-                    // Crossfire: enemies drift down from top and hold position
+                    // Crossfire: enemies drift down from top and hold position on their side
                     enemy.movementPattern = 'crossfire';
-                    // Target Y position where this enemy will settle
+                    // Target Y position where this enemy will settle - spread across screen height
                     const settleRange = orthoHeight * 0.7;
                     enemy.crossfireTargetY = orthoHeight - 1 - Math.random() * settleRange;
                     enemy.crossfireSettled = false;
                     enemy.crossfireWander = Math.random() * Math.PI * 2;
-                    // Slight lateral drift toward opposing faction
-                    const lateralDir = enemyFaction === 'A' ? 1 : -1;
-                    enemy.crossfireVX = lateralDir * (0.002 + Math.random() * 0.003);
+                    // Slow patrol drift along their own side (not toward center)
+                    enemy.crossfireVX = (Math.random() - 0.5) * 0.003;
                     enemy.crossfireBaseX = x;
+                    // Home X: the anchor point ships are pulled back toward
+                    enemy.crossfireHomeX = enemyFaction === 'A'
+                        ? -orthoWidth * (0.35 + Math.random() * 0.3)
+                        : orthoWidth * (0.35 + Math.random() * 0.3);
                     // Spawn facing toward the opposing faction side
                     const faceDir = enemyFaction === 'A' ? 1 : -1; // A faces right, B faces left
                     const initialAngle = Math.atan2(faceDir, 0) + Math.PI; // face horizontally toward enemy
@@ -13252,13 +13255,16 @@
                         enemy.position.x += dx * enemy.speed;
                     }
                 } else if (enemy.movementPattern === 'crossfire') {
-                    // Crossfire battle: ships drift down from top and hold position
+                    // Crossfire battle: ships hold formation on their side and engage enemies
                     enemy.crossfireWander += deltaTime * 0.0015;
 
                     if (!enemy.crossfireSettled) {
                         // Drift down toward target position
                         const dy = enemy.crossfireTargetY - enemy.position.y;
                         enemy.position.y += dy * 0.03;
+                        // Also drift toward home X position while settling
+                        const dxHome = enemy.crossfireHomeX - enemy.crossfireBaseX;
+                        enemy.crossfireBaseX += dxHome * 0.02;
                         if (Math.abs(dy) < 0.3) {
                             enemy.crossfireSettled = true;
                         }
@@ -13268,24 +13274,41 @@
                         enemy.position.y = enemy.crossfireTargetY + Math.sin(enemy.crossfireWander) * wobbleAmp;
                     }
 
-                    // Gentle lateral drift - factions tend to stay on their own side
+                    // Slow patrol drift along own side
                     enemy.crossfireBaseX += enemy.crossfireVX * deltaTime * 0.15;
-                    const lateralWobble = Math.sin(enemy.crossfireWander * 0.7) * 0.5;
+
+                    // Spring force: always pull back toward home position
+                    const homeOffset = enemy.crossfireHomeX - enemy.crossfireBaseX;
+                    enemy.crossfireBaseX += homeOffset * 0.008;
+
+                    // Friendly repulsion: push away from same-faction allies
+                    let repelX = 0, repelY = 0;
+                    const minFriendlyDist = 2.5;
+                    for (const other of gameState.enemies) {
+                        if (other === enemy || other.enemyFaction !== enemy.enemyFaction || other.isDisabled) continue;
+                        const rdx = enemy.position.x - other.position.x;
+                        const rdy = enemy.position.y - other.position.y;
+                        const rdist = Math.sqrt(rdx * rdx + rdy * rdy);
+                        if (rdist < minFriendlyDist && rdist > 0.01) {
+                            const force = (minFriendlyDist - rdist) / minFriendlyDist;
+                            repelX += (rdx / rdist) * force * 0.08;
+                            repelY += (rdy / rdist) * force * 0.04;
+                        }
+                    }
+                    enemy.crossfireBaseX += repelX;
+                    enemy.crossfireTargetY += repelY * 0.3;
+                    // Clamp target Y so repulsion doesn't push ships off screen
+                    enemy.crossfireTargetY = Math.max(-orthoHeight + 2, Math.min(orthoHeight - 1, enemy.crossfireTargetY));
+
+                    const lateralWobble = Math.sin(enemy.crossfireWander * 0.7) * 0.4;
                     enemy.position.x = enemy.crossfireBaseX + lateralWobble;
 
-                    // Faction A stays on left side, Faction B stays on right side
-                    // Soft bias: pull ships back toward their side if they drift too far
-                    const sideCenter = enemy.enemyFaction === 'A' ? -orthoWidth * 0.4 : orthoWidth * 0.4;
-                    const driftFromSide = enemy.crossfireBaseX - sideCenter;
-                    if (Math.abs(driftFromSide) > orthoWidth * 0.5) {
-                        enemy.crossfireBaseX -= driftFromSide * 0.005 * deltaTime * 0.05;
-                    }
-
-                    // Hard clamp: faction A stays in left 65%, faction B stays in right 65%
+                    // Hard clamp: faction A stays on left side, faction B stays on right side
+                    // No overlap zone - factions are separated
                     if (enemy.enemyFaction === 'A') {
-                        enemy.crossfireBaseX = Math.max(-orthoWidth + 1.5, Math.min(orthoWidth * 0.3, enemy.crossfireBaseX));
+                        enemy.crossfireBaseX = Math.max(-orthoWidth + 1.5, Math.min(-orthoWidth * 0.05, enemy.crossfireBaseX));
                     } else {
-                        enemy.crossfireBaseX = Math.max(-orthoWidth * 0.3, Math.min(orthoWidth - 1.5, enemy.crossfireBaseX));
+                        enemy.crossfireBaseX = Math.max(orthoWidth * 0.05, Math.min(orthoWidth - 1.5, enemy.crossfireBaseX));
                     }
                     enemy.position.x = Math.max(-orthoWidth + 1, Math.min(orthoWidth - 1, enemy.position.x));
                 } else if (enemy.movementPattern === 'sine') {
@@ -13299,35 +13322,48 @@
 
                 if (enemy.movementPattern === 'crossfire') {
                     // Crossfire: rotate entire enemy node to face nearest opposing faction enemy
+                    // Use center of opposing faction as default target for consistent facing
                     let faceTargetX = null, faceTargetY = null;
                     let nearestFaceDist = Infinity;
+                    let opposingCenterX = 0, opposingCenterY = 0, opposingCount = 0;
                     for (const other of gameState.enemies) {
                         if (other === enemy || other.enemyFaction === enemy.enemyFaction || other.isDisabled) continue;
                         const fdx = other.position.x - enemy.position.x;
                         const fdy = other.position.y - enemy.position.y;
                         const fdist = Math.sqrt(fdx * fdx + fdy * fdy);
+                        opposingCenterX += other.position.x;
+                        opposingCenterY += other.position.y;
+                        opposingCount++;
                         if (fdist < nearestFaceDist) {
                             nearestFaceDist = fdist;
                             faceTargetX = other.position.x;
                             faceTargetY = other.position.y;
                         }
                     }
-                    if (faceTargetX !== null) {
-                        const fdx = faceTargetX - enemy.position.x;
-                        const fdy = faceTargetY - enemy.position.y;
-                        // Ship default faces -Y (downward); rotate Z to face target
-                        const targetAngle = Math.atan2(fdx, fdy) + Math.PI;
-                        // Smooth rotation
-                        if (enemy._crossfireRotZ === undefined) enemy._crossfireRotZ = targetAngle;
-                        let angleDiff = targetAngle - enemy._crossfireRotZ;
-                        // Normalize to -PI..PI
-                        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                        enemy._crossfireRotZ += angleDiff * 0.25;
-                        // Rotate parent TransformNode so mesh + exhausts rotate together
-                        enemy.rotation.z = enemy._crossfireRotZ;
-                        if (enemy.mesh) enemy.mesh.rotation.y = 0;
+                    // If no nearby enemy, face toward the opposing side's center mass
+                    if (faceTargetX === null && opposingCount > 0) {
+                        faceTargetX = opposingCenterX / opposingCount;
+                        faceTargetY = opposingCenterY / opposingCount;
                     }
+                    // Ultimate fallback: face toward the opposing side
+                    if (faceTargetX === null) {
+                        faceTargetX = enemy.enemyFaction === 'A' ? orthoWidth * 0.4 : -orthoWidth * 0.4;
+                        faceTargetY = enemy.position.y;
+                    }
+                    const fdx = faceTargetX - enemy.position.x;
+                    const fdy = faceTargetY - enemy.position.y;
+                    // Ship default faces -Y (downward); rotate Z to face target
+                    const targetAngle = Math.atan2(fdx, fdy) + Math.PI;
+                    // Smooth rotation with faster interpolation
+                    if (enemy._crossfireRotZ === undefined) enemy._crossfireRotZ = targetAngle;
+                    let angleDiff = targetAngle - enemy._crossfireRotZ;
+                    // Normalize to -PI..PI
+                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                    enemy._crossfireRotZ += angleDiff * 0.15;
+                    // Rotate parent TransformNode so mesh + exhausts rotate together
+                    enemy.rotation.z = enemy._crossfireRotZ;
+                    if (enemy.mesh) enemy.mesh.rotation.y = 0;
                 } else {
                     const velocityX = enemy.position.x - prevX;
                     const targetTilt = -velocityX * 8;
@@ -13384,6 +13420,11 @@
                         const dist = Math.sqrt(dx * dx + dy * dy);
 
                         if (dist > 0) {
+                            // Spawn bullets offset toward the target direction
+                            const noseOffsetDist = 0.4;
+                            const noseX = enemy.position.x + (dx / dist) * noseOffsetDist;
+                            const noseY = enemy.position.y + (dy / dist) * noseOffsetDist;
+
                             if (enemy.type === 'heavy') {
                                 const spreadAngles = [-0.2, 0, 0.2];
                                 spreadAngles.forEach(angle => {
@@ -13393,19 +13434,14 @@
                                     const vy = (dy / dist) * 0.08;
                                     const rotatedVx = vx * cos - vy * sin;
                                     const rotatedVy = vx * sin + vy * cos;
-                                    let hbx = enemy.position.x;
-                                    let hby = enemy.position.y - 0.3;
-                                    const bullet = createBullet(false, hbx, hby,
+                                    const bullet = createBullet(false, noseX, noseY,
                                         rotatedVx, rotatedVy, enemy.damage);
                                     bullet.sourceFaction = enemy.enemyFaction || null;
                                     gameState.enemyBullets.push(bullet);
                                 });
                             } else {
                                 const bulletSpeed = enemy.type === 'light' ? 0.12 : 0.1;
-                                let bulletSpawnX = enemy.position.x;
-                                let bulletSpawnY = enemy.position.y;
-                                bulletSpawnY += enemy.enemyFaction === 'B' ? 0.3 : -0.3;
-                                const bullet = createBullet(false, bulletSpawnX, bulletSpawnY,
+                                const bullet = createBullet(false, noseX, noseY,
                                     (dx / dist) * bulletSpeed, (dy / dist) * bulletSpeed, enemy.damage);
                                 bullet.sourceFaction = enemy.enemyFaction || null;
                                 gameState.enemyBullets.push(bullet);
