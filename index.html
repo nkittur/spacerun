@@ -1447,6 +1447,30 @@
             letter-spacing: 2px;
         }
 
+        #loadingScreen .loading-progress {
+            width: 320px;
+            height: 6px;
+            background: #112;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        #loadingScreen .loading-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #2266cc, #4488ff);
+            transition: width 0.15s ease;
+            border-radius: 3px;
+        }
+
+        #loadingScreen .loading-status {
+            color: #668;
+            font-size: 12px;
+            letter-spacing: 1px;
+            min-height: 16px;
+        }
+
         #startBtn {
             padding: 15px 50px;
             background: #4488ff;
@@ -2792,6 +2816,10 @@
         <div id="loadingScreen">
             <div class="loading-spinner"></div>
             <div class="loading-text">Loading...</div>
+            <div class="loading-progress">
+                <div class="loading-progress-bar" id="loadingProgressBar"></div>
+            </div>
+            <div class="loading-status" id="loadingStatus"></div>
         </div>
     </div>
 
@@ -3808,8 +3836,10 @@
             exploreShipScale: parseFloat(localStorage.getItem('exploreShipScale')) || 2.0
         };
 
-        // Loaded model templates
+        // Loaded model templates (ship mesh + texture + scale cached for cloning)
         const modelTemplates = {};
+        // Cached textures for suns and planets (keyed by file path)
+        const textureCache = {};
 
         // Sun types
         const SUN_TYPES = {
@@ -6007,8 +6037,12 @@
             sun.parent = sunNode;
             sun.position.z = 0;
 
-            const texture = new BABYLON.Texture(imagePath, scene);
-            texture.hasAlpha = true;
+            // Use preloaded texture from cache, or load fresh with error handling
+            let texture = textureCache[imagePath];
+            if (!texture) {
+                texture = new BABYLON.Texture(imagePath, scene);
+                texture.hasAlpha = true;
+            }
 
             const mat = new BABYLON.StandardMaterial('sunMat', scene);
             mat.diffuseTexture = texture;
@@ -6063,8 +6097,12 @@
             planet.position.y = y;
             planet.position.z = 0.5;
 
-            const texture = new BABYLON.Texture(imagePath, scene);
-            texture.hasAlpha = true;
+            // Use preloaded texture from cache, or load fresh with error handling
+            let texture = textureCache[imagePath];
+            if (!texture) {
+                texture = new BABYLON.Texture(imagePath, scene);
+                texture.hasAlpha = true;
+            }
 
             const mat = new BABYLON.StandardMaterial('planetMat', scene);
             mat.diffuseTexture = texture;
@@ -9210,24 +9248,175 @@
             return fullyVisible && dist < starbase.dockRadius;
         }
 
-        // Load a ship model for gameplay
+        // ========== ASSET PRELOADING SYSTEM ==========
+        // Preloads all ship models, textures, and celestial textures during startup.
+        // Ships are cached as hidden templates and cloned on demand, eliminating
+        // concurrent network requests during gameplay that caused missing models.
+
+        async function preloadShipTemplate(shipName, colorVariant, faceDirection) {
+            const cacheKey = `${shipName}_${colorVariant}_${faceDirection}`;
+            if (modelTemplates[cacheKey]) return;
+
+            const basePath = `assets/Ultimate Spaceships/${shipName}/`;
+            const result = await BABYLON.SceneLoader.ImportMeshAsync('', basePath + 'glTF/', `${shipName}.gltf`, scene);
+            const rootMesh = result.meshes[0];
+            rootMesh.setEnabled(false);
+            rootMesh.name = `template_${cacheKey}`;
+
+            const texturePath = `${basePath}Textures/${shipName}_${colorVariant}.png`;
+            const texture = await new Promise((resolve, reject) => {
+                const tex = new BABYLON.Texture(texturePath, scene, false, true,
+                    BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+                    () => resolve(tex),
+                    (msg, exc) => reject(exc || new Error(msg))
+                );
+                tex.anisotropicFilteringLevel = 16;
+            });
+
+            result.meshes.forEach(mesh => {
+                if (mesh.material) mesh.material.dispose();
+                const mat = new BABYLON.StandardMaterial(`template_${cacheKey}_mat`, scene);
+                mat.diffuseTexture = texture;
+                mat.emissiveTexture = texture;
+                mat.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                mesh.material = mat;
+            });
+
+            const boundingInfo = rootMesh.getHierarchyBoundingVectors(true);
+            const size = boundingInfo.max.subtract(boundingInfo.min);
+            const maxDim = Math.max(size.x, size.y, size.z, 0.1);
+            const gameScale = Math.min(1.5 / maxDim, 10);
+            rootMesh.scaling = new BABYLON.Vector3(gameScale, gameScale, gameScale);
+
+            rootMesh.rotationQuaternion = null;
+            if (faceDirection === 'up') {
+                rootMesh.rotation.set(-Math.PI / 2, 0, 0);
+            } else {
+                rootMesh.rotation.set(Math.PI / 2, 0, 0);
+            }
+
+            modelTemplates[cacheKey] = { rootMesh, texture, gameScale };
+        }
+
+        function preloadCelestialTexture(path) {
+            return new Promise((resolve) => {
+                if (textureCache[path]) { resolve(); return; }
+                const tex = new BABYLON.Texture(path, scene, false, true,
+                    BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+                    () => { textureCache[path] = tex; resolve(); },
+                    () => { console.warn('Failed to preload texture:', path); resolve(); }
+                );
+                tex.hasAlpha = true;
+            });
+        }
+
+        async function preloadAllAssets(onProgress) {
+            // Collect all unique ship model+color combos
+            const shipVariants = new Map();
+
+            // Player ship (faces up)
+            shipVariants.set(`${settings.playerShip}_${settings.playerColor}_up`,
+                { model: settings.playerShip, color: settings.playerColor, direction: 'up' });
+
+            // Enemy types (face down)
+            [
+                { model: 'Dispatcher', color: 'Purple' },
+                { model: 'Imperial', color: 'Orange' },
+                { model: 'Executioner', color: 'Red' },
+                { model: settings.enemyShip, color: settings.enemyColor }
+            ].forEach(v => {
+                shipVariants.set(`${v.model}_${v.color}_down`,
+                    { model: v.model, color: v.color, direction: 'down' });
+            });
+
+            // Traffic types (exploration + system)
+            const allTrafficTypes = [...TRAFFIC_TYPES, ...SYSTEM_TRAFFIC_TYPES];
+            allTrafficTypes.forEach(t => {
+                shipVariants.set(`${t.model}_${t.color}_down`,
+                    { model: t.model, color: t.color, direction: 'down' });
+            });
+
+            // Collect sun textures
+            const celestialTextures = [];
+            Object.values(SUN_TYPES).forEach(sunType => {
+                for (let v = 1; v <= 5; v++) {
+                    celestialTextures.push(
+                        `assets/Medium Planets 256x256/Suns/${sunType.folder}/${sunType.prefix}_${v.toString().padStart(2, '0')}-256x256.png`
+                    );
+                }
+            });
+
+            // Collect planet textures
+            Object.values(PLANET_TYPES).forEach(pt => {
+                for (let v = 1; v <= 5; v++) {
+                    celestialTextures.push(
+                        `assets/Medium Planets 256x256/${pt.category}/${pt.folder}/${pt.prefix}_${v.toString().padStart(2, '0')}-256x256.png`
+                    );
+                }
+            });
+
+            const totalSteps = shipVariants.size + celestialTextures.length;
+            let completed = 0;
+
+            // Preload ship models (sequentially to avoid overwhelming the browser)
+            for (const [key, variant] of shipVariants) {
+                onProgress(completed, totalSteps, `${variant.model} (${variant.color})`);
+                try {
+                    await preloadShipTemplate(variant.model, variant.color, variant.direction);
+                } catch (e) {
+                    console.error(`Failed to preload ship ${key}:`, e);
+                }
+                completed++;
+            }
+
+            // Preload celestial textures (batch in groups of 4 for speed)
+            for (let i = 0; i < celestialTextures.length; i += 4) {
+                const batch = celestialTextures.slice(i, i + 4);
+                const name = batch[0].split('/').pop().replace('-256x256.png', '');
+                onProgress(completed, totalSteps, name);
+                await Promise.all(batch.map(path => preloadCelestialTexture(path)));
+                completed += batch.length;
+            }
+
+            onProgress(totalSteps, totalSteps, 'Ready!');
+        }
+
+        // Load a ship model - clones from preloaded template if available
         async function loadShipModel(shipName, colorVariant, targetScene, faceDirection = 'up') {
+            const cacheKey = `${shipName}_${colorVariant}_${faceDirection}`;
+
+            // Clone from preloaded template (fast path - no network requests)
+            if (modelTemplates[cacheKey]) {
+                const template = modelTemplates[cacheKey];
+                const clone = template.rootMesh.clone(`${shipName}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, null);
+                if (clone) {
+                    // Clone materials so each instance can be tinted independently
+                    const allMeshes = clone.getChildMeshes(false);
+                    allMeshes.push(clone); // Include root in case it has a material
+                    const uid = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+                    allMeshes.forEach(mesh => {
+                        if (mesh.material) {
+                            mesh.material = mesh.material.clone(`${mesh.material.name}_${uid}`);
+                        }
+                    });
+                    clone.setEnabled(true);
+                    return clone;
+                }
+            }
+
+            // Fallback: load fresh (only if preloading missed this variant)
             const basePath = `assets/Ultimate Spaceships/${shipName}/`;
 
             try {
                 const result = await BABYLON.SceneLoader.ImportMeshAsync('', basePath + 'glTF/', `${shipName}.gltf`, targetScene);
                 const rootMesh = result.meshes[0];
-
-                // Hide mesh immediately to prevent flash at origin while texture loads
                 rootMesh.setEnabled(false);
 
                 const texturePath = `${basePath}Textures/${shipName}_${colorVariant}.png`;
-
-                // Wait for texture to fully load before applying
                 const texture = await new Promise((resolve, reject) => {
                     const tex = new BABYLON.Texture(texturePath, targetScene, false, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-                        () => resolve(tex),  // onLoad callback
-                        (msg, exc) => reject(exc || new Error(msg))  // onError callback
+                        () => resolve(tex),
+                        (msg, exc) => reject(exc || new Error(msg))
                     );
                     tex.anisotropicFilteringLevel = 16;
                 });
@@ -9243,23 +9432,25 @@
 
                 const boundingInfo = rootMesh.getHierarchyBoundingVectors(true);
                 const size = boundingInfo.max.subtract(boundingInfo.min);
-                // Ensure maxDim has a minimum value to prevent division by zero or extreme scaling
                 const maxDim = Math.max(size.x, size.y, size.z, 0.1);
-                // Cap gameScale to prevent ships from becoming giant overlays
                 const gameScale = Math.min(1.5 / maxDim, 10);
                 rootMesh.scaling = new BABYLON.Vector3(gameScale, gameScale, gameScale);
 
+                rootMesh.rotationQuaternion = null;
                 if (faceDirection === 'up') {
-                    rootMesh.rotationQuaternion = null;
                     rootMesh.rotation.set(-Math.PI / 2, 0, 0);
                 } else {
-                    rootMesh.rotationQuaternion = null;
                     rootMesh.rotation.set(Math.PI / 2, 0, 0);
                 }
 
-                // Now safe to show -- mesh is properly scaled and rotated
-                rootMesh.setEnabled(true);
+                // Cache for future clones
+                const templateClone = rootMesh.clone(`template_${cacheKey}`, null);
+                if (templateClone) {
+                    templateClone.setEnabled(false);
+                    modelTemplates[cacheKey] = { rootMesh: templateClone, texture, gameScale };
+                }
 
+                rootMesh.setEnabled(true);
                 return rootMesh;
             } catch (e) {
                 console.error(`Failed to load ship ${shipName}:`, e);
@@ -11512,8 +11703,12 @@
             const sun = BABYLON.MeshBuilder.CreatePlane('goalSun', { size: sunSize }, scene);
             sun.parent = goalNode;
             sun.position.z = 0;
-            const texture = new BABYLON.Texture(imagePath, scene);
-            texture.hasAlpha = true;
+            // Use preloaded texture from cache, or load fresh
+            let texture = textureCache[imagePath];
+            if (!texture) {
+                texture = new BABYLON.Texture(imagePath, scene);
+                texture.hasAlpha = true;
+            }
             const mat = new BABYLON.StandardMaterial('goalSunMat', scene);
             mat.diffuseTexture = texture;
             mat.emissiveTexture = texture;
@@ -14561,12 +14756,28 @@
             // Show loading screen
             titleButtons.style.display = 'none';
             loadingScreen.style.display = 'flex';
+            const progressBar = document.getElementById('loadingProgressBar');
+            const statusText = document.getElementById('loadingStatus');
+            const loadingText = document.querySelector('#loadingScreen .loading-text');
 
             // Small delay to show loading screen before heavy work
             await new Promise(resolve => setTimeout(resolve, 50));
 
             // Create main scene first
+            if (loadingText) loadingText.textContent = 'Initializing...';
             createMainScene();
+
+            // Preload all ship models, textures, and celestial assets
+            if (loadingText) loadingText.textContent = 'Loading assets...';
+            await preloadAllAssets((completed, total, assetName) => {
+                const pct = Math.round((completed / total) * 100);
+                if (progressBar) progressBar.style.width = pct + '%';
+                if (statusText) statusText.textContent = assetName || '';
+            });
+
+            // Create player ship (will use preloaded template)
+            if (loadingText) loadingText.textContent = 'Preparing ship...';
+            if (progressBar) progressBar.style.width = '100%';
             await createPlayerShip();
             initResources();
 
@@ -15286,11 +15497,25 @@
             const startScreen = document.getElementById('startScreen');
             const loadingScreen = document.getElementById('loadingScreen');
             const titleButtons = document.getElementById('titleButtons');
+            const arenaProgressBar = document.getElementById('loadingProgressBar');
+            const arenaStatusText = document.getElementById('loadingStatus');
+            const arenaLoadingText = document.querySelector('#loadingScreen .loading-text');
             titleButtons.style.display = 'none';
             loadingScreen.style.display = 'flex';
 
-            // Create scene
+            // Create scene and preload all assets
+            if (arenaLoadingText) arenaLoadingText.textContent = 'Initializing...';
             createMainScene();
+
+            if (arenaLoadingText) arenaLoadingText.textContent = 'Loading assets...';
+            await preloadAllAssets((completed, total, assetName) => {
+                const pct = Math.round((completed / total) * 100);
+                if (arenaProgressBar) arenaProgressBar.style.width = pct + '%';
+                if (arenaStatusText) arenaStatusText.textContent = assetName || '';
+            });
+
+            if (arenaLoadingText) arenaLoadingText.textContent = 'Preparing ship...';
+            if (arenaProgressBar) arenaProgressBar.style.width = '100%';
             await createPlayerShip();
 
             // Hide start screen
