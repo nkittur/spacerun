@@ -11089,7 +11089,10 @@
                     enemy.dispose();
                 }
             } catch(e) {
+                // Re-push the type back so it can be retried, keeping types array
+                // in sync with enemiesSpawned to prevent fallback to spawnEnemy()
                 gameState.enemiesSpawned--;
+                gameState._encounterEnemyTypes.unshift(entry);
             }
         }
 
@@ -11136,6 +11139,8 @@
             for (const ship of gameState.explorationTraffic) {
                 if (!ship.alive || !FACTIONS[ship.faction] || !FACTIONS[ship.faction].hostile) continue;
                 if (ship.behavior !== 'traveling') continue;
+                // Don't trigger detection until the ship's mesh has loaded (prevents invisible combat)
+                if (!ship.mesh) continue;
 
                 const dx = playerShip.position.x - ship.currentX;
                 const dy = playerShip.position.y - ship.currentY;
@@ -11896,12 +11901,21 @@
 
             // Spawn a couple pirates to create early tension
             const pirateCount = 1 + Math.floor(Math.random() * 2); // 1-2
+            const playerStartX = 0, playerStartY = -7;
+            const minPirateDistFromPlayer = 15; // Must spawn outside this radius
             for (let i = 0; i < pirateCount; i++) {
                 const type = pirateTypes[Math.floor(Math.random() * pirateTypes.length)];
-                const ship = generateTrafficShip(goalY, type);
-                ship.progress = Math.random() * 0.5;
-                ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
-                ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+                let ship, attempts = 0;
+                do {
+                    ship = generateTrafficShip(goalY, type);
+                    ship.progress = Math.random() * 0.5;
+                    ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
+                    ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+                    attempts++;
+                } while (
+                    attempts < 20 &&
+                    Math.sqrt((ship.currentX - playerStartX) ** 2 + (ship.currentY - playerStartY) ** 2) < minPirateDistFromPlayer
+                );
                 gameState.explorationTraffic.push(ship);
                 createTrafficVisual(ship);
             }
@@ -12897,6 +12911,7 @@
             gameState.currentEncounter = null;
             gameState.enemiesInWave = 0;
             gameState.enemiesSpawned = 0;
+            gameState.explorationGracePeriod = 3000; // 3s immunity from encounter detection
 
             // Check if exploration is already set up (returning from encounter/station)
             const hasActiveGoal = gameState.explorationGoal && gameState.explorationGoal.node;
@@ -14746,6 +14761,7 @@
                         gameState.zoomLevel = 4;
                         gameState.encounterTransition = null;
                         gameState.explorationMode = true;
+                        gameState.explorationGracePeriod = 2000; // 2s immunity after returning from combat
 
                         // Scale player ship back up for exploration visibility
                         if (playerShipMesh) {
@@ -14807,11 +14823,18 @@
                         }
                     });
 
+                    // Tick down grace period (immunity from encounter detection after entering exploration)
+                    if (gameState.explorationGracePeriod > 0) {
+                        gameState.explorationGracePeriod -= deltaTime;
+                    }
+
                     // Check if player entered a hostile detection zone or conflict zone
-                    const detection = checkEncounterDetection();
-                    if (detection) {
-                        clearEdgeIndicators();
-                        startCombatEncounter(detection.encounter, detection.pairedEncounter, detection.isBattle);
+                    if (gameState.explorationGracePeriod <= 0) {
+                        const detection = checkEncounterDetection();
+                        if (detection) {
+                            clearEdgeIndicators();
+                            startCombatEncounter(detection.encounter, detection.pairedEncounter, detection.isBattle);
+                        }
                     }
 
                     // Check if player reached the goal system
@@ -14859,14 +14882,14 @@
 
                 gameState.spawnTimer += deltaTime;
                 if (gameState.spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
-                    // Use encounter enemy types if in an encounter, fallback to regular spawn
+                    // Use encounter enemy types if in an encounter
                     if (gameState.encounterTransition === 'combat' && gameState._encounterEnemyTypes) {
                         if (gameState._encounterEnemyTypes.length > 0) {
                             spawnEncounterEnemy();
-                        } else {
-                            // Fallback: types array exhausted but enemies remain - use regular spawn
-                            spawnEnemy();
                         }
+                        // If types exhausted but count remains, wait for retry via
+                        // re-queued types from failed spawns rather than falling back
+                        // to spawnEnemy() which would inject regular wave enemies
                     } else {
                         spawnEnemy();
                     }
