@@ -1447,6 +1447,30 @@
             letter-spacing: 2px;
         }
 
+        #loadingScreen .loading-progress {
+            width: 320px;
+            height: 6px;
+            background: #112;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        #loadingScreen .loading-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #2266cc, #4488ff);
+            transition: width 0.15s ease;
+            border-radius: 3px;
+        }
+
+        #loadingScreen .loading-status {
+            color: #668;
+            font-size: 12px;
+            letter-spacing: 1px;
+            min-height: 16px;
+        }
+
         #startBtn {
             padding: 15px 50px;
             background: #4488ff;
@@ -2792,6 +2816,10 @@
         <div id="loadingScreen">
             <div class="loading-spinner"></div>
             <div class="loading-text">Loading...</div>
+            <div class="loading-progress">
+                <div class="loading-progress-bar" id="loadingProgressBar"></div>
+            </div>
+            <div class="loading-status" id="loadingStatus"></div>
         </div>
     </div>
 
@@ -3283,6 +3311,11 @@
     </div><!-- end gameContainer -->
 
     <script>
+        // Register service worker for cross-session asset caching
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
+
         // Ship model names
         const shipNames = ['Bob', 'Challenger', 'Dispatcher', 'Executioner', 'Imperial',
                           'Insurgent', 'Omen', 'Pancake', 'Spitfire', 'Striker', 'Zenith'];
@@ -3808,8 +3841,12 @@
             exploreShipScale: parseFloat(localStorage.getItem('exploreShipScale')) || 2.0
         };
 
-        // Loaded model templates
+        // Loaded model templates (ship mesh + texture + scale cached for cloning)
         const modelTemplates = {};
+        // In-flight load promises keyed by cacheKey - prevents duplicate concurrent loads
+        const modelLoadingPromises = {};
+        // Cached textures for suns and planets (keyed by file path)
+        const textureCache = {};
 
         // Sun types
         const SUN_TYPES = {
@@ -6007,8 +6044,13 @@
             sun.parent = sunNode;
             sun.position.z = 0;
 
-            const texture = new BABYLON.Texture(imagePath, scene);
-            texture.hasAlpha = true;
+            // Use preloaded texture from cache, or load fresh with error handling
+            let texture = textureCache[imagePath];
+            if (!texture) {
+                texture = new BABYLON.Texture(imagePath, scene);
+                texture.hasAlpha = true;
+                textureCache[imagePath] = texture;
+            }
 
             const mat = new BABYLON.StandardMaterial('sunMat', scene);
             mat.diffuseTexture = texture;
@@ -6063,8 +6105,13 @@
             planet.position.y = y;
             planet.position.z = 0.5;
 
-            const texture = new BABYLON.Texture(imagePath, scene);
-            texture.hasAlpha = true;
+            // Use preloaded texture from cache, or load fresh with error handling
+            let texture = textureCache[imagePath];
+            if (!texture) {
+                texture = new BABYLON.Texture(imagePath, scene);
+                texture.hasAlpha = true;
+                textureCache[imagePath] = texture;
+            }
 
             const mat = new BABYLON.StandardMaterial('planetMat', scene);
             mat.diffuseTexture = texture;
@@ -9210,66 +9257,104 @@
             return fullyVisible && dist < starbase.dockRadius;
         }
 
-        // Load a ship model for gameplay
-        async function loadShipModel(shipName, colorVariant, targetScene, faceDirection = 'up') {
-            const basePath = `assets/Ultimate Spaceships/${shipName}/`;
+        // ========== LAZY ASSET CACHE ==========
+        // Ships are loaded once on first use, cached as hidden templates, and
+        // cloned instantly for all subsequent instances.  A dedup lock prevents
+        // concurrent requests for the same model from racing the network.
 
-            try {
-                const result = await BABYLON.SceneLoader.ImportMeshAsync('', basePath + 'glTF/', `${shipName}.gltf`, targetScene);
-                const rootMesh = result.meshes[0];
-
-                // Hide mesh immediately to prevent flash at origin while texture loads
-                rootMesh.setEnabled(false);
-
-                const texturePath = `${basePath}Textures/${shipName}_${colorVariant}.png`;
-
-                // Wait for texture to fully load before applying
-                const texture = await new Promise((resolve, reject) => {
-                    const tex = new BABYLON.Texture(texturePath, targetScene, false, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-                        () => resolve(tex),  // onLoad callback
-                        (msg, exc) => reject(exc || new Error(msg))  // onError callback
-                    );
-                    tex.anisotropicFilteringLevel = 16;
-                });
-
-                result.meshes.forEach(mesh => {
-                    if (mesh.material) mesh.material.dispose();
-                    const mat = new BABYLON.StandardMaterial(`${shipName}${colorVariant}Mat`, targetScene);
-                    mat.diffuseTexture = texture;
-                    mat.emissiveTexture = texture;
-                    mat.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-                    mesh.material = mat;
-                });
-
-                const boundingInfo = rootMesh.getHierarchyBoundingVectors(true);
-                const size = boundingInfo.max.subtract(boundingInfo.min);
-                // Ensure maxDim has a minimum value to prevent division by zero or extreme scaling
-                const maxDim = Math.max(size.x, size.y, size.z, 0.1);
-                // Cap gameScale to prevent ships from becoming giant overlays
-                const gameScale = Math.min(1.5 / maxDim, 10);
-                rootMesh.scaling = new BABYLON.Vector3(gameScale, gameScale, gameScale);
-
-                if (faceDirection === 'up') {
-                    rootMesh.rotationQuaternion = null;
-                    rootMesh.rotation.set(-Math.PI / 2, 0, 0);
-                } else {
-                    rootMesh.rotationQuaternion = null;
-                    rootMesh.rotation.set(Math.PI / 2, 0, 0);
+        function cloneShipTemplate(template, shipName) {
+            const clone = template.rootMesh.clone(
+                `${shipName}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, null);
+            if (!clone) return null;
+            const allMeshes = clone.getChildMeshes(false);
+            allMeshes.push(clone);
+            const uid = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+            allMeshes.forEach(mesh => {
+                if (mesh.material) {
+                    mesh.material = mesh.material.clone(`${mesh.material.name}_${uid}`);
                 }
+            });
+            clone.setEnabled(true);
+            return clone;
+        }
 
-                // Now safe to show -- mesh is properly scaled and rotated
-                rootMesh.setEnabled(true);
+        // Load a ship model - first call loads from network & caches; subsequent
+        // calls clone from the cache.  Concurrent callers for the same variant
+        // share a single in-flight promise so only one network request is made.
+        async function loadShipModel(shipName, colorVariant, targetScene, faceDirection = 'up') {
+            const cacheKey = `${shipName}_${colorVariant}_${faceDirection}`;
 
-                return rootMesh;
-            } catch (e) {
-                console.error(`Failed to load ship ${shipName}:`, e);
-                const placeholder = BABYLON.MeshBuilder.CreateBox('placeholder', {width: 0.8, height: 1.2, depth: 0.3}, targetScene);
-                const mat = new BABYLON.StandardMaterial('placeholderMat', targetScene);
-                mat.diffuseColor = colorVariant === 'Blue' ? new BABYLON.Color3(0.2, 0.4, 1) : new BABYLON.Color3(1, 0.2, 0.2);
-                mat.emissiveColor = mat.diffuseColor.scale(0.3);
-                placeholder.material = mat;
-                return placeholder;
+            // Fast path: clone from cached template
+            if (modelTemplates[cacheKey]) {
+                return cloneShipTemplate(modelTemplates[cacheKey], shipName);
             }
+
+            // Dedup: if another caller is already loading this variant, wait for it
+            if (!modelLoadingPromises[cacheKey]) {
+                modelLoadingPromises[cacheKey] = (async () => {
+                    const basePath = `assets/Ultimate Spaceships/${shipName}/`;
+                    try {
+                        const result = await BABYLON.SceneLoader.ImportMeshAsync(
+                            '', basePath + 'glTF/', `${shipName}.gltf`, targetScene);
+                        const rootMesh = result.meshes[0];
+                        rootMesh.setEnabled(false);
+                        rootMesh.name = `template_${cacheKey}`;
+
+                        const texturePath = `${basePath}Textures/${shipName}_${colorVariant}.png`;
+                        const texture = await new Promise((resolve, reject) => {
+                            const tex = new BABYLON.Texture(texturePath, targetScene, false, true,
+                                BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+                                () => resolve(tex),
+                                (msg, exc) => reject(exc || new Error(msg))
+                            );
+                            tex.anisotropicFilteringLevel = 16;
+                        });
+
+                        result.meshes.forEach(mesh => {
+                            if (mesh.material) mesh.material.dispose();
+                            const mat = new BABYLON.StandardMaterial(`template_${cacheKey}_mat`, targetScene);
+                            mat.diffuseTexture = texture;
+                            mat.emissiveTexture = texture;
+                            mat.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                            mesh.material = mat;
+                        });
+
+                        const boundingInfo = rootMesh.getHierarchyBoundingVectors(true);
+                        const size = boundingInfo.max.subtract(boundingInfo.min);
+                        const maxDim = Math.max(size.x, size.y, size.z, 0.1);
+                        const gameScale = Math.min(1.5 / maxDim, 10);
+                        rootMesh.scaling = new BABYLON.Vector3(gameScale, gameScale, gameScale);
+
+                        rootMesh.rotationQuaternion = null;
+                        if (faceDirection === 'up') {
+                            rootMesh.rotation.set(-Math.PI / 2, 0, 0);
+                        } else {
+                            rootMesh.rotation.set(Math.PI / 2, 0, 0);
+                        }
+
+                        modelTemplates[cacheKey] = { rootMesh, texture, gameScale };
+                    } catch (e) {
+                        console.error(`Failed to load ship ${shipName}:`, e);
+                    } finally {
+                        delete modelLoadingPromises[cacheKey];
+                    }
+                })();
+            }
+
+            await modelLoadingPromises[cacheKey];
+
+            // Clone from cache if load succeeded
+            if (modelTemplates[cacheKey]) {
+                return cloneShipTemplate(modelTemplates[cacheKey], shipName);
+            }
+
+            // Fallback placeholder
+            const placeholder = BABYLON.MeshBuilder.CreateBox('placeholder', {width: 0.8, height: 1.2, depth: 0.3}, targetScene);
+            const mat = new BABYLON.StandardMaterial('placeholderMat', targetScene);
+            mat.diffuseColor = colorVariant === 'Blue' ? new BABYLON.Color3(0.2, 0.4, 1) : new BABYLON.Color3(1, 0.2, 0.2);
+            mat.emissiveColor = mat.diffuseColor.scale(0.3);
+            placeholder.material = mat;
+            return placeholder;
         }
 
         // Create player ship
@@ -11089,7 +11174,10 @@
                     enemy.dispose();
                 }
             } catch(e) {
+                // Re-push the type back so it can be retried, keeping types array
+                // in sync with enemiesSpawned to prevent fallback to spawnEnemy()
                 gameState.enemiesSpawned--;
+                gameState._encounterEnemyTypes.unshift(entry);
             }
         }
 
@@ -11136,6 +11224,8 @@
             for (const ship of gameState.explorationTraffic) {
                 if (!ship.alive || !FACTIONS[ship.faction] || !FACTIONS[ship.faction].hostile) continue;
                 if (ship.behavior !== 'traveling') continue;
+                // Don't trigger detection until the ship's mesh has loaded (prevents invisible combat)
+                if (!ship.mesh) continue;
 
                 const dx = playerShip.position.x - ship.currentX;
                 const dy = playerShip.position.y - ship.currentY;
@@ -11507,8 +11597,13 @@
             const sun = BABYLON.MeshBuilder.CreatePlane('goalSun', { size: sunSize }, scene);
             sun.parent = goalNode;
             sun.position.z = 0;
-            const texture = new BABYLON.Texture(imagePath, scene);
-            texture.hasAlpha = true;
+            // Use preloaded texture from cache, or load fresh
+            let texture = textureCache[imagePath];
+            if (!texture) {
+                texture = new BABYLON.Texture(imagePath, scene);
+                texture.hasAlpha = true;
+                textureCache[imagePath] = texture;
+            }
             const mat = new BABYLON.StandardMaterial('goalSunMat', scene);
             mat.diffuseTexture = texture;
             mat.emissiveTexture = texture;
@@ -11896,12 +11991,21 @@
 
             // Spawn a couple pirates to create early tension
             const pirateCount = 1 + Math.floor(Math.random() * 2); // 1-2
+            const playerStartX = 0, playerStartY = -7;
+            const minPirateDistFromPlayer = 15; // Must spawn outside this radius
             for (let i = 0; i < pirateCount; i++) {
                 const type = pirateTypes[Math.floor(Math.random() * pirateTypes.length)];
-                const ship = generateTrafficShip(goalY, type);
-                ship.progress = Math.random() * 0.5;
-                ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
-                ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+                let ship, attempts = 0;
+                do {
+                    ship = generateTrafficShip(goalY, type);
+                    ship.progress = Math.random() * 0.5;
+                    ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
+                    ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+                    attempts++;
+                } while (
+                    attempts < 20 &&
+                    Math.sqrt((ship.currentX - playerStartX) ** 2 + (ship.currentY - playerStartY) ** 2) < minPirateDistFromPlayer
+                );
                 gameState.explorationTraffic.push(ship);
                 createTrafficVisual(ship);
             }
@@ -12897,6 +13001,7 @@
             gameState.currentEncounter = null;
             gameState.enemiesInWave = 0;
             gameState.enemiesSpawned = 0;
+            gameState.explorationGracePeriod = 3000; // 3s immunity from encounter detection
 
             // Check if exploration is already set up (returning from encounter/station)
             const hasActiveGoal = gameState.explorationGoal && gameState.explorationGoal.node;
@@ -14546,14 +14651,26 @@
             // Show loading screen
             titleButtons.style.display = 'none';
             loadingScreen.style.display = 'flex';
+            const progressBar = document.getElementById('loadingProgressBar');
+            const statusText = document.getElementById('loadingStatus');
+            const loadingText = document.querySelector('#loadingScreen .loading-text');
 
             // Small delay to show loading screen before heavy work
             await new Promise(resolve => setTimeout(resolve, 50));
 
-            // Create main scene first
+            // Create main scene
+            if (loadingText) loadingText.textContent = 'Initializing engine...';
+            if (progressBar) progressBar.style.width = '33%';
             createMainScene();
+
+            // Load player ship (other ships load lazily & cache on first use)
+            if (loadingText) loadingText.textContent = 'Loading player ship...';
+            if (statusText) statusText.textContent = settings.playerShip;
+            if (progressBar) progressBar.style.width = '66%';
             await createPlayerShip();
             initResources();
+            if (progressBar) progressBar.style.width = '100%';
+            if (statusText) statusText.textContent = '';
 
             // Load complete, hide start screen
             startScreen.style.display = 'none';
@@ -14746,6 +14863,7 @@
                         gameState.zoomLevel = 4;
                         gameState.encounterTransition = null;
                         gameState.explorationMode = true;
+                        gameState.explorationGracePeriod = 2000; // 2s immunity after returning from combat
 
                         // Scale player ship back up for exploration visibility
                         if (playerShipMesh) {
@@ -14807,11 +14925,18 @@
                         }
                     });
 
+                    // Tick down grace period (immunity from encounter detection after entering exploration)
+                    if (gameState.explorationGracePeriod > 0) {
+                        gameState.explorationGracePeriod -= deltaTime;
+                    }
+
                     // Check if player entered a hostile detection zone or conflict zone
-                    const detection = checkEncounterDetection();
-                    if (detection) {
-                        clearEdgeIndicators();
-                        startCombatEncounter(detection.encounter, detection.pairedEncounter, detection.isBattle);
+                    if (gameState.explorationGracePeriod <= 0) {
+                        const detection = checkEncounterDetection();
+                        if (detection) {
+                            clearEdgeIndicators();
+                            startCombatEncounter(detection.encounter, detection.pairedEncounter, detection.isBattle);
+                        }
                     }
 
                     // Check if player reached the goal system
@@ -14859,14 +14984,14 @@
 
                 gameState.spawnTimer += deltaTime;
                 if (gameState.spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
-                    // Use encounter enemy types if in an encounter, fallback to regular spawn
+                    // Use encounter enemy types if in an encounter
                     if (gameState.encounterTransition === 'combat' && gameState._encounterEnemyTypes) {
                         if (gameState._encounterEnemyTypes.length > 0) {
                             spawnEncounterEnemy();
-                        } else {
-                            // Fallback: types array exhausted but enemies remain - use regular spawn
-                            spawnEnemy();
                         }
+                        // If types exhausted but count remains, wait for retry via
+                        // re-queued types from failed spawns rather than falling back
+                        // to spawnEnemy() which would inject regular wave enemies
                     } else {
                         spawnEnemy();
                     }
@@ -15263,12 +15388,20 @@
             const startScreen = document.getElementById('startScreen');
             const loadingScreen = document.getElementById('loadingScreen');
             const titleButtons = document.getElementById('titleButtons');
+            const arenaLoadingText = document.querySelector('#loadingScreen .loading-text');
+            const arenaProgressBar = document.getElementById('loadingProgressBar');
             titleButtons.style.display = 'none';
             loadingScreen.style.display = 'flex';
 
-            // Create scene
+            // Create scene + player ship (other ships load lazily)
+            if (arenaLoadingText) arenaLoadingText.textContent = 'Initializing engine...';
+            if (arenaProgressBar) arenaProgressBar.style.width = '33%';
             createMainScene();
+
+            if (arenaLoadingText) arenaLoadingText.textContent = 'Loading player ship...';
+            if (arenaProgressBar) arenaProgressBar.style.width = '66%';
             await createPlayerShip();
+            if (arenaProgressBar) arenaProgressBar.style.width = '100%';
 
             // Hide start screen
             startScreen.style.display = 'none';
