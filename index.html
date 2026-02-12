@@ -3311,6 +3311,11 @@
     </div><!-- end gameContainer -->
 
     <script>
+        // Register service worker for cross-session asset caching
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
+
         // Ship model names
         const shipNames = ['Bob', 'Challenger', 'Dispatcher', 'Executioner', 'Imperial',
                           'Insurgent', 'Omen', 'Pancake', 'Spitfire', 'Striker', 'Zenith'];
