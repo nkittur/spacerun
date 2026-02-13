@@ -9938,17 +9938,16 @@
                 const maxY = -eOrthoH + (eOrthoH * 2 * settings.maxHeight);
                 playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
             } else {
-                // Scale bounds with zoom level for combat zone (zoomed-in view)
-                const czActive = gameState.combatZone && gameState.combatZone.active;
-                const boundOH = czActive ? orthoHeight * gameState.zoomLevel : orthoHeight;
-                const boundOW = czActive ? boundOH * (gameWidth / gameHeight) : orthoWidth;
+                // Use effective ortho for bounds (accounts for combat zone zoom)
+                const effectiveBoundOH = orthoHeight * gameState.zoomLevel;
+                const effectiveBoundOW = effectiveBoundOH * (gameWidth / gameHeight);
 
                 // Allow wider movement when gates are showing so player can commit to a side
-                const maxX = gameState.showingGates ? boundOW + 2 : boundOW - 0.5;
+                const maxX = gameState.showingGates ? effectiveBoundOW + 2 : effectiveBoundOW - 1;
                 playerShip.targetX = Math.max(-maxX, Math.min(maxX, playerShip.targetX));
 
-                const minY = -boundOH + 0.5;
-                const maxY = -boundOH + (boundOH * 2 * settings.maxHeight);
+                const minY = -effectiveBoundOH + 1;
+                const maxY = -effectiveBoundOH + (effectiveBoundOH * 2 * settings.maxHeight);
                 playerShip.targetY = Math.max(minY, Math.min(maxY, playerShip.targetY));
             }
 
@@ -11347,14 +11346,13 @@
             gameState.encounterTransition = 'zooming_in';
             gameState.encounterTimer = 0;
             gameState.encounterEscapeTimer = 0;
-            gameState.zoomTarget = 1 / 3; // Zoom in 3x tighter than normal combat
+            gameState.zoomTarget = 1.5; // Slightly more zoomed out than normal combat
             gameState.disabledShips = gameState.disabledShips || [];
 
             // NEW: Combat zone state
             gameState.combatZone = {
                 active: true,
                 scrollDistance: 0,
-                zoom: 1 / 3,        // Store combat zoom for transition math
                 totalScrollDistance: LEVEL_ZONE_HEIGHTS.reward * 2.0, // 4x longer than original
                 ships: [],           // Free-flying combat ships
                 planets: [],         // Background decoration planets
@@ -11610,13 +11608,8 @@
             const cz = gameState.combatZone;
             if (!cz) return;
 
-            // Effective visible dimensions at combat zone zoom
-            const czZoom = cz.zoom || 1;
-            const eOH = orthoHeight * czZoom;
-            const eOW = eOH * (gameWidth / gameHeight);
-
             // Spawn background planets for visual scroll reference
-            spawnCombatZonePlanets(cz, eOH, eOW);
+            spawnCombatZonePlanets(cz);
 
             // Determine factions involved
             const factionA = encounter.faction || 'pirates';
@@ -11627,9 +11620,9 @@
             shipsA.forEach((type, idx) => {
                 const shipConfig = COMBAT_ZONE_SHIP_TYPES[type] || COMBAT_ZONE_SHIP_TYPES.basic;
                 const levelHealthMult = 1 + (gameState.level - 1) * 0.08;
-                // Spread ships above visible area, scaled for zoom
-                const spawnY = eOH + 1 + idx * 1.5 + Math.random() * 1.5;
-                const spawnX = (Math.random() - 0.5) * eOW * 1.5;
+                // Spread ships across the zone height, above visible area
+                const spawnY = orthoHeight + 3 + idx * 4 + Math.random() * 3;
+                const spawnX = (Math.random() - 0.5) * orthoWidth * 1.5;
 
                 const ship = {
                     id: 'czs_' + Math.random().toString(36).substr(2, 9),
@@ -11654,7 +11647,7 @@
                     engineGlows: [],
                     target: null,          // Current combat target (another ship object or 'player')
                     targetSwitchTimer: 0,  // Cooldown before switching targets
-                    engageDistance: (1.5 + Math.random() * 1.5) * czZoom, // Scale engage dist with zoom
+                    engageDistance: 4 + Math.random() * 3,   // Preferred combat distance
                     strafeAngle: Math.random() * Math.PI * 2, // Orbital strafing offset
                     strafeDir: Math.random() < 0.5 ? 1 : -1,
                     baseScale: shipConfig.scale,
@@ -11669,8 +11662,9 @@
                 shipsB.forEach((type, idx) => {
                     const shipConfig = COMBAT_ZONE_SHIP_TYPES[type] || COMBAT_ZONE_SHIP_TYPES.basic;
                     const levelHealthMult = 1 + (gameState.level - 1) * 0.08;
-                    const spawnY = eOH + 1 + idx * 1.5 + Math.random() * 1.5;
-                    const spawnX = (Math.random() - 0.5) * eOW * 1.5;
+                    const spawnY = orthoHeight + 3 + idx * 4 + Math.random() * 3;
+                    // B faction spawns on opposite side
+                    const spawnX = (Math.random() - 0.5) * orthoWidth * 1.5;
 
                     const ship = {
                         id: 'czs_' + Math.random().toString(36).substr(2, 9),
@@ -11695,7 +11689,7 @@
                         engineGlows: [],
                         target: null,
                         targetSwitchTimer: 0,
-                        engageDistance: (1.5 + Math.random() * 1.5) * czZoom,
+                        engageDistance: 4 + Math.random() * 3,
                         strafeAngle: Math.random() * Math.PI * 2,
                         strafeDir: Math.random() < 0.5 ? 1 : -1,
                         baseScale: shipConfig.scale,
@@ -11707,13 +11701,13 @@
         }
 
         // Spawn decorative background planets in the combat zone for scroll reference
-        function spawnCombatZonePlanets(cz, eOH, eOW) {
+        function spawnCombatZonePlanets(cz) {
             const totalDist = cz.totalScrollDistance;
-            // Place 4-6 planets spread throughout the zone
-            const planetCount = 4 + Math.floor(Math.random() * 3);
+            // Place 3-5 planets spread throughout the zone
+            const planetCount = 3 + Math.floor(Math.random() * 3);
             for (let i = 0; i < planetCount; i++) {
-                const px = (Math.random() - 0.5) * eOW * 1.8;
-                const py = eOH + 2 + (i / planetCount) * totalDist * 1.2 + Math.random() * 3;
+                const px = (Math.random() - 0.5) * orthoWidth * 1.8;
+                const py = orthoHeight + 5 + (i / planetCount) * totalDist * 1.2 + Math.random() * 8;
                 const planet = createPlanetAt(px, py);
                 if (planet) {
                     // Mark as combat zone planet so we can clean them up
@@ -11919,8 +11913,7 @@
                 if (!ship.alive) continue;
 
                 // Remove ships that scrolled way off screen
-                const czRemoveY = orthoHeight * (cz.zoom || 1) + 8;
-                if (ship.currentY < -czRemoveY) {
+                if (ship.currentY < -orthoHeight - 5) {
                     disposeCombatZoneShip(ship);
                     cz.ships.splice(i, 1);
                     continue;
@@ -11936,17 +11929,24 @@
                 // Get target position
                 const targetPos = getCombatZoneTargetPos(ship, cz);
 
+                // Effective visible area at current zoom
+                const czEffOH = orthoHeight * gameState.zoomLevel;
+                const czEffOW = czEffOH * (gameWidth / gameHeight);
+
                 if (targetPos) {
                     // --- INTELLIGENT MANEUVERING ---
+                    // Ships maneuver primarily horizontally, maintaining their Y coordinate.
+                    // The world scrolls them downward so they naturally leave the screen.
                     const dx = targetPos.x - ship.currentX;
                     const dy = targetPos.y - ship.currentY;
                     const distToTarget = Math.sqrt(dx * dx + dy * dy);
                     const angleToTarget = Math.atan2(dy, dx);
 
-                    // Orbit/strafe around target at engagement distance
+                    // Orbit/strafe around target — primarily horizontal movement
                     ship.strafeAngle += ship.strafeDir * 0.001 * deltaTime;
                     const idealX = targetPos.x + Math.cos(ship.strafeAngle) * ship.engageDistance;
-                    const idealY = targetPos.y + Math.sin(ship.strafeAngle) * ship.engageDistance;
+                    // Only a tiny Y offset from strafing — ships hold their Y altitude
+                    const idealY = ship.currentY + Math.sin(ship.strafeAngle) * ship.engageDistance * 0.15;
 
                     // Navigate toward ideal position
                     const idealDx = idealX - ship.currentX;
@@ -11964,8 +11964,7 @@
                     ship.currentY += Math.sin(ship.heading) * moveSpeed;
 
                     // Face toward target for firing (blend between movement heading and target)
-                    // Ships face their movement direction but bias toward target
-                    const faceBlend = 0.6; // 60% toward target, 40% movement
+                    const faceBlend = 0.6;
                     let faceAngle = ship.heading;
                     let faceDiff = angleToTarget - ship.heading;
                     while (faceDiff > Math.PI) faceDiff -= Math.PI * 2;
@@ -11973,7 +11972,7 @@
                     faceAngle = ship.heading + faceDiff * faceBlend;
 
                     // --- FIRING ---
-                    if (distToTarget < 8 && currentTime - ship.lastFireTime > ship.fireRate) {
+                    if (distToTarget < 15 && currentTime - ship.lastFireTime > ship.fireRate) {
                         // Direction toward target
                         const fdx = targetPos.x - ship.currentX;
                         const fdy = targetPos.y - ship.currentY;
@@ -12030,11 +12029,18 @@
                     }
                 }
 
-                // Keep ships roughly in screen bounds horizontally (scaled for zoom)
-                const czZoomBound = cz.zoom || 1;
-                const maxX = orthoHeight * czZoomBound * (gameWidth / gameHeight) + 1;
-                if (ship.currentX < -maxX) ship.currentX = -maxX;
-                if (ship.currentX > maxX) ship.currentX = maxX;
+                // Soft-steer ships to stay within horizontal screen bounds
+                // Ships feel a growing force pushing them back as they approach the edge
+                const screenMargin = czEffOW * 0.85; // Start steering back at 85% of visible width
+                if (Math.abs(ship.currentX) > screenMargin) {
+                    const overshoot = (Math.abs(ship.currentX) - screenMargin) / (czEffOW - screenMargin + 0.01);
+                    const pushForce = Math.min(overshoot * 0.03, 0.08); // Smooth ramp, capped
+                    ship.currentX -= Math.sign(ship.currentX) * pushForce * deltaTime;
+                }
+                // Hard clamp just outside visible area so they never fly completely off
+                const hardMaxX = czEffOW + 1;
+                if (ship.currentX < -hardMaxX) ship.currentX = -hardMaxX;
+                if (ship.currentX > hardMaxX) ship.currentX = hardMaxX;
 
                 // --- UPDATE VISUALS ---
                 if (ship.mesh) {
@@ -15753,16 +15759,14 @@
 
                 // ========== ENCOUNTER TRANSITIONS ==========
                 if (gameState.encounterTransition === 'zooming_in') {
-                    // Smoothly move camera to (0, 0) and player to bottom of visible area
-                    const czZoom = (gameState.combatZone && gameState.combatZone.zoom) || 1;
-                    const zoomRange = 4 - czZoom;
-                    const zoomProgress = zoomRange > 0 ? 1 - ((gameState.zoomLevel - czZoom) / zoomRange) : 1;
-
-                    // Player target Y scales with combat zoom so they stay near screen bottom
-                    const targetPlayerY = -7 * czZoom;
+                    // Smoothly move camera to (0, 0) and player to (0, -7)
+                    const czTarget = gameState.zoomTarget;
+                    const zoomRange = 4 - czTarget;
+                    const zoomProgress = zoomRange > 0 ? 1 - ((gameState.zoomLevel - czTarget) / zoomRange) : 1;
 
                     if (gameCamera && playerShip && gameState.savedExplorePos) {
                         const targetPlayerX = 0;
+                        const targetPlayerY = -7;
                         const startX = gameState.savedExplorePos.x;
                         const startY = gameState.savedExplorePos.y;
 
@@ -15780,17 +15784,17 @@
                     }
 
                     // When zoom completes, start combat
-                    if (gameState.zoomLevel <= czZoom + 0.01) {
-                        gameState.zoomLevel = czZoom;
+                    if (gameState.zoomLevel <= czTarget + 0.02) {
+                        gameState.zoomLevel = czTarget;
                         if (gameCamera) {
                             gameCamera.position.x = 0;
                             gameCamera.position.y = 0;
                         }
                         if (playerShip) {
                             playerShip.position.x = 0;
-                            playerShip.position.y = targetPlayerY;
+                            playerShip.position.y = -7;
                             playerShip.targetX = 0;
-                            playerShip.targetY = targetPlayerY;
+                            playerShip.targetY = -7;
                         }
                         if (gameState._updateCamera) gameState._updateCamera();
                         // Reset backgrounds to center for combat
@@ -15828,17 +15832,17 @@
 
                 if (gameState.encounterTransition === 'zooming_out') {
                     // Smoothly move camera and player back to exploration positions
-                    const czZoomOut = (gameState.combatZone && gameState.combatZone.zoom) || 1;
-                    const zoomRangeOut = 4 - czZoomOut;
-                    const zoomProgress = zoomRangeOut > 0 ? (gameState.zoomLevel - czZoomOut) / zoomRangeOut : 1;
-                    const combatPlayerY = -7 * czZoomOut;
+                    // Combat zones use 1.5 zoom; non-combat encounters use 1
+                    const czStartZoom = gameState.combatZone ? 1.5 : 1;
+                    const zoomRangeOut = 4 - czStartZoom;
+                    const zoomProgress = zoomRangeOut > 0 ? (gameState.zoomLevel - czStartZoom) / zoomRangeOut : 1;
 
                     if (gameCamera && playerShip && gameState.savedExplorePos) {
                         const targetX = gameState.savedExplorePos.x;
                         const targetY = gameState.savedExplorePos.y;
 
                         playerShip.position.x = 0 + (targetX - 0) * zoomProgress;
-                        playerShip.position.y = combatPlayerY + (targetY - combatPlayerY) * zoomProgress;
+                        playerShip.position.y = -7 + (targetY - (-7)) * zoomProgress;
                         playerShip.targetX = playerShip.position.x;
                         playerShip.targetY = playerShip.position.y;
 
