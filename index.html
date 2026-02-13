@@ -11346,7 +11346,7 @@
             gameState.encounterTransition = 'zooming_in';
             gameState.encounterTimer = 0;
             gameState.encounterEscapeTimer = 0;
-            gameState.zoomTarget = 1.5; // Slightly more zoomed out than normal combat
+            gameState.zoomTarget = 1; // Standard combat zoom (same as normal levels)
             gameState.disabledShips = gameState.disabledShips || [];
 
             // NEW: Combat zone state
@@ -15832,8 +15832,8 @@
 
                 if (gameState.encounterTransition === 'zooming_out') {
                     // Smoothly move camera and player back to exploration positions
-                    // Combat zones use 1.5 zoom; non-combat encounters use 1
-                    const czStartZoom = gameState.combatZone ? 1.5 : 1;
+                    // Combat zones and normal encounters both use zoom 1
+                    const czStartZoom = 1;
                     const zoomRangeOut = 4 - czStartZoom;
                     const zoomProgress = zoomRangeOut > 0 ? (gameState.zoomLevel - czStartZoom) / zoomRangeOut : 1;
 
