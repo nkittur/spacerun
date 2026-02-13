@@ -12500,13 +12500,56 @@
         // Ship type configs for combat zone (combat-view scale)
         const COMBAT_ZONE_SHIP_TYPES = {
             // Maps encounter enemy types to ship models for the zone
-            basic:      { model: 'Bob', color: 'Blue', scale: 1.2, speed: 0.004, hp: 90, fireRate: 3000, damage: 8, bulletSpeed: 0.1 },
-            light:      { model: 'Dispatcher', color: 'Purple', scale: 0.9, speed: 0.006, hp: 60, fireRate: 2000, damage: 5, bulletSpeed: 0.12 },
-            heavy:      { model: 'Imperial', color: 'Orange', scale: 1.8, speed: 0.002, hp: 300, fireRate: 2500, damage: 15, bulletSpeed: 0.08, spread: true },
-            shooter:    { model: 'Omen', color: 'Green', scale: 1.1, speed: 0.0035, hp: 150, fireRate: 1500, damage: 8, bulletSpeed: 0.1 },
-            fast:       { model: 'Striker', color: 'Red', scale: 0.8, speed: 0.007, hp: 45, fireRate: 4000, damage: 5, bulletSpeed: 0.1 },
-            challenger: { model: 'Executioner', color: 'Red', scale: 2.0, speed: 0.0015, hp: 240, fireRate: 2000, damage: 15, bulletSpeed: 0.08, spread: true },
+            basic:      { model: 'Bob', color: 'Blue', scale: 1.2, speed: 0.004, hp: 90, fireRate: 3000, damage: 8, bulletSpeed: 0.1, weaponPool: ['standard', 'standard', 'burst', 'autocannon'] },
+            light:      { model: 'Dispatcher', color: 'Purple', scale: 0.9, speed: 0.006, hp: 60, fireRate: 2000, damage: 5, bulletSpeed: 0.12, weaponPool: ['standard', 'burst', 'burst', 'autocannon'] },
+            heavy:      { model: 'Imperial', color: 'Orange', scale: 1.8, speed: 0.002, hp: 300, fireRate: 2500, damage: 15, bulletSpeed: 0.08, spread: true, weaponPool: ['standard', 'burst', 'mortar', 'beam_sweep', 'lance'] },
+            shooter:    { model: 'Omen', color: 'Green', scale: 1.1, speed: 0.0035, hp: 150, fireRate: 1500, damage: 8, bulletSpeed: 0.1, weaponPool: ['standard', 'burst', 'autocannon', 'beam_sweep'] },
+            fast:       { model: 'Striker', color: 'Red', scale: 0.8, speed: 0.007, hp: 45, fireRate: 4000, damage: 5, bulletSpeed: 0.1, weaponPool: ['standard', 'autocannon'] },
+            challenger: { model: 'Executioner', color: 'Red', scale: 2.0, speed: 0.0015, hp: 240, fireRate: 2000, damage: 15, bulletSpeed: 0.08, spread: true, weaponPool: ['beam_sweep', 'lance', 'mortar', 'burst'] },
         };
+
+        // Assign a weapon behavior to a combat zone ship based on its type and faction
+        function assignCZShipWeapon(ship) {
+            const pool = ship.config.weaponPool || ['standard'];
+            // Apply faction preference weighting
+            const factionPrefs = FACTION_WEAPON_PREFS[ship.faction] || {};
+            const levelBonus = Math.min(gameState.level * 0.05, 0.4);
+
+            const weights = pool.map(id => {
+                const beh = ENEMY_WEAPON_BEHAVIORS[id];
+                const factionWeight = factionPrefs[id === 'standard' ? 'bullet' : id] || 1;
+                return (beh.weight || 1) * factionWeight * (id === 'standard' ? Math.max(0.5, 1 - levelBonus) : (1 + levelBonus));
+            });
+            const totalW = weights.reduce((a, b) => a + b, 0);
+            let roll = Math.random() * totalW;
+            let picked = pool[0];
+            for (let i = 0; i < pool.length; i++) {
+                roll -= weights[i];
+                if (roll <= 0) { picked = pool[i]; break; }
+            }
+
+            ship.weaponBehavior = picked;
+            const beh = ENEMY_WEAPON_BEHAVIORS[picked];
+            ship.weaponDmgMult = beh.dmgMult || 1.0;
+            ship.burstRemaining = 0;
+            ship.burstNextFire = 0;
+            ship.weaponCharging = false;
+            ship.weaponChargeStart = 0;
+            ship.weaponWarningMesh = null;
+            ship.weaponTargetX = 0;
+            ship.weaponTargetY = 0;
+
+            // Mortar state
+            if (picked === 'mortar') {
+                ship.mortarTargetX = 0;
+                ship.mortarTargetY = 0;
+            }
+            // Beam sweep state
+            if (picked === 'beam_sweep') {
+                ship.sweepStartX = 0;
+                ship.sweepDirection = 1;
+            }
+        }
 
         // Spawn all combat zone content: ships and background planets
         function spawnCombatZoneContent(encounter, pairedEncounter, isBattle) {
@@ -12557,6 +12600,7 @@
                     strafeDir: Math.random() < 0.5 ? 1 : -1,
                     baseScale: shipConfig.scale,
                 };
+                assignCZShipWeapon(ship);
                 cz.ships.push(ship);
                 createCombatZoneShipVisual(ship, factionA);
             });
@@ -12599,6 +12643,7 @@
                         strafeDir: Math.random() < 0.5 ? 1 : -1,
                         baseScale: shipConfig.scale,
                     };
+                    assignCZShipWeapon(ship);
                     cz.ships.push(ship);
                     createCombatZoneShipVisual(ship, factionB);
                 });
@@ -12709,6 +12754,7 @@
         // Dispose a combat zone ship and all its visuals
         function disposeCombatZoneShip(ship) {
             ship.alive = false;
+            cleanupCZWeaponWarning(ship);
             if (ship.mesh) {
                 ship.mesh.getChildMeshes().forEach(m => m.dispose());
                 ship.mesh.dispose();
@@ -12793,6 +12839,367 @@
             return null;
         }
 
+        // ========== COMBAT ZONE WEAPON BEHAVIOR HELPERS ==========
+
+        // Create visual warning for combat zone ship weapon
+        function createCZWeaponWarning(ship, targetX, targetY) {
+            const weaponType = ship.weaponBehavior;
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+
+            if (weaponType === 'burst' || weaponType === 'lance') {
+                // Aim line from ship toward target
+                const dx = targetX - ship.currentX;
+                const dy = targetY - ship.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const lineLength = Math.max(dist, orthoHeight * 0.8);
+
+                const line = BABYLON.MeshBuilder.CreatePlane('czWarning', {
+                    width: 0.05, height: lineLength
+                }, scene);
+                line.position.x = ship.currentX + (dx / dist) * lineLength / 2;
+                line.position.y = ship.currentY + (dy / dist) * lineLength / 2;
+                line.position.z = -0.05;
+                line.rotation.z = Math.atan2(dx, dy);
+
+                const lineMat = new BABYLON.StandardMaterial('czWarningMat', scene);
+                lineMat.emissiveColor = weaponType === 'lance'
+                    ? new BABYLON.Color3(0.8, 0.2, 1.0)
+                    : new BABYLON.Color3(1.0, 0.4, 0.2);
+                lineMat.alpha = 0.2;
+                lineMat.disableLighting = true;
+                lineMat.backFaceCulling = false;
+                line.material = lineMat;
+                line.renderingGroupId = 2;
+                ship.weaponWarningMesh = line;
+
+            } else if (weaponType === 'mortar') {
+                // Target circle at predicted impact
+                const ring = BABYLON.MeshBuilder.CreateTorus('czMortarTarget', {
+                    diameter: (beh.aoeRadius || 2.0) * 2, thickness: 0.08, tessellation: 24
+                }, scene);
+                ring.position.x = targetX;
+                ring.position.y = targetY;
+                ring.position.z = -0.05;
+                ring.rotation.x = Math.PI / 2;
+
+                const ringMat = new BABYLON.StandardMaterial('czMortarMat', scene);
+                ringMat.emissiveColor = new BABYLON.Color3(1.0, 0.3, 0.1);
+                ringMat.alpha = 0.25;
+                ringMat.disableLighting = true;
+                ringMat.backFaceCulling = false;
+                ring.material = ringMat;
+                ring.renderingGroupId = 2;
+
+                // Inner fill
+                const fill = BABYLON.MeshBuilder.CreateDisc('czMortarFill', {
+                    radius: beh.aoeRadius || 2.0, tessellation: 24
+                }, scene);
+                fill.parent = ring;
+                fill.position.z = 0.01;
+                fill.rotation.x = -Math.PI / 2;
+                const fillMat = new BABYLON.StandardMaterial('czMortarFillMat', scene);
+                fillMat.emissiveColor = new BABYLON.Color3(1.0, 0.2, 0.0);
+                fillMat.alpha = 0.08;
+                fillMat.disableLighting = true;
+                fillMat.backFaceCulling = false;
+                fill.material = fillMat;
+                fill.renderingGroupId = 2;
+
+                ship.weaponWarningMesh = ring;
+                ship.mortarTargetX = targetX;
+                ship.mortarTargetY = targetY;
+
+            } else if (weaponType === 'beam_sweep') {
+                // Thin preview beam
+                const beamHeight = orthoHeight * 2 + 4;
+                const preview = BABYLON.MeshBuilder.CreatePlane('czSweepPreview', {
+                    width: 0.08, height: beamHeight
+                }, scene);
+                // Orient beam along the direction from ship to target
+                const dx = targetX - ship.currentX;
+                const dy = targetY - ship.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                preview.position.x = ship.currentX + (dist > 0 ? (dx / dist) * beamHeight / 2 : 0);
+                preview.position.y = ship.currentY + (dist > 0 ? (dy / dist) * beamHeight / 2 : -beamHeight / 2);
+                preview.position.z = -0.05;
+                if (dist > 0) preview.rotation.z = Math.atan2(dx, dy);
+
+                const previewMat = new BABYLON.StandardMaterial('czSweepMat', scene);
+                previewMat.emissiveColor = new BABYLON.Color3(1.0, 0.1, 0.3);
+                previewMat.alpha = 0.2;
+                previewMat.disableLighting = true;
+                previewMat.backFaceCulling = false;
+                preview.material = previewMat;
+                preview.renderingGroupId = 2;
+
+                ship.weaponWarningMesh = preview;
+                ship.sweepStartX = ship.currentX;
+                ship.sweepDirection = targetX > ship.currentX ? 1 : -1;
+            }
+        }
+
+        // Update charging/warning for combat zone ship weapons
+        function updateCZWeaponCharge(ship, currentTime) {
+            const weaponType = ship.weaponBehavior;
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+            const chargeProgress = (currentTime - ship.weaponChargeStart) / beh.warningTime;
+
+            if (chargeProgress >= 1) {
+                // Charge complete - fire
+                cleanupCZWeaponWarning(ship);
+                fireCZShipWeapon(ship, ship.weaponTargetX, ship.weaponTargetY, currentTime);
+                ship.weaponCharging = false;
+                ship.lastFireTime = currentTime;
+                return;
+            }
+
+            if (!ship.weaponWarningMesh) return;
+
+            const pulseSpeed = 0.015 + chargeProgress * 0.015;
+            const pulse = Math.sin(currentTime * pulseSpeed) * 0.15;
+
+            if (weaponType === 'burst' || weaponType === 'lance') {
+                const growthPhase = Math.max(0, (chargeProgress - 0.5) / 0.5);
+                ship.weaponWarningMesh.scaling.x = 1 + growthPhase * 3;
+                ship.weaponWarningMesh.material.alpha = 0.2 + chargeProgress * 0.4 + pulse;
+                if (weaponType === 'lance') {
+                    const b = chargeProgress;
+                    ship.weaponWarningMesh.material.emissiveColor = new BABYLON.Color3(0.8 + b * 0.2, 0.2 + b * 0.6, 1.0);
+                }
+                // Keep attached to ship
+                const dx = ship.weaponTargetX - ship.currentX;
+                const dy = ship.weaponTargetY - ship.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    const lineLength = Math.max(dist, orthoHeight * 0.8);
+                    ship.weaponWarningMesh.position.x = ship.currentX + (dx / dist) * lineLength / 2;
+                    ship.weaponWarningMesh.position.y = ship.currentY + (dy / dist) * lineLength / 2;
+                    ship.weaponWarningMesh.rotation.z = Math.atan2(dx, dy);
+                }
+            } else if (weaponType === 'mortar') {
+                ship.weaponWarningMesh.material.alpha = 0.15 + chargeProgress * 0.3 + pulse;
+                const scale = 1.0 - chargeProgress * 0.2;
+                ship.weaponWarningMesh.scaling.x = scale;
+                ship.weaponWarningMesh.scaling.y = scale;
+                ship.weaponWarningMesh.scaling.z = scale;
+            } else if (weaponType === 'beam_sweep') {
+                ship.weaponWarningMesh.material.alpha = 0.15 + chargeProgress * 0.35 + pulse;
+                const growthPhase = Math.max(0, (chargeProgress - 0.7) / 0.3);
+                ship.weaponWarningMesh.scaling.x = 1 + growthPhase * 6;
+            }
+        }
+
+        // Fire combat zone ship weapon based on behavior
+        function fireCZShipWeapon(ship, targetX, targetY, currentTime) {
+            const weaponType = ship.weaponBehavior || 'standard';
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+            const dmgMult = ship.weaponDmgMult || 1.0;
+            const adjustedDmg = Math.round(ship.damage * dmgMult);
+
+            const dx = targetX - ship.currentX;
+            const dy = targetY - ship.currentY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist === 0) return;
+
+            const noseOffsetDist = ship.baseScale * 0.5;
+            const noseX = ship.currentX + (dx / dist) * noseOffsetDist;
+            const noseY = ship.currentY + (dy / dist) * noseOffsetDist;
+
+            function markCZBullet(bullet) {
+                bullet.sourceFaction = ship.faction;
+                bullet._combatZoneBullet = true;
+                bullet._sourceShipId = ship.id;
+            }
+
+            switch (weaponType) {
+                case 'standard': {
+                    if (ship.spread) {
+                        [-0.2, 0, 0.2].forEach(angle => {
+                            const cos = Math.cos(angle);
+                            const sin = Math.sin(angle);
+                            const vx = (dx / dist) * ship.bulletSpeed;
+                            const vy = (dy / dist) * ship.bulletSpeed;
+                            const bullet = createBullet(false, noseX, noseY, vx * cos - vy * sin, vx * sin + vy * cos, adjustedDmg);
+                            markCZBullet(bullet);
+                            gameState.enemyBullets.push(bullet);
+                        });
+                    } else {
+                        const bullet = createBullet(false, noseX, noseY,
+                            (dx / dist) * ship.bulletSpeed, (dy / dist) * ship.bulletSpeed, adjustedDmg);
+                        markCZBullet(bullet);
+                        gameState.enemyBullets.push(bullet);
+                    }
+                    break;
+                }
+                case 'burst': {
+                    ship.burstRemaining = beh.burstCount || 3;
+                    ship.burstNextFire = currentTime;
+                    ship.burstDx = dx / dist;
+                    ship.burstDy = dy / dist;
+                    ship.burstDmg = adjustedDmg;
+                    break;
+                }
+                case 'autocannon': {
+                    ship.burstRemaining = beh.streamCount || 6;
+                    ship.burstNextFire = currentTime;
+                    ship.burstDx = dx / dist;
+                    ship.burstDy = dy / dist;
+                    ship.burstDmg = adjustedDmg;
+                    break;
+                }
+                case 'mortar': {
+                    const speed = 0.04;
+                    const mdx = ship.mortarTargetX - ship.currentX;
+                    const mdy = ship.mortarTargetY - ship.currentY;
+                    const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+                    if (mdist > 0) {
+                        const mortar = createMortarProjectile(false, noseX, noseY,
+                            (mdx / mdist) * speed, (mdy / mdist) * speed,
+                            adjustedDmg, beh.aoeRadius || 2.0);
+                        mortar.mortarTargetX = ship.mortarTargetX;
+                        mortar.mortarTargetY = ship.mortarTargetY;
+                        markCZBullet(mortar);
+                        gameState.enemyBullets.push(mortar);
+                    }
+                    break;
+                }
+                case 'beam_sweep': {
+                    fireCZBeamSweep(ship);
+                    break;
+                }
+                case 'lance': {
+                    fireCZLance(ship, adjustedDmg);
+                    break;
+                }
+            }
+        }
+
+        // Fire burst shot for combat zone ship
+        function fireCZBurstShot(ship, currentTime) {
+            const weaponType = ship.weaponBehavior;
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+            const delay = weaponType === 'autocannon' ? (beh.streamDelay || 100) : (beh.burstDelay || 80);
+            const bulletSpeed = weaponType === 'autocannon' ? 0.07 : 0.12;
+            const jitter = weaponType === 'autocannon' ? (Math.random() - 0.5) * 0.15 : (Math.random() - 0.5) * 0.05;
+
+            const vx = (ship.burstDx + jitter) * bulletSpeed;
+            const vy = ship.burstDy * bulletSpeed;
+            const noseX = ship.currentX + ship.burstDx * 0.4;
+            const noseY = ship.currentY + ship.burstDy * 0.4;
+
+            let bullet;
+            if (weaponType === 'autocannon') {
+                bullet = createAutocannonBullet(false, noseX, noseY, vx, vy, ship.burstDmg);
+            } else {
+                bullet = createBullet(false, noseX, noseY, vx, vy, ship.burstDmg);
+            }
+            bullet.sourceFaction = ship.faction;
+            bullet._combatZoneBullet = true;
+            bullet._sourceShipId = ship.id;
+            gameState.enemyBullets.push(bullet);
+
+            ship.burstRemaining--;
+            ship.burstNextFire = currentTime + delay;
+        }
+
+        // Fire beam sweep for combat zone ship
+        function fireCZBeamSweep(ship) {
+            if (!gameState.enemyBeamSweeps) gameState.enemyBeamSweeps = [];
+            const beh = ENEMY_WEAPON_BEHAVIORS['beam_sweep'];
+
+            const beamHeight = orthoHeight * 2 + 4;
+            const beamWidth = beh.beamWidth || 0.6;
+
+            const beam = BABYLON.MeshBuilder.CreatePlane('czBeamSweep', {
+                width: beamWidth, height: beamHeight
+            }, scene);
+            beam.position.x = ship.sweepStartX || ship.currentX;
+            beam.position.y = ship.currentY - beamHeight / 2 - 0.5;
+            beam.position.z = -0.1;
+
+            const beamMat = new BABYLON.StandardMaterial('czBeamMat', scene);
+            beamMat.emissiveColor = new BABYLON.Color3(1.0, 0.15, 0.3);
+            beamMat.alpha = 0.85;
+            beamMat.disableLighting = true;
+            beamMat.backFaceCulling = false;
+            beam.material = beamMat;
+            beam.renderingGroupId = 2;
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(beam);
+
+            beam.laserDamage = ship.damage * (beh.dmgMult || 1.2);
+            beam.laserWidth = beamWidth;
+            beam.lastDamageTime = 0;
+            beam.damageInterval = 150;
+            beam.sweepDirection = ship.sweepDirection || 1;
+            beam.sweepSpeed = (beh.sweepAngle || 0.4) * orthoWidth * 0.015;
+            beam.sweepStartX = beam.position.x;
+            beam.sweepMaxDist = (beh.sweepAngle || 0.4) * orthoWidth;
+            beam._combatZoneBullet = true;
+
+            gameState.enemyBeamSweeps.push(beam);
+        }
+
+        // Fire lance for combat zone ship
+        function fireCZLance(ship, damage) {
+            if (!gameState.challengerLasers) gameState.challengerLasers = [];
+
+            const beamHeight = orthoHeight * 2 + 4;
+            const beamWidth = 0.4;
+            const dx = ship.weaponTargetX - ship.currentX;
+            const dy = ship.weaponTargetY - ship.currentY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            const laser = BABYLON.MeshBuilder.CreatePlane('czLance', {
+                width: beamWidth, height: beamHeight
+            }, scene);
+            laser.position.x = ship.currentX + (dist > 0 ? (dx / dist) * beamHeight / 2 : 0);
+            laser.position.y = ship.currentY + (dist > 0 ? (dy / dist) * beamHeight / 2 : -beamHeight / 2);
+            laser.position.z = -0.1;
+            if (dist > 0) laser.rotation.z = Math.atan2(dx, dy);
+
+            const laserMat = new BABYLON.StandardMaterial('czLanceMat', scene);
+            laserMat.emissiveColor = new BABYLON.Color3(0.6, 0.2, 1.0);
+            laserMat.alpha = 0.9;
+            laserMat.disableLighting = true;
+            laserMat.backFaceCulling = false;
+            laser.material = laserMat;
+            laser.renderingGroupId = 2;
+
+            // Bright core
+            const core = BABYLON.MeshBuilder.CreatePlane('czLanceCore', { width: beamWidth * 0.3, height: beamHeight }, scene);
+            core.parent = laser;
+            core.position.z = -0.01;
+            const coreMat = new BABYLON.StandardMaterial('czLanceCoreMat', scene);
+            coreMat.emissiveColor = new BABYLON.Color3(0.9, 0.7, 1.0);
+            coreMat.alpha = 1.0;
+            coreMat.disableLighting = true;
+            core.material = coreMat;
+            core.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(laser);
+
+            laser.laserDamage = damage;
+            laser.laserWidth = beamWidth;
+            laser.lastDamageTime = 0;
+            laser.damageInterval = 100;
+            laser.totalDamageTicks = 8;
+            laser.damagePerTick = damage / laser.totalDamageTicks;
+            laser._combatZoneBullet = true;
+
+            gameState.challengerLasers.push(laser);
+        }
+
+        // Cleanup combat zone weapon warning mesh
+        function cleanupCZWeaponWarning(ship) {
+            if (ship.weaponWarningMesh) {
+                ship.weaponWarningMesh.getChildMeshes().forEach(m => m.dispose());
+                ship.weaponWarningMesh.dispose();
+                ship.weaponWarningMesh = null;
+            }
+        }
+
+        // ========== END COMBAT ZONE WEAPON BEHAVIOR HELPERS ==========
+
         // Main combat zone update - called each frame during encounter combat
         function updateCombatZone(deltaTime, currentTime, scrollMultiplier) {
             const cz = gameState.combatZone;
@@ -12876,43 +13283,35 @@
                     while (faceDiff < -Math.PI) faceDiff += Math.PI * 2;
                     faceAngle = ship.heading + faceDiff * faceBlend;
 
-                    // --- FIRING ---
-                    if (distToTarget < 15 && currentTime - ship.lastFireTime > ship.fireRate) {
-                        // Direction toward target
+                    // --- FIRING (with weapon behaviors) ---
+                    // Update active burst/stream firing
+                    if (ship.burstRemaining > 0 && currentTime >= ship.burstNextFire) {
+                        fireCZBurstShot(ship, currentTime);
+                    }
+
+                    // Update weapon charging/warning indicators
+                    if (ship.weaponCharging) {
+                        updateCZWeaponCharge(ship, currentTime);
+                    }
+                    // Check if ready to fire (cooldown elapsed, no active burst)
+                    else if (distToTarget < 15 && currentTime - ship.lastFireTime > ship.fireRate && ship.burstRemaining <= 0) {
                         const fdx = targetPos.x - ship.currentX;
                         const fdy = targetPos.y - ship.currentY;
                         const fdist = Math.sqrt(fdx * fdx + fdy * fdy);
                         if (fdist > 0) {
-                            const noseOffsetDist = ship.baseScale * 0.5;
-                            const noseX = ship.currentX + (fdx / fdist) * noseOffsetDist;
-                            const noseY = ship.currentY + (fdy / fdist) * noseOffsetDist;
+                            const weaponType = ship.weaponBehavior || 'standard';
+                            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
 
-                            if (ship.spread) {
-                                // Spread weapon - 3 bullets
-                                const spreadAngles = [-0.2, 0, 0.2];
-                                spreadAngles.forEach(angle => {
-                                    const cos = Math.cos(angle);
-                                    const sin = Math.sin(angle);
-                                    const vx = (fdx / fdist) * ship.bulletSpeed;
-                                    const vy = (fdy / fdist) * ship.bulletSpeed;
-                                    const rotatedVx = vx * cos - vy * sin;
-                                    const rotatedVy = vx * sin + vy * cos;
-                                    const bullet = createBullet(false, noseX, noseY, rotatedVx, rotatedVy, ship.damage);
-                                    bullet.sourceFaction = ship.faction;
-                                    bullet._combatZoneBullet = true;
-                                    bullet._sourceShipId = ship.id;
-                                    gameState.enemyBullets.push(bullet);
-                                });
-                            } else {
-                                const bullet = createBullet(false, noseX, noseY,
-                                    (fdx / fdist) * ship.bulletSpeed,
-                                    (fdy / fdist) * ship.bulletSpeed, ship.damage);
-                                bullet.sourceFaction = ship.faction;
-                                bullet._combatZoneBullet = true;
-                                bullet._sourceShipId = ship.id;
-                                gameState.enemyBullets.push(bullet);
+                            if (beh.warningTime > 0 && !ship.weaponCharging) {
+                                ship.weaponCharging = true;
+                                ship.weaponChargeStart = currentTime;
+                                ship.weaponTargetX = targetPos.x;
+                                ship.weaponTargetY = targetPos.y;
+                                createCZWeaponWarning(ship, targetPos.x, targetPos.y);
+                            } else if (beh.warningTime === 0) {
+                                fireCZShipWeapon(ship, targetPos.x, targetPos.y, currentTime);
+                                ship.lastFireTime = currentTime;
                             }
-                            ship.lastFireTime = currentTime;
                         }
                     }
                 } else {
@@ -12995,6 +13394,7 @@
                             createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
                             // Drop loot
                             createLoot(ship.currentX, ship.currentY, ship.type);
+                            tryDropWeapon(ship.currentX, ship.currentY, ship.type);
                             gameState.score += 10 * gameState.wave;
                             gameState.credits += 10 + Math.floor(Math.random() * 15);
                             gameState.stats.enemiesKilled++;
@@ -13038,6 +13438,7 @@
                         if (ship.hp <= 0) {
                             createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
                             createLoot(ship.currentX, ship.currentY, ship.type);
+                            tryDropWeapon(ship.currentX, ship.currentY, ship.type);
                             gameState.score += 10 * gameState.wave;
                             gameState.credits += 10 + Math.floor(Math.random() * 15);
                             gameState.stats.enemiesKilled++;
