@@ -11344,6 +11344,21 @@
             gameState.zoomTarget = 1; // Zoom to normal view
             gameState.disabledShips = gameState.disabledShips || [];
 
+            // NEW: Combat zone state
+            gameState.combatZone = {
+                active: true,
+                scrollDistance: 0,
+                // System zone reward height is 25, we want 50% of that traversal time
+                totalScrollDistance: LEVEL_ZONE_HEIGHTS.reward * 0.5,
+                ships: [],           // Free-flying combat ships
+                planets: [],         // Background decoration planets
+                bullets: [],         // NPC-to-NPC bullets
+                peaceTimer: 0,       // Timer for peaceful zone auto-exit
+                peaceThreshold: 3000,// 3 seconds of no hostility to exit
+                playerAggroFactions: new Set(), // Factions aggro'd by player attacks
+                zoomingOut: false,    // Smooth zoom-out state for peaceful exit
+            };
+
             // In battle encounters, weapons start off (player is observer)
             // In single-faction encounters, weapons start hot
             const wBtn = document.getElementById('weaponsToggleBtn');
@@ -11401,6 +11416,15 @@
         // Spawn the encounter's enemies after zoom-in completes
         function spawnEncounterEnemies(encounter) {
             gameState.encounterTransition = 'combat';
+
+            // NEW: Use combat zone system - spawn free-flying ships
+            if (gameState.combatZone && gameState.combatZone.active) {
+                // Don't use old wave spawning - combat zone handles everything
+                gameState.enemiesInWave = 0;
+                gameState.enemiesSpawned = 0;
+                spawnCombatZoneContent(encounter, gameState.encounterPaired, gameState.encounterIsBattle);
+                return;
+            }
 
             if (gameState.encounterIsBattle && gameState.encounterPaired) {
                 // Crossfire battle: spawn both factions' enemies
@@ -11483,6 +11507,12 @@
             const boardPrompt = document.getElementById('boardingPrompt');
             if (boardPrompt) boardPrompt.style.display = 'none';
 
+            // Clean up combat zone if active
+            if (gameState.combatZone) {
+                cleanupCombatZone();
+                gameState.combatZone = null;
+            }
+
             // Clean up all combat projectiles and remaining enemies
             gameState.enemyBullets.forEach(b => {
                 if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
@@ -11553,6 +11583,801 @@
             cleanupExplorationTraffic();
             cleanupSkirmishes();
         }
+
+        // ========== NEW COMBAT ZONE SYSTEM ==========
+        // Combat zones are scrolling zones (like system zones) with free-flying ships
+        // that maneuver, pick targets, and fire weapons at each other
+
+        // Ship type configs for combat zone (combat-view scale)
+        const COMBAT_ZONE_SHIP_TYPES = {
+            // Maps encounter enemy types to ship models for the zone
+            basic:      { model: 'Bob', color: 'Blue', scale: 0.45, speed: 0.004, hp: 90, fireRate: 3000, damage: 8, bulletSpeed: 0.1 },
+            light:      { model: 'Dispatcher', color: 'Purple', scale: 0.35, speed: 0.006, hp: 60, fireRate: 2000, damage: 5, bulletSpeed: 0.12 },
+            heavy:      { model: 'Imperial', color: 'Orange', scale: 0.6, speed: 0.002, hp: 300, fireRate: 2500, damage: 15, bulletSpeed: 0.08, spread: true },
+            shooter:    { model: 'Omen', color: 'Green', scale: 0.4, speed: 0.0035, hp: 150, fireRate: 1500, damage: 8, bulletSpeed: 0.1 },
+            fast:       { model: 'Striker', color: 'Red', scale: 0.3, speed: 0.007, hp: 45, fireRate: 4000, damage: 5, bulletSpeed: 0.1 },
+            challenger: { model: 'Executioner', color: 'Red', scale: 0.65, speed: 0.0015, hp: 240, fireRate: 2000, damage: 15, bulletSpeed: 0.08, spread: true },
+        };
+
+        // Spawn all combat zone content: ships and background planets
+        function spawnCombatZoneContent(encounter, pairedEncounter, isBattle) {
+            const cz = gameState.combatZone;
+            if (!cz) return;
+
+            // Spawn background planets for visual scroll reference
+            spawnCombatZonePlanets(cz);
+
+            // Determine factions involved
+            const factionA = encounter.faction || 'pirates';
+            const factionB = pairedEncounter ? (pairedEncounter.faction || 'federation') : null;
+
+            // Spawn faction A ships
+            const shipsA = encounter.enemyTypes || [];
+            shipsA.forEach((type, idx) => {
+                const shipConfig = COMBAT_ZONE_SHIP_TYPES[type] || COMBAT_ZONE_SHIP_TYPES.basic;
+                const levelHealthMult = 1 + (gameState.level - 1) * 0.08;
+                // Spread ships across the zone height, above visible area
+                const spawnY = orthoHeight + 3 + idx * 4 + Math.random() * 3;
+                const spawnX = (Math.random() - 0.5) * orthoWidth * 1.5;
+
+                const ship = {
+                    id: 'czs_' + Math.random().toString(36).substr(2, 9),
+                    type: type,
+                    config: shipConfig,
+                    faction: factionA,
+                    factionSide: 'A',
+                    currentX: spawnX,
+                    currentY: spawnY,
+                    heading: -Math.PI / 2 + (Math.random() - 0.5) * 0.5, // Roughly face down
+                    speed: shipConfig.speed * (0.8 + Math.random() * 0.4),
+                    turnRate: 0.003 + Math.random() * 0.002,
+                    hp: Math.round(shipConfig.hp * levelHealthMult),
+                    maxHp: Math.round(shipConfig.hp * levelHealthMult),
+                    fireRate: shipConfig.fireRate * (0.9 + Math.random() * 0.2),
+                    damage: Math.round(shipConfig.damage * levelHealthMult),
+                    bulletSpeed: shipConfig.bulletSpeed,
+                    spread: shipConfig.spread || false,
+                    lastFireTime: 0,
+                    alive: true,
+                    mesh: null,
+                    engineGlows: [],
+                    target: null,          // Current combat target (another ship object or 'player')
+                    targetSwitchTimer: 0,  // Cooldown before switching targets
+                    engageDistance: 4 + Math.random() * 3,   // Preferred combat distance
+                    strafeAngle: Math.random() * Math.PI * 2, // Orbital strafing offset
+                    strafeDir: Math.random() < 0.5 ? 1 : -1,
+                    baseScale: shipConfig.scale,
+                };
+                cz.ships.push(ship);
+                createCombatZoneShipVisual(ship, factionA);
+            });
+
+            // Spawn faction B ships (if battle)
+            if (isBattle && pairedEncounter) {
+                const shipsB = pairedEncounter.enemyTypes || [];
+                shipsB.forEach((type, idx) => {
+                    const shipConfig = COMBAT_ZONE_SHIP_TYPES[type] || COMBAT_ZONE_SHIP_TYPES.basic;
+                    const levelHealthMult = 1 + (gameState.level - 1) * 0.08;
+                    const spawnY = orthoHeight + 3 + idx * 4 + Math.random() * 3;
+                    // B faction spawns on opposite side
+                    const spawnX = (Math.random() - 0.5) * orthoWidth * 1.5;
+
+                    const ship = {
+                        id: 'czs_' + Math.random().toString(36).substr(2, 9),
+                        type: type,
+                        config: shipConfig,
+                        faction: factionB,
+                        factionSide: 'B',
+                        currentX: spawnX,
+                        currentY: spawnY,
+                        heading: -Math.PI / 2 + (Math.random() - 0.5) * 0.5,
+                        speed: shipConfig.speed * (0.8 + Math.random() * 0.4),
+                        turnRate: 0.003 + Math.random() * 0.002,
+                        hp: Math.round(shipConfig.hp * levelHealthMult),
+                        maxHp: Math.round(shipConfig.hp * levelHealthMult),
+                        fireRate: shipConfig.fireRate * (0.9 + Math.random() * 0.2),
+                        damage: Math.round(shipConfig.damage * levelHealthMult),
+                        bulletSpeed: shipConfig.bulletSpeed,
+                        spread: shipConfig.spread || false,
+                        lastFireTime: 0,
+                        alive: true,
+                        mesh: null,
+                        engineGlows: [],
+                        target: null,
+                        targetSwitchTimer: 0,
+                        engageDistance: 4 + Math.random() * 3,
+                        strafeAngle: Math.random() * Math.PI * 2,
+                        strafeDir: Math.random() < 0.5 ? 1 : -1,
+                        baseScale: shipConfig.scale,
+                    };
+                    cz.ships.push(ship);
+                    createCombatZoneShipVisual(ship, factionB);
+                });
+            }
+        }
+
+        // Spawn decorative background planets in the combat zone for scroll reference
+        function spawnCombatZonePlanets(cz) {
+            const totalDist = cz.totalScrollDistance;
+            // Place 3-5 planets spread throughout the zone
+            const planetCount = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < planetCount; i++) {
+                const px = (Math.random() - 0.5) * orthoWidth * 1.8;
+                const py = orthoHeight + 5 + (i / planetCount) * totalDist * 1.2 + Math.random() * 8;
+                const planet = createPlanetAt(px, py);
+                if (planet) {
+                    // Mark as combat zone planet so we can clean them up
+                    planet._combatZonePlanet = true;
+                    cz.planets.push(planet);
+                    gameState.planets.push(planet);
+                }
+            }
+        }
+
+        // Create visual mesh for a combat zone ship
+        async function createCombatZoneShipVisual(ship, factionName) {
+            if (!scene) return;
+            try {
+                const mesh = await loadShipModel(ship.config.model, ship.config.color, scene, 'down');
+                mesh.position.x = ship.currentX;
+                mesh.position.y = ship.currentY;
+                mesh.position.z = 0.15;
+                mesh.scaling.scaleInPlace(ship.baseScale);
+
+                // Apply heading rotation
+                const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
+                const headQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, ship.heading + Math.PI / 2);
+                mesh.rotationQuaternion = headQ.multiply(tipQ);
+
+                // Exclude from glow layers, set rendering group
+                const allMeshes = mesh.getChildMeshes(false) || [];
+                allMeshes.push(mesh);
+                allMeshes.forEach(m => {
+                    if (sunGlowLayer) sunGlowLayer.addExcludedMesh(m);
+                    if (lootGlowLayer) lootGlowLayer.addExcludedMesh(m);
+                    m.renderingGroupId = 2;
+                });
+
+                // Tint with faction color
+                if (factionName && FACTIONS[factionName]) {
+                    const fColor = FACTIONS[factionName].color;
+                    allMeshes.forEach(m => {
+                        if (m.material) {
+                            m.material.emissiveColor = new BABYLON.Color3(
+                                (m.material.emissiveColor.r || 0) * 0.3 + fColor.r * 0.7,
+                                (m.material.emissiveColor.g || 0) * 0.3 + fColor.g * 0.7,
+                                (m.material.emissiveColor.b || 0) * 0.3 + fColor.b * 0.7
+                            );
+                        }
+                    });
+                }
+
+                ship.mesh = mesh;
+
+                // Add engine glow
+                const shipScale = ship.baseScale;
+                const engineDist = shipScale * 0.35;
+                const glowDiameter = shipScale * 0.3;
+                const coreDiameter = shipScale * 0.1;
+
+                const engineGlow = BABYLON.MeshBuilder.CreateSphere('czEngGlow_' + ship.id, { diameter: glowDiameter }, scene);
+                const baseX = ship.currentX - Math.cos(ship.heading) * engineDist;
+                const baseY = ship.currentY - Math.sin(ship.heading) * engineDist;
+                engineGlow.position.set(baseX, baseY, 0.15);
+
+                const glowMat = new BABYLON.StandardMaterial('czEngGlowMat_' + ship.id, scene);
+                const fColor = (factionName && FACTIONS[factionName]) ? FACTIONS[factionName].color : new BABYLON.Color3(0.4, 0.6, 1.0);
+                glowMat.emissiveColor = fColor.clone();
+                glowMat.alpha = 0.3;
+                glowMat.disableLighting = true;
+                glowMat.backFaceCulling = false;
+                engineGlow.material = glowMat;
+                engineGlow.renderingGroupId = 2;
+
+                const engineCore = BABYLON.MeshBuilder.CreateSphere('czEngCore_' + ship.id, { diameter: coreDiameter }, scene);
+                engineCore.position.set(baseX, baseY, 0.15);
+                const coreMat = new BABYLON.StandardMaterial('czEngCoreMat_' + ship.id, scene);
+                coreMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                coreMat.disableLighting = true;
+                engineCore.material = coreMat;
+                engineCore.renderingGroupId = 2;
+
+                if (sunGlowLayer && settings.engineGlowEnabled) {
+                    sunGlowLayer.addIncludedOnlyMesh(engineGlow);
+                    sunGlowLayer.addIncludedOnlyMesh(engineCore);
+                }
+                if (lootGlowLayer) {
+                    lootGlowLayer.addExcludedMesh(engineGlow);
+                    lootGlowLayer.addExcludedMesh(engineCore);
+                }
+
+                ship.engineGlows.push({ glow: engineGlow, core: engineCore, offset: 0 });
+            } catch (e) {
+                // Silently fail - visual only
+            }
+        }
+
+        // Dispose a combat zone ship and all its visuals
+        function disposeCombatZoneShip(ship) {
+            ship.alive = false;
+            if (ship.mesh) {
+                ship.mesh.getChildMeshes().forEach(m => m.dispose());
+                ship.mesh.dispose();
+                ship.mesh = null;
+            }
+            if (ship.engineGlows) {
+                ship.engineGlows.forEach(eg => {
+                    if (eg.glow) {
+                        if (eg.glow.material) eg.glow.material.dispose();
+                        eg.glow.dispose();
+                    }
+                    if (eg.core) {
+                        if (eg.core.material) eg.core.material.dispose();
+                        eg.core.dispose();
+                    }
+                });
+                ship.engineGlows = [];
+            }
+        }
+
+        // Check if a faction is hostile to the player in the combat zone
+        function isFactionHostileToPlayer(faction, cz) {
+            // Pirates are always hostile
+            if (FACTIONS[faction] && FACTIONS[faction].hostile) return true;
+            // Factions aggro'd by player attacks
+            if (cz && cz.playerAggroFactions && cz.playerAggroFactions.has(faction)) return true;
+            return false;
+        }
+
+        // Check if two factions are hostile to each other
+        function areFactionsHostile(factionA, factionB) {
+            if (factionA === factionB) return false;
+            // Pirates are hostile to all non-pirates
+            if (factionA === 'pirates' || factionB === 'pirates') return true;
+            // Different factions in a battle encounter are hostile to each other
+            return true; // In a combat zone, different factions are always hostile
+        }
+
+        // Find the best target for a combat zone ship
+        function findCombatZoneTarget(ship, cz) {
+            let bestTarget = null;
+            let bestDist = Infinity;
+
+            // Check other ships
+            for (const other of cz.ships) {
+                if (other === ship || !other.alive) continue;
+                if (!areFactionsHostile(ship.faction, other.faction)) continue;
+
+                const dx = other.currentX - ship.currentX;
+                const dy = other.currentY - ship.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                // Prefer closer targets
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestTarget = other;
+                }
+            }
+
+            // If hostile to player, consider targeting player
+            if (isFactionHostileToPlayer(ship.faction, cz) && playerShip) {
+                const dx = playerShip.position.x - ship.currentX;
+                const dy = playerShip.position.y - ship.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                // Prefer player if closer or if no other targets
+                if (dist < bestDist * 0.8 || !bestTarget) {
+                    return 'player';
+                }
+            }
+
+            return bestTarget;
+        }
+
+        // Get target position for a combat zone ship
+        function getCombatZoneTargetPos(ship, cz) {
+            if (ship.target === 'player' && playerShip) {
+                return { x: playerShip.position.x, y: playerShip.position.y };
+            }
+            if (ship.target && ship.target.alive) {
+                return { x: ship.target.currentX, y: ship.target.currentY };
+            }
+            return null;
+        }
+
+        // Main combat zone update - called each frame during encounter combat
+        function updateCombatZone(deltaTime, currentTime, scrollMultiplier) {
+            const cz = gameState.combatZone;
+            if (!cz || !cz.active) return;
+
+            // --- SCROLLING ---
+            // Scroll at same rate as system zones but faster (50% of distance = same speed over less time)
+            const scrollDist = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            cz.scrollDistance += scrollDist;
+
+            // Scroll all combat zone ships with the world
+            for (const ship of cz.ships) {
+                if (!ship.alive) continue;
+                ship.currentY -= scrollDist;
+            }
+
+            // Scroll combat zone planets with the world (handled by normal planet update)
+            // They're in gameState.planets so updatePlanets handles them
+
+            // --- SHIP AI ---
+            for (let i = cz.ships.length - 1; i >= 0; i--) {
+                const ship = cz.ships[i];
+                if (!ship.alive) continue;
+
+                // Remove ships that scrolled way off screen
+                if (ship.currentY < -orthoHeight - 20) {
+                    disposeCombatZoneShip(ship);
+                    cz.ships.splice(i, 1);
+                    continue;
+                }
+
+                // Target selection - find or switch targets
+                ship.targetSwitchTimer -= deltaTime;
+                if (!ship.target || (ship.target !== 'player' && !ship.target.alive) || ship.targetSwitchTimer <= 0) {
+                    ship.target = findCombatZoneTarget(ship, cz);
+                    ship.targetSwitchTimer = 2000 + Math.random() * 3000; // Re-evaluate every 2-5s
+                }
+
+                // Get target position
+                const targetPos = getCombatZoneTargetPos(ship, cz);
+
+                if (targetPos) {
+                    // --- INTELLIGENT MANEUVERING ---
+                    const dx = targetPos.x - ship.currentX;
+                    const dy = targetPos.y - ship.currentY;
+                    const distToTarget = Math.sqrt(dx * dx + dy * dy);
+                    const angleToTarget = Math.atan2(dy, dx);
+
+                    // Orbit/strafe around target at engagement distance
+                    ship.strafeAngle += ship.strafeDir * 0.001 * deltaTime;
+                    const idealX = targetPos.x + Math.cos(ship.strafeAngle) * ship.engageDistance;
+                    const idealY = targetPos.y + Math.sin(ship.strafeAngle) * ship.engageDistance;
+
+                    // Navigate toward ideal position
+                    const idealDx = idealX - ship.currentX;
+                    const idealDy = idealY - ship.currentY;
+                    const idealDist = Math.sqrt(idealDx * idealDx + idealDy * idealDy);
+                    const moveHeading = Math.atan2(idealDy, idealDx);
+
+                    // Smooth turn toward movement direction
+                    ship.heading = turnToward(ship.heading, moveHeading, ship.turnRate, deltaTime);
+
+                    // Move forward (faster when far from ideal position, slower when close)
+                    const speedMult = Math.min(1.5, Math.max(0.3, idealDist / ship.engageDistance));
+                    const moveSpeed = ship.speed * speedMult * deltaTime;
+                    ship.currentX += Math.cos(ship.heading) * moveSpeed;
+                    ship.currentY += Math.sin(ship.heading) * moveSpeed;
+
+                    // Face toward target for firing (blend between movement heading and target)
+                    // Ships face their movement direction but bias toward target
+                    const faceBlend = 0.6; // 60% toward target, 40% movement
+                    let faceAngle = ship.heading;
+                    let faceDiff = angleToTarget - ship.heading;
+                    while (faceDiff > Math.PI) faceDiff -= Math.PI * 2;
+                    while (faceDiff < -Math.PI) faceDiff += Math.PI * 2;
+                    faceAngle = ship.heading + faceDiff * faceBlend;
+
+                    // --- FIRING ---
+                    if (distToTarget < 15 && currentTime - ship.lastFireTime > ship.fireRate) {
+                        // Direction toward target
+                        const fdx = targetPos.x - ship.currentX;
+                        const fdy = targetPos.y - ship.currentY;
+                        const fdist = Math.sqrt(fdx * fdx + fdy * fdy);
+                        if (fdist > 0) {
+                            const noseOffsetDist = ship.baseScale * 0.5;
+                            const noseX = ship.currentX + (fdx / fdist) * noseOffsetDist;
+                            const noseY = ship.currentY + (fdy / fdist) * noseOffsetDist;
+
+                            if (ship.spread) {
+                                // Spread weapon - 3 bullets
+                                const spreadAngles = [-0.2, 0, 0.2];
+                                spreadAngles.forEach(angle => {
+                                    const cos = Math.cos(angle);
+                                    const sin = Math.sin(angle);
+                                    const vx = (fdx / fdist) * ship.bulletSpeed;
+                                    const vy = (fdy / fdist) * ship.bulletSpeed;
+                                    const rotatedVx = vx * cos - vy * sin;
+                                    const rotatedVy = vx * sin + vy * cos;
+                                    const bullet = createBullet(false, noseX, noseY, rotatedVx, rotatedVy, ship.damage);
+                                    bullet.sourceFaction = ship.faction;
+                                    bullet._combatZoneBullet = true;
+                                    bullet._sourceShipId = ship.id;
+                                    gameState.enemyBullets.push(bullet);
+                                });
+                            } else {
+                                const bullet = createBullet(false, noseX, noseY,
+                                    (fdx / fdist) * ship.bulletSpeed,
+                                    (fdy / fdist) * ship.bulletSpeed, ship.damage);
+                                bullet.sourceFaction = ship.faction;
+                                bullet._combatZoneBullet = true;
+                                bullet._sourceShipId = ship.id;
+                                gameState.enemyBullets.push(bullet);
+                            }
+                            ship.lastFireTime = currentTime;
+                        }
+                    }
+                } else {
+                    // No target - cruise forward gently
+                    ship.currentX += Math.cos(ship.heading) * ship.speed * 0.5 * deltaTime;
+                    ship.currentY += Math.sin(ship.heading) * ship.speed * 0.5 * deltaTime;
+                }
+
+                // Friendly repulsion - push away from same-faction ships
+                for (const other of cz.ships) {
+                    if (other === ship || !other.alive || other.faction !== ship.faction) continue;
+                    const rdx = ship.currentX - other.currentX;
+                    const rdy = ship.currentY - other.currentY;
+                    const rdist = Math.sqrt(rdx * rdx + rdy * rdy);
+                    if (rdist < 2.0 && rdist > 0.01) {
+                        const force = (2.0 - rdist) / 2.0 * 0.02;
+                        ship.currentX += (rdx / rdist) * force * deltaTime;
+                        ship.currentY += (rdy / rdist) * force * deltaTime;
+                    }
+                }
+
+                // Keep ships roughly in screen bounds horizontally
+                const maxX = orthoWidth + 3;
+                if (ship.currentX < -maxX) ship.currentX = -maxX;
+                if (ship.currentX > maxX) ship.currentX = maxX;
+
+                // --- UPDATE VISUALS ---
+                if (ship.mesh) {
+                    ship.mesh.position.x = ship.currentX;
+                    ship.mesh.position.y = ship.currentY;
+
+                    const tipQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, Math.PI / 2);
+                    const headQ = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, ship.heading + Math.PI / 2);
+                    ship.mesh.rotationQuaternion = headQ.multiply(tipQ);
+                }
+
+                // Update engine glow positions
+                if (ship.engineGlows && ship.engineGlows.length > 0) {
+                    const engineDist = ship.baseScale * 0.35;
+                    const ex = ship.currentX - Math.cos(ship.heading) * engineDist;
+                    const ey = ship.currentY - Math.sin(ship.heading) * engineDist;
+                    ship.engineGlows.forEach(eg => {
+                        eg.glow.position.x = ex;
+                        eg.glow.position.y = ey;
+                        if (eg.core) {
+                            eg.core.position.x = ex;
+                            eg.core.position.y = ey;
+                        }
+                    });
+                }
+            }
+
+            // --- BULLET-SHIP COLLISION (combat zone ships hit by NPC bullets) ---
+            for (let bi = gameState.enemyBullets.length - 1; bi >= 0; bi--) {
+                const bullet = gameState.enemyBullets[bi];
+                if (!bullet._combatZoneBullet) continue;
+
+                for (let si = cz.ships.length - 1; si >= 0; si--) {
+                    const ship = cz.ships[si];
+                    if (!ship.alive) continue;
+                    // Don't hit own faction
+                    if (bullet.sourceFaction === ship.faction) continue;
+
+                    const dx = bullet.position.x - ship.currentX;
+                    const dy = bullet.position.y - ship.currentY;
+                    const hitRadius = ship.baseScale * 0.8;
+                    if (Math.sqrt(dx * dx + dy * dy) < hitRadius) {
+                        ship.hp -= (bullet.damage || 10);
+                        createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
+
+                        if (ship.hp <= 0) {
+                            createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
+                            // Drop loot
+                            createLoot(ship.currentX, ship.currentY, ship.type);
+                            gameState.score += 10 * gameState.wave;
+                            gameState.credits += 10 + Math.floor(Math.random() * 15);
+                            gameState.stats.enemiesKilled++;
+                            updateHUD();
+                            disposeCombatZoneShip(ship);
+                            cz.ships.splice(si, 1);
+                        } else {
+                            if (ship.mesh) flashShip(ship.mesh);
+                        }
+
+                        if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                        bullet.getChildMeshes().forEach(m => m.dispose());
+                        bullet.dispose();
+                        gameState.enemyBullets.splice(bi, 1);
+                        break;
+                    }
+                }
+            }
+
+            // --- PLAYER BULLET HIT COMBAT ZONE SHIPS ---
+            for (let bi = gameState.playerBullets.length - 1; bi >= 0; bi--) {
+                const bullet = gameState.playerBullets[bi];
+                let hit = false;
+
+                for (let si = cz.ships.length - 1; si >= 0; si--) {
+                    const ship = cz.ships[si];
+                    if (!ship.alive) continue;
+
+                    const dx = bullet.position.x - ship.currentX;
+                    const dy = bullet.position.y - ship.currentY;
+                    const hitRadius = ship.baseScale * 0.8;
+                    if (Math.sqrt(dx * dx + dy * dy) < hitRadius) {
+                        ship.hp -= (bullet.damage || 10);
+                        createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
+
+                        // Player attacked this faction - aggro!
+                        if (!isFactionHostileToPlayer(ship.faction, cz)) {
+                            cz.playerAggroFactions.add(ship.faction);
+                        }
+
+                        if (ship.hp <= 0) {
+                            createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
+                            createLoot(ship.currentX, ship.currentY, ship.type);
+                            gameState.score += 10 * gameState.wave;
+                            gameState.credits += 10 + Math.floor(Math.random() * 15);
+                            gameState.stats.enemiesKilled++;
+                            updateHUD();
+
+                            // All ships targeting this dead ship will switch targets
+                            for (const other of cz.ships) {
+                                if (other.target === ship) {
+                                    other.target = null;
+                                    other.targetSwitchTimer = 0;
+                                }
+                            }
+
+                            disposeCombatZoneShip(ship);
+                            cz.ships.splice(si, 1);
+                        } else {
+                            if (ship.mesh) flashShip(ship.mesh);
+                            // Getting hit by player makes ship switch target to player
+                            ship.target = 'player';
+                            ship.targetSwitchTimer = 5000; // Stay locked on player for 5s
+                        }
+
+                        // Piercing rounds
+                        const piercesLeft = bullet.piercesLeft !== undefined ? bullet.piercesLeft : ((gameState.techBonuses || {}).piercingRounds || 0);
+                        if (piercesLeft > 0) {
+                            bullet.piercesLeft = piercesLeft - 1;
+                        } else {
+                            if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                            bullet.getChildMeshes().forEach(m => m.dispose());
+                            bullet.dispose();
+                            gameState.playerBullets.splice(bi, 1);
+                            hit = true;
+                        }
+                        break;
+                    }
+                }
+                if (hit) continue;
+            }
+
+            // --- ENEMY BULLETS HIT PLAYER (combat zone bullets only) ---
+            // This is already handled by the normal updateBullets function since
+            // combat zone bullets are in gameState.enemyBullets
+
+            // --- ZONE COMPLETION ---
+            // Check if zone has scrolled to completion
+            if (cz.scrollDistance >= cz.totalScrollDistance) {
+                // Zone is done scrolling - return to exploration
+                finishCombatZone();
+                return;
+            }
+
+            // --- PEACEFUL ZONE AUTO-EXIT ---
+            // If no ships are hostile to each other, start peace timer
+            let hasHostility = false;
+            const aliveFactions = new Set();
+            for (const ship of cz.ships) {
+                if (ship.alive) aliveFactions.add(ship.faction);
+            }
+            // Check if any two alive factions are hostile
+            const factionList = Array.from(aliveFactions);
+            for (let a = 0; a < factionList.length && !hasHostility; a++) {
+                for (let b = a + 1; b < factionList.length && !hasHostility; b++) {
+                    if (areFactionsHostile(factionList[a], factionList[b])) {
+                        hasHostility = true;
+                    }
+                }
+            }
+            // Also check if any faction is hostile to player
+            for (const f of factionList) {
+                if (isFactionHostileToPlayer(f, cz)) {
+                    hasHostility = true;
+                    break;
+                }
+            }
+
+            if (!hasHostility || cz.ships.length === 0) {
+                cz.peaceTimer += deltaTime;
+                if (cz.peaceTimer >= cz.peaceThreshold) {
+                    // Smooth zoom out to exploration
+                    finishCombatZone();
+                    return;
+                }
+            } else {
+                cz.peaceTimer = 0;
+            }
+        }
+
+        // End the combat zone and return to exploration
+        function finishCombatZone() {
+            const cz = gameState.combatZone;
+            if (!cz) return;
+
+            // Clean up all combat zone ships
+            for (const ship of cz.ships) {
+                disposeCombatZoneShip(ship);
+            }
+            cz.ships = [];
+
+            // Clean up combat zone planets (from gameState.planets)
+            for (let i = gameState.planets.length - 1; i >= 0; i--) {
+                if (gameState.planets[i]._combatZonePlanet) {
+                    const p = gameState.planets[i];
+                    if (p.material) p.material.dispose();
+                    p.dispose();
+                    gameState.planets.splice(i, 1);
+                }
+            }
+            cz.planets = [];
+            cz.active = false;
+
+            // Clean up combat zone bullets
+            for (let i = gameState.enemyBullets.length - 1; i >= 0; i--) {
+                const b = gameState.enemyBullets[i];
+                if (b._combatZoneBullet) {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                    b.getChildMeshes().forEach(m => m.dispose());
+                    b.dispose();
+                    gameState.enemyBullets.splice(i, 1);
+                }
+            }
+
+            // Advance wave counter
+            gameState.wave++;
+            gameState.levelWave++;
+            updateHUD();
+
+            // Use the standard return to exploration
+            onEncounterVictory();
+        }
+
+        // Clean up combat zone state completely
+        function cleanupCombatZone() {
+            const cz = gameState.combatZone;
+            if (!cz) return;
+            for (const ship of cz.ships) {
+                disposeCombatZoneShip(ship);
+            }
+            cz.ships = [];
+            for (let i = gameState.planets.length - 1; i >= 0; i--) {
+                if (gameState.planets[i]._combatZonePlanet) {
+                    const p = gameState.planets[i];
+                    if (p.material) p.material.dispose();
+                    p.dispose();
+                    gameState.planets.splice(i, 1);
+                }
+            }
+            cz.planets = [];
+            cz.active = false;
+        }
+
+        // Fire player weapons targeting combat zone ships
+        function firePlayerWeaponsAtCombatZone(currentTime) {
+            if (!playerShip) return;
+            const cz = gameState.combatZone;
+            if (!cz || cz.ships.length === 0) return;
+
+            // Find nearest combat zone ship (prefer hostile ones)
+            let nearestHostile = null;
+            let nearestHostileDist = Infinity;
+            let nearestAny = null;
+            let nearestAnyDist = Infinity;
+
+            for (const ship of cz.ships) {
+                if (!ship.alive) continue;
+                const dx = ship.currentX - playerShip.position.x;
+                const dy = ship.currentY - playerShip.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < nearestAnyDist) {
+                    nearestAnyDist = dist;
+                    nearestAny = ship;
+                }
+                if (isFactionHostileToPlayer(ship.faction, cz) && dist < nearestHostileDist) {
+                    nearestHostileDist = dist;
+                    nearestHostile = ship;
+                }
+            }
+
+            const target = nearestHostile || nearestAny;
+            if (!target) return;
+
+            // Get equipped weapons
+            const equippedWeapons = gameState.equippedWeapons.length > 0
+                ? gameState.equippedWeapons
+                : [WEAPONS.basic];
+
+            equippedWeapons.forEach((weapon, idx) => {
+                if (!weapon) return;
+                if (weapon.isEquipment) return;
+
+                if (!gameState.weaponFireTimes) gameState.weaponFireTimes = {};
+                const lastFire = gameState.weaponFireTimes[idx] || 0;
+                const tb = gameState.techBonuses || {};
+
+                let fireRateMult = 1 + (tb.fireRate || 0);
+                if (tb.stationaryFireRate && gameState.stationaryTime) {
+                    fireRateMult += Math.min(gameState.stationaryTime * 0.05, 0.5);
+                }
+                const fireInterval = weapon.fireRate / settings.fireRate / fireRateMult;
+
+                if (currentTime - lastFire > fireInterval) {
+                    const hardpointOffset = gameState.fleet.length > 0 && gameState.fleet[0].hardpoints[idx]
+                        ? gameState.fleet[0].hardpoints[idx].position
+                        : { x: (idx === 0 ? -0.3 : 0.3), y: 0.3 };
+
+                    const px = playerShip.position.x + hardpointOffset.x;
+                    const py = playerShip.position.y + hardpointOffset.y + 0.2;
+
+                    // Aim toward target
+                    const tdx = target.currentX - px;
+                    const tdy = target.currentY - py;
+                    const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+                    if (tdist <= 0) return;
+
+                    const weaponSpeed = weapon.speed || 0.35;
+                    const dmgMult = 1 + (tb.bulletDamage || 0);
+                    const boostedDmg = Math.round(weapon.damage * dmgMult);
+
+                    if (weapon.type === 'beam') {
+                        fireBeamLaser(px, py, weapon);
+                    } else if (weapon.type === 'spread' || weapon.projectiles > 1) {
+                        const count = (weapon.projectiles || 3) + (tb.extraProjectiles || 0);
+                        const spreadAngle = weapon.spread || 0.3;
+                        const baseAngle = Math.atan2(tdy, tdx);
+                        const angleStep = count > 1 ? (spreadAngle * 2) / (count - 1) : 0;
+                        const startAngle = baseAngle - spreadAngle;
+
+                        for (let i = 0; i < count; i++) {
+                            const angle = count > 1 ? startAngle + (angleStep * i) : baseAngle;
+                            const vx = Math.cos(angle) * weaponSpeed;
+                            const vy = Math.sin(angle) * weaponSpeed;
+                            const bullet = createBullet(true, px, py, vx, vy, boostedDmg);
+                            gameState.playerBullets.push(bullet);
+                        }
+                    } else {
+                        // Single bullet aimed at target
+                        const extraProj = tb.extraProjectiles || 0;
+                        const baseAngle = Math.atan2(tdy, tdx);
+                        if (extraProj > 0) {
+                            const totalProj = 1 + extraProj;
+                            const spread = 0.15;
+                            const step = totalProj > 1 ? (spread * 2) / (totalProj - 1) : 0;
+                            for (let i = 0; i < totalProj; i++) {
+                                const angle = baseAngle + (totalProj > 1 ? -spread + step * i : 0);
+                                const vx = Math.cos(angle) * weaponSpeed;
+                                const vy = Math.sin(angle) * weaponSpeed;
+                                const bullet = createBullet(true, px, py, vx, vy, boostedDmg);
+                                gameState.playerBullets.push(bullet);
+                            }
+                        } else {
+                            const vx = (tdx / tdist) * weaponSpeed;
+                            const vy = (tdy / tdist) * weaponSpeed;
+                            const bullet = createBullet(true, px, py, vx, vy, boostedDmg);
+                            gameState.playerBullets.push(bullet);
+                        }
+                    }
+
+                    gameState.weaponFireTimes[idx] = currentTime;
+                }
+            });
+        }
+
+        // ========== END NEW COMBAT ZONE SYSTEM ==========
 
         // Create the goal sun at the top of the exploration map
         function createExplorationGoal() {
@@ -13960,34 +14785,41 @@
                 }
 
                 if (playerShip) {
-                    const dx = bullet.position.x - playerShip.position.x;
-                    const dy = bullet.position.y - playerShip.position.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    // In combat zone mode, only bullets from factions hostile to player hit
+                    const cz = gameState.combatZone;
+                    const bulletHostile = !cz || !cz.active || !bullet._combatZoneBullet ||
+                        isFactionHostileToPlayer(bullet.sourceFaction, cz);
 
-                    if (dist < 0.5) {
-                        createExplosion(bullet.position.x, bullet.position.y, 'small', 'orange');
-                        flashShip(playerShipMesh);
+                    if (bulletHostile) {
+                        const dx = bullet.position.x - playerShip.position.x;
+                        const dy = bullet.position.y - playerShip.position.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
 
-                        // God mode: invulnerable to damage
-                        if (!settings.godMode) {
-                            let dmg = bullet.damage || 10;
-                            // Shield absorbs damage first
-                            dmg = applyShieldDamage(dmg);
-                            if (dmg > 0) {
-                                gameState.health -= dmg;
+                        if (dist < 0.5) {
+                            createExplosion(bullet.position.x, bullet.position.y, 'small', 'orange');
+                            flashShip(playerShipMesh);
+
+                            // God mode: invulnerable to damage
+                            if (!settings.godMode) {
+                                let dmg = bullet.damage || 10;
+                                // Shield absorbs damage first
+                                dmg = applyShieldDamage(dmg);
+                                if (dmg > 0) {
+                                    gameState.health -= dmg;
+                                }
+                                updateHUD();
+
+                                if (gameState.health <= 0) {
+                                    createExplosion(playerShip.position.x, playerShip.position.y, 'large', 'blue');
+                                    gameOver();
+                                }
                             }
-                            updateHUD();
-
-                            if (gameState.health <= 0) {
-                                createExplosion(playerShip.position.x, playerShip.position.y, 'large', 'blue');
-                                gameOver();
-                            }
+                            if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                            bullet.getChildMeshes().forEach(m => m.dispose());
+                            bullet.dispose();
+                            gameState.enemyBullets.splice(i, 1);
+                            continue;
                         }
-                        if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
-                        bullet.getChildMeshes().forEach(m => m.dispose());
-                        bullet.dispose();
-                        gameState.enemyBullets.splice(i, 1);
-                        continue;
                     }
                 }
 
@@ -15233,7 +16065,17 @@
                     scrollMultiplier *= 0.35;
                 }
                 updateBackgrounds(scrollMultiplier * 0.25, deltaTime);
-                firePlayerWeapons(currentTime);
+
+                // NEW: Combat zone update - replaces old wave spawning for encounters
+                if (gameState.combatZone && gameState.combatZone.active && gameState.encounterTransition === 'combat') {
+                    // Fire player weapons at combat zone ships (weaponsHot check)
+                    if (gameState.weaponsHot) {
+                        firePlayerWeaponsAtCombatZone(currentTime);
+                    }
+                    updateCombatZone(deltaTime, currentTime, scrollMultiplier);
+                } else {
+                    firePlayerWeapons(currentTime);
+                }
 
                 gameState.spawnTimer += deltaTime;
                 if (gameState.spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
@@ -15267,42 +16109,48 @@
 
                 // Encounter combat completion check
                 if (gameState.encounterTransition === 'combat' && gameState.currentEncounter) {
-                    const allSpawned = gameState.enemiesSpawned >= gameState.enemiesInWave;
-                    const activeEnemies = gameState.enemies.filter(e => !e.isDisabled);
+                    // NEW: Combat zone handles its own completion via updateCombatZone
+                    if (gameState.combatZone && gameState.combatZone.active) {
+                        // Combat zone manages exit through finishCombatZone()
+                        // No old-style completion needed
+                    } else {
+                        const allSpawned = gameState.enemiesSpawned >= gameState.enemiesInWave;
+                        const activeEnemies = gameState.enemies.filter(e => !e.isDisabled);
 
-                    // Escape: player reached the top of the screen - fly past the encounter
-                    // Only available for exploration encounters (not regular level combat)
-                    let escaped = false;
-                    if (gameState.savedExplorePos) {
-                        const escapeThreshold = -orthoHeight + (orthoHeight * 2 * settings.maxHeight) - 0.5;
-                        if (playerShip && playerShip.position.y >= escapeThreshold) {
-                            gameState.encounterEscapeTimer = (gameState.encounterEscapeTimer || 0) + deltaTime;
-                            if (gameState.encounterEscapeTimer > 1500) { // 1.5s at top to escape
+                        // Escape: player reached the top of the screen - fly past the encounter
+                        // Only available for exploration encounters (not regular level combat)
+                        let escaped = false;
+                        if (gameState.savedExplorePos) {
+                            const escapeThreshold = -orthoHeight + (orthoHeight * 2 * settings.maxHeight) - 0.5;
+                            if (playerShip && playerShip.position.y >= escapeThreshold) {
+                                gameState.encounterEscapeTimer = (gameState.encounterEscapeTimer || 0) + deltaTime;
+                                if (gameState.encounterEscapeTimer > 1500) { // 1.5s at top to escape
+                                    gameState.encounterEscapeTimer = 0;
+                                    returnToExploration();
+                                    escaped = true;
+                                }
+                            } else {
                                 gameState.encounterEscapeTimer = 0;
-                                returnToExploration();
-                                escaped = true;
                             }
-                        } else {
-                            gameState.encounterEscapeTimer = 0;
                         }
-                    }
 
-                    if (!escaped && gameState.encounterIsBattle && allSpawned) {
-                        // Crossfire battle: ends when one faction is wiped out (active only)
-                        const factionA = activeEnemies.filter(e => e.enemyFaction === 'A');
-                        const factionB = activeEnemies.filter(e => e.enemyFaction === 'B');
-                        if (factionA.length === 0 || factionB.length === 0) {
+                        if (!escaped && gameState.encounterIsBattle && allSpawned) {
+                            // Crossfire battle: ends when one faction is wiped out (active only)
+                            const factionA = activeEnemies.filter(e => e.enemyFaction === 'A');
+                            const factionB = activeEnemies.filter(e => e.enemyFaction === 'B');
+                            if (factionA.length === 0 || factionB.length === 0) {
+                                gameState.wave++;
+                                gameState.levelWave++;
+                                updateHUD();
+                                onEncounterVictory();
+                            }
+                        } else if (!escaped && allSpawned && activeEnemies.length === 0) {
+                            // Normal encounter: all active enemies dead
                             gameState.wave++;
                             gameState.levelWave++;
                             updateHUD();
                             onEncounterVictory();
                         }
-                    } else if (!escaped && allSpawned && activeEnemies.length === 0) {
-                        // Normal encounter: all active enemies dead
-                        gameState.wave++;
-                        gameState.levelWave++;
-                        updateHUD();
-                        onEncounterVictory();
                     }
                 }
                 // Non-encounter wave completion (level end, stations, etc.)
