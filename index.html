@@ -11690,20 +11690,20 @@
                 const enterSide = Math.random();
                 if (enterSide < 0.25) {
                     // Enter from left
-                    startX = -halfW - 5 - Math.random() * 10;
+                    startX = -halfW - 2 - Math.random() * 3;
                     startY = goalY * (0.05 + Math.random() * 0.7);
                 } else if (enterSide < 0.5) {
                     // Enter from right
-                    startX = halfW + 5 + Math.random() * 10;
+                    startX = halfW + 2 + Math.random() * 3;
                     startY = goalY * (0.05 + Math.random() * 0.7);
                 } else if (enterSide < 0.75) {
                     // Enter from bottom
                     startX = (Math.random() - 0.5) * halfW * 1.5;
-                    startY = -effectiveOrtho - 5 - Math.random() * 10;
+                    startY = -effectiveOrtho - 2 - Math.random() * 3;
                 } else {
                     // Enter from top (beyond the sun)
                     startX = (Math.random() - 0.5) * halfW * 1.5;
-                    startY = goalY + 15 + Math.random() * 15;
+                    startY = goalY + 5 + Math.random() * 5;
                 }
                 // Head across to the opposite side of the play area (long patrol)
                 endX = -startX * 0.6 + (Math.random() - 0.5) * halfW * 0.5;
@@ -11713,16 +11713,16 @@
                 const enterSide = Math.random();
                 if (enterSide < 0.3) {
                     // Enter from left
-                    startX = -halfW - 5 - Math.random() * 15;
+                    startX = -halfW - 2 - Math.random() * 3;
                     startY = goalY * (0.1 + Math.random() * 0.6);
                 } else if (enterSide < 0.6) {
                     // Enter from right
-                    startX = halfW + 5 + Math.random() * 15;
+                    startX = halfW + 2 + Math.random() * 3;
                     startY = goalY * (0.1 + Math.random() * 0.6);
                 } else {
                     // Enter from bottom
                     startX = (Math.random() - 0.5) * halfW * 1.6;
-                    startY = -effectiveOrtho - 5 - Math.random() * 15;
+                    startY = -effectiveOrtho - 2 - Math.random() * 3;
                 }
                 // Head toward the sun area or across the map
                 if (Math.random() < 0.4) {
@@ -11739,11 +11739,11 @@
                     // Edge-to-sun: travel from an edge toward the sun
                     const side = Math.random();
                     if (side < 0.4) {
-                        startX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 5 + Math.random() * 15);
+                        startX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 2 + Math.random() * 3);
                         startY = goalY * (0.1 + Math.random() * 0.5);
                     } else {
                         startX = (Math.random() - 0.5) * halfW * 1.6;
-                        startY = -effectiveOrtho - 5 - Math.random() * 15;
+                        startY = -effectiveOrtho - 2 - Math.random() * 3;
                     }
                     endX = (Math.random() - 0.5) * 15;
                     endY = goalY + (Math.random() - 0.5) * 10;
@@ -11753,31 +11753,31 @@
                     startY = goalY + (Math.random() - 0.5) * 15;
                     const side = Math.random();
                     if (side < 0.4) {
-                        endX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 10 + Math.random() * 15);
+                        endX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 3 + Math.random() * 3);
                         endY = goalY * (0.1 + Math.random() * 0.5);
                     } else {
                         endX = (Math.random() - 0.5) * halfW * 1.6;
-                        endY = -effectiveOrtho - 10 - Math.random() * 15;
+                        endY = -effectiveOrtho - 3 - Math.random() * 3;
                     }
                 } else {
                     // Cross-map: edge to opposite edge (ships traveling through)
                     const enterSide = Math.floor(Math.random() * 3);
                     if (enterSide === 0) {
                         // Left to right
-                        startX = -halfW - 5 - Math.random() * 10;
+                        startX = -halfW - 2 - Math.random() * 3;
                         startY = goalY * (0.1 + Math.random() * 0.6);
-                        endX = halfW + 5 + Math.random() * 10;
+                        endX = halfW + 2 + Math.random() * 3;
                         endY = goalY * (0.1 + Math.random() * 0.6);
                     } else if (enterSide === 1) {
                         // Right to left
-                        startX = halfW + 5 + Math.random() * 10;
+                        startX = halfW + 2 + Math.random() * 3;
                         startY = goalY * (0.1 + Math.random() * 0.6);
-                        endX = -halfW - 5 - Math.random() * 10;
+                        endX = -halfW - 2 - Math.random() * 3;
                         endY = goalY * (0.1 + Math.random() * 0.6);
                     } else {
                         // Bottom to top (toward sun and beyond)
                         startX = (Math.random() - 0.5) * halfW * 1.2;
-                        startY = -effectiveOrtho - 5 - Math.random() * 10;
+                        startY = -effectiveOrtho - 2 - Math.random() * 3;
                         endX = (Math.random() - 0.5) * halfW * 0.8;
                         endY = goalY + 10 + Math.random() * 20;
                     }
@@ -12129,8 +12129,8 @@
                         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
                         ship.heading += angleDiff * Math.min(1, deltaTime * 0.004); // Smooth turn
 
-                        // Move forward at boosted speed (1.8x base)
-                        const huntSpeed = ship.baseSpeed * 1.8 * deltaTime;
+                        // Move forward at boosted speed (3x base)
+                        const huntSpeed = ship.baseSpeed * 3.0 * deltaTime;
                         ship.currentX += Math.cos(ship.heading) * huntSpeed;
                         ship.currentY += Math.sin(ship.heading) * huntSpeed;
                     } else {
@@ -15237,7 +15237,7 @@
                 if (gameState.levelEndSpawned || gameState.showingGates) {
                     scrollMultiplier *= 0.35;
                 }
-                updateBackgrounds(scrollMultiplier, deltaTime);
+                updateBackgrounds(scrollMultiplier * 0.5, deltaTime);
                 firePlayerWeapons(currentTime);
 
                 gameState.spawnTimer += deltaTime;
