@@ -12174,90 +12174,20 @@
 
         // ========== NPC CONFLICT SYSTEM ==========
 
-        // Create crossed swords icon for a skirmish using dynamic texture
+        // Create subtle engagement zone indicator for a skirmish
         function createSkirmishIcon(skirmish) {
             if (!scene) return;
 
-            const iconSize = 3.5;
-            const plane = BABYLON.MeshBuilder.CreatePlane('skirmishIcon_' + skirmish.id, {
-                size: iconSize
-            }, scene);
-            plane.position.x = skirmish.centerX;
-            plane.position.y = skirmish.centerY + 2.5;
-            plane.position.z = 0.05;
-            plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
+            // No large icon - the ships fighting each other are the visual indicator
+            skirmish.iconMesh = null;
 
-            // Dynamic texture with crossed swords drawn on canvas
-            const texSize = 128;
-            const dynTex = new BABYLON.DynamicTexture('skirmishTex_' + skirmish.id, texSize, scene, false);
-            const ctx = dynTex.getContext();
-            ctx.clearRect(0, 0, texSize, texSize);
-
-            // Draw crossed swords
-            ctx.strokeStyle = '#ffaa00';
-            ctx.lineWidth = 4;
-            ctx.lineCap = 'round';
-
-            // Sword 1 (top-left to bottom-right)
-            ctx.beginPath();
-            ctx.moveTo(25, 25);
-            ctx.lineTo(103, 103);
-            ctx.stroke();
-            // Blade widening
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(25, 25);
-            ctx.lineTo(30, 20);
-            ctx.stroke();
-            // Guard 1
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.moveTo(50, 78);
-            ctx.lineTo(78, 50);
-            ctx.stroke();
-
-            // Sword 2 (top-right to bottom-left)
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(103, 25);
-            ctx.lineTo(25, 103);
-            ctx.stroke();
-            // Blade widening
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(103, 25);
-            ctx.lineTo(98, 20);
-            ctx.stroke();
-            // Guard 2
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.moveTo(50, 50);
-            ctx.lineTo(78, 78);
-            ctx.stroke();
-
-            dynTex.update();
-
-            const mat = new BABYLON.StandardMaterial('skirmishIconMat_' + skirmish.id, scene);
-            mat.diffuseTexture = dynTex;
-            mat.emissiveTexture = dynTex;
-            mat.opacityTexture = dynTex;
-            mat.useAlphaFromDiffuseTexture = true;
-            mat.disableLighting = true;
-            mat.backFaceCulling = false;
-            mat.alpha = 0.9;
-            plane.material = mat;
-            plane.renderingGroupId = 2;
-
-            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(plane);
-            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(plane);
-
-            skirmish.iconMesh = plane;
-
-            // Create a subtle circle indicator around the fight area
+            // Create a very subtle ring showing the engagement zone
+            // (radius 6 matches the detection distance in checkEncounterDetection)
+            const engagementRadius = 6;
             const ring = BABYLON.MeshBuilder.CreateTorus('skirmishRing_' + skirmish.id, {
-                diameter: skirmish.orbitRadius * 3,
-                thickness: 0.2,
-                tessellation: 32
+                diameter: engagementRadius * 2,
+                thickness: 0.08,
+                tessellation: 48
             }, scene);
             ring.position.x = skirmish.centerX;
             ring.position.y = skirmish.centerY;
@@ -12265,12 +12195,12 @@
             ring.rotation.x = Math.PI / 2;
 
             const ringMat = new BABYLON.StandardMaterial('skirmishRingMat_' + skirmish.id, scene);
-            ringMat.emissiveColor = new BABYLON.Color3(1.0, 0.67, 0.0);
-            ringMat.alpha = 0.2;
+            ringMat.emissiveColor = new BABYLON.Color3(0.8, 0.3, 0.1);
+            ringMat.alpha = 0.07;
             ringMat.disableLighting = true;
             ringMat.backFaceCulling = false;
             ring.material = ringMat;
-            ring.renderingGroupId = 2;
+            ring.renderingGroupId = 1;
 
             if (sunGlowLayer) sunGlowLayer.addExcludedMesh(ring);
             if (lootGlowLayer) lootGlowLayer.addExcludedMesh(ring);
@@ -12511,26 +12441,46 @@
                 // Scroll skirmish center with the world
                 skirmish.centerY -= scrollDist;
 
+                // Scroll fixed combat positions with the world
+                const allFighters = [skirmish.attacker, skirmish.defender, ...skirmish.allies];
+                allFighters.forEach(ship => {
+                    if (ship._combatBaseY !== undefined) {
+                        ship._combatBaseY -= scrollDist;
+                    }
+                });
+
                 skirmish.timer += deltaTime;
 
-                // Orbit angle advances over time - ships circle the battle center
+                // Advance wobble timer for organic movement
                 skirmish.orbitAngle += skirmish.orbitSpeed * deltaTime;
 
-                // Helper: compute facing for a ship based on its size
-                // Small ships (scale < 1.5) face their target
-                // Large ships (scale >= 1.5) face their movement direction (tangent to orbit)
-                const TURRET_SCALE_THRESHOLD = 1.5;
+                // Initialize fixed combat positions if not set
+                // Ships hold position facing each other with subtle drift
+                if (!skirmish._combatPositionsInit) {
+                    skirmish._combatPositionsInit = true;
+                    // Place attacker and defender on opposite sides of center
+                    const facing = skirmish.attacker.fightAngleOffset || 0;
+                    skirmish.attacker._combatBaseX = skirmish.centerX + Math.cos(facing) * skirmish.orbitRadius;
+                    skirmish.attacker._combatBaseY = skirmish.centerY + Math.sin(facing) * skirmish.orbitRadius;
+                    skirmish.attacker._combatWobblePhase = Math.random() * Math.PI * 2;
+                    const defFacing = skirmish.defender.fightAngleOffset || Math.PI;
+                    skirmish.defender._combatBaseX = skirmish.centerX + Math.cos(defFacing) * skirmish.orbitRadius;
+                    skirmish.defender._combatBaseY = skirmish.centerY + Math.sin(defFacing) * skirmish.orbitRadius;
+                    skirmish.defender._combatWobblePhase = Math.random() * Math.PI * 2;
+                }
 
-                function positionFighter(ship, angle, radius, targetShip) {
-                    ship.currentX = skirmish.centerX + Math.cos(angle) * radius;
-                    ship.currentY = skirmish.centerY + Math.sin(angle) * radius;
+                // Helper: position a ship at its combat station with subtle wobble
+                function positionFighter(ship, targetShip) {
+                    if (!ship._combatBaseX) return;
+                    // Subtle wobble so ships don't look frozen
+                    ship._combatWobblePhase += deltaTime * 0.0008;
+                    const wobbleX = Math.sin(ship._combatWobblePhase) * 0.3;
+                    const wobbleY = Math.cos(ship._combatWobblePhase * 0.7 + 1.3) * 0.2;
+                    ship.currentX = ship._combatBaseX + wobbleX;
+                    ship.currentY = ship._combatBaseY + wobbleY;
 
-                    const shipScale = ship.type.scale || 1.0;
-                    if (shipScale >= TURRET_SCALE_THRESHOLD) {
-                        // Large ships: face movement direction (tangent to orbit)
-                        ship.heading = angle + Math.PI / 2;
-                    } else if (targetShip && targetShip.alive) {
-                        // Small ships: face toward their target
+                    // All ships face their target
+                    if (targetShip && targetShip.alive) {
                         ship.heading = Math.atan2(
                             targetShip.currentY - ship.currentY,
                             targetShip.currentX - ship.currentX
@@ -12544,23 +12494,26 @@
                     }
                 }
 
-                // Position attacker and defender on opposite sides, orbiting
-                const attackerAngle = skirmish.orbitAngle + (skirmish.attacker.fightAngleOffset || 0);
-                const defenderAngle = skirmish.orbitAngle + (skirmish.defender.fightAngleOffset || Math.PI);
-
+                // Position attacker and defender facing each other
                 if (skirmish.attacker.alive) {
-                    positionFighter(skirmish.attacker, attackerAngle, skirmish.orbitRadius, skirmish.defender);
+                    positionFighter(skirmish.attacker, skirmish.defender);
                 }
 
                 if (skirmish.defender.alive) {
-                    positionFighter(skirmish.defender, defenderAngle, skirmish.orbitRadius, skirmish.attacker);
+                    positionFighter(skirmish.defender, skirmish.attacker);
                 }
 
-                // Position allies around the fight (on defender's side), orbiting
+                // Position allies near the defender's side, facing attacker
                 skirmish.allies.forEach((ally, idx) => {
                     if (!ally.alive || ally.behavior !== 'fighting') return;
-                    const allyAngle = skirmish.orbitAngle + (ally.fightAngleOffset || (Math.PI + (idx + 1) * 0.8));
-                    positionFighter(ally, allyAngle, skirmish.orbitRadius + 1.5, skirmish.attacker);
+                    if (!ally._combatBaseX) {
+                        // Initialize ally combat position offset from defender
+                        const allyAngle = (skirmish.defender.fightAngleOffset || Math.PI) + (idx + 1) * 0.8;
+                        ally._combatBaseX = skirmish.centerX + Math.cos(allyAngle) * (skirmish.orbitRadius + 1.5);
+                        ally._combatBaseY = skirmish.centerY + Math.sin(allyAngle) * (skirmish.orbitRadius + 1.5);
+                        ally._combatWobblePhase = Math.random() * Math.PI * 2;
+                    }
+                    positionFighter(ally, skirmish.attacker);
                 });
 
                 // Fire combat beams between ships
@@ -12589,18 +12542,13 @@
                     }
                 }
 
-                // Update icon position
-                if (skirmish.iconMesh) {
-                    skirmish.iconMesh.position.x = skirmish.centerX;
-                    skirmish.iconMesh.position.y = skirmish.centerY + 2.5;
-                    // Pulse alpha
-                    if (skirmish.iconMesh.material) {
-                        skirmish.iconMesh.material.alpha = 0.7 + Math.sin(Date.now() * 0.005) * 0.3;
-                    }
-                }
+                // Update engagement zone ring position with very subtle pulse
                 if (skirmish.ringMesh) {
                     skirmish.ringMesh.position.x = skirmish.centerX;
                     skirmish.ringMesh.position.y = skirmish.centerY;
+                    if (skirmish.ringMesh.material) {
+                        skirmish.ringMesh.material.alpha = 0.05 + Math.sin(Date.now() * 0.0015) * 0.025;
+                    }
                 }
 
                 // Apply combat damage over time (abstract DPS)
@@ -12776,74 +12724,16 @@
             }
         }
 
-        // Check if player is near a skirmish and apply weapon damage
-        // Player auto-joins nearby conflicts regardless of weaponsHot
+        // Player does not auto-shoot at skirmishes in exploration mode.
+        // Combat only happens when the player flies into the engagement zone
+        // and the encounter transitions to full combat mode.
         function checkPlayerSkirmishInteraction(deltaTime) {
-            if (!playerShip) {
-                // Clean up any player beam visuals
-                gameState.explorationSkirmishes.forEach(s => {
-                    if (s.playerBeamMesh) {
-                        s.playerBeamMesh.material.dispose();
-                        s.playerBeamMesh.dispose();
-                        s.playerBeamMesh = null;
-                    }
-                });
-                return;
-            }
-
-            const playerX = playerShip.position.x;
-            const playerY = playerShip.position.y;
-            const weaponRange = 12; // Range in exploration units
-
-            gameState.explorationSkirmishes.forEach(skirmish => {
-                if (skirmish.resolved) return;
-
-                const dx = playerX - skirmish.centerX;
-                const dy = playerY - skirmish.centerY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                if (dist < weaponRange) {
-                    // Player is in range - determine which combatant is closer
-                    const distToAttacker = Math.sqrt(
-                        (playerX - skirmish.attacker.currentX) ** 2 +
-                        (playerY - skirmish.attacker.currentY) ** 2
-                    );
-                    const distToDefender = Math.sqrt(
-                        (playerX - skirmish.defender.currentX) ** 2 +
-                        (playerY - skirmish.defender.currentY) ** 2
-                    );
-
-                    const targetShip = distToAttacker < distToDefender ? skirmish.attacker : skirmish.defender;
-                    const isTargetingAttacker = distToAttacker < distToDefender;
-
-                    // Calculate player DPS (scales with equipped weapons)
-                    const equippedWeapons = gameState.equippedWeapons.length > 0
-                        ? gameState.equippedWeapons : [{ damage: 5 }];
-                    const totalDps = equippedWeapons.reduce((sum, w) => sum + (w && !w.isEquipment ? (w.damage || 5) : 0), 0);
-                    const playerDps = totalDps * 0.003 * deltaTime; // Scale to exploration time
-
-                    // Apply damage to target
-                    if (targetShip.alive) {
-                        targetShip.hp -= playerDps;
-                        targetShip.playerDamageDealt = (targetShip.playerDamageDealt || 0) + playerDps;
-
-                        // Track damage to sides for faction rep
-                        if (isTargetingAttacker) {
-                            skirmish.playerDamageToAttacker += playerDps;
-                        } else {
-                            skirmish.playerDamageToDefender += playerDps;
-                        }
-                    }
-
-                    // Visual: beam from player to target
-                    updatePlayerAttackBeam(skirmish, targetShip);
-                } else {
-                    // Out of range, remove beam
-                    if (skirmish.playerBeamMesh) {
-                        skirmish.playerBeamMesh.material.dispose();
-                        skirmish.playerBeamMesh.dispose();
-                        skirmish.playerBeamMesh = null;
-                    }
+            // Clean up any leftover player beam visuals
+            gameState.explorationSkirmishes.forEach(s => {
+                if (s.playerBeamMesh) {
+                    if (s.playerBeamMesh.material) s.playerBeamMesh.material.dispose();
+                    s.playerBeamMesh.dispose();
+                    s.playerBeamMesh = null;
                 }
             });
         }
