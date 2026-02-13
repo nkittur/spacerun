@@ -4990,11 +4990,10 @@
             const beh = ENEMY_WEAPON_BEHAVIORS[picked];
             enemy.weaponDmgMult = beh.dmgMult || 1.0;
 
-            // Burst/autocannon state
-            if (picked === 'burst' || picked === 'autocannon') {
-                enemy.burstRemaining = 0;
-                enemy.burstNextFire = 0;
-            }
+            // Always initialize burst state (required for firing condition check)
+            enemy.burstRemaining = 0;
+            enemy.burstNextFire = 0;
+
             // Mortar state
             if (picked === 'mortar') {
                 enemy.mortarPreviewMesh = null;
