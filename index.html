@@ -4293,7 +4293,7 @@
         const STARFIELD_ZONE = { name: 'Starfield', folder: 'Starfields', prefix: 'Starfield', variants: 8 };
 
         const ZONE_DISTANCE = 500; // Distance units per zone before transitioning
-        const WORLD_SCROLL_SPEED = 0.0225; // Base world scroll speed (50% faster than enemy descent)
+        const WORLD_SCROLL_SPEED = 0.032; // Base world scroll speed
 
         // Level zone heights in world Y units (1 screen height ≈ orthoHeight*2 ≈ 20 units)
         const LEVEL_ZONE_HEIGHTS = {
@@ -11556,9 +11556,9 @@
         function createExplorationGoal() {
             if (!scene || gameState.explorationGoal) return;
 
-            // Place goal at top of exploration map
-            const mapSpreadY = 60;
-            const goalY = mapSpreadY + 25;
+            // Place goal at top of exploration map (further away for more exploration time)
+            const mapSpreadY = 90;
+            const goalY = mapSpreadY + 30;
             const goalX = 0;
 
             // Create a mini sun
@@ -13024,10 +13024,8 @@
         function checkExplorationGoalReached() {
             if (!playerShip || !gameState.explorationGoal) return false;
             const goal = gameState.explorationGoal;
-            const dx = playerShip.position.x - goal.x;
-            const dy = playerShip.position.y - goal.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            return dist < goal.radius;
+            // Trigger when player reaches the sun's Y position (can't fly around it)
+            return playerShip.position.y >= goal.y - goal.radius;
         }
 
         // Enter exploration mode for a level
@@ -14931,7 +14929,7 @@
 
                     // Camera fixed at (0,0) - world scrolls toward player
                     // Speed scales with player Y position: faster at top (pushing forward), slower at bottom
-                    const exploreScrollSpeed = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier) * 0.40;
+                    const exploreScrollSpeed = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier) * 0.20;
                     const scrollDist = exploreScrollSpeed * deltaTime;
 
                     // Scroll goal downward
