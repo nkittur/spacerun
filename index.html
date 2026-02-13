@@ -11262,7 +11262,7 @@
                 const dy = playerShip.position.y - conflict.centerY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist < 6) {
+                if (dist < (conflict.orbitRadius || 5.5) + 3.0) {
                     // Create encounter objects from conflict participants
                     const encounterA = createEncounterFromShip(conflict.attacker);
                     const encounterB = createEncounterFromShip(conflict.defender);
@@ -11393,6 +11393,7 @@
             gameState.explorationSkirmishes.forEach(s => {
                 if (s.iconMesh) s.iconMesh.setEnabled(false);
                 if (s.ringMesh) s.ringMesh.setEnabled(false);
+                if (s.strengthMesh) s.strengthMesh.setEnabled(false);
                 if (s.playerBeamMesh) s.playerBeamMesh.setEnabled(false);
             });
         }
@@ -11537,6 +11538,7 @@
                 if (!s.resolved) {
                     if (s.iconMesh) s.iconMesh.setEnabled(true);
                     if (s.ringMesh) s.ringMesh.setEnabled(true);
+                    if (s.strengthMesh) s.strengthMesh.setEnabled(true);
                 }
             });
         }
@@ -12283,38 +12285,191 @@
 
         // ========== NPC CONFLICT SYSTEM ==========
 
-        // Create subtle engagement zone indicator for a skirmish
+        // Calculate player fleet strength for threat comparisons
+        function getPlayerFleetStrength() {
+            const weapons = gameState.equippedWeapons;
+            if (!weapons || weapons.length === 0) return 8; // basic weapon fallback
+            return weapons.reduce((sum, w) => sum + (w && !w.isEquipment ? (w.damage || 8) : 0), 0);
+        }
+
+        // Calculate pip count (1-5) for faction strength relative to player
+        function getStrengthPips(factionStrength, playerStrength) {
+            if (playerStrength <= 0) playerStrength = 8;
+            const ratio = factionStrength / playerStrength;
+            if (ratio < 0.5) return 1;
+            if (ratio < 1.0) return 2;
+            if (ratio < 1.8) return 3;
+            if (ratio < 3.0) return 4;
+            return 5;
+        }
+
+        // Create energy bubble engagement zone and faction strength indicators
         function createSkirmishIcon(skirmish) {
             if (!scene) return;
 
-            // No large icon - the ships fighting each other are the visual indicator
             skirmish.iconMesh = null;
 
-            // Create a very subtle ring showing the engagement zone
-            // (radius 6 matches the detection distance in checkEncounterDetection)
-            const engagementRadius = 6;
-            const ring = BABYLON.MeshBuilder.CreateTorus('skirmishRing_' + skirmish.id, {
-                diameter: engagementRadius * 2,
-                thickness: 0.08,
-                tessellation: 48
+            // Energy/gravity bubble - covers both ships with shading
+            const bubbleRadius = skirmish.orbitRadius + 3.0; // covers ships + margin
+            const texSize = 256;
+            const dynTex = new BABYLON.DynamicTexture('bubbleTex_' + skirmish.id, texSize, scene, false);
+            const ctx = dynTex.getContext();
+
+            // Draw radial gradient bubble
+            const cx = texSize / 2, cy = texSize / 2, r = texSize / 2 - 2;
+            const grad = ctx.createRadialGradient(cx, cy, r * 0.15, cx, cy, r);
+            grad.addColorStop(0, 'rgba(60, 30, 10, 0.0)');
+            grad.addColorStop(0.5, 'rgba(80, 40, 15, 0.04)');
+            grad.addColorStop(0.75, 'rgba(120, 55, 20, 0.10)');
+            grad.addColorStop(0.90, 'rgba(160, 70, 25, 0.18)');
+            grad.addColorStop(0.97, 'rgba(200, 90, 30, 0.25)');
+            grad.addColorStop(1.0, 'rgba(220, 100, 35, 0.08)');
+
+            ctx.clearRect(0, 0, texSize, texSize);
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Thin bright edge ring
+            ctx.beginPath();
+            ctx.arc(cx, cy, r - 1, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(220, 110, 40, 0.20)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            dynTex.update();
+
+            const bubble = BABYLON.MeshBuilder.CreatePlane('skirmishBubble_' + skirmish.id, {
+                size: bubbleRadius * 2
             }, scene);
-            ring.position.x = skirmish.centerX;
-            ring.position.y = skirmish.centerY;
-            ring.position.z = 0.75;
-            ring.rotation.x = Math.PI / 2;
+            bubble.position.x = skirmish.centerX;
+            bubble.position.y = skirmish.centerY;
+            bubble.position.z = 0.85;
 
-            const ringMat = new BABYLON.StandardMaterial('skirmishRingMat_' + skirmish.id, scene);
-            ringMat.emissiveColor = new BABYLON.Color3(0.8, 0.3, 0.1);
-            ringMat.alpha = 0.07;
-            ringMat.disableLighting = true;
-            ringMat.backFaceCulling = false;
-            ring.material = ringMat;
-            ring.renderingGroupId = 1;
+            const bubbleMat = new BABYLON.StandardMaterial('bubbleMat_' + skirmish.id, scene);
+            bubbleMat.diffuseTexture = dynTex;
+            bubbleMat.emissiveTexture = dynTex;
+            bubbleMat.opacityTexture = dynTex;
+            bubbleMat.useAlphaFromDiffuseTexture = true;
+            bubbleMat.disableLighting = true;
+            bubbleMat.backFaceCulling = false;
+            bubbleMat.alpha = 0.9;
+            bubble.material = bubbleMat;
+            bubble.renderingGroupId = 1;
 
-            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(ring);
-            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(ring);
+            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(bubble);
+            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(bubble);
 
-            skirmish.ringMesh = ring;
+            skirmish.ringMesh = bubble; // reuse ringMesh slot for dispose compatibility
+
+            // Faction strength indicator pips (warp-gate threat-pip style)
+            createSkirmishStrengthIndicator(skirmish);
+        }
+
+        // Create/update the faction strength pip indicators below a skirmish bubble
+        function createSkirmishStrengthIndicator(skirmish) {
+            if (!scene) return;
+
+            // Dispose old indicator if exists
+            if (skirmish.strengthMesh) {
+                if (skirmish.strengthMesh.material) {
+                    if (skirmish.strengthMesh.material.diffuseTexture) skirmish.strengthMesh.material.diffuseTexture.dispose();
+                    skirmish.strengthMesh.material.dispose();
+                }
+                skirmish.strengthMesh.dispose();
+                skirmish.strengthMesh = null;
+            }
+
+            const playerStr = getPlayerFleetStrength();
+
+            // Calculate attacker side strength
+            let attackerStr = skirmish.attacker.alive ? skirmish.attacker.strength : 0;
+            skirmish.allies.forEach(a => {
+                if (a.alive && a.faction === skirmish.attacker.faction) attackerStr += a.strength;
+            });
+
+            // Calculate defender side strength
+            let defenderStr = skirmish.defender.alive ? skirmish.defender.strength : 0;
+            skirmish.allies.forEach(a => {
+                if (a.alive && a.faction === skirmish.defender.faction) defenderStr += a.strength;
+            });
+
+            const attackerPips = getStrengthPips(attackerStr, playerStr);
+            const defenderPips = getStrengthPips(defenderStr, playerStr);
+            const attackerFaction = FACTIONS[skirmish.attacker.faction];
+            const defenderFaction = FACTIONS[skirmish.defender.faction];
+
+            // Draw pips on a DynamicTexture
+            const texW = 128, texH = 48;
+            const dynTex = new BABYLON.DynamicTexture('strengthTex_' + skirmish.id, { width: texW, height: texH }, scene, false);
+            const ctx = dynTex.getContext();
+            ctx.clearRect(0, 0, texW, texH);
+
+            const pipW = 8, pipH = 12, pipGap = 4;
+            const maxPips = 5;
+            const totalPipWidth = maxPips * pipW + (maxPips - 1) * pipGap;
+            const startX = (texW - totalPipWidth) / 2;
+
+            // Attacker pips (top row)
+            const attackColor = attackerFaction ? attackerFaction.cssColor : '#ff4444';
+            for (let i = 0; i < maxPips; i++) {
+                const px = startX + i * (pipW + pipGap);
+                if (i < attackerPips) {
+                    ctx.fillStyle = attackColor;
+                    ctx.shadowColor = attackColor;
+                    ctx.shadowBlur = 6;
+                    ctx.fillRect(px, 4, pipW, pipH);
+                    ctx.shadowBlur = 0;
+                } else {
+                    ctx.fillStyle = 'rgba(40, 40, 60, 0.4)';
+                    ctx.fillRect(px, 4, pipW, pipH);
+                }
+            }
+
+            // Defender pips (bottom row)
+            const defColor = defenderFaction ? defenderFaction.cssColor : '#4488ff';
+            for (let i = 0; i < maxPips; i++) {
+                const px = startX + i * (pipW + pipGap);
+                if (i < defenderPips) {
+                    ctx.fillStyle = defColor;
+                    ctx.shadowColor = defColor;
+                    ctx.shadowBlur = 6;
+                    ctx.fillRect(px, texH - pipH - 4, pipW, pipH);
+                    ctx.shadowBlur = 0;
+                } else {
+                    ctx.fillStyle = 'rgba(40, 40, 60, 0.4)';
+                    ctx.fillRect(px, texH - pipH - 4, pipW, pipH);
+                }
+            }
+
+            dynTex.update();
+
+            const bubbleRadius = skirmish.orbitRadius + 3.0;
+            const indicatorHeight = bubbleRadius * 0.45;
+            const indicatorWidth = bubbleRadius * 1.2;
+            const indicator = BABYLON.MeshBuilder.CreatePlane('strengthIndicator_' + skirmish.id, {
+                width: indicatorWidth, height: indicatorHeight
+            }, scene);
+            indicator.position.x = skirmish.centerX;
+            indicator.position.y = skirmish.centerY - bubbleRadius - indicatorHeight * 0.6;
+            indicator.position.z = 0.04;
+
+            const mat = new BABYLON.StandardMaterial('strengthMat_' + skirmish.id, scene);
+            mat.diffuseTexture = dynTex;
+            mat.emissiveTexture = dynTex;
+            mat.opacityTexture = dynTex;
+            mat.useAlphaFromDiffuseTexture = true;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            mat.alpha = 0.85;
+            indicator.material = mat;
+            indicator.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(indicator);
+            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(indicator);
+
+            skirmish.strengthMesh = indicator;
         }
 
         // Start a skirmish between two ships
@@ -12344,6 +12499,7 @@
                 duration: 30000 + Math.random() * 30000, // 30-60 seconds
                 iconMesh: null,
                 ringMesh: null,
+                strengthMesh: null,
                 resolved: false,
                 playerDamageToAttacker: 0,
                 playerDamageToDefender: 0,
@@ -12361,6 +12517,12 @@
             defender.behavior = 'fighting';
             defender.skirmishId = id;
             defender.fightAngleOffset = Math.PI; // Opposite side
+
+            // Hide detection zones for ships entering combat (the bubble replaces them)
+            [attacker, defender].forEach(s => {
+                if (s.detectionMesh) { s.detectionMesh.setEnabled(false); }
+                if (s.detectionRingMesh) { s.detectionRingMesh.setEnabled(false); }
+            });
 
             gameState.explorationSkirmishes.push(skirmish);
             createSkirmishIcon(skirmish);
@@ -12457,31 +12619,47 @@
             });
         }
 
-        // Check if allied warships should join nearby skirmishes
+        // Check if nearby ships should join active skirmishes on their faction's side
         function checkAlliedJoins(deltaTime) {
             gameState.explorationSkirmishes.forEach(skirmish => {
                 if (skirmish.resolved) return;
-                if (skirmish.allies.length >= 2) return; // Max 2 allies per fight
+                if (skirmish.allies.length >= 4) return; // Max 4 allies per fight
 
-                const warships = gameState.explorationTraffic.filter(s =>
-                    s.alive && s.isWarship && s.behavior === 'traveling' &&
-                    s.faction !== 'pirates' && s.skirmishId === null
+                // Any traveling ship that isn't already in a fight can join
+                const candidates = gameState.explorationTraffic.filter(s =>
+                    s.alive && s.behavior === 'traveling' && s.skirmishId === null
                 );
 
-                warships.forEach(warship => {
-                    const dx = warship.currentX - skirmish.centerX;
-                    const dy = warship.currentY - skirmish.centerY;
+                candidates.forEach(ship => {
+                    const dx = ship.currentX - skirmish.centerX;
+                    const dy = ship.currentY - skirmish.centerY;
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    // Allied warships join if close enough and same faction as defender
-                    if (dist < 20 && warship.faction === skirmish.defender.faction) {
-                        if (Math.random() < 0.001 * deltaTime) {
-                            warship.behavior = 'joining_fight';
-                            warship.skirmishId = skirmish.id;
-                            // Assign angle offset near defender side
-                            warship.fightAngleOffset = Math.PI + (skirmish.allies.length + 1) * 0.8;
-                            skirmish.allies.push(warship);
+                    // Ships join their faction's side if close enough
+                    const isAttackerFaction = ship.faction === skirmish.attacker.faction;
+                    const isDefenderFaction = ship.faction === skirmish.defender.faction;
+                    if (!isAttackerFaction && !isDefenderFaction) return;
+
+                    // Warships join more readily (closer range ok, higher chance)
+                    // Non-warships need to be closer and are less likely to join
+                    const joinRange = ship.isWarship ? 25 : 15;
+                    const joinChance = ship.isWarship ? 0.002 : 0.0008;
+
+                    if (dist < joinRange && Math.random() < joinChance * deltaTime) {
+                        ship.behavior = 'joining_fight';
+                        ship.skirmishId = skirmish.id;
+                        // Position on the correct side
+                        if (isAttackerFaction) {
+                            ship.fightAngleOffset = (skirmish.allies.length + 1) * 0.8;
+                        } else {
+                            ship.fightAngleOffset = Math.PI + (skirmish.allies.length + 1) * 0.8;
                         }
+                        // Hide detection zones when joining
+                        if (ship.detectionMesh) ship.detectionMesh.setEnabled(false);
+                        if (ship.detectionRingMesh) ship.detectionRingMesh.setEnabled(false);
+                        skirmish.allies.push(ship);
+                        // Update strength indicators to reflect new composition
+                        createSkirmishStrengthIndicator(skirmish);
                     }
                 });
             });
@@ -12493,12 +12671,15 @@
 
             const TURRET_SCALE_THRESHOLD = 1.5;
 
-            // Build list of combatants: attacker vs defender+allies
+            // Build list of combatants: each ally joins their faction's side
             const shooters = [];
             if (skirmish.attacker.alive) shooters.push({ ship: skirmish.attacker, side: 'attacker' });
             if (skirmish.defender.alive) shooters.push({ ship: skirmish.defender, side: 'defender' });
             skirmish.allies.forEach(a => {
-                if (a.alive && a.behavior === 'fighting') shooters.push({ ship: a, side: 'defender' });
+                if (a.alive && a.behavior === 'fighting') {
+                    const side = a.faction === skirmish.attacker.faction ? 'attacker' : 'defender';
+                    shooters.push({ ship: a, side: side });
+                }
             });
             if (shooters.length < 2) return;
 
@@ -12651,17 +12832,22 @@
                     positionFighter(skirmish.defender, skirmish.attacker);
                 }
 
-                // Position allies near the defender's side, facing attacker
+                // Position allies on their faction's side, facing the enemy
                 skirmish.allies.forEach((ally, idx) => {
                     if (!ally.alive || ally.behavior !== 'fighting') return;
+                    const isAttackerSide = ally.faction === skirmish.attacker.faction;
+                    const faceTarget = isAttackerSide ? skirmish.defender : skirmish.attacker;
                     if (!ally._combatBaseX) {
-                        // Initialize ally combat position offset from defender
-                        const allyAngle = (skirmish.defender.fightAngleOffset || Math.PI) + (idx + 1) * 0.8;
+                        // Initialize ally combat position on the correct faction's side
+                        const baseAngle = isAttackerSide
+                            ? (skirmish.attacker.fightAngleOffset || 0)
+                            : (skirmish.defender.fightAngleOffset || Math.PI);
+                        const allyAngle = baseAngle + (idx + 1) * 0.7;
                         ally._combatBaseX = skirmish.centerX + Math.cos(allyAngle) * (skirmish.orbitRadius + 1.5);
                         ally._combatBaseY = skirmish.centerY + Math.sin(allyAngle) * (skirmish.orbitRadius + 1.5);
                         ally._combatWobblePhase = Math.random() * Math.PI * 2;
                     }
-                    positionFighter(ally, skirmish.attacker);
+                    positionFighter(ally, faceTarget);
                 });
 
                 // Fire combat beams between ships
@@ -12690,13 +12876,20 @@
                     }
                 }
 
-                // Update engagement zone ring position with very subtle pulse
+                // Update energy bubble position with subtle pulse
                 if (skirmish.ringMesh) {
                     skirmish.ringMesh.position.x = skirmish.centerX;
                     skirmish.ringMesh.position.y = skirmish.centerY;
                     if (skirmish.ringMesh.material) {
-                        skirmish.ringMesh.material.alpha = 0.05 + Math.sin(Date.now() * 0.0015) * 0.025;
+                        skirmish.ringMesh.material.alpha = 0.75 + Math.sin(Date.now() * 0.0015) * 0.15;
                     }
+                }
+                // Update strength indicator position
+                if (skirmish.strengthMesh) {
+                    const bubbleRadius = skirmish.orbitRadius + 3.0;
+                    const indicatorHeight = bubbleRadius * 0.45;
+                    skirmish.strengthMesh.position.x = skirmish.centerX;
+                    skirmish.strengthMesh.position.y = skirmish.centerY - bubbleRadius - indicatorHeight * 0.6;
                 }
 
                 // Apply combat damage over time (abstract DPS)
@@ -12711,10 +12904,20 @@
                         const defPower = skirmish.defender.isWarship ? skirmish.defender.strength : skirmish.defender.strength * 0.5;
                         skirmish.attacker.hp -= defPower * dps;
                     }
-                    // Allies damage attacker
+                    // Allies damage the opposing side
                     skirmish.allies.forEach(ally => {
                         if (ally.alive && ally.behavior === 'fighting') {
-                            skirmish.attacker.hp -= ally.strength * dps * 0.7;
+                            if (ally.faction === skirmish.attacker.faction) {
+                                // Attacker-side ally damages defender
+                                if (skirmish.defender.alive) {
+                                    skirmish.defender.hp -= ally.strength * dps * 0.7;
+                                }
+                            } else {
+                                // Defender-side ally damages attacker
+                                if (skirmish.attacker.alive) {
+                                    skirmish.attacker.hp -= ally.strength * dps * 0.7;
+                                }
+                            }
                         }
                     });
 
@@ -12799,6 +13002,14 @@
                 }
             });
 
+            // Restore detection zones for surviving hostile ships
+            [skirmish.attacker, skirmish.defender, ...skirmish.allies].forEach(s => {
+                if (s.alive) {
+                    if (s.detectionMesh) s.detectionMesh.setEnabled(true);
+                    if (s.detectionRingMesh) s.detectionRingMesh.setEnabled(true);
+                }
+            });
+
             // Check player faction reputation impact
             checkPlayerFactionImpact(skirmish);
 
@@ -12851,9 +13062,20 @@
                 skirmish.iconMesh = null;
             }
             if (skirmish.ringMesh) {
-                if (skirmish.ringMesh.material) skirmish.ringMesh.material.dispose();
+                if (skirmish.ringMesh.material) {
+                    if (skirmish.ringMesh.material.diffuseTexture) skirmish.ringMesh.material.diffuseTexture.dispose();
+                    skirmish.ringMesh.material.dispose();
+                }
                 skirmish.ringMesh.dispose();
                 skirmish.ringMesh = null;
+            }
+            if (skirmish.strengthMesh) {
+                if (skirmish.strengthMesh.material) {
+                    if (skirmish.strengthMesh.material.diffuseTexture) skirmish.strengthMesh.material.diffuseTexture.dispose();
+                    skirmish.strengthMesh.material.dispose();
+                }
+                skirmish.strengthMesh.dispose();
+                skirmish.strengthMesh = null;
             }
             if (skirmish.playerBeamMesh) {
                 if (skirmish.playerBeamMesh.material) skirmish.playerBeamMesh.material.dispose();
