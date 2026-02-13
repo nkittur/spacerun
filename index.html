@@ -4293,7 +4293,7 @@
         const STARFIELD_ZONE = { name: 'Starfield', folder: 'Starfields', prefix: 'Starfield', variants: 8 };
 
         const ZONE_DISTANCE = 500; // Distance units per zone before transitioning
-        const WORLD_SCROLL_SPEED = 0.0225; // Base world scroll speed (50% faster than enemy descent)
+        const WORLD_SCROLL_SPEED = 0.032; // Base world scroll speed
 
         // Level zone heights in world Y units (1 screen height ≈ orthoHeight*2 ≈ 20 units)
         const LEVEL_ZONE_HEIGHTS = {
@@ -11223,7 +11223,7 @@
             // Check hostile (pirate) traffic ships - entering detection radius triggers solo combat
             for (const ship of gameState.explorationTraffic) {
                 if (!ship.alive || !FACTIONS[ship.faction] || !FACTIONS[ship.faction].hostile) continue;
-                if (ship.behavior !== 'traveling') continue;
+                if (ship.behavior !== 'traveling' && ship.behavior !== 'hunting') continue;
                 // Don't trigger detection until the ship's mesh has loaded (prevents invisible combat)
                 if (!ship.mesh) continue;
 
@@ -11262,7 +11262,7 @@
                 const dy = playerShip.position.y - conflict.centerY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist < 6) {
+                if (dist < (conflict.orbitRadius || 5.5) + 3.0) {
                     // Create encounter objects from conflict participants
                     const encounterA = createEncounterFromShip(conflict.attacker);
                     const encounterB = createEncounterFromShip(conflict.defender);
@@ -11393,6 +11393,7 @@
             gameState.explorationSkirmishes.forEach(s => {
                 if (s.iconMesh) s.iconMesh.setEnabled(false);
                 if (s.ringMesh) s.ringMesh.setEnabled(false);
+                if (s.strengthMesh) s.strengthMesh.setEnabled(false);
                 if (s.playerBeamMesh) s.playerBeamMesh.setEnabled(false);
             });
         }
@@ -11537,6 +11538,7 @@
                 if (!s.resolved) {
                     if (s.iconMesh) s.iconMesh.setEnabled(true);
                     if (s.ringMesh) s.ringMesh.setEnabled(true);
+                    if (s.strengthMesh) s.strengthMesh.setEnabled(true);
                 }
             });
         }
@@ -11556,9 +11558,9 @@
         function createExplorationGoal() {
             if (!scene || gameState.explorationGoal) return;
 
-            // Place goal at top of exploration map
-            const mapSpreadY = 60;
-            const goalY = mapSpreadY + 25;
+            // Place goal at top of exploration map (further away for more exploration time)
+            const mapSpreadY = 90;
+            const goalY = mapSpreadY + 30;
             const goalX = 0;
 
             // Create a mini sun
@@ -11673,55 +11675,111 @@
         ];
 
         // Generate a neutral traffic ship heading to or from the sun
-        function generateTrafficShip(goalY, forceType) {
+        function generateTrafficShip(goalY, forceType, fromEdge) {
             const type = forceType || TRAFFIC_TYPES[Math.floor(Math.random() * TRAFFIC_TYPES.length)];
             const effectiveOrtho = orthoHeight * 4; // zoom=4
             const aspect = gameWidth / gameHeight;
             const halfW = effectiveOrtho * aspect;
-
-            // Sun is at x=0, y=goalY. Ships travel to/from the sun.
-            // Pirates stay away from the sun - they lurk in the outskirts
             const isPirate = type.faction === 'pirates';
-            const towardSun = isPirate ? Math.random() < 0.1 : Math.random() < 0.6;
 
             let startX, startY, endX, endY;
-            if (towardSun) {
-                // Start from edges/bottom, head toward sun
-                const side = Math.random();
-                if (side < 0.5) {
-                    startX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 5 + Math.random() * 20);
+
+            if (isPirate) {
+                // Pirates always enter from off-screen edges and prowl inward
+                // They cross through the play area looking for prey
+                const enterSide = Math.random();
+                if (enterSide < 0.25) {
+                    // Enter from left
+                    startX = -halfW - 2 - Math.random() * 3;
+                    startY = goalY * (0.05 + Math.random() * 0.7);
+                } else if (enterSide < 0.5) {
+                    // Enter from right
+                    startX = halfW + 2 + Math.random() * 3;
+                    startY = goalY * (0.05 + Math.random() * 0.7);
+                } else if (enterSide < 0.75) {
+                    // Enter from bottom
+                    startX = (Math.random() - 0.5) * halfW * 1.5;
+                    startY = -effectiveOrtho - 2 - Math.random() * 3;
+                } else {
+                    // Enter from top (beyond the sun)
+                    startX = (Math.random() - 0.5) * halfW * 1.5;
+                    startY = goalY + 5 + Math.random() * 5;
+                }
+                // Head across to the opposite side of the play area (long patrol)
+                endX = -startX * 0.6 + (Math.random() - 0.5) * halfW * 0.5;
+                endY = goalY * (0.1 + Math.random() * 0.6);
+            } else if (fromEdge) {
+                // Respawned ships enter from off-screen edges
+                const enterSide = Math.random();
+                if (enterSide < 0.3) {
+                    // Enter from left
+                    startX = -halfW - 2 - Math.random() * 3;
+                    startY = goalY * (0.1 + Math.random() * 0.6);
+                } else if (enterSide < 0.6) {
+                    // Enter from right
+                    startX = halfW + 2 + Math.random() * 3;
                     startY = goalY * (0.1 + Math.random() * 0.6);
                 } else {
-                    startX = (Math.random() - 0.5) * halfW * 2;
-                    startY = -effectiveOrtho - 5 - Math.random() * 20;
+                    // Enter from bottom
+                    startX = (Math.random() - 0.5) * halfW * 1.6;
+                    startY = -effectiveOrtho - 2 - Math.random() * 3;
                 }
-                if (isPirate) {
-                    // Pirates don't get close to the sun - offset endpoint away
-                    endX = (Math.random() - 0.5) * halfW * 1.2;
-                    endY = goalY * (0.3 + Math.random() * 0.4);
+                // Head toward the sun area or across the map
+                if (Math.random() < 0.4) {
+                    endX = (Math.random() - 0.5) * 20;
+                    endY = goalY + (Math.random() - 0.5) * 15;
                 } else {
-                    endX = (Math.random() - 0.5) * 15;
-                    endY = goalY + (Math.random() - 0.5) * 10;
+                    endX = -startX * 0.5 + (Math.random() - 0.5) * halfW * 0.4;
+                    endY = goalY * (0.2 + Math.random() * 0.5);
                 }
             } else {
-                if (isPirate) {
-                    // Pirates patrol the outskirts, far from the sun
-                    const patrolY = goalY * (0.1 + Math.random() * 0.5);
-                    startX = (Math.random() < 0.5 ? -1 : 1) * (halfW * 0.3 + Math.random() * halfW * 0.5);
-                    startY = patrolY + (Math.random() - 0.5) * 20;
-                    endX = -startX + (Math.random() - 0.5) * 10;
-                    endY = patrolY + (Math.random() - 0.5) * 20;
-                } else {
-                    // Start near sun, head outward
-                    startX = (Math.random() - 0.5) * 15;
-                    startY = goalY + (Math.random() - 0.5) * 10;
+                // Initial spawn: civilians travel across the map in varied routes
+                const routeType = Math.random();
+                if (routeType < 0.35) {
+                    // Edge-to-sun: travel from an edge toward the sun
                     const side = Math.random();
-                    if (side < 0.5) {
-                        endX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 10 + Math.random() * 20);
+                    if (side < 0.4) {
+                        startX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 2 + Math.random() * 3);
+                        startY = goalY * (0.1 + Math.random() * 0.5);
+                    } else {
+                        startX = (Math.random() - 0.5) * halfW * 1.6;
+                        startY = -effectiveOrtho - 2 - Math.random() * 3;
+                    }
+                    endX = (Math.random() - 0.5) * 15;
+                    endY = goalY + (Math.random() - 0.5) * 10;
+                } else if (routeType < 0.65) {
+                    // Sun-to-edge: travel from the sun area outward
+                    startX = (Math.random() - 0.5) * 20;
+                    startY = goalY + (Math.random() - 0.5) * 15;
+                    const side = Math.random();
+                    if (side < 0.4) {
+                        endX = (Math.random() < 0.5 ? -1 : 1) * (halfW + 3 + Math.random() * 3);
                         endY = goalY * (0.1 + Math.random() * 0.5);
                     } else {
-                        endX = (Math.random() - 0.5) * halfW * 2;
-                        endY = -effectiveOrtho - 10 - Math.random() * 20;
+                        endX = (Math.random() - 0.5) * halfW * 1.6;
+                        endY = -effectiveOrtho - 3 - Math.random() * 3;
+                    }
+                } else {
+                    // Cross-map: edge to opposite edge (ships traveling through)
+                    const enterSide = Math.floor(Math.random() * 3);
+                    if (enterSide === 0) {
+                        // Left to right
+                        startX = -halfW - 2 - Math.random() * 3;
+                        startY = goalY * (0.1 + Math.random() * 0.6);
+                        endX = halfW + 2 + Math.random() * 3;
+                        endY = goalY * (0.1 + Math.random() * 0.6);
+                    } else if (enterSide === 1) {
+                        // Right to left
+                        startX = halfW + 2 + Math.random() * 3;
+                        startY = goalY * (0.1 + Math.random() * 0.6);
+                        endX = -halfW - 2 - Math.random() * 3;
+                        endY = goalY * (0.1 + Math.random() * 0.6);
+                    } else {
+                        // Bottom to top (toward sun and beyond)
+                        startX = (Math.random() - 0.5) * halfW * 1.2;
+                        startY = -effectiveOrtho - 2 - Math.random() * 3;
+                        endX = (Math.random() - 0.5) * halfW * 0.8;
+                        endY = goalY + 10 + Math.random() * 20;
                     }
                 }
             }
@@ -11761,6 +11819,11 @@
                 playerDamageDealt: 0,   // Damage from player (for faction rep tracking)
                 // Detection zone (hostile factions only)
                 detectionRadius: (FACTIONS[type.faction] && FACTIONS[type.faction].hostile) ? (5 + Math.random() * 3) : 0,
+                // Pirate hunting AI
+                huntTarget: null,           // Ship or 'player' being hunted
+                huntTimer: 0,               // Time spent hunting (gives up after limit)
+                huntMaxTime: 10000 + Math.random() * 5000, // 10-15 seconds before giving up
+                investigateRange: isPirate ? (20 + Math.random() * 8) : 0, // 20-28 units scan range
                 engineGlows: [], // Array of {glow, core} engine meshes
                 detectionMesh: null,
                 detectionRingMesh: null
@@ -12041,20 +12104,73 @@
                     const rdy = ship.endY - ship.startY;
                     ship.heading = Math.atan2(rdy, rdx);
 
+                } else if (ship.behavior === 'hunting') {
+                    // Pirate hunting: chase target with smooth turning
+                    ship.huntTimer += deltaTime;
+                    let targetX, targetY, targetAlive = false;
+
+                    if (ship.huntTarget === 'player' && playerShip) {
+                        targetX = playerShip.position.x;
+                        targetY = playerShip.position.y;
+                        targetAlive = true;
+                    } else if (ship.huntTarget && ship.huntTarget.alive) {
+                        targetX = ship.huntTarget.currentX;
+                        targetY = ship.huntTarget.currentY;
+                        targetAlive = true;
+                    }
+
+                    if (targetAlive && ship.huntTimer < ship.huntMaxTime) {
+                        // Smooth turn toward target
+                        const hdx = targetX - ship.currentX;
+                        const hdy = targetY - ship.currentY;
+                        const targetHeading = Math.atan2(hdy, hdx);
+                        let angleDiff = targetHeading - ship.heading;
+                        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                        ship.heading += angleDiff * Math.min(1, deltaTime * 0.004); // Smooth turn
+
+                        // Move forward at boosted speed (3x base)
+                        const huntSpeed = ship.baseSpeed * 3.0 * deltaTime;
+                        ship.currentX += Math.cos(ship.heading) * huntSpeed;
+                        ship.currentY += Math.sin(ship.heading) * huntSpeed;
+                    } else {
+                        // Give up hunting - resume traveling with a new patrol route
+                        ship.behavior = 'traveling';
+                        ship.huntTarget = null;
+                        ship.huntTimer = 0;
+                        // Set new route: continue forward from current position
+                        ship.startX = ship.currentX;
+                        ship.startY = ship.currentY;
+                        const newHeading = ship.heading + (Math.random() - 0.5) * 1.0;
+                        const routeLen = 40 + Math.random() * 40;
+                        ship.endX = ship.currentX + Math.cos(newHeading) * routeLen;
+                        ship.endY = ship.currentY + Math.sin(newHeading) * routeLen;
+                        ship.heading = newHeading;
+                        ship.progress = 0;
+                    }
+
                 } else if (ship.behavior === 'fighting') {
                     // Handled by skirmish system - don't move independently
                 } else if (ship.behavior === 'joining_fight') {
-                    // Move toward the skirmish center
+                    // Fly toward the fight - head for the opposing faction's lead ship
                     const skirmish = gameState.explorationSkirmishes.find(s => s.id === ship.skirmishId);
                     if (skirmish) {
-                        const tdx = skirmish.centerX - ship.currentX;
-                        const tdy = skirmish.centerY - ship.currentY;
+                        const isAttackerSide = ship.faction === skirmish.attacker.faction;
+                        const foeShip = isAttackerSide ? skirmish.defender : skirmish.attacker;
+                        const targetX = foeShip && foeShip.alive ? foeShip.currentX : skirmish.centerX;
+                        const targetY = foeShip && foeShip.alive ? foeShip.currentY : skirmish.centerY;
+                        const tdx = targetX - ship.currentX;
+                        const tdy = targetY - ship.currentY;
                         const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
-                        if (tdist > 4) {
-                            ship.heading = Math.atan2(tdy, tdx);
-                            ship.currentX += Math.cos(ship.heading) * ship.speed * 2 * deltaTime;
-                            ship.currentY += Math.sin(ship.heading) * ship.speed * 2 * deltaTime;
-                        } else {
+                        // Smooth turn toward target
+                        const wantHeading = Math.atan2(tdy, tdx);
+                        let aDiff = wantHeading - ship.heading;
+                        while (aDiff > Math.PI) aDiff -= Math.PI * 2;
+                        while (aDiff < -Math.PI) aDiff += Math.PI * 2;
+                        ship.heading += aDiff * Math.min(1, deltaTime * 0.004);
+                        ship.currentX += Math.cos(ship.heading) * ship.speed * 2.5 * deltaTime;
+                        ship.currentY += Math.sin(ship.heading) * ship.speed * 2.5 * deltaTime;
+                        if (tdist < 7) {
                             ship.behavior = 'fighting';
                         }
                     }
@@ -12128,7 +12244,10 @@
 
                 // Remove if route complete or scrolled way off screen
                 const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
-                if ((ship.behavior === 'traveling' && ship.progress >= 1.0) || ship.currentY < -effectiveOrthoH - 40) {
+                const effectiveOrthoW = effectiveOrthoH * (gameWidth / gameHeight);
+                if ((ship.behavior === 'traveling' && ship.progress >= 1.0) ||
+                    ship.currentY < -effectiveOrthoH - 40 ||
+                    Math.abs(ship.currentX) > effectiveOrthoW + 50) {
                     ship.alive = false;
                 }
 
@@ -12141,27 +12260,20 @@
             // Remove dead ships
             gameState.explorationTraffic = gameState.explorationTraffic.filter(s => s.alive);
 
-            // Spawn new traffic periodically (maintain ~8-10 ships including variety)
+            // Spawn new traffic from off-screen edges (maintain ~8-10 ships)
             const aliveNonPirates = gameState.explorationTraffic.filter(s => s.faction !== 'pirates').length;
             const alivePirates = gameState.explorationTraffic.filter(s => s.faction === 'pirates').length;
 
             if (aliveNonPirates < 6 && Math.random() < 0.002 * deltaTime) {
-                // Spawn non-pirate ship
+                // Spawn non-pirate ship from off-screen edge
                 const civilianTypes = TRAFFIC_TYPES.filter(t => t.faction !== 'pirates');
                 const type = civilianTypes[Math.floor(Math.random() * civilianTypes.length)];
-                const ship = generateTrafficShip(goalY, type);
+                const ship = generateTrafficShip(goalY, type, true);
                 gameState.explorationTraffic.push(ship);
                 createTrafficVisual(ship);
             }
 
-            // Spawn pirates (they create conflict tension)
-            if (alivePirates < 3 && Math.random() < 0.002 * deltaTime) {
-                const pirateTypes = TRAFFIC_TYPES.filter(t => t.faction === 'pirates');
-                const type = pirateTypes[Math.floor(Math.random() * pirateTypes.length)];
-                const ship = generateTrafficShip(goalY, type);
-                gameState.explorationTraffic.push(ship);
-                createTrafficVisual(ship);
-            }
+            // Pirates are NOT respawned - only the initial pirates exist
         }
 
         // Clean up all traffic ships
@@ -12174,122 +12286,203 @@
 
         // ========== NPC CONFLICT SYSTEM ==========
 
-        // Create crossed swords icon for a skirmish using dynamic texture
+        // Calculate player fleet strength for threat comparisons
+        function getPlayerFleetStrength() {
+            const weapons = gameState.equippedWeapons;
+            if (!weapons || weapons.length === 0) return 8; // basic weapon fallback
+            return weapons.reduce((sum, w) => sum + (w && !w.isEquipment ? (w.damage || 8) : 0), 0);
+        }
+
+        // Calculate pip count (1-5) for faction strength relative to player
+        function getStrengthPips(factionStrength, playerStrength) {
+            if (playerStrength <= 0) playerStrength = 8;
+            const ratio = factionStrength / playerStrength;
+            if (ratio < 0.5) return 1;
+            if (ratio < 1.0) return 2;
+            if (ratio < 1.8) return 3;
+            if (ratio < 3.0) return 4;
+            return 5;
+        }
+
+        // Create energy bubble engagement zone and faction strength indicators
         function createSkirmishIcon(skirmish) {
             if (!scene) return;
 
-            const iconSize = 3.5;
-            const plane = BABYLON.MeshBuilder.CreatePlane('skirmishIcon_' + skirmish.id, {
-                size: iconSize
-            }, scene);
-            plane.position.x = skirmish.centerX;
-            plane.position.y = skirmish.centerY + 2.5;
-            plane.position.z = 0.05;
-            plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
+            skirmish.iconMesh = null;
 
-            // Dynamic texture with crossed swords drawn on canvas
-            const texSize = 128;
-            const dynTex = new BABYLON.DynamicTexture('skirmishTex_' + skirmish.id, texSize, scene, false);
+            // Energy/gravity bubble - covers both ships with shading
+            const bubbleRadius = skirmish.orbitRadius + 3.0; // covers ships + margin
+            const texSize = 256;
+            const dynTex = new BABYLON.DynamicTexture('bubbleTex_' + skirmish.id, texSize, scene, false);
             const ctx = dynTex.getContext();
+
+            // Draw radial gradient bubble
+            const cx = texSize / 2, cy = texSize / 2, r = texSize / 2 - 2;
+            const grad = ctx.createRadialGradient(cx, cy, r * 0.15, cx, cy, r);
+            grad.addColorStop(0, 'rgba(60, 30, 10, 0.0)');
+            grad.addColorStop(0.5, 'rgba(80, 40, 15, 0.04)');
+            grad.addColorStop(0.75, 'rgba(120, 55, 20, 0.10)');
+            grad.addColorStop(0.90, 'rgba(160, 70, 25, 0.18)');
+            grad.addColorStop(0.97, 'rgba(200, 90, 30, 0.25)');
+            grad.addColorStop(1.0, 'rgba(220, 100, 35, 0.08)');
+
             ctx.clearRect(0, 0, texSize, texSize);
-
-            // Draw crossed swords
-            ctx.strokeStyle = '#ffaa00';
-            ctx.lineWidth = 4;
-            ctx.lineCap = 'round';
-
-            // Sword 1 (top-left to bottom-right)
             ctx.beginPath();
-            ctx.moveTo(25, 25);
-            ctx.lineTo(103, 103);
-            ctx.stroke();
-            // Blade widening
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Thin bright edge ring
+            ctx.beginPath();
+            ctx.arc(cx, cy, r - 1, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(220, 110, 40, 0.20)';
             ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(25, 25);
-            ctx.lineTo(30, 20);
-            ctx.stroke();
-            // Guard 1
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.moveTo(50, 78);
-            ctx.lineTo(78, 50);
-            ctx.stroke();
-
-            // Sword 2 (top-right to bottom-left)
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(103, 25);
-            ctx.lineTo(25, 103);
-            ctx.stroke();
-            // Blade widening
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(103, 25);
-            ctx.lineTo(98, 20);
-            ctx.stroke();
-            // Guard 2
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.moveTo(50, 50);
-            ctx.lineTo(78, 78);
             ctx.stroke();
 
             dynTex.update();
 
-            const mat = new BABYLON.StandardMaterial('skirmishIconMat_' + skirmish.id, scene);
+            const bubbleDiameter = bubbleRadius * 2;
+            const bubble = BABYLON.MeshBuilder.CreatePlane('skirmishBubble_' + skirmish.id, {
+                size: bubbleDiameter
+            }, scene);
+            bubble.position.x = skirmish.centerX;
+            bubble.position.y = skirmish.centerY;
+            bubble.position.z = 0.85;
+            skirmish._bubbleBaseSize = bubbleDiameter; // store for dynamic scaling
+
+            const bubbleMat = new BABYLON.StandardMaterial('bubbleMat_' + skirmish.id, scene);
+            bubbleMat.diffuseTexture = dynTex;
+            bubbleMat.emissiveTexture = dynTex;
+            bubbleMat.opacityTexture = dynTex;
+            bubbleMat.useAlphaFromDiffuseTexture = true;
+            bubbleMat.disableLighting = true;
+            bubbleMat.backFaceCulling = false;
+            bubbleMat.alpha = 0.9;
+            bubble.material = bubbleMat;
+            bubble.renderingGroupId = 1;
+
+            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(bubble);
+            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(bubble);
+
+            skirmish.ringMesh = bubble; // reuse ringMesh slot for dispose compatibility
+
+            // Faction strength indicator pips (warp-gate threat-pip style)
+            createSkirmishStrengthIndicator(skirmish);
+        }
+
+        // Create/update the faction strength pip indicators below a skirmish bubble
+        function createSkirmishStrengthIndicator(skirmish) {
+            if (!scene) return;
+
+            // Dispose old indicator if exists
+            if (skirmish.strengthMesh) {
+                if (skirmish.strengthMesh.material) {
+                    if (skirmish.strengthMesh.material.diffuseTexture) skirmish.strengthMesh.material.diffuseTexture.dispose();
+                    skirmish.strengthMesh.material.dispose();
+                }
+                skirmish.strengthMesh.dispose();
+                skirmish.strengthMesh = null;
+            }
+
+            const playerStr = getPlayerFleetStrength();
+
+            // Calculate attacker side strength
+            let attackerStr = skirmish.attacker.alive ? skirmish.attacker.strength : 0;
+            skirmish.allies.forEach(a => {
+                if (a.alive && a.faction === skirmish.attacker.faction) attackerStr += a.strength;
+            });
+
+            // Calculate defender side strength
+            let defenderStr = skirmish.defender.alive ? skirmish.defender.strength : 0;
+            skirmish.allies.forEach(a => {
+                if (a.alive && a.faction === skirmish.defender.faction) defenderStr += a.strength;
+            });
+
+            const attackerPips = getStrengthPips(attackerStr, playerStr);
+            const defenderPips = getStrengthPips(defenderStr, playerStr);
+            const attackerFaction = FACTIONS[skirmish.attacker.faction];
+            const defenderFaction = FACTIONS[skirmish.defender.faction];
+
+            // Draw pips on a DynamicTexture
+            const texW = 128, texH = 48;
+            const dynTex = new BABYLON.DynamicTexture('strengthTex_' + skirmish.id, { width: texW, height: texH }, scene, false);
+            const ctx = dynTex.getContext();
+            ctx.clearRect(0, 0, texW, texH);
+
+            const pipW = 8, pipH = 12, pipGap = 4;
+            const maxPips = 5;
+            const totalPipWidth = maxPips * pipW + (maxPips - 1) * pipGap;
+            const startX = (texW - totalPipWidth) / 2;
+
+            // Attacker pips (top row)
+            const attackColor = attackerFaction ? attackerFaction.cssColor : '#ff4444';
+            for (let i = 0; i < maxPips; i++) {
+                const px = startX + i * (pipW + pipGap);
+                if (i < attackerPips) {
+                    ctx.fillStyle = attackColor;
+                    ctx.shadowColor = attackColor;
+                    ctx.shadowBlur = 6;
+                    ctx.fillRect(px, 4, pipW, pipH);
+                    ctx.shadowBlur = 0;
+                } else {
+                    ctx.fillStyle = 'rgba(40, 40, 60, 0.4)';
+                    ctx.fillRect(px, 4, pipW, pipH);
+                }
+            }
+
+            // Defender pips (bottom row)
+            const defColor = defenderFaction ? defenderFaction.cssColor : '#4488ff';
+            for (let i = 0; i < maxPips; i++) {
+                const px = startX + i * (pipW + pipGap);
+                if (i < defenderPips) {
+                    ctx.fillStyle = defColor;
+                    ctx.shadowColor = defColor;
+                    ctx.shadowBlur = 6;
+                    ctx.fillRect(px, texH - pipH - 4, pipW, pipH);
+                    ctx.shadowBlur = 0;
+                } else {
+                    ctx.fillStyle = 'rgba(40, 40, 60, 0.4)';
+                    ctx.fillRect(px, texH - pipH - 4, pipW, pipH);
+                }
+            }
+
+            dynTex.update();
+
+            const bubbleRadius = skirmish.orbitRadius + 3.0;
+            const indicatorHeight = bubbleRadius * 0.45;
+            const indicatorWidth = bubbleRadius * 1.2;
+            const indicator = BABYLON.MeshBuilder.CreatePlane('strengthIndicator_' + skirmish.id, {
+                width: indicatorWidth, height: indicatorHeight
+            }, scene);
+            indicator.position.x = skirmish.centerX;
+            indicator.position.y = skirmish.centerY - bubbleRadius - indicatorHeight * 0.6;
+            indicator.position.z = 0.04;
+
+            const mat = new BABYLON.StandardMaterial('strengthMat_' + skirmish.id, scene);
             mat.diffuseTexture = dynTex;
             mat.emissiveTexture = dynTex;
             mat.opacityTexture = dynTex;
             mat.useAlphaFromDiffuseTexture = true;
             mat.disableLighting = true;
             mat.backFaceCulling = false;
-            mat.alpha = 0.9;
-            plane.material = mat;
-            plane.renderingGroupId = 2;
+            mat.alpha = 0.85;
+            indicator.material = mat;
+            indicator.renderingGroupId = 2;
 
-            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(plane);
-            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(plane);
+            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(indicator);
+            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(indicator);
 
-            skirmish.iconMesh = plane;
-
-            // Create a subtle circle indicator around the fight area
-            const ring = BABYLON.MeshBuilder.CreateTorus('skirmishRing_' + skirmish.id, {
-                diameter: skirmish.orbitRadius * 3,
-                thickness: 0.2,
-                tessellation: 32
-            }, scene);
-            ring.position.x = skirmish.centerX;
-            ring.position.y = skirmish.centerY;
-            ring.position.z = 0.75;
-            ring.rotation.x = Math.PI / 2;
-
-            const ringMat = new BABYLON.StandardMaterial('skirmishRingMat_' + skirmish.id, scene);
-            ringMat.emissiveColor = new BABYLON.Color3(1.0, 0.67, 0.0);
-            ringMat.alpha = 0.2;
-            ringMat.disableLighting = true;
-            ringMat.backFaceCulling = false;
-            ring.material = ringMat;
-            ring.renderingGroupId = 2;
-
-            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(ring);
-            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(ring);
-
-            skirmish.ringMesh = ring;
+            skirmish.strengthMesh = indicator;
         }
 
         // Start a skirmish between two ships
         function startSkirmish(attacker, defender) {
-            if (attacker.behavior !== 'traveling' || defender.behavior !== 'traveling') return;
+            if ((attacker.behavior !== 'traveling' && attacker.behavior !== 'hunting') || defender.behavior !== 'traveling') return;
             if (attacker.skirmishId !== null || defender.skirmishId !== null) return;
 
             const id = gameState.skirmishIdCounter++;
             const centerX = (attacker.currentX + defender.currentX) / 2;
             const centerY = (attacker.currentY + defender.currentY) / 2;
-
-            // Orbit speed: smaller ships orbit faster
-            const avgScale = ((attacker.type.scale || 1) + (defender.type.scale || 1)) / 2;
-            const orbitSpeed = 0.0006 + (1.0 / avgScale) * 0.0003; // rad/ms
 
             const skirmish = {
                 id: id,
@@ -12298,13 +12491,14 @@
                 allies: [],         // Additional ships that joined
                 centerX: centerX,
                 centerY: centerY,
-                orbitRadius: 3.5,
+                orbitRadius: 5.5,   // Base engagement radius for detection
                 orbitAngle: Math.random() * Math.PI * 2,
-                orbitSpeed: orbitSpeed, // Radians per ms for orbiting
+                orbitSpeed: 0.0008, // Used for strafing phase
                 timer: 0,
                 duration: 30000 + Math.random() * 30000, // 30-60 seconds
                 iconMesh: null,
                 ringMesh: null,
+                strengthMesh: null,
                 resolved: false,
                 playerDamageToAttacker: 0,
                 playerDamageToDefender: 0,
@@ -12313,97 +12507,154 @@
                 nextBeamTime: 0         // Timer for next beam spawn
             };
 
-            // Set ships to fighting state
+            // Set ships to fighting state (clear hunting state if applicable)
+            // Ships keep their current positions - no teleportation
             attacker.behavior = 'fighting';
+            attacker.huntTarget = null;
+            attacker.huntTimer = 0;
             attacker.skirmishId = id;
-            attacker.fightAngleOffset = 0; // Offset from base orbit angle
+            attacker._combatWobblePhase = Math.random() * Math.PI * 2;
             defender.behavior = 'fighting';
             defender.skirmishId = id;
-            defender.fightAngleOffset = Math.PI; // Opposite side
+            defender._combatWobblePhase = Math.random() * Math.PI * 2;
+
+            // Hide detection zones for ships entering combat (the bubble replaces them)
+            [attacker, defender].forEach(s => {
+                if (s.detectionMesh) { s.detectionMesh.setEnabled(false); }
+                if (s.detectionRingMesh) { s.detectionRingMesh.setEnabled(false); }
+            });
 
             gameState.explorationSkirmishes.push(skirmish);
             createSkirmishIcon(skirmish);
         }
 
-        // Check if pirates should attack nearby ships
+        // Pirate AI: scan for targets, start hunting, trigger skirmishes on contact
         function checkSkirmishStarts(deltaTime) {
-            const pirates = gameState.explorationTraffic.filter(s =>
-                s.alive && s.faction === 'pirates' && s.behavior === 'traveling'
-            );
-            const targets = gameState.explorationTraffic.filter(s =>
-                s.alive && s.faction !== 'pirates' && s.behavior === 'traveling'
-            );
-
-            // Don't start skirmishes near the goal system
             const goal = gameState.explorationGoal;
             const goalExcludeRadius = 25;
 
-            // Only trigger conflicts that are on screen (with margin)
             const camX = gameCamera ? gameCamera.position.x : 0;
             const camY = gameCamera ? gameCamera.position.y : 0;
             const zoom = gameState.zoomLevel || 4;
             const visH = orthoHeight * zoom;
             const visW = visH * (gameWidth / gameHeight);
-            const margin = 5; // Small margin beyond visible area
+            const margin = 10;
 
-            function isOnScreen(x, y) {
+            function isNearScreen(x, y) {
                 return Math.abs(x - camX) < (visW + margin) && Math.abs(y - camY) < (visH + margin);
             }
 
-            pirates.forEach(pirate => {
-                // Skip pirates near the goal system
+            const targets = gameState.explorationTraffic.filter(s =>
+                s.alive && s.faction !== 'pirates' && s.behavior === 'traveling'
+            );
+
+            gameState.explorationTraffic.forEach(pirate => {
+                if (!pirate.alive || pirate.faction !== 'pirates') return;
+                if (pirate.behavior === 'fighting' || pirate.behavior === 'joining_fight' ||
+                    pirate.behavior === 'fleeing' || pirate.behavior === 'damaged_fleeing') return;
+
+                // Skip pirates near the goal system (sanctuary)
                 if (goal) {
                     const gx = pirate.currentX - goal.x;
                     const gy = pirate.currentY - goal.y;
                     if (Math.sqrt(gx * gx + gy * gy) < goalExcludeRadius) return;
                 }
 
-                // Skip if pirate is offscreen
-                if (!isOnScreen(pirate.currentX, pirate.currentY)) return;
+                // Skip if pirate is far off-screen
+                if (!isNearScreen(pirate.currentX, pirate.currentY)) return;
 
+                // --- Hunting pirates: check if they've reached their prey ---
+                if (pirate.behavior === 'hunting') {
+                    // Check if hunt target is a ship and close enough to engage
+                    if (pirate.huntTarget && pirate.huntTarget !== 'player' && pirate.huntTarget.alive) {
+                        const hdx = pirate.currentX - pirate.huntTarget.currentX;
+                        const hdy = pirate.currentY - pirate.huntTarget.currentY;
+                        const hDist = Math.sqrt(hdx * hdx + hdy * hdy);
+                        if (hDist < 8 && pirate.huntTarget.behavior === 'traveling') {
+                            // Close enough - start the skirmish
+                            startSkirmish(pirate, pirate.huntTarget);
+                        }
+                    }
+                    // Player proximity is handled by checkEncounterDetection
+                    return;
+                }
+
+                // --- Traveling pirates: scan for new targets to hunt ---
+                let bestTarget = null;
+                let bestDist = pirate.investigateRange || 25;
+                let bestIsPlayer = false;
+
+                // Scan NPC ships
                 targets.forEach(target => {
-                    // Skip if target is offscreen
-                    if (!isOnScreen(target.currentX, target.currentY)) return;
-
-                    const dx = pirate.currentX - target.currentX;
-                    const dy = pirate.currentY - target.currentY;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-
-                    // Pirates aggressively attack nearby ships
-                    // Prefer weaker targets (non-warships)
-                    const attackRange = target.isWarship ? 12 : 20;
-                    if (dist < attackRange && Math.random() < 0.0012 * deltaTime) {
-                        startSkirmish(pirate, target);
+                    const tdx = pirate.currentX - target.currentX;
+                    const tdy = pirate.currentY - target.currentY;
+                    const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+                    // Prefer weaker targets (non-warships are juicier)
+                    const effectiveRange = target.isWarship ? bestDist * 0.5 : bestDist;
+                    if (tdist < effectiveRange && tdist < bestDist) {
+                        bestDist = tdist;
+                        bestTarget = target;
+                        bestIsPlayer = false;
                     }
                 });
+
+                // Scan for player (pirates are attracted to the player too)
+                if (playerShip) {
+                    const pdx = pirate.currentX - playerShip.position.x;
+                    const pdy = pirate.currentY - playerShip.position.y;
+                    const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
+                    if (pDist < (pirate.investigateRange || 25) && pDist < bestDist) {
+                        bestDist = pDist;
+                        bestTarget = 'player';
+                        bestIsPlayer = true;
+                    }
+                }
+
+                // Start hunting if a target is in range (small random delay so they don't all pounce instantly)
+                if (bestTarget && Math.random() < 0.003 * deltaTime) {
+                    pirate.behavior = 'hunting';
+                    pirate.huntTarget = bestIsPlayer ? 'player' : bestTarget;
+                    pirate.huntTimer = 0;
+                }
             });
         }
 
-        // Check if allied warships should join nearby skirmishes
+        // Check if nearby ships should join active skirmishes on their faction's side
         function checkAlliedJoins(deltaTime) {
             gameState.explorationSkirmishes.forEach(skirmish => {
                 if (skirmish.resolved) return;
-                if (skirmish.allies.length >= 2) return; // Max 2 allies per fight
+                if (skirmish.allies.length >= 4) return; // Max 4 allies per fight
 
-                const warships = gameState.explorationTraffic.filter(s =>
-                    s.alive && s.isWarship && s.behavior === 'traveling' &&
-                    s.faction !== 'pirates' && s.skirmishId === null
+                // Any traveling ship that isn't already in a fight can join
+                const candidates = gameState.explorationTraffic.filter(s =>
+                    s.alive && s.behavior === 'traveling' && s.skirmishId === null
                 );
 
-                warships.forEach(warship => {
-                    const dx = warship.currentX - skirmish.centerX;
-                    const dy = warship.currentY - skirmish.centerY;
+                candidates.forEach(ship => {
+                    const dx = ship.currentX - skirmish.centerX;
+                    const dy = ship.currentY - skirmish.centerY;
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    // Allied warships join if close enough and same faction as defender
-                    if (dist < 20 && warship.faction === skirmish.defender.faction) {
-                        if (Math.random() < 0.001 * deltaTime) {
-                            warship.behavior = 'joining_fight';
-                            warship.skirmishId = skirmish.id;
-                            // Assign angle offset near defender side
-                            warship.fightAngleOffset = Math.PI + (skirmish.allies.length + 1) * 0.8;
-                            skirmish.allies.push(warship);
-                        }
+                    // Ships join their faction's side if close enough
+                    const isAttackerFaction = ship.faction === skirmish.attacker.faction;
+                    const isDefenderFaction = ship.faction === skirmish.defender.faction;
+                    if (!isAttackerFaction && !isDefenderFaction) return;
+
+                    // Warships join more readily (closer range ok, higher chance)
+                    // Non-warships need to be closer and are less likely to join
+                    const joinRange = ship.isWarship ? 25 : 15;
+                    const joinChance = ship.isWarship ? 0.002 : 0.0008;
+
+                    if (dist < joinRange && Math.random() < joinChance * deltaTime) {
+                        ship.behavior = 'joining_fight';
+                        ship.skirmishId = skirmish.id;
+                        ship._combatWobblePhase = Math.random() * Math.PI * 2;
+                        // Hide detection zones when joining
+                        if (ship.detectionMesh) ship.detectionMesh.setEnabled(false);
+                        if (ship.detectionRingMesh) ship.detectionRingMesh.setEnabled(false);
+                        skirmish.allies.push(ship);
+                        // Update strength indicators to reflect new composition
+                        createSkirmishStrengthIndicator(skirmish);
                     }
                 });
             });
@@ -12415,12 +12666,15 @@
 
             const TURRET_SCALE_THRESHOLD = 1.5;
 
-            // Build list of combatants: attacker vs defender+allies
+            // Build list of combatants: each ally joins their faction's side
             const shooters = [];
             if (skirmish.attacker.alive) shooters.push({ ship: skirmish.attacker, side: 'attacker' });
             if (skirmish.defender.alive) shooters.push({ ship: skirmish.defender, side: 'defender' });
             skirmish.allies.forEach(a => {
-                if (a.alive && a.behavior === 'fighting') shooters.push({ ship: a, side: 'defender' });
+                if (a.alive && a.behavior === 'fighting') {
+                    const side = a.faction === skirmish.attacker.faction ? 'attacker' : 'defender';
+                    shooters.push({ ship: a, side: side });
+                }
             });
             if (shooters.length < 2) return;
 
@@ -12508,66 +12762,98 @@
             gameState.explorationSkirmishes.forEach(skirmish => {
                 if (skirmish.resolved) return;
 
-                // Scroll skirmish center with the world
-                skirmish.centerY -= scrollDist;
+                // Scroll all fighting ships with the world (their positions are their own)
+                const allFighters = [skirmish.attacker, skirmish.defender, ...skirmish.allies];
 
                 skirmish.timer += deltaTime;
-
-                // Orbit angle advances over time - ships circle the battle center
                 skirmish.orbitAngle += skirmish.orbitSpeed * deltaTime;
 
-                // Helper: compute facing for a ship based on its size
-                // Small ships (scale < 1.5) face their target
-                // Large ships (scale >= 1.5) face their movement direction (tangent to orbit)
-                const TURRET_SCALE_THRESHOLD = 1.5;
+                // --- AI maneuvering: ships fight organically from their positions ---
+                const idealEngageDist = 5.0; // preferred distance between opponents
 
-                function positionFighter(ship, angle, radius, targetShip) {
-                    ship.currentX = skirmish.centerX + Math.cos(angle) * radius;
-                    ship.currentY = skirmish.centerY + Math.sin(angle) * radius;
+                function maneuverFighter(ship, targetShip) {
+                    if (!ship.alive || ship.behavior !== 'fighting') return;
+                    ship._combatWobblePhase = (ship._combatWobblePhase || 0) + deltaTime * 0.001;
 
-                    const shipScale = ship.type.scale || 1.0;
-                    if (shipScale >= TURRET_SCALE_THRESHOLD) {
-                        // Large ships: face movement direction (tangent to orbit)
-                        ship.heading = angle + Math.PI / 2;
-                    } else if (targetShip && targetShip.alive) {
-                        // Small ships: face toward their target
-                        ship.heading = Math.atan2(
-                            targetShip.currentY - ship.currentY,
-                            targetShip.currentX - ship.currentX
-                        );
-                    } else {
-                        // Fallback: face center
-                        ship.heading = Math.atan2(
-                            skirmish.centerY - ship.currentY,
-                            skirmish.centerX - ship.currentX
-                        );
+                    if (!targetShip || !targetShip.alive) {
+                        // No target - drift toward center slowly
+                        const toCenterX = skirmish.centerX - ship.currentX;
+                        const toCenterY = skirmish.centerY - ship.currentY;
+                        ship.heading = Math.atan2(toCenterY, toCenterX);
+                        const driftSpeed = ship.baseSpeed * 0.5 * deltaTime;
+                        ship.currentX += Math.cos(ship.heading) * driftSpeed;
+                        ship.currentY += Math.sin(ship.heading) * driftSpeed;
+                        return;
                     }
+
+                    const dx = targetShip.currentX - ship.currentX;
+                    const dy = targetShip.currentY - ship.currentY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const targetHeading = Math.atan2(dy, dx);
+
+                    // Smooth turn toward target
+                    let angleDiff = targetHeading - ship.heading;
+                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                    ship.heading += angleDiff * Math.min(1, deltaTime * 0.003);
+
+                    const moveSpeed = ship.baseSpeed * 1.5 * deltaTime;
+
+                    // Close in if too far, back off if too close
+                    if (dist > idealEngageDist + 2) {
+                        ship.currentX += Math.cos(targetHeading) * moveSpeed;
+                        ship.currentY += Math.sin(targetHeading) * moveSpeed;
+                    } else if (dist < idealEngageDist - 1.5) {
+                        ship.currentX -= Math.cos(targetHeading) * moveSpeed * 0.4;
+                        ship.currentY -= Math.sin(targetHeading) * moveSpeed * 0.4;
+                    }
+
+                    // Strafing for organic circling movement
+                    const strafeAngle = targetHeading + Math.PI / 2;
+                    const strafeAmt = Math.sin(skirmish.orbitAngle + ship._combatWobblePhase) * moveSpeed * 0.6;
+                    ship.currentX += Math.cos(strafeAngle) * strafeAmt;
+                    ship.currentY += Math.sin(strafeAngle) * strafeAmt;
                 }
 
-                // Position attacker and defender on opposite sides, orbiting
-                const attackerAngle = skirmish.orbitAngle + (skirmish.attacker.fightAngleOffset || 0);
-                const defenderAngle = skirmish.orbitAngle + (skirmish.defender.fightAngleOffset || Math.PI);
-
+                // Maneuver attacker and defender toward each other
                 if (skirmish.attacker.alive) {
-                    positionFighter(skirmish.attacker, attackerAngle, skirmish.orbitRadius, skirmish.defender);
+                    maneuverFighter(skirmish.attacker, skirmish.defender);
                 }
-
                 if (skirmish.defender.alive) {
-                    positionFighter(skirmish.defender, defenderAngle, skirmish.orbitRadius, skirmish.attacker);
+                    maneuverFighter(skirmish.defender, skirmish.attacker);
                 }
 
-                // Position allies around the fight (on defender's side), orbiting
-                skirmish.allies.forEach((ally, idx) => {
+                // Allies maneuver toward their opposing faction's lead ship
+                skirmish.allies.forEach(ally => {
                     if (!ally.alive || ally.behavior !== 'fighting') return;
-                    const allyAngle = skirmish.orbitAngle + (ally.fightAngleOffset || (Math.PI + (idx + 1) * 0.8));
-                    positionFighter(ally, allyAngle, skirmish.orbitRadius + 1.5, skirmish.attacker);
+                    const isAttackerSide = ally.faction === skirmish.attacker.faction;
+                    const faceTarget = isAttackerSide ? skirmish.defender : skirmish.attacker;
+                    if (!ally._combatWobblePhase) ally._combatWobblePhase = Math.random() * Math.PI * 2;
+                    maneuverFighter(ally, faceTarget);
                 });
+
+                // --- Dynamically compute center and radius from all ship positions ---
+                const liveShips = allFighters.filter(s => s.alive && s.behavior === 'fighting');
+                if (liveShips.length > 0) {
+                    let sumX = 0, sumY = 0;
+                    liveShips.forEach(s => { sumX += s.currentX; sumY += s.currentY; });
+                    skirmish.centerX = sumX / liveShips.length;
+                    skirmish.centerY = sumY / liveShips.length;
+
+                    // Radius = distance to farthest ship + margin
+                    let maxDist = 0;
+                    liveShips.forEach(s => {
+                        const d = Math.sqrt((s.currentX - skirmish.centerX) ** 2 + (s.currentY - skirmish.centerY) ** 2);
+                        if (d > maxDist) maxDist = d;
+                    });
+                    skirmish.orbitRadius = Math.max(5.5, maxDist + 2.0);
+                }
 
                 // Fire combat beams between ships
                 if (skirmish.timer > 1000) { // 1s grace before firing starts
                     skirmish.nextBeamTime -= deltaTime;
                     if (skirmish.nextBeamTime <= 0) {
-                        skirmish.nextBeamTime = 150 + Math.random() * 300; // Fire every 150-450ms (faster to compensate for aim checks)
+                        skirmish.nextBeamTime = 150 + Math.random() * 300;
                         spawnSkirmishBeam(skirmish);
                     }
                 }
@@ -12583,47 +12869,55 @@
                         }
                         skirmish.combatBeams.splice(i, 1);
                     } else {
-                        // Fade out
                         const alpha = Math.min(1, b.life / 80) * b.maxAlpha;
                         if (b.mesh.material) b.mesh.material.alpha = alpha;
                     }
                 }
 
-                // Update icon position
-                if (skirmish.iconMesh) {
-                    skirmish.iconMesh.position.x = skirmish.centerX;
-                    skirmish.iconMesh.position.y = skirmish.centerY + 2.5;
-                    // Pulse alpha
-                    if (skirmish.iconMesh.material) {
-                        skirmish.iconMesh.material.alpha = 0.7 + Math.sin(Date.now() * 0.005) * 0.3;
-                    }
-                }
+                // Update energy bubble - dynamic position and scale
                 if (skirmish.ringMesh) {
                     skirmish.ringMesh.position.x = skirmish.centerX;
                     skirmish.ringMesh.position.y = skirmish.centerY;
+                    // Scale bubble to match dynamic radius
+                    const bubbleVisualDiameter = (skirmish.orbitRadius + 3.0) * 2;
+                    const currentScale = bubbleVisualDiameter / skirmish._bubbleBaseSize;
+                    skirmish.ringMesh.scaling.x = currentScale;
+                    skirmish.ringMesh.scaling.y = currentScale;
+                    if (skirmish.ringMesh.material) {
+                        skirmish.ringMesh.material.alpha = 0.75 + Math.sin(Date.now() * 0.0015) * 0.15;
+                    }
+                }
+                // Update strength indicator position
+                if (skirmish.strengthMesh) {
+                    const bubbleRadius = skirmish.orbitRadius + 3.0;
+                    const indicatorHeight = bubbleRadius * 0.45;
+                    skirmish.strengthMesh.position.x = skirmish.centerX;
+                    skirmish.strengthMesh.position.y = skirmish.centerY - bubbleRadius - indicatorHeight * 0.6;
                 }
 
                 // Apply combat damage over time (abstract DPS)
                 if (skirmish.timer > 2000) { // 2s grace period before damage starts
-                    const dps = 0.00002 * deltaTime; // Base damage rate (slow for visible exploration fights)
-                    // Attacker damages defender
+                    const dps = 0.00002 * deltaTime;
                     if (skirmish.defender.alive) {
                         skirmish.defender.hp -= skirmish.attacker.strength * dps;
                     }
-                    // Defender fights back (weaker if not a warship)
                     if (skirmish.attacker.alive) {
                         const defPower = skirmish.defender.isWarship ? skirmish.defender.strength : skirmish.defender.strength * 0.5;
                         skirmish.attacker.hp -= defPower * dps;
                     }
-                    // Allies damage attacker
                     skirmish.allies.forEach(ally => {
                         if (ally.alive && ally.behavior === 'fighting') {
-                            skirmish.attacker.hp -= ally.strength * dps * 0.7;
+                            if (ally.faction === skirmish.attacker.faction) {
+                                if (skirmish.defender.alive) {
+                                    skirmish.defender.hp -= ally.strength * dps * 0.7;
+                                }
+                            } else {
+                                if (skirmish.attacker.alive) {
+                                    skirmish.attacker.hp -= ally.strength * dps * 0.7;
+                                }
+                            }
                         }
                     });
-
-                    // Player damage (applied by checkPlayerSkirmishInteraction)
-                    // is tracked separately per side
                 }
 
                 // Check for death
@@ -12703,6 +12997,14 @@
                 }
             });
 
+            // Restore detection zones for surviving hostile ships
+            [skirmish.attacker, skirmish.defender, ...skirmish.allies].forEach(s => {
+                if (s.alive) {
+                    if (s.detectionMesh) s.detectionMesh.setEnabled(true);
+                    if (s.detectionRingMesh) s.detectionRingMesh.setEnabled(true);
+                }
+            });
+
             // Check player faction reputation impact
             checkPlayerFactionImpact(skirmish);
 
@@ -12755,9 +13057,20 @@
                 skirmish.iconMesh = null;
             }
             if (skirmish.ringMesh) {
-                if (skirmish.ringMesh.material) skirmish.ringMesh.material.dispose();
+                if (skirmish.ringMesh.material) {
+                    if (skirmish.ringMesh.material.diffuseTexture) skirmish.ringMesh.material.diffuseTexture.dispose();
+                    skirmish.ringMesh.material.dispose();
+                }
                 skirmish.ringMesh.dispose();
                 skirmish.ringMesh = null;
+            }
+            if (skirmish.strengthMesh) {
+                if (skirmish.strengthMesh.material) {
+                    if (skirmish.strengthMesh.material.diffuseTexture) skirmish.strengthMesh.material.diffuseTexture.dispose();
+                    skirmish.strengthMesh.material.dispose();
+                }
+                skirmish.strengthMesh.dispose();
+                skirmish.strengthMesh = null;
             }
             if (skirmish.playerBeamMesh) {
                 if (skirmish.playerBeamMesh.material) skirmish.playerBeamMesh.material.dispose();
@@ -12776,74 +13089,16 @@
             }
         }
 
-        // Check if player is near a skirmish and apply weapon damage
-        // Player auto-joins nearby conflicts regardless of weaponsHot
+        // Player does not auto-shoot at skirmishes in exploration mode.
+        // Combat only happens when the player flies into the engagement zone
+        // and the encounter transitions to full combat mode.
         function checkPlayerSkirmishInteraction(deltaTime) {
-            if (!playerShip) {
-                // Clean up any player beam visuals
-                gameState.explorationSkirmishes.forEach(s => {
-                    if (s.playerBeamMesh) {
-                        s.playerBeamMesh.material.dispose();
-                        s.playerBeamMesh.dispose();
-                        s.playerBeamMesh = null;
-                    }
-                });
-                return;
-            }
-
-            const playerX = playerShip.position.x;
-            const playerY = playerShip.position.y;
-            const weaponRange = 12; // Range in exploration units
-
-            gameState.explorationSkirmishes.forEach(skirmish => {
-                if (skirmish.resolved) return;
-
-                const dx = playerX - skirmish.centerX;
-                const dy = playerY - skirmish.centerY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                if (dist < weaponRange) {
-                    // Player is in range - determine which combatant is closer
-                    const distToAttacker = Math.sqrt(
-                        (playerX - skirmish.attacker.currentX) ** 2 +
-                        (playerY - skirmish.attacker.currentY) ** 2
-                    );
-                    const distToDefender = Math.sqrt(
-                        (playerX - skirmish.defender.currentX) ** 2 +
-                        (playerY - skirmish.defender.currentY) ** 2
-                    );
-
-                    const targetShip = distToAttacker < distToDefender ? skirmish.attacker : skirmish.defender;
-                    const isTargetingAttacker = distToAttacker < distToDefender;
-
-                    // Calculate player DPS (scales with equipped weapons)
-                    const equippedWeapons = gameState.equippedWeapons.length > 0
-                        ? gameState.equippedWeapons : [{ damage: 5 }];
-                    const totalDps = equippedWeapons.reduce((sum, w) => sum + (w && !w.isEquipment ? (w.damage || 5) : 0), 0);
-                    const playerDps = totalDps * 0.003 * deltaTime; // Scale to exploration time
-
-                    // Apply damage to target
-                    if (targetShip.alive) {
-                        targetShip.hp -= playerDps;
-                        targetShip.playerDamageDealt = (targetShip.playerDamageDealt || 0) + playerDps;
-
-                        // Track damage to sides for faction rep
-                        if (isTargetingAttacker) {
-                            skirmish.playerDamageToAttacker += playerDps;
-                        } else {
-                            skirmish.playerDamageToDefender += playerDps;
-                        }
-                    }
-
-                    // Visual: beam from player to target
-                    updatePlayerAttackBeam(skirmish, targetShip);
-                } else {
-                    // Out of range, remove beam
-                    if (skirmish.playerBeamMesh) {
-                        skirmish.playerBeamMesh.material.dispose();
-                        skirmish.playerBeamMesh.dispose();
-                        skirmish.playerBeamMesh = null;
-                    }
+            // Clean up any leftover player beam visuals
+            gameState.explorationSkirmishes.forEach(s => {
+                if (s.playerBeamMesh) {
+                    if (s.playerBeamMesh.material) s.playerBeamMesh.material.dispose();
+                    s.playerBeamMesh.dispose();
+                    s.playerBeamMesh = null;
                 }
             });
         }
@@ -12986,10 +13241,8 @@
         function checkExplorationGoalReached() {
             if (!playerShip || !gameState.explorationGoal) return false;
             const goal = gameState.explorationGoal;
-            const dx = playerShip.position.x - goal.x;
-            const dy = playerShip.position.y - goal.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            return dist < goal.radius;
+            // Trigger when player reaches the sun's Y position (can't fly around it)
+            return playerShip.position.y >= goal.y - goal.radius;
         }
 
         // Enter exploration mode for a level
@@ -14893,7 +15146,7 @@
 
                     // Camera fixed at (0,0) - world scrolls toward player
                     // Speed scales with player Y position: faster at top (pushing forward), slower at bottom
-                    const exploreScrollSpeed = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier) * 0.40;
+                    const exploreScrollSpeed = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier) * 0.20;
                     const scrollDist = exploreScrollSpeed * deltaTime;
 
                     // Scroll goal downward
@@ -14979,7 +15232,7 @@
                 if (gameState.levelEndSpawned || gameState.showingGates) {
                     scrollMultiplier *= 0.35;
                 }
-                updateBackgrounds(scrollMultiplier, deltaTime);
+                updateBackgrounds(scrollMultiplier * 0.25, deltaTime);
                 firePlayerWeapons(currentTime);
 
                 gameState.spawnTimer += deltaTime;
