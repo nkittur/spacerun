@@ -7684,12 +7684,12 @@
             system: {
                 name: 'System Gate',
                 texture: 'assets/stellar objects/warpgate.png',
-                rotationSpeed: 0.005
+                rotationSpeed: 0
             },
             event: {
                 name: 'Event Gate',
                 texture: 'assets/stellar objects/warpgate.png',
-                rotationSpeed: 0.003
+                rotationSpeed: 0
             }
         };
 
@@ -15741,7 +15741,7 @@
                 gameState.lastFrameTime = currentTime;
 
                 // Apply speed-up multiplier when button is pressed
-                const speedMultiplier = gameState.speedUp ? 8 : 1;
+                const speedMultiplier = gameState.speedUp ? 24 : 1;
                 deltaTime *= speedMultiplier;
 
                 // Update speed-up button visibility
