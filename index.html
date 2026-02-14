@@ -13227,31 +13227,7 @@
             const weaponType = ship.weaponBehavior;
             const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
 
-            if (weaponType === 'burst') {
-                // Aim line from ship toward target
-                const dx = targetX - ship.currentX;
-                const dy = targetY - ship.currentY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const lineLength = Math.max(dist, orthoHeight * 0.8);
-
-                const line = BABYLON.MeshBuilder.CreatePlane('czWarning', {
-                    width: 0.05, height: lineLength
-                }, scene);
-                line.position.x = ship.currentX + (dx / dist) * lineLength / 2;
-                line.position.y = ship.currentY + (dy / dist) * lineLength / 2;
-                line.position.z = -0.05;
-                line.rotation.z = Math.atan2(dx, dy);
-
-                const lineMat = new BABYLON.StandardMaterial('czWarningMat', scene);
-                lineMat.emissiveColor = new BABYLON.Color3(1.0, 0.4, 0.2);
-                lineMat.alpha = 0.2;
-                lineMat.disableLighting = true;
-                lineMat.backFaceCulling = false;
-                line.material = lineMat;
-                line.renderingGroupId = 2;
-                ship.weaponWarningMesh = line;
-
-            } else if (weaponType === 'mortar') {
+            if (weaponType === 'mortar') {
                 // Target circle at predicted impact
                 const ring = BABYLON.MeshBuilder.CreateTorus('czMortarTarget', {
                     diameter: (beh.aoeRadius || 2.0) * 2, thickness: 0.08, tessellation: 24
@@ -13312,21 +13288,7 @@
             const pulseSpeed = 0.015 + chargeProgress * 0.015;
             const pulse = Math.sin(currentTime * pulseSpeed) * 0.15;
 
-            if (weaponType === 'burst') {
-                const growthPhase = Math.max(0, (chargeProgress - 0.5) / 0.5);
-                ship.weaponWarningMesh.scaling.x = 1 + growthPhase * 3;
-                ship.weaponWarningMesh.material.alpha = 0.2 + chargeProgress * 0.4 + pulse;
-                // Keep attached to ship
-                const dx = ship.weaponTargetX - ship.currentX;
-                const dy = ship.weaponTargetY - ship.currentY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > 0) {
-                    const lineLength = Math.max(dist, orthoHeight * 0.8);
-                    ship.weaponWarningMesh.position.x = ship.currentX + (dx / dist) * lineLength / 2;
-                    ship.weaponWarningMesh.position.y = ship.currentY + (dy / dist) * lineLength / 2;
-                    ship.weaponWarningMesh.rotation.z = Math.atan2(dx, dy);
-                }
-            } else if (weaponType === 'mortar') {
+            if (weaponType === 'mortar') {
                 ship.weaponWarningMesh.material.alpha = 0.15 + chargeProgress * 0.3 + pulse;
                 const scale = 1.0 - chargeProgress * 0.2;
                 ship.weaponWarningMesh.scaling.x = scale;
