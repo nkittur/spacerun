@@ -11815,12 +11815,7 @@
         function checkBoardingProximity(deltaTime) {
             const prompt = document.getElementById('boardingPrompt');
             if (!prompt) return;
-            if (!playerShip || !gameState.disabledShips || gameState.disabledShips.length === 0) {
-                prompt.style.display = 'none';
-                gameState.boardingTarget = null;
-                gameState.boardingProgress = 0;
-                return;
-            }
+            if (!playerShip) return;
             // Don't process during boarding loot panel
             if (gameState.boardingInProgress) {
                 prompt.style.display = 'none';
@@ -11829,65 +11824,118 @@
 
             let nearest = null;
             let nearestDist = Infinity;
-            for (const ship of gameState.disabledShips) {
-                if (!ship || ship._isDisposed) continue;
-                const dx = playerShip.position.x - ship.position.x;
-                const dy = playerShip.position.y - ship.position.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 2.0 && dist < nearestDist) {
-                    nearestDist = dist;
-                    nearest = ship;
+            let nearestIsCZ = false; // Track whether nearest is a combat zone ship
+
+            // Check arena-mode disabled ships
+            if (gameState.disabledShips && gameState.disabledShips.length > 0) {
+                for (const ship of gameState.disabledShips) {
+                    if (!ship || ship._isDisposed) continue;
+                    const dx = playerShip.position.x - ship.position.x;
+                    const dy = playerShip.position.y - ship.position.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 2.0 && dist < nearestDist) {
+                        nearestDist = dist;
+                        nearest = ship;
+                        nearestIsCZ = false;
+                    }
                 }
             }
 
-            if (nearest) {
-                // New target - reset progress
-                if (gameState.boardingTarget !== nearest) {
-                    gameState.boardingTarget = nearest;
-                    gameState.boardingProgress = 0;
-                }
-                // Accumulate boarding progress (1.5 seconds to board)
-                gameState.boardingProgress = (gameState.boardingProgress || 0) + deltaTime / 1500;
-                // Show progress bar using the harvest bar
-                const harvestBar = document.getElementById('harvestBar');
-                const harvestBarFill = document.getElementById('harvestBarFill');
-                if (harvestBar && harvestBarFill) {
-                    harvestBar.style.display = 'block';
-                    harvestBarFill.style.width = `${Math.min(100, gameState.boardingProgress * 100)}%`;
-                    // Position bar near the disabled ship
-                    const canvas = document.querySelector('canvas');
-                    if (canvas && gameCamera) {
-                        const screenPos = BABYLON.Vector3.Project(
-                            new BABYLON.Vector3(nearest.position.x, nearest.position.y, 0),
-                            BABYLON.Matrix.Identity(),
-                            scene.getTransformMatrix(),
-                            gameCamera.viewport.toGlobal(canvas.width, canvas.height)
-                        );
-                        const barWidth = 60;
-                        harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
-                        harvestBar.style.top = (screenPos.y + 20) + 'px';
-                        harvestBar.style.width = barWidth + 'px';
-                        harvestBar.style.transform = 'none';
+            // Check combat zone disabled ships
+            const cz = gameState.combatZone;
+            if (cz && cz.active && cz.ships) {
+                for (const ship of cz.ships) {
+                    if (!ship.alive || !ship.disabled) continue;
+                    if (ship.disabledInvulnerable) continue; // Not harvestable yet
+                    const dx = playerShip.position.x - ship.currentX;
+                    const dy = playerShip.position.y - ship.currentY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 2.5 && dist < nearestDist) {
+                        nearestDist = dist;
+                        nearest = ship;
+                        nearestIsCZ = true;
                     }
                 }
-                // Show boarding label
-                prompt.style.display = 'block';
-                prompt.textContent = 'BOARDING...';
+            }
 
-                // Auto-board when progress completes
-                if (gameState.boardingProgress >= 1) {
-                    gameState.boardingProgress = 0;
-                    if (harvestBar) harvestBar.style.display = 'none';
-                    boardShip(nearest);
-                }
-            } else {
+            if (!nearest) {
                 prompt.style.display = 'none';
                 gameState.boardingTarget = null;
                 if (gameState.boardingProgress > 0) {
                     gameState.boardingProgress = 0;
-                    document.getElementById('harvestBar').style.display = 'none';
+                    const harvestBar = document.getElementById('harvestBar');
+                    if (harvestBar) harvestBar.style.display = 'none';
+                }
+                return;
+            }
+
+            // New target - reset progress
+            if (gameState.boardingTarget !== nearest) {
+                gameState.boardingTarget = nearest;
+                gameState.boardingProgress = 0;
+            }
+            // Accumulate boarding progress (1.5 seconds to board)
+            gameState.boardingProgress = (gameState.boardingProgress || 0) + deltaTime / 1500;
+
+            // Show progress bar using the harvest bar
+            const harvestBar = document.getElementById('harvestBar');
+            const harvestBarFill = document.getElementById('harvestBarFill');
+            if (harvestBar && harvestBarFill) {
+                harvestBar.style.display = 'block';
+                harvestBarFill.style.width = `${Math.min(100, gameState.boardingProgress * 100)}%`;
+                // Position bar near the disabled ship
+                const canvas = document.querySelector('canvas');
+                if (canvas && gameCamera) {
+                    // CZ ships use currentX/currentY, arena ships use position
+                    const worldX = nearestIsCZ ? nearest.currentX : nearest.position.x;
+                    const worldY = nearestIsCZ ? nearest.currentY : nearest.position.y;
+                    const screenPos = BABYLON.Vector3.Project(
+                        new BABYLON.Vector3(worldX, worldY, 0),
+                        BABYLON.Matrix.Identity(),
+                        scene.getTransformMatrix(),
+                        gameCamera.viewport.toGlobal(canvas.width, canvas.height)
+                    );
+                    const barWidth = 60;
+                    harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+                    harvestBar.style.top = (screenPos.y + 20) + 'px';
+                    harvestBar.style.width = barWidth + 'px';
+                    harvestBar.style.transform = 'none';
                 }
             }
+            // Show boarding label
+            prompt.style.display = 'block';
+            prompt.textContent = nearestIsCZ ? 'HARVESTING...' : 'BOARDING...';
+
+            // Auto-board/harvest when progress completes
+            if (gameState.boardingProgress >= 1) {
+                gameState.boardingProgress = 0;
+                if (harvestBar) harvestBar.style.display = 'none';
+                if (nearestIsCZ) {
+                    harvestCZDisabledShip(nearest);
+                } else {
+                    boardShip(nearest);
+                }
+            }
+        }
+
+        // Harvest a disabled combat zone ship via proximity boarding
+        function harvestCZDisabledShip(ship) {
+            const cz = gameState.combatZone;
+            if (!cz) return;
+
+            createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
+            createDisabledShipLoot(ship);
+            gameState.score += 20 * gameState.wave;
+            gameState.stats.enemiesKilled++;
+            updateHUD();
+
+            disposeCombatZoneShip(ship);
+            const idx = cz.ships.indexOf(ship);
+            if (idx !== -1) cz.ships.splice(idx, 1);
+
+            gameState.boardingTarget = null;
+            const prompt = document.getElementById('boardingPrompt');
+            if (prompt) prompt.style.display = 'none';
         }
 
         // Board a disabled ship and get loot
@@ -16891,8 +16939,8 @@
                         }
 
                         if (enemy.health <= 0 && !enemy.isDisabled) {
-                            // In encounters, chance to disable instead of destroy
-                            if (gameState.currentEncounter && Math.random() < 0.3 && enemy.type !== 'fast') {
+                            // In encounters, small chance to disable instead of destroy
+                            if (gameState.currentEncounter && Math.random() < 0.04 && enemy.type !== 'fast') {
                                 disableShip(enemy);
                             } else {
                                 createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
@@ -17029,8 +17077,8 @@
                             target.health -= (bullet.damage || 10);
                             createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
                             if (target.health <= 0) {
-                                // Chance to disable instead of destroy
-                                if (!target.isDisabled && Math.random() < 0.35) {
+                                // Small chance to disable instead of destroy
+                                if (!target.isDisabled && Math.random() < 0.04) {
                                     disableShip(target);
                                 } else {
                                     createExplosion(target.position.x, target.position.y, 'large', 'orange');

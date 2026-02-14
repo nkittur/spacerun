@@ -89,6 +89,16 @@ ship.disabledBy = null;          // 'player' or 'npc' - who gets loot credit
 - [x] Disabled ships excluded from peace-timer faction checks
 - [x] Disabled ships excluded from world-scroll loop (handled by updateDisabledShips)
 
+### 8. Proximity harvesting for CZ disabled ships
+- [x] `checkBoardingProximity()` extended to also scan `cz.ships` for `disabled && !disabledInvulnerable`
+- [x] Uses `ship.currentX`/`ship.currentY` for CZ ships (not Babylon `.position`)
+- [x] Shows "HARVESTING..." label (vs "BOARDING..." for arena ships)
+- [x] On completion calls `harvestCZDisabledShip()` → `createDisabledShipLoot()` + dispose
+
+### 9. Arena mode disable chance
+- [x] Player bullets: reduced from 30% to 4% chance to disable instead of destroy
+- [x] Crossfire bullets: reduced from 35% to 4%
+
 ## Key Functions Added
 
 | Function | Purpose |
@@ -97,6 +107,7 @@ ship.disabledBy = null;          // 'player' or 'npc' - who gets loot credit
 | `createDisabledCorners(ship)` | Creates 4 gray L-bracket corner meshes around the wreck |
 | `updateCZDisabledShips(cz, deltaTime, scrollDist)` | Per-frame update: drift, scroll, corner tracking, invuln timer, cleanup |
 | `createDisabledShipLoot(ship)` | Enhanced loot drops: resources, credits, weapons, equipment; scaled by level/size |
+| `harvestCZDisabledShip(ship)` | Proximity-board completion for CZ disabled ships: loot + dispose |
 
 ## Loot Comparison (Normal Death vs Harvested)
 
