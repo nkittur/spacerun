@@ -4898,10 +4898,10 @@
         // Generate a random weapon based on zone level
         // Faction weapon type preferences (higher weight = more likely)
         const FACTION_WEAPON_PREFS = {
-            federation: { beam: 3, lance: 3, burst: 2, bullet: 1, spread: 1, autocannon: 1, mortar: 0.5 },
-            merchants:  { autocannon: 3, spread: 3, burst: 2, bullet: 2, beam: 1, mortar: 1, lance: 0.5 },
-            pirates:    { burst: 3, mortar: 3, autocannon: 2, spread: 2, bullet: 1, beam: 0.5, lance: 1 },
-            independent:{ bullet: 2, burst: 2, autocannon: 2, spread: 2, beam: 1.5, mortar: 1.5, lance: 1.5 }
+            federation: { beam: 0, lance: 0, burst: 2, bullet: 1, spread: 1, autocannon: 1, mortar: 0.5 },
+            merchants:  { autocannon: 3, spread: 3, burst: 2, bullet: 2, beam: 0, mortar: 1, lance: 0 },
+            pirates:    { burst: 3, mortar: 3, autocannon: 2, spread: 2, bullet: 1, beam: 0, lance: 0 },
+            independent:{ bullet: 2, burst: 2, autocannon: 2, spread: 2, beam: 0, mortar: 1.5, lance: 0 }
         };
 
         // Enemy weapon behavior definitions - each provides visual warning to the player
@@ -4961,8 +4961,8 @@
         const ENEMY_TYPE_WEAPONS = {
             basic:      ['standard', 'standard', 'burst', 'autocannon'],
             light:      ['standard', 'burst', 'burst', 'autocannon'],
-            shooter:    ['standard', 'burst', 'autocannon', 'beam_sweep'],
-            heavy:      ['standard', 'burst', 'mortar', 'beam_sweep', 'lance'],
+            shooter:    ['standard', 'burst', 'autocannon'],
+            heavy:      ['standard', 'burst', 'mortar'],
             fast:       [],  // Fast enemies don't shoot
             challenger: []   // Challenger has its own laser system
         };
@@ -5038,9 +5038,10 @@
                 }
             }
 
-            // Get templates for this size
+            // Get templates for this size (beam and lance weapons are disabled)
+            const DISABLED_WEAPON_TYPES = ['beam', 'lance'];
             let sizeTemplates = Object.entries(WEAPON_TEMPLATES)
-                .filter(([_, t]) => t.size === selectedSize);
+                .filter(([_, t]) => t.size === selectedSize && !DISABLED_WEAPON_TYPES.includes(t.type));
 
             // Apply faction preference weighting if provided
             let templateId, template;
@@ -12502,10 +12503,10 @@
             // Maps encounter enemy types to ship models for the zone
             basic:      { model: 'Bob', color: 'Blue', scale: 1.2, speed: 0.004, hp: 90, fireRate: 3000, damage: 8, bulletSpeed: 0.1, weaponPool: ['standard', 'standard', 'burst', 'autocannon'] },
             light:      { model: 'Dispatcher', color: 'Purple', scale: 0.9, speed: 0.006, hp: 60, fireRate: 2000, damage: 5, bulletSpeed: 0.12, weaponPool: ['standard', 'burst', 'burst', 'autocannon'] },
-            heavy:      { model: 'Imperial', color: 'Orange', scale: 1.8, speed: 0.002, hp: 300, fireRate: 2500, damage: 15, bulletSpeed: 0.08, spread: true, weaponPool: ['standard', 'burst', 'mortar', 'beam_sweep', 'lance'] },
-            shooter:    { model: 'Omen', color: 'Green', scale: 1.1, speed: 0.0035, hp: 150, fireRate: 1500, damage: 8, bulletSpeed: 0.1, weaponPool: ['standard', 'burst', 'autocannon', 'beam_sweep'] },
+            heavy:      { model: 'Imperial', color: 'Orange', scale: 1.8, speed: 0.002, hp: 300, fireRate: 2500, damage: 15, bulletSpeed: 0.08, spread: true, weaponPool: ['standard', 'burst', 'mortar'] },
+            shooter:    { model: 'Omen', color: 'Green', scale: 1.1, speed: 0.0035, hp: 150, fireRate: 1500, damage: 8, bulletSpeed: 0.1, weaponPool: ['standard', 'burst', 'autocannon'] },
             fast:       { model: 'Striker', color: 'Red', scale: 0.8, speed: 0.007, hp: 45, fireRate: 4000, damage: 5, bulletSpeed: 0.1, weaponPool: ['standard', 'autocannon'] },
-            challenger: { model: 'Executioner', color: 'Red', scale: 2.0, speed: 0.0015, hp: 240, fireRate: 2000, damage: 15, bulletSpeed: 0.08, spread: true, weaponPool: ['beam_sweep', 'lance', 'mortar', 'burst'] },
+            challenger: { model: 'Executioner', color: 'Red', scale: 2.0, speed: 0.0015, hp: 240, fireRate: 2000, damage: 15, bulletSpeed: 0.08, spread: true, weaponPool: ['mortar', 'burst', 'autocannon'] },
         };
 
         // Assign a weapon behavior to a combat zone ship based on its type and faction
