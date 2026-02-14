@@ -13841,9 +13841,21 @@
                         } else {
                             ship.hp -= (bullet.damage || 10);
                             if (ship.hp <= 0) {
-                                // Transition to disabled state instead of instant death
-                                disableCombatZoneShip(ship, 'npc');
-                                // Other ships stop targeting this disabled ship
+                                // NPC kills: 30% chance to disable, 70% instant destroy
+                                if (Math.random() < 0.30) {
+                                    disableCombatZoneShip(ship, 'npc');
+                                } else {
+                                    createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
+                                    createLoot(ship.currentX, ship.currentY, ship.type);
+                                    tryDropWeapon(ship.currentX, ship.currentY, ship.type);
+                                    gameState.score += 10 * gameState.wave;
+                                    gameState.credits += 10 + Math.floor(Math.random() * 15);
+                                    gameState.stats.enemiesKilled++;
+                                    updateHUD();
+                                    disposeCombatZoneShip(ship);
+                                    cz.ships.splice(si, 1);
+                                }
+                                // Other ships stop targeting this ship either way
                                 for (const other of cz.ships) {
                                     if (other.target === ship) {
                                         other.target = null;
@@ -13906,9 +13918,21 @@
                             }
 
                             if (ship.hp <= 0) {
-                                // Transition to disabled state instead of instant death
-                                disableCombatZoneShip(ship, 'player');
-                                // Other ships stop targeting this disabled ship
+                                // Player kills: 4% chance to disable, 96% instant destroy
+                                if (Math.random() < 0.04) {
+                                    disableCombatZoneShip(ship, 'player');
+                                } else {
+                                    createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
+                                    createLoot(ship.currentX, ship.currentY, ship.type);
+                                    tryDropWeapon(ship.currentX, ship.currentY, ship.type);
+                                    gameState.score += 10 * gameState.wave;
+                                    gameState.credits += 10 + Math.floor(Math.random() * 15);
+                                    gameState.stats.enemiesKilled++;
+                                    updateHUD();
+                                    disposeCombatZoneShip(ship);
+                                    cz.ships.splice(si, 1);
+                                }
+                                // Other ships stop targeting this ship either way
                                 for (const other of cz.ships) {
                                     if (other.target === ship) {
                                         other.target = null;
@@ -17077,8 +17101,8 @@
                             target.health -= (bullet.damage || 10);
                             createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
                             if (target.health <= 0) {
-                                // Small chance to disable instead of destroy
-                                if (!target.isDisabled && Math.random() < 0.04) {
+                                // NPC crossfire: 30% chance to disable instead of destroy
+                                if (!target.isDisabled && Math.random() < 0.30) {
                                     disableShip(target);
                                 } else {
                                     createExplosion(target.position.x, target.position.y, 'large', 'orange');
