@@ -13209,7 +13209,7 @@
             const weaponType = ship.weaponBehavior;
             const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
 
-            if (weaponType === 'burst' || weaponType === 'lance') {
+            if (weaponType === 'burst') {
                 // Aim line from ship toward target
                 const dx = targetX - ship.currentX;
                 const dy = targetY - ship.currentY;
@@ -13225,9 +13225,7 @@
                 line.rotation.z = Math.atan2(dx, dy);
 
                 const lineMat = new BABYLON.StandardMaterial('czWarningMat', scene);
-                lineMat.emissiveColor = weaponType === 'lance'
-                    ? new BABYLON.Color3(0.8, 0.2, 1.0)
-                    : new BABYLON.Color3(1.0, 0.4, 0.2);
+                lineMat.emissiveColor = new BABYLON.Color3(1.0, 0.4, 0.2);
                 lineMat.alpha = 0.2;
                 lineMat.disableLighting = true;
                 lineMat.backFaceCulling = false;
@@ -13272,33 +13270,8 @@
                 ship.mortarTargetX = targetX;
                 ship.mortarTargetY = targetY;
 
-            } else if (weaponType === 'beam_sweep') {
-                // Thin preview beam
-                const beamHeight = orthoHeight * 2 + 4;
-                const preview = BABYLON.MeshBuilder.CreatePlane('czSweepPreview', {
-                    width: 0.08, height: beamHeight
-                }, scene);
-                // Orient beam along the direction from ship to target
-                const dx = targetX - ship.currentX;
-                const dy = targetY - ship.currentY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                preview.position.x = ship.currentX + (dist > 0 ? (dx / dist) * beamHeight / 2 : 0);
-                preview.position.y = ship.currentY + (dist > 0 ? (dy / dist) * beamHeight / 2 : -beamHeight / 2);
-                preview.position.z = -0.05;
-                if (dist > 0) preview.rotation.z = Math.atan2(dx, dy);
-
-                const previewMat = new BABYLON.StandardMaterial('czSweepMat', scene);
-                previewMat.emissiveColor = new BABYLON.Color3(1.0, 0.1, 0.3);
-                previewMat.alpha = 0.2;
-                previewMat.disableLighting = true;
-                previewMat.backFaceCulling = false;
-                preview.material = previewMat;
-                preview.renderingGroupId = 2;
-
-                ship.weaponWarningMesh = preview;
-                ship.sweepStartX = ship.currentX;
-                ship.sweepDirection = targetX > ship.currentX ? 1 : -1;
             }
+            // beam_sweep and lance warnings are DISABLED in combat zones (reserved for beam expansion)
         }
 
         // Update charging/warning for combat zone ship weapons
@@ -13321,14 +13294,10 @@
             const pulseSpeed = 0.015 + chargeProgress * 0.015;
             const pulse = Math.sin(currentTime * pulseSpeed) * 0.15;
 
-            if (weaponType === 'burst' || weaponType === 'lance') {
+            if (weaponType === 'burst') {
                 const growthPhase = Math.max(0, (chargeProgress - 0.5) / 0.5);
                 ship.weaponWarningMesh.scaling.x = 1 + growthPhase * 3;
                 ship.weaponWarningMesh.material.alpha = 0.2 + chargeProgress * 0.4 + pulse;
-                if (weaponType === 'lance') {
-                    const b = chargeProgress;
-                    ship.weaponWarningMesh.material.emissiveColor = new BABYLON.Color3(0.8 + b * 0.2, 0.2 + b * 0.6, 1.0);
-                }
                 // Keep attached to ship
                 const dx = ship.weaponTargetX - ship.currentX;
                 const dy = ship.weaponTargetY - ship.currentY;
@@ -13345,22 +13314,8 @@
                 ship.weaponWarningMesh.scaling.x = scale;
                 ship.weaponWarningMesh.scaling.y = scale;
                 ship.weaponWarningMesh.scaling.z = scale;
-            } else if (weaponType === 'beam_sweep') {
-                ship.weaponWarningMesh.material.alpha = 0.15 + chargeProgress * 0.35 + pulse;
-                const growthPhase = Math.max(0, (chargeProgress - 0.7) / 0.3);
-                ship.weaponWarningMesh.scaling.x = 1 + growthPhase * 6;
-                // Track ship position during charge so preview stays attached
-                const dx = ship.weaponTargetX - ship.currentX;
-                const dy = ship.weaponTargetY - ship.currentY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > 0) {
-                    const beamHeight = orthoHeight * 2 + 4;
-                    ship.weaponWarningMesh.position.x = ship.currentX + (dx / dist) * beamHeight / 2;
-                    ship.weaponWarningMesh.position.y = ship.currentY + (dy / dist) * beamHeight / 2;
-                    ship.weaponWarningMesh.rotation.z = Math.atan2(dx, dy);
-                }
-                ship.sweepStartX = ship.currentX;
             }
+            // beam_sweep and lance charge visuals are DISABLED (reserved for beam expansion)
         }
 
         // Compute lateral hardpoint offsets perpendicular to firing direction
@@ -13464,14 +13419,7 @@
                     }
                     break;
                 }
-                case 'beam_sweep': {
-                    fireCZBeamSweep(ship);
-                    break;
-                }
-                case 'lance': {
-                    fireCZLance(ship, adjustedDmg);
-                    break;
-                }
+                // beam_sweep and lance are DISABLED in combat zones (reserved for beam expansion)
             }
         }
 
@@ -13510,113 +13458,9 @@
             ship.burstNextFire = currentTime + delay;
         }
 
-        // Fire beam sweep for combat zone ship
-        function fireCZBeamSweep(ship) {
-            if (!gameState.enemyBeamSweeps) gameState.enemyBeamSweeps = [];
-            const beh = ENEMY_WEAPON_BEHAVIORS['beam_sweep'];
-
-            const beamHeight = orthoHeight * 2 + 4;
-            const beamWidth = beh.beamWidth || 0.6;
-
-            // Compute direction toward target
-            const dx = ship.weaponTargetX - ship.currentX;
-            const dy = ship.weaponTargetY - ship.currentY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            let nx = 0, ny = -1; // default: downward
-            if (dist > 0) { nx = dx / dist; ny = dy / dist; }
-
-            const beam = BABYLON.MeshBuilder.CreatePlane('czBeamSweep', {
-                width: beamWidth, height: beamHeight
-            }, scene);
-            // Position beam so one end is at the ship, extending toward target
-            beam.position.x = ship.currentX + nx * beamHeight / 2;
-            beam.position.y = ship.currentY + ny * beamHeight / 2;
-            beam.position.z = -0.1;
-            if (dist > 0) beam.rotation.z = Math.atan2(dx, dy);
-
-            const beamMat = new BABYLON.StandardMaterial('czBeamMat', scene);
-            beamMat.emissiveColor = new BABYLON.Color3(1.0, 0.15, 0.3);
-            beamMat.alpha = 0.85;
-            beamMat.disableLighting = true;
-            beamMat.backFaceCulling = false;
-            beam.material = beamMat;
-            beam.renderingGroupId = 2;
-            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(beam);
-
-            beam.laserDamage = ship.damage * (beh.dmgMult || 1.2);
-            beam.laserWidth = beamWidth;
-            beam.sourceShip = ship;
-            beam.lastDamageTime = 0;
-            beam.damageInterval = 150;
-            beam.sweepDirection = ship.sweepDirection || 1;
-            beam.sweepSpeed = (beh.sweepAngle || 0.4) * orthoWidth * 0.015;
-            beam.sweepMaxDist = (beh.sweepAngle || 0.4) * orthoWidth;
-            beam._combatZoneBullet = true;
-            beam.sourceFaction = ship.faction;
-            // Store direction for per-frame position recomputation (like engine glows)
-            beam._fireDir = { x: nx, y: ny };
-            beam._beamHeight = beamHeight;
-            beam._sweptDist = 0;
-
-            gameState.enemyBeamSweeps.push(beam);
-        }
-
-        // Fire lance for combat zone ship
-        function fireCZLance(ship, damage) {
-            if (!gameState.challengerLasers) gameState.challengerLasers = [];
-
-            const beamHeight = orthoHeight * 2 + 4;
-            const beamWidth = 0.4;
-            const dx = ship.weaponTargetX - ship.currentX;
-            const dy = ship.weaponTargetY - ship.currentY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            let nx = 0, ny = -1;
-            if (dist > 0) { nx = dx / dist; ny = dy / dist; }
-
-            const laser = BABYLON.MeshBuilder.CreatePlane('czLance', {
-                width: beamWidth, height: beamHeight
-            }, scene);
-            laser.position.x = ship.currentX + nx * beamHeight / 2;
-            laser.position.y = ship.currentY + ny * beamHeight / 2;
-            laser.position.z = -0.1;
-            if (dist > 0) laser.rotation.z = Math.atan2(dx, dy);
-
-            const laserMat = new BABYLON.StandardMaterial('czLanceMat', scene);
-            laserMat.emissiveColor = new BABYLON.Color3(0.6, 0.2, 1.0);
-            laserMat.alpha = 0.9;
-            laserMat.disableLighting = true;
-            laserMat.backFaceCulling = false;
-            laser.material = laserMat;
-            laser.renderingGroupId = 2;
-
-            // Bright core
-            const core = BABYLON.MeshBuilder.CreatePlane('czLanceCore', { width: beamWidth * 0.3, height: beamHeight }, scene);
-            core.parent = laser;
-            core.position.z = -0.01;
-            const coreMat = new BABYLON.StandardMaterial('czLanceCoreMat', scene);
-            coreMat.emissiveColor = new BABYLON.Color3(0.9, 0.7, 1.0);
-            coreMat.alpha = 1.0;
-            coreMat.disableLighting = true;
-            core.material = coreMat;
-            core.renderingGroupId = 2;
-
-            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(laser);
-
-            laser.laserDamage = damage;
-            laser.laserWidth = beamWidth;
-            laser.sourceShip = ship;
-            // Store direction for per-frame position recomputation (like engine glows)
-            laser._fireDir = { x: nx, y: ny };
-            laser._beamHeight = beamHeight;
-            laser.lastDamageTime = 0;
-            laser.damageInterval = 100;
-            laser.totalDamageTicks = 8;
-            laser.damagePerTick = damage / laser.totalDamageTicks;
-            laser._combatZoneBullet = true;
-            laser.sourceFaction = ship.faction;
-
-            gameState.challengerLasers.push(laser);
-        }
+        // fireCZBeamSweep and fireCZLance have been removed.
+        // beam_sweep and lance are DISABLED in combat zones — reserved for beam expansion.
+        // See CZ_DISABLED_WEAPONS in assignCZShipWeapon().
 
         // Cleanup combat zone weapon warning mesh
         function cleanupCZWeaponWarning(ship) {
@@ -18365,8 +18209,10 @@
 
                 gameState.spawnTimer += deltaTime;
                 if (gameState.spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
-                    // Use encounter enemy types if in an encounter
-                    if (gameState.encounterTransition === 'combat' && gameState._encounterEnemyTypes) {
+                    // Don't spawn arena enemies when combat zone is active — CZ ships handle combat
+                    if (gameState.combatZone && gameState.combatZone.active) {
+                        // Skip arena spawning entirely
+                    } else if (gameState.encounterTransition === 'combat' && gameState._encounterEnemyTypes) {
                         if (gameState._encounterEnemyTypes.length > 0) {
                             spawnEncounterEnemy();
                         }
