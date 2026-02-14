@@ -95,7 +95,7 @@ ship.disabledBy = null;          // 'player' or 'npc' - who gets loot credit
 |----------|---------|
 | `disableCombatZoneShip(ship, disabledBy)` | Transitions ship to disabled state; dims visuals, stops AI, creates corners |
 | `createDisabledCorners(ship)` | Creates 4 gray L-bracket corner meshes around the wreck |
-| `updateDisabledShips(cz, deltaTime, scrollDist)` | Per-frame update: drift, scroll, corner tracking, invuln timer, cleanup |
+| `updateCZDisabledShips(cz, deltaTime, scrollDist)` | Per-frame update: drift, scroll, corner tracking, invuln timer, cleanup |
 | `createDisabledShipLoot(ship)` | Enhanced loot drops: resources, credits, weapons, equipment; scaled by level/size |
 
 ## Loot Comparison (Normal Death vs Harvested)

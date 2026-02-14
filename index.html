@@ -12887,8 +12887,8 @@
             });
         }
 
-        // Update disabled ships: invulnerability timer, drift, corner positions, pulse
-        function updateDisabledShips(cz, deltaTime, scrollDist) {
+        // Update disabled combat zone ships: invulnerability timer, drift, corner positions, pulse
+        function updateCZDisabledShips(cz, deltaTime, scrollDist) {
             const now = performance.now();
             for (let i = cz.ships.length - 1; i >= 0; i--) {
                 const ship = cz.ships[i];
@@ -13564,7 +13564,7 @@
             // They're in gameState.planets so updatePlanets handles them
 
             // --- UPDATE DISABLED SHIPS (drift, corners, invuln timer) ---
-            updateDisabledShips(cz, deltaTime, scrollDist);
+            updateCZDisabledShips(cz, deltaTime, scrollDist);
 
             // --- SHIP AI ---
             for (let i = cz.ships.length - 1; i >= 0; i--) {
