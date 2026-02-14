@@ -12240,7 +12240,7 @@
             gameState.combatZone = {
                 active: true,
                 scrollDistance: 0,
-                totalScrollDistance: LEVEL_ZONE_HEIGHTS.reward * 2.86, // Extended for slower effective scroll (30% more time)
+                totalScrollDistance: LEVEL_ZONE_HEIGHTS.reward * 2.0, // Same length as before
                 ships: [],           // Free-flying combat ships
                 planets: [],         // Background decoration planets
                 bullets: [],         // NPC-to-NPC bullets
@@ -12511,8 +12511,15 @@
         };
 
         // Assign a weapon behavior to a combat zone ship based on its type and faction
+        // NOTE: beam_sweep and lance are DISABLED in combat zones until the beam expansion.
+        // Do NOT add them to weaponPool arrays in COMBAT_ZONE_SHIP_TYPES.
+        const CZ_DISABLED_WEAPONS = ['beam_sweep', 'lance'];
+
         function assignCZShipWeapon(ship) {
-            const pool = ship.config.weaponPool || ['standard'];
+            const pool = (ship.config.weaponPool || ['standard'])
+                .filter(id => !CZ_DISABLED_WEAPONS.includes(id));
+            if (pool.length === 0) pool.push('standard');
+
             // Apply faction preference weighting
             const factionPrefs = FACTION_WEAPON_PREFS[ship.faction] || {};
             const levelBonus = Math.min(gameState.level * 0.05, 0.4);
@@ -12545,11 +12552,6 @@
             if (picked === 'mortar') {
                 ship.mortarTargetX = 0;
                 ship.mortarTargetY = 0;
-            }
-            // Beam sweep state
-            if (picked === 'beam_sweep') {
-                ship.sweepStartX = 0;
-                ship.sweepDirection = 1;
             }
         }
 
@@ -13388,7 +13390,7 @@
                     break;
                 }
                 case 'autocannon': {
-                    ship.burstRemaining = (beh.streamCount || 6) * hardpoints;
+                    ship.burstRemaining = beh.streamCount || 6;
                     ship.burstNextFire = currentTime;
                     ship.burstDx = dx / dist;
                     ship.burstDy = dy / dist;
@@ -13585,8 +13587,8 @@
             if (!cz || !cz.active) return;
 
             // --- SCROLLING ---
-            // Scroll at same rate as system zones but faster (50% of distance = same speed over less time)
-            const scrollDist = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            // Combat zones scroll 30% slower than normal so ships have time to fight
+            const scrollDist = WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier) * 0.7;
             cz.scrollDistance += scrollDist;
 
             // Scroll all combat zone ships with the world (disabled ships scrolled by updateDisabledShips)

@@ -6,10 +6,10 @@ Ships scroll through and off-screen before any meaningful combat happens. The zo
 ## Changes Summary
 
 ### 1. Scroll Speed -30%
-- **Where**: `totalScrollDistance` in combat zone init (line ~12243)
-- **How**: Multiply total scroll distance by ~1.43x (equivalent to 30% slower scrolling)
-- **Effect**: Zone lasts ~37s instead of ~26s, giving ships much more time to fight
-- **Why at totalScrollDistance**: Changing `WORLD_SCROLL_SPEED` would affect all game modes. Instead we increase the combat zone's total scroll distance, making it take longer to complete without touching the global constant.
+- **Where**: `updateCombatZone()` scroll calculation — `* 0.7` multiplier on scrollDist
+- **How**: Direct 30% reduction to the per-frame scroll distance in combat zones only
+- **Effect**: Player scrolls past ships more slowly, giving time for combat to unfold
+- **Why on scrollDist**: Reducing the actual scroll speed (not inflating zone distance) means the player physically moves through the zone slower, staying near the ships longer
 
 ### 2. Projectile Speed +50%
 - **Where**: `COMBAT_ZONE_SHIP_TYPES` bulletSpeed values, and `fireCZBurstShot` hardcoded speeds

@@ -44,6 +44,7 @@ The game has **two completely separate combat systems**. Any weapon, enemy, or c
 - Arena: `assignEnemyWeapon()` on `createEnemy()`, firing in `updateEnemies()`
 - Combat zones: `assignCZShipWeapon()` on ship creation, firing in `updateCombatZone()`
 - Warning visuals: aim lines (burst/lance), target circles (mortar), sweep previews (beam_sweep)
+- **DISABLED IN COMBAT ZONES**: `beam_sweep` and `lance` are filtered out by `CZ_DISABLED_WEAPONS` in `assignCZShipWeapon()`. Do NOT add them to `COMBAT_ZONE_SHIP_TYPES` weaponPool arrays. They are reserved for a future beam expansion.
 
 ### Weapon Drops
 - `tryDropWeapon()` called on enemy/ship death (2-8% chance by type)
