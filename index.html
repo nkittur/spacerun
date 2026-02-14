@@ -18206,6 +18206,14 @@
                     updateCombatZone(deltaTime, currentTime, scrollMultiplier);
                 }
 
+                // If updateCombatZone triggered finishCombatZone() → returnToExploration(),
+                // we're now in a zoom-out transition. Bail out immediately so the rest of
+                // the combat code doesn't run with stale state (would spawn solar systems
+                // at combat-zoom positions, double-advance waves, etc.)
+                if (gameState.encounterTransition === 'zooming_out') {
+                    return;
+                }
+
                 gameState.spawnTimer += deltaTime;
                 if (gameState.spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
                     // Don't spawn arena enemies when combat zone is active — CZ ships handle combat
