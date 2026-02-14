@@ -18285,7 +18285,8 @@
                     }
                 }
                 // Non-encounter wave completion (level end, stations, etc.)
-                else if (!gameState.currentEncounter && gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.eventObject && !gameState.mysteryEventActive) {
+                // Skip if zooming out of an encounter - finishCombatZone/onEncounterVictory already advanced the wave
+                else if (!gameState.currentEncounter && gameState.encounterTransition !== 'zooming_out' && gameState.encounterTransition !== 'victory_pause' && gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.eventObject && !gameState.mysteryEventActive) {
                     gameState.wave++;
                     gameState.levelWave++;
                     updateHUD();
