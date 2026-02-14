@@ -13149,19 +13149,16 @@
             beam.laserDamage = ship.damage * (beh.dmgMult || 1.2);
             beam.laserWidth = beamWidth;
             beam.sourceShip = ship;
-            beam._lastSourceX = ship.currentX;
-            beam._lastSourceY = ship.currentY;
             beam.lastDamageTime = 0;
             beam.damageInterval = 150;
             beam.sweepDirection = ship.sweepDirection || 1;
             beam.sweepSpeed = (beh.sweepAngle || 0.4) * orthoWidth * 0.015;
-            beam.sweepStartX = beam.position.x;
-            beam.sweepStartY = beam.position.y;
             beam.sweepMaxDist = (beh.sweepAngle || 0.4) * orthoWidth;
             beam._combatZoneBullet = true;
-            // Perpendicular sweep direction (rotated 90deg from firing direction)
-            beam._sweepDirX = -ny;
-            beam._sweepDirY = nx;
+            // Store direction for per-frame position recomputation (like engine glows)
+            beam._fireDir = { x: nx, y: ny };
+            beam._beamHeight = beamHeight;
+            beam._sweptDist = 0;
 
             gameState.enemyBeamSweeps.push(beam);
         }
@@ -13175,12 +13172,14 @@
             const dx = ship.weaponTargetX - ship.currentX;
             const dy = ship.weaponTargetY - ship.currentY;
             const dist = Math.sqrt(dx * dx + dy * dy);
+            let nx = 0, ny = -1;
+            if (dist > 0) { nx = dx / dist; ny = dy / dist; }
 
             const laser = BABYLON.MeshBuilder.CreatePlane('czLance', {
                 width: beamWidth, height: beamHeight
             }, scene);
-            laser.position.x = ship.currentX + (dist > 0 ? (dx / dist) * beamHeight / 2 : 0);
-            laser.position.y = ship.currentY + (dist > 0 ? (dy / dist) * beamHeight / 2 : -beamHeight / 2);
+            laser.position.x = ship.currentX + nx * beamHeight / 2;
+            laser.position.y = ship.currentY + ny * beamHeight / 2;
             laser.position.z = -0.1;
             if (dist > 0) laser.rotation.z = Math.atan2(dx, dy);
 
@@ -13208,8 +13207,9 @@
             laser.laserDamage = damage;
             laser.laserWidth = beamWidth;
             laser.sourceShip = ship;
-            laser._offsetX = laser.position.x - ship.currentX;
-            laser._offsetY = laser.position.y - ship.currentY;
+            // Store direction for per-frame position recomputation (like engine glows)
+            laser._fireDir = { x: nx, y: ny };
+            laser._beamHeight = beamHeight;
             laser.lastDamageTime = 0;
             laser.damageInterval = 100;
             laser.totalDamageTicks = 8;
@@ -15819,14 +15819,15 @@
             beam.laserDamage = enemy.damage * (beh.dmgMult || 1.2);
             beam.laserWidth = beamWidth;
             beam.sourceEnemy = enemy;
-            beam._lastSourceX = enemy.position.x;
-            beam._lastSourceY = enemy.position.y;
             beam.lastDamageTime = 0;
             beam.damageInterval = 150;
             beam.sweepDirection = enemy.sweepDirection || 1;
             beam.sweepSpeed = (beh.sweepAngle || 0.4) * orthoWidth * 0.015;
-            beam.sweepStartX = beam.position.x;
             beam.sweepMaxDist = (beh.sweepAngle || 0.4) * orthoWidth;
+            // Store direction for per-frame position recomputation
+            beam._fireDir = { x: 0, y: -1 }; // Arena beams always fire downward
+            beam._beamHeight = beamHeight;
+            beam._sweptDist = 0;
 
             gameState.enemyBeamSweeps.push(beam);
         }
@@ -15879,8 +15880,11 @@
             laser.laserDamage = damage;
             laser.laserWidth = beamWidth;
             laser.sourceEnemy = enemy;
-            laser._offsetX = laser.position.x - enemy.position.x;
-            laser._offsetY = laser.position.y - enemy.position.y;
+            // Store direction for per-frame position recomputation
+            const lnx = dist > 0 ? dx / dist : 0;
+            const lny = dist > 0 ? dy / dist : -1;
+            laser._fireDir = { x: lnx, y: lny };
+            laser._beamHeight = beamHeight;
             laser.lastDamageTime = 0;
             laser.damageInterval = 100;
             laser.totalDamageTicks = 8;
@@ -15898,40 +15902,29 @@
                 const beam = gameState.enemyBeamSweeps[i];
                 if (!beam || !beam.material) continue;
 
-                // Track source ship/enemy movement so beam stays attached
-                let sourceDX = 0, sourceDY = 0;
-                if (beam.sourceShip && beam._lastSourceX !== undefined) {
-                    sourceDX = beam.sourceShip.currentX - beam._lastSourceX;
-                    sourceDY = beam.sourceShip.currentY - beam._lastSourceY;
-                    beam._lastSourceX = beam.sourceShip.currentX;
-                    beam._lastSourceY = beam.sourceShip.currentY;
-                } else if (beam.sourceEnemy && beam.sourceEnemy.position && beam._lastSourceX !== undefined) {
-                    sourceDX = beam.sourceEnemy.position.x - beam._lastSourceX;
-                    sourceDY = beam.sourceEnemy.position.y - beam._lastSourceY;
-                    beam._lastSourceX = beam.sourceEnemy.position.x;
-                    beam._lastSourceY = beam.sourceEnemy.position.y;
-                }
-                beam.position.x += sourceDX;
-                beam.position.y += sourceDY;
-                beam.sweepStartX += sourceDX;
-                if (beam.sweepStartY !== undefined) beam.sweepStartY += sourceDY;
-
-                // Sweep the beam (directional for CZ, horizontal for arena)
-                if (beam._sweepDirX !== undefined) {
-                    beam.position.x += beam.sweepSpeed * beam.sweepDirection * beam._sweepDirX;
-                    beam.position.y += beam.sweepSpeed * beam.sweepDirection * beam._sweepDirY;
-                } else {
-                    beam.position.x += beam.sweepSpeed * beam.sweepDirection;
+                // Recompute beam position from source each frame (like engine glows)
+                let srcX, srcY;
+                if (beam.sourceShip) {
+                    srcX = beam.sourceShip.currentX;
+                    srcY = beam.sourceShip.currentY;
+                } else if (beam.sourceEnemy && beam.sourceEnemy.position) {
+                    srcX = beam.sourceEnemy.position.x;
+                    srcY = beam.sourceEnemy.position.y;
                 }
 
-                // Measure swept distance
-                let sweptDist;
-                if (beam.sweepStartY !== undefined) {
-                    const sdx = beam.position.x - beam.sweepStartX;
-                    const sdy = beam.position.y - beam.sweepStartY;
-                    sweptDist = Math.sqrt(sdx * sdx + sdy * sdy);
-                } else {
-                    sweptDist = Math.abs(beam.position.x - beam.sweepStartX);
+                // Advance sweep distance
+                beam._sweptDist = (beam._sweptDist || 0) + beam.sweepSpeed;
+                const sweptDist = beam._sweptDist;
+
+                if (srcX !== undefined && beam._fireDir) {
+                    // Perpendicular to firing direction for sweep motion
+                    const perpX = -beam._fireDir.y;
+                    const perpY = beam._fireDir.x;
+                    const sweepOff = sweptDist * beam.sweepDirection;
+
+                    // Position: source + half beam in fire dir + sweep offset
+                    beam.position.x = srcX + beam._fireDir.x * beam._beamHeight / 2 + perpX * sweepOff;
+                    beam.position.y = srcY + beam._fireDir.y * beam._beamHeight / 2 + perpY * sweepOff;
                 }
 
                 // Check collision with player (perpendicular distance for rotated beams)
@@ -16088,6 +16081,9 @@
             laser.laserDamage = enemy.damage;
             laser.laserWidth = beamWidth;
             laser.sourceEnemy = enemy;
+            // Store direction for per-frame position recomputation
+            laser._fireDir = { x: 0, y: -1 }; // Challenger laser always fires downward
+            laser._beamHeight = beamHeight;
             laser.lastDamageTime = 0; // Track continuous damage ticks
             laser.damageInterval = 100; // Deal damage every 100ms
             laser.totalDamageTicks = 10; // Total damage will be dealt over ~10 ticks
@@ -16106,13 +16102,18 @@
                 const laser = gameState.challengerLasers[i];
 
                 if (laser && laser.material) {
-                    // Track source ship/enemy movement so lance stays attached
-                    if (laser.sourceShip && laser._offsetX !== undefined) {
-                        laser.position.x = laser.sourceShip.currentX + laser._offsetX;
-                        laser.position.y = laser.sourceShip.currentY + laser._offsetY;
-                    } else if (laser.sourceEnemy && laser.sourceEnemy.position && laser._offsetX !== undefined) {
-                        laser.position.x = laser.sourceEnemy.position.x + laser._offsetX;
-                        laser.position.y = laser.sourceEnemy.position.y + laser._offsetY;
+                    // Recompute position from source each frame (like engine glows)
+                    let srcX, srcY;
+                    if (laser.sourceShip) {
+                        srcX = laser.sourceShip.currentX;
+                        srcY = laser.sourceShip.currentY;
+                    } else if (laser.sourceEnemy && laser.sourceEnemy.position) {
+                        srcX = laser.sourceEnemy.position.x;
+                        srcY = laser.sourceEnemy.position.y;
+                    }
+                    if (srcX !== undefined && laser._fireDir) {
+                        laser.position.x = srcX + laser._fireDir.x * laser._beamHeight / 2;
+                        laser.position.y = srcY + laser._fireDir.y * laser._beamHeight / 2;
                     }
 
                     // Check collision with player - continuous damage while in beam
