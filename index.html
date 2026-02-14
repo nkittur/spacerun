@@ -12794,6 +12794,23 @@
             return true; // In a combat zone, different factions are always hostile
         }
 
+        // Check if two NPC factions are allied (bullets pass through allied ships)
+        function areFactionsAllied(factionA, factionB) {
+            if (factionA === factionB) return true;
+            return false;
+        }
+
+        // Check if a faction is allied with the player (reputation >= 75)
+        // Allied factions' weapons pass through the player
+        function isFactionAlliedWithPlayer(faction, cz) {
+            if (!faction) return false;
+            // Hostile factions are never allied
+            if (isFactionHostileToPlayer(faction, cz)) return false;
+            // Need high reputation to be allied
+            const rep = gameState.factionReputation[faction];
+            return rep !== undefined && rep >= 75;
+        }
+
         // Find the best target for a combat zone ship
         function findCombatZoneTarget(ship, cz) {
             let bestTarget = null;
@@ -13156,6 +13173,7 @@
             beam.sweepSpeed = (beh.sweepAngle || 0.4) * orthoWidth * 0.015;
             beam.sweepMaxDist = (beh.sweepAngle || 0.4) * orthoWidth;
             beam._combatZoneBullet = true;
+            beam.sourceFaction = ship.faction;
             // Store direction for per-frame position recomputation (like engine glows)
             beam._fireDir = { x: nx, y: ny };
             beam._beamHeight = beamHeight;
@@ -13216,6 +13234,7 @@
             laser.totalDamageTicks = 8;
             laser.damagePerTick = damage / laser.totalDamageTicks;
             laser._combatZoneBullet = true;
+            laser.sourceFaction = ship.faction;
 
             gameState.challengerLasers.push(laser);
         }
@@ -13411,8 +13430,8 @@
                 for (let si = cz.ships.length - 1; si >= 0; si--) {
                     const ship = cz.ships[si];
                     if (!ship.alive) continue;
-                    // Don't hit own faction
-                    if (bullet.sourceFaction === ship.faction) continue;
+                    // Don't hit allied factions
+                    if (areFactionsAllied(bullet.sourceFaction, ship.faction)) continue;
 
                     const dx = bullet.position.x - ship.currentX;
                     const dy = bullet.position.y - ship.currentY;
@@ -15829,6 +15848,7 @@
             beam._fireDir = { x: 0, y: -1 }; // Arena beams always fire downward
             beam._beamHeight = beamHeight;
             beam._sweptDist = 0;
+            beam.sourceFaction = enemy.enemyFaction || null;
 
             gameState.enemyBeamSweeps.push(beam);
         }
@@ -15890,6 +15910,7 @@
             laser.damageInterval = 100;
             laser.totalDamageTicks = 8;
             laser.damagePerTick = damage / laser.totalDamageTicks;
+            laser.sourceFaction = enemy.enemyFaction || null;
 
             gameState.challengerLasers.push(laser);
         }
@@ -15929,7 +15950,11 @@
                 }
 
                 // Check collision with player (perpendicular distance for rotated beams)
-                if (playerShip && currentTime - beam.lastDamageTime >= beam.damageInterval) {
+                // Allied faction beams pass through player
+                const beamCz = gameState.combatZone;
+                const beamAllied = beamCz && beamCz.active && beam.sourceFaction &&
+                    isFactionAlliedWithPlayer(beam.sourceFaction, beamCz);
+                if (!beamAllied && playerShip && currentTime - beam.lastDamageTime >= beam.damageInterval) {
                     const theta = beam.rotation.z || 0;
                     const perpDist = Math.abs(
                         (playerShip.position.x - beam.position.x) * Math.cos(theta) -
@@ -16089,6 +16114,7 @@
             laser.damageInterval = 100; // Deal damage every 100ms
             laser.totalDamageTicks = 10; // Total damage will be dealt over ~10 ticks
             laser.damagePerTick = enemy.damage / laser.totalDamageTicks;
+            laser.sourceFaction = enemy.enemyFaction || null;
 
             gameState.challengerLasers.push(laser);
         }
@@ -16118,7 +16144,11 @@
                     }
 
                     // Check collision with player - continuous damage while in beam
-                    if (playerShip && currentTime - laser.lastDamageTime >= laser.damageInterval) {
+                    // Allied faction lances pass through player
+                    const lanceCz = gameState.combatZone;
+                    const lanceAllied = lanceCz && lanceCz.active && laser.sourceFaction &&
+                        isFactionAlliedWithPlayer(laser.sourceFaction, lanceCz);
+                    if (!lanceAllied && playerShip && currentTime - laser.lastDamageTime >= laser.damageInterval) {
                         const dx = Math.abs(playerShip.position.x - laser.position.x);
                         if (dx < laser.laserWidth / 2 + 0.4) {
                             // Player hit by laser - deal damage tick
@@ -16581,12 +16611,12 @@
                 }
 
                 if (playerShip) {
-                    // In combat zone mode, only bullets from factions hostile to player hit
+                    // In combat zone mode, bullets from allied factions pass through player
                     const cz = gameState.combatZone;
-                    const bulletHostile = !cz || !cz.active || !bullet._combatZoneBullet ||
-                        isFactionHostileToPlayer(bullet.sourceFaction, cz);
+                    const bulletAllied = cz && cz.active && bullet._combatZoneBullet &&
+                        isFactionAlliedWithPlayer(bullet.sourceFaction, cz);
 
-                    if (bulletHostile) {
+                    if (!bulletAllied) {
                         const dx = bullet.position.x - playerShip.position.x;
                         const dy = bullet.position.y - playerShip.position.y;
                         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -16624,7 +16654,7 @@
                     let crossfireHit = false;
                     for (let j = gameState.enemies.length - 1; j >= 0; j--) {
                         const target = gameState.enemies[j];
-                        if (target.enemyFaction === bullet.sourceFaction) continue; // Same faction
+                        if (areFactionsAllied(target.enemyFaction, bullet.sourceFaction)) continue; // Allied factions
                         if (target.isDisabled) continue;
                         const edx = bullet.position.x - target.position.x;
                         const edy = bullet.position.y - target.position.y;
