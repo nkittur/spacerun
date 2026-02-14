@@ -12284,6 +12284,24 @@
             gameState.zoomTarget = 1; // Standard combat zoom (same as normal levels)
             gameState.disabledShips = gameState.disabledShips || [];
 
+            // Clear any stale beam/laser visuals from prior arena combat
+            if (gameState.challengerLasers) {
+                gameState.challengerLasers.forEach(l => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(l);
+                    l.getChildMeshes().forEach(m => m.dispose());
+                    l.dispose();
+                });
+                gameState.challengerLasers = [];
+            }
+            if (gameState.enemyBeamSweeps) {
+                gameState.enemyBeamSweeps.forEach(b => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                    b.getChildMeshes().forEach(m => m.dispose());
+                    b.dispose();
+                });
+                gameState.enemyBeamSweeps = [];
+            }
+
             // NEW: Combat zone state
             gameState.combatZone = {
                 active: true,
@@ -16198,6 +16216,8 @@
         // Update enemy beam sweeps (movement + collision)
         function updateEnemyBeamSweeps() {
             if (!gameState.enemyBeamSweeps) return;
+            // Beam sweeps are disabled in combat zones — skip entirely
+            if (gameState.combatZone && gameState.combatZone.active) return;
             const currentTime = performance.now();
 
             for (let i = gameState.enemyBeamSweeps.length - 1; i >= 0; i--) {
@@ -16402,6 +16422,8 @@
         // Update challenger lasers (fade out and collision)
         function updateChallengerLasers() {
             if (!gameState.challengerLasers) return;
+            // Lasers/lances are disabled in combat zones — skip entirely
+            if (gameState.combatZone && gameState.combatZone.active) return;
 
             const currentTime = performance.now();
 
