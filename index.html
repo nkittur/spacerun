@@ -12464,11 +12464,8 @@
             const boardPrompt = document.getElementById('boardingPrompt');
             if (boardPrompt) boardPrompt.style.display = 'none';
 
-            // Defer combat zone cleanup - ship meshes remain visible during zoom-out
-            // and get cleaned up when zoom completes (they shrink away naturally)
-            if (gameState.combatZone) {
-                gameState._deferredCZCleanup = true;
-            }
+            // Combat zone ship meshes remain visible during zoom-out and get
+            // cleaned up partway through the zoom when they've shrunk enough
 
             // Clean up all combat projectiles and remaining enemies
             gameState.enemyBullets.forEach(b => {
@@ -12828,23 +12825,33 @@
             // Clean up disabled-state corner brackets
             if (ship.disabledCornerMeshes) {
                 ship.disabledCornerMeshes.forEach(m => {
-                    if (m.material) m.material.dispose();
-                    m.dispose();
+                    if (m && !m._isDisposed) {
+                        if (m.material) m.material.dispose();
+                        m.dispose();
+                    }
                 });
                 ship.disabledCornerMeshes = [];
             }
             if (ship.mesh) {
-                ship.mesh.getChildMeshes().forEach(m => m.dispose());
+                if (sunGlowLayer) sunGlowLayer.removeExcludedMesh(ship.mesh);
+                if (lootGlowLayer) lootGlowLayer.removeExcludedMesh(ship.mesh);
+                ship.mesh.getChildMeshes().forEach(m => {
+                    if (sunGlowLayer) sunGlowLayer.removeExcludedMesh(m);
+                    if (lootGlowLayer) lootGlowLayer.removeExcludedMesh(m);
+                    m.dispose();
+                });
                 ship.mesh.dispose();
                 ship.mesh = null;
             }
             if (ship.engineGlows) {
                 ship.engineGlows.forEach(eg => {
                     if (eg.glow) {
+                        if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(eg.glow);
                         if (eg.glow.material) eg.glow.material.dispose();
                         eg.glow.dispose();
                     }
                     if (eg.core) {
+                        if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(eg.core);
                         if (eg.core.material) eg.core.material.dispose();
                         eg.core.dispose();
                     }
@@ -18054,6 +18061,12 @@
                         if (gameState._updateCamera) gameState._updateCamera();
                     }
 
+                    // Clean up CZ ships once zoomed out enough that removal isn't noticeable
+                    if (zoomProgress > 0.3 && gameState.combatZone) {
+                        cleanupCombatZone();
+                        gameState.combatZone = null;
+                    }
+
                     // When zoom completes, return to exploration
                     if (gameState.zoomLevel >= 3.99) {
                         gameState.zoomLevel = 4;
@@ -18067,11 +18080,10 @@
                         }
                         gameState.savedExplorePos = null;
 
-                        // Deferred combat zone cleanup - ships have shrunk away during zoom
-                        if (gameState._deferredCZCleanup && gameState.combatZone) {
+                        // Safety net: clean up CZ if not already done
+                        if (gameState.combatZone) {
                             cleanupCombatZone();
                             gameState.combatZone = null;
-                            gameState._deferredCZCleanup = false;
                         }
                     }
 
