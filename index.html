@@ -12464,10 +12464,10 @@
             const boardPrompt = document.getElementById('boardingPrompt');
             if (boardPrompt) boardPrompt.style.display = 'none';
 
-            // Clean up combat zone if active
+            // Defer combat zone cleanup - ship meshes remain visible during zoom-out
+            // and get cleaned up when zoom completes (they shrink away naturally)
             if (gameState.combatZone) {
-                cleanupCombatZone();
-                gameState.combatZone = null;
+                gameState._deferredCZCleanup = true;
             }
 
             // Clean up all combat projectiles and remaining enemies
@@ -13841,25 +13841,10 @@
             const cz = gameState.combatZone;
             if (!cz) return;
 
-            // Clean up all combat zone ships
-            for (const ship of cz.ships) {
-                disposeCombatZoneShip(ship);
-            }
-            cz.ships = [];
-
-            // Clean up combat zone planets (from gameState.planets)
-            for (let i = gameState.planets.length - 1; i >= 0; i--) {
-                if (gameState.planets[i]._combatZonePlanet) {
-                    const p = gameState.planets[i];
-                    if (p.material) p.material.dispose();
-                    p.dispose();
-                    gameState.planets.splice(i, 1);
-                }
-            }
-            cz.planets = [];
+            // Stop combat activity but keep ship/planet meshes visible for smooth zoom-out
             cz.active = false;
 
-            // Clean up combat zone bullets
+            // Clean up combat zone bullets (floating bullets look odd during transition)
             for (let i = gameState.enemyBullets.length - 1; i >= 0; i--) {
                 const b = gameState.enemyBullets[i];
                 if (b._combatZoneBullet) {
@@ -13870,13 +13855,22 @@
                 }
             }
 
+            // Clean up disabled ship corner meshes (they'd look odd during zoom-out)
+            for (const ship of cz.ships) {
+                if (ship.disabledCornerMeshes) {
+                    ship.disabledCornerMeshes.forEach(m => { if (m && !m._isDisposed) m.dispose(); });
+                    ship.disabledCornerMeshes = [];
+                }
+            }
+
             // Advance wave counter
             gameState.wave++;
             gameState.levelWave++;
             updateHUD();
 
-            // Use the standard return to exploration
-            onEncounterVictory();
+            // Skip victory_pause - go directly to zoom-out for a smooth transition.
+            // Ship meshes remain visible and shrink away as camera pulls back.
+            returnToExploration();
         }
 
         // Clean up combat zone state completely
@@ -18072,6 +18066,13 @@
                             playerShipMesh.scaling.scaleInPlace(settings.exploreShipScale);
                         }
                         gameState.savedExplorePos = null;
+
+                        // Deferred combat zone cleanup - ships have shrunk away during zoom
+                        if (gameState._deferredCZCleanup && gameState.combatZone) {
+                            cleanupCombatZone();
+                            gameState.combatZone = null;
+                            gameState._deferredCZCleanup = false;
+                        }
                     }
 
                     // Move backgrounds with camera during zoom-out
