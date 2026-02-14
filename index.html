@@ -12986,6 +12986,17 @@
                 ship.weaponWarningMesh.material.alpha = 0.15 + chargeProgress * 0.35 + pulse;
                 const growthPhase = Math.max(0, (chargeProgress - 0.7) / 0.3);
                 ship.weaponWarningMesh.scaling.x = 1 + growthPhase * 6;
+                // Track ship position during charge so preview stays attached
+                const dx = ship.weaponTargetX - ship.currentX;
+                const dy = ship.weaponTargetY - ship.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    const beamHeight = orthoHeight * 2 + 4;
+                    ship.weaponWarningMesh.position.x = ship.currentX + (dx / dist) * beamHeight / 2;
+                    ship.weaponWarningMesh.position.y = ship.currentY + (dy / dist) * beamHeight / 2;
+                    ship.weaponWarningMesh.rotation.z = Math.atan2(dx, dy);
+                }
+                ship.sweepStartX = ship.currentX;
             }
         }
 
@@ -13110,12 +13121,21 @@
             const beamHeight = orthoHeight * 2 + 4;
             const beamWidth = beh.beamWidth || 0.6;
 
+            // Compute direction toward target
+            const dx = ship.weaponTargetX - ship.currentX;
+            const dy = ship.weaponTargetY - ship.currentY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            let nx = 0, ny = -1; // default: downward
+            if (dist > 0) { nx = dx / dist; ny = dy / dist; }
+
             const beam = BABYLON.MeshBuilder.CreatePlane('czBeamSweep', {
                 width: beamWidth, height: beamHeight
             }, scene);
-            beam.position.x = ship.sweepStartX || ship.currentX;
-            beam.position.y = ship.currentY - beamHeight / 2 - 0.5;
+            // Position beam so one end is at the ship, extending toward target
+            beam.position.x = ship.currentX + nx * beamHeight / 2;
+            beam.position.y = ship.currentY + ny * beamHeight / 2;
             beam.position.z = -0.1;
+            if (dist > 0) beam.rotation.z = Math.atan2(dx, dy);
 
             const beamMat = new BABYLON.StandardMaterial('czBeamMat', scene);
             beamMat.emissiveColor = new BABYLON.Color3(1.0, 0.15, 0.3);
@@ -13136,8 +13156,12 @@
             beam.sweepDirection = ship.sweepDirection || 1;
             beam.sweepSpeed = (beh.sweepAngle || 0.4) * orthoWidth * 0.015;
             beam.sweepStartX = beam.position.x;
+            beam.sweepStartY = beam.position.y;
             beam.sweepMaxDist = (beh.sweepAngle || 0.4) * orthoWidth;
             beam._combatZoneBullet = true;
+            // Perpendicular sweep direction (rotated 90deg from firing direction)
+            beam._sweepDirX = -ny;
+            beam._sweepDirY = nx;
 
             gameState.enemyBeamSweeps.push(beam);
         }
@@ -15890,15 +15914,34 @@
                 beam.position.x += sourceDX;
                 beam.position.y += sourceDY;
                 beam.sweepStartX += sourceDX;
+                if (beam.sweepStartY !== undefined) beam.sweepStartY += sourceDY;
 
-                // Sweep the beam horizontally
-                beam.position.x += beam.sweepSpeed * beam.sweepDirection;
-                const sweptDist = Math.abs(beam.position.x - beam.sweepStartX);
+                // Sweep the beam (directional for CZ, horizontal for arena)
+                if (beam._sweepDirX !== undefined) {
+                    beam.position.x += beam.sweepSpeed * beam.sweepDirection * beam._sweepDirX;
+                    beam.position.y += beam.sweepSpeed * beam.sweepDirection * beam._sweepDirY;
+                } else {
+                    beam.position.x += beam.sweepSpeed * beam.sweepDirection;
+                }
 
-                // Check collision with player
+                // Measure swept distance
+                let sweptDist;
+                if (beam.sweepStartY !== undefined) {
+                    const sdx = beam.position.x - beam.sweepStartX;
+                    const sdy = beam.position.y - beam.sweepStartY;
+                    sweptDist = Math.sqrt(sdx * sdx + sdy * sdy);
+                } else {
+                    sweptDist = Math.abs(beam.position.x - beam.sweepStartX);
+                }
+
+                // Check collision with player (perpendicular distance for rotated beams)
                 if (playerShip && currentTime - beam.lastDamageTime >= beam.damageInterval) {
-                    const dx = Math.abs(playerShip.position.x - beam.position.x);
-                    if (dx < beam.laserWidth / 2 + 0.4) {
+                    const theta = beam.rotation.z || 0;
+                    const perpDist = Math.abs(
+                        (playerShip.position.x - beam.position.x) * Math.cos(theta) -
+                        (playerShip.position.y - beam.position.y) * Math.sin(theta)
+                    );
+                    if (perpDist < beam.laserWidth / 2 + 0.4) {
                         beam.lastDamageTime = currentTime;
                         createExplosion(playerShip.position.x, playerShip.position.y, 'small', 'red');
                         flashShip(playerShipMesh);
