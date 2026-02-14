@@ -12240,7 +12240,7 @@
             gameState.combatZone = {
                 active: true,
                 scrollDistance: 0,
-                totalScrollDistance: LEVEL_ZONE_HEIGHTS.reward * 2.0, // 4x longer than original
+                totalScrollDistance: LEVEL_ZONE_HEIGHTS.reward * 2.86, // Extended for slower effective scroll (30% more time)
                 ships: [],           // Free-flying combat ships
                 planets: [],         // Background decoration planets
                 bullets: [],         // NPC-to-NPC bullets
@@ -12501,12 +12501,13 @@
         // Ship type configs for combat zone (combat-view scale)
         const COMBAT_ZONE_SHIP_TYPES = {
             // Maps encounter enemy types to ship models for the zone
-            basic:      { model: 'Bob', color: 'Blue', scale: 1.2, speed: 0.004, hp: 90, fireRate: 3000, damage: 8, bulletSpeed: 0.1, weaponPool: ['standard', 'standard', 'burst', 'autocannon'] },
-            light:      { model: 'Dispatcher', color: 'Purple', scale: 0.9, speed: 0.006, hp: 60, fireRate: 2000, damage: 5, bulletSpeed: 0.12, weaponPool: ['standard', 'burst', 'burst', 'autocannon'] },
-            heavy:      { model: 'Imperial', color: 'Orange', scale: 1.8, speed: 0.002, hp: 300, fireRate: 2500, damage: 15, bulletSpeed: 0.08, spread: true, weaponPool: ['standard', 'burst', 'mortar'] },
-            shooter:    { model: 'Omen', color: 'Green', scale: 1.1, speed: 0.0035, hp: 150, fireRate: 1500, damage: 8, bulletSpeed: 0.1, weaponPool: ['standard', 'burst', 'autocannon'] },
-            fast:       { model: 'Striker', color: 'Red', scale: 0.8, speed: 0.007, hp: 45, fireRate: 4000, damage: 5, bulletSpeed: 0.1, weaponPool: ['standard', 'autocannon'] },
-            challenger: { model: 'Executioner', color: 'Red', scale: 2.0, speed: 0.0015, hp: 240, fireRate: 2000, damage: 15, bulletSpeed: 0.08, spread: true, weaponPool: ['mortar', 'burst', 'autocannon'] },
+            // bulletSpeed +50%, fireRate -20%, HP tuned for half-zone disable, scale +50% for large ships
+            basic:      { model: 'Bob', color: 'Blue', scale: 1.2, speed: 0.004, hp: 55, fireRate: 2400, damage: 8, bulletSpeed: 0.15, hardpoints: 1, weaponPool: ['standard', 'standard', 'burst', 'autocannon'] },
+            light:      { model: 'Dispatcher', color: 'Purple', scale: 0.9, speed: 0.006, hp: 35, fireRate: 1600, damage: 5, bulletSpeed: 0.18, hardpoints: 1, weaponPool: ['standard', 'burst', 'burst', 'autocannon'] },
+            heavy:      { model: 'Imperial', color: 'Orange', scale: 2.7, speed: 0.002, hp: 120, fireRate: 2000, damage: 15, bulletSpeed: 0.12, hardpoints: 3, spread: true, weaponPool: ['standard', 'burst', 'mortar'] },
+            shooter:    { model: 'Omen', color: 'Green', scale: 1.65, speed: 0.0035, hp: 65, fireRate: 1200, damage: 8, bulletSpeed: 0.15, hardpoints: 2, weaponPool: ['standard', 'burst', 'autocannon'] },
+            fast:       { model: 'Striker', color: 'Red', scale: 0.8, speed: 0.007, hp: 25, fireRate: 3200, damage: 5, bulletSpeed: 0.15, hardpoints: 1, weaponPool: ['standard', 'autocannon'] },
+            challenger: { model: 'Executioner', color: 'Red', scale: 3.0, speed: 0.0015, hp: 110, fireRate: 1600, damage: 15, bulletSpeed: 0.12, hardpoints: 4, spread: true, weaponPool: ['mortar', 'burst', 'autocannon'] },
         };
 
         // Assign a weapon behavior to a combat zone ship based on its type and faction
@@ -13312,12 +13313,28 @@
             }
         }
 
+        // Compute lateral hardpoint offsets perpendicular to firing direction
+        function getHardpointOffsets(hardpoints, dx, dy, dist, spacing) {
+            if (hardpoints <= 1) return [{ ox: 0, oy: 0 }];
+            // Perpendicular direction
+            const px = -dy / dist;
+            const py = dx / dist;
+            const offsets = [];
+            const halfSpan = (hardpoints - 1) * spacing / 2;
+            for (let h = 0; h < hardpoints; h++) {
+                const t = -halfSpan + h * spacing;
+                offsets.push({ ox: px * t, oy: py * t });
+            }
+            return offsets;
+        }
+
         // Fire combat zone ship weapon based on behavior
         function fireCZShipWeapon(ship, targetX, targetY, currentTime) {
             const weaponType = ship.weaponBehavior || 'standard';
             const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
             const dmgMult = ship.weaponDmgMult || 1.0;
             const adjustedDmg = Math.round(ship.damage * dmgMult);
+            const hardpoints = ship.config.hardpoints || 1;
 
             const dx = targetX - ship.currentX;
             const dy = targetY - ship.currentY;
@@ -13334,23 +13351,31 @@
                 bullet._sourceShipId = ship.id;
             }
 
+            const hpOffsets = getHardpointOffsets(hardpoints, dx, dy, dist, ship.baseScale * 0.25);
+
             switch (weaponType) {
                 case 'standard': {
                     if (ship.spread) {
-                        [-0.2, 0, 0.2].forEach(angle => {
-                            const cos = Math.cos(angle);
-                            const sin = Math.sin(angle);
-                            const vx = (dx / dist) * ship.bulletSpeed;
-                            const vy = (dy / dist) * ship.bulletSpeed;
-                            const bullet = createBullet(false, noseX, noseY, vx * cos - vy * sin, vx * sin + vy * cos, adjustedDmg);
+                        // Spread ships fire a fan from each hardpoint
+                        hpOffsets.forEach(hp => {
+                            [-0.2, 0, 0.2].forEach(angle => {
+                                const cos = Math.cos(angle);
+                                const sin = Math.sin(angle);
+                                const vx = (dx / dist) * ship.bulletSpeed;
+                                const vy = (dy / dist) * ship.bulletSpeed;
+                                const bullet = createBullet(false, noseX + hp.ox, noseY + hp.oy, vx * cos - vy * sin, vx * sin + vy * cos, adjustedDmg);
+                                markCZBullet(bullet);
+                                gameState.enemyBullets.push(bullet);
+                            });
+                        });
+                    } else {
+                        // Non-spread: one shot per hardpoint
+                        hpOffsets.forEach(hp => {
+                            const bullet = createBullet(false, noseX + hp.ox, noseY + hp.oy,
+                                (dx / dist) * ship.bulletSpeed, (dy / dist) * ship.bulletSpeed, adjustedDmg);
                             markCZBullet(bullet);
                             gameState.enemyBullets.push(bullet);
                         });
-                    } else {
-                        const bullet = createBullet(false, noseX, noseY,
-                            (dx / dist) * ship.bulletSpeed, (dy / dist) * ship.bulletSpeed, adjustedDmg);
-                        markCZBullet(bullet);
-                        gameState.enemyBullets.push(bullet);
                     }
                     break;
                 }
@@ -13363,7 +13388,7 @@
                     break;
                 }
                 case 'autocannon': {
-                    ship.burstRemaining = beh.streamCount || 6;
+                    ship.burstRemaining = (beh.streamCount || 6) * hardpoints;
                     ship.burstNextFire = currentTime;
                     ship.burstDx = dx / dist;
                     ship.burstDy = dy / dist;
@@ -13371,18 +13396,21 @@
                     break;
                 }
                 case 'mortar': {
-                    const speed = 0.04;
+                    const speed = 0.06;
                     const mdx = ship.mortarTargetX - ship.currentX;
                     const mdy = ship.mortarTargetY - ship.currentY;
                     const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
                     if (mdist > 0) {
-                        const mortar = createMortarProjectile(false, noseX, noseY,
-                            (mdx / mdist) * speed, (mdy / mdist) * speed,
-                            adjustedDmg, beh.aoeRadius || 2.0);
-                        mortar.mortarTargetX = ship.mortarTargetX;
-                        mortar.mortarTargetY = ship.mortarTargetY;
-                        markCZBullet(mortar);
-                        gameState.enemyBullets.push(mortar);
+                        // Fire one mortar per hardpoint with slight position scatter
+                        hpOffsets.forEach(hp => {
+                            const mortar = createMortarProjectile(false, noseX + hp.ox, noseY + hp.oy,
+                                (mdx / mdist) * speed, (mdy / mdist) * speed,
+                                adjustedDmg, beh.aoeRadius || 2.0);
+                            mortar.mortarTargetX = ship.mortarTargetX + hp.ox * 2;
+                            mortar.mortarTargetY = ship.mortarTargetY + hp.oy * 2;
+                            markCZBullet(mortar);
+                            gameState.enemyBullets.push(mortar);
+                        });
                     }
                     break;
                 }
@@ -13402,24 +13430,31 @@
             const weaponType = ship.weaponBehavior;
             const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
             const delay = weaponType === 'autocannon' ? (beh.streamDelay || 100) : (beh.burstDelay || 80);
-            const bulletSpeed = weaponType === 'autocannon' ? 0.07 : 0.12;
-            const jitter = weaponType === 'autocannon' ? (Math.random() - 0.5) * 0.15 : (Math.random() - 0.5) * 0.05;
+            const bulletSpeed = weaponType === 'autocannon' ? 0.105 : 0.18;
+            const hardpoints = ship.config.hardpoints || 1;
 
-            const vx = (ship.burstDx + jitter) * bulletSpeed;
-            const vy = ship.burstDy * bulletSpeed;
             const noseX = ship.currentX + ship.burstDx * 0.4;
             const noseY = ship.currentY + ship.burstDy * 0.4;
 
-            let bullet;
-            if (weaponType === 'autocannon') {
-                bullet = createAutocannonBullet(false, noseX, noseY, vx, vy, ship.burstDmg);
-            } else {
-                bullet = createBullet(false, noseX, noseY, vx, vy, ship.burstDmg);
-            }
-            bullet.sourceFaction = ship.faction;
-            bullet._combatZoneBullet = true;
-            bullet._sourceShipId = ship.id;
-            gameState.enemyBullets.push(bullet);
+            // Compute hardpoint offsets perpendicular to firing direction
+            const hpOffsets = getHardpointOffsets(hardpoints, ship.burstDx, ship.burstDy, 1.0, ship.baseScale * 0.25);
+
+            hpOffsets.forEach(hp => {
+                const jitter = weaponType === 'autocannon' ? (Math.random() - 0.5) * 0.15 : (Math.random() - 0.5) * 0.05;
+                const vx = (ship.burstDx + jitter) * bulletSpeed;
+                const vy = ship.burstDy * bulletSpeed;
+
+                let bullet;
+                if (weaponType === 'autocannon') {
+                    bullet = createAutocannonBullet(false, noseX + hp.ox, noseY + hp.oy, vx, vy, ship.burstDmg);
+                } else {
+                    bullet = createBullet(false, noseX + hp.ox, noseY + hp.oy, vx, vy, ship.burstDmg);
+                }
+                bullet.sourceFaction = ship.faction;
+                bullet._combatZoneBullet = true;
+                bullet._sourceShipId = ship.id;
+                gameState.enemyBullets.push(bullet);
+            });
 
             ship.burstRemaining--;
             ship.burstNextFire = currentTime + delay;
