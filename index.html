@@ -4163,6 +4163,9 @@
             challengerLasers: [],
             engineExhausts: [],
             loot: [],
+            weaponDrops: [],        // Dropped weapons from enemies
+            enemyBeamSweeps: [],    // Active enemy beam sweep attacks
+            burstQueues: {},        // Active player burst fire queues
             planets: [],
             suns: [],
             solarSystems: [],
@@ -4309,7 +4312,11 @@
         const WEAPON_TYPES = {
             bullet: { name: 'Projectile', speedMult: 1.0 },
             beam: { name: 'Beam', speedMult: 0 },  // Instant hit
-            spread: { name: 'Spread', speedMult: 0.9 }
+            spread: { name: 'Spread', speedMult: 0.9 },
+            burst: { name: 'Burst', speedMult: 1.0 },        // Rapid burst fire with warmup
+            autocannon: { name: 'Autocannon', speedMult: 0.8 }, // Steady stream of small shots
+            mortar: { name: 'Mortar', speedMult: 0.4 },       // Slow projectile, area explosion
+            lance: { name: 'Lance', speedMult: 0 }            // Charged precision beam
         };
 
         // Base weapon templates with level scaling configurations
@@ -4579,6 +4586,260 @@
                     speedPerLevel: 0.02
                 },
                 variants: ['Storm', 'Tempest', 'Maelstrom']
+            },
+
+            // === BURST WEAPONS (rapid burst fire with brief warmup) ===
+            burst_pistol: {
+                baseName: 'Burst Pistol',
+                type: 'burst',
+                size: 'light',
+                baseDamage: 5,
+                baseFireRate: 800,      // Time between bursts (includes warmup)
+                baseSpread: 0.05,
+                baseProjectiles: 3,     // Shots per burst
+                baseSpeed: 0.38,
+                baseCost: 100,
+                burstDelay: 60,         // ms between shots in burst
+                scaling: {
+                    damagePerLevel: 1.5,
+                    damageMultPerLevel: 0.08,
+                    fireRatePerLevel: -20,
+                    projectilesPerLevel: 0.2,  // Extra burst shot every 5 levels
+                    spreadPerLevel: 0,
+                    speedPerLevel: 0.02
+                },
+                variants: ['Mk', 'Repeater', 'Stutter']
+            },
+            burst_laser: {
+                baseName: 'Burst Laser',
+                type: 'burst',
+                size: 'medium',
+                baseDamage: 12,
+                baseFireRate: 900,
+                baseSpread: 0.03,
+                baseProjectiles: 3,
+                baseSpeed: 0.42,
+                baseCost: 300,
+                burstDelay: 50,
+                scaling: {
+                    damagePerLevel: 3,
+                    damageMultPerLevel: 0.1,
+                    fireRatePerLevel: -25,
+                    projectilesPerLevel: 0.25,
+                    spreadPerLevel: 0,
+                    speedPerLevel: 0.03
+                },
+                variants: ['Strobe', 'Pulse', 'Staccato']
+            },
+            heavy_burst: {
+                baseName: 'Heavy Burst Cannon',
+                type: 'burst',
+                size: 'heavy',
+                baseDamage: 25,
+                baseFireRate: 1100,
+                baseSpread: 0.04,
+                baseProjectiles: 4,
+                baseSpeed: 0.44,
+                baseCost: 550,
+                burstDelay: 70,
+                scaling: {
+                    damagePerLevel: 6,
+                    damageMultPerLevel: 0.12,
+                    fireRatePerLevel: -20,
+                    projectilesPerLevel: 0.3,
+                    spreadPerLevel: 0,
+                    speedPerLevel: 0.03
+                },
+                variants: ['Barrage', 'Salvo', 'Volley']
+            },
+
+            // === AUTOCANNON WEAPONS (steady stream of small projectiles) ===
+            light_autocannon: {
+                baseName: 'Light Autocannon',
+                type: 'autocannon',
+                size: 'light',
+                baseDamage: 3,
+                baseFireRate: 120,      // Very fast fire rate
+                baseSpread: 0.08,
+                baseProjectiles: 1,
+                baseSpeed: 0.3,
+                baseCost: 110,
+                scaling: {
+                    damagePerLevel: 0.8,
+                    damageMultPerLevel: 0.06,
+                    fireRatePerLevel: -5,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.01,
+                    speedPerLevel: 0.015
+                },
+                variants: ['Rattler', 'Spitter', 'Needler']
+            },
+            autocannon: {
+                baseName: 'Autocannon',
+                type: 'autocannon',
+                size: 'medium',
+                baseDamage: 5,
+                baseFireRate: 110,
+                baseSpread: 0.06,
+                baseProjectiles: 1,
+                baseSpeed: 0.34,
+                baseCost: 270,
+                scaling: {
+                    damagePerLevel: 1.2,
+                    damageMultPerLevel: 0.08,
+                    fireRatePerLevel: -4,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.005,
+                    speedPerLevel: 0.02
+                },
+                variants: ['Chaingun', 'Repeater', 'Gatling']
+            },
+            gatling_cannon: {
+                baseName: 'Gatling Cannon',
+                type: 'autocannon',
+                size: 'heavy',
+                baseDamage: 8,
+                baseFireRate: 90,
+                baseSpread: 0.1,
+                baseProjectiles: 1,
+                baseSpeed: 0.36,
+                baseCost: 540,
+                scaling: {
+                    damagePerLevel: 1.8,
+                    damageMultPerLevel: 0.1,
+                    fireRatePerLevel: -3,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.008,
+                    speedPerLevel: 0.025
+                },
+                variants: ['Vulcan', 'Minigun', 'Rotary']
+            },
+
+            // === MORTAR WEAPONS (slow projectile, area explosion with preview) ===
+            grenade_launcher: {
+                baseName: 'Grenade Launcher',
+                type: 'mortar',
+                size: 'medium',
+                baseDamage: 30,
+                baseFireRate: 1400,
+                baseSpread: 1.5,        // AoE radius
+                baseProjectiles: 1,
+                baseSpeed: 0.15,
+                baseCost: 350,
+                scaling: {
+                    damagePerLevel: 7,
+                    damageMultPerLevel: 0.1,
+                    fireRatePerLevel: -30,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.1,   // Bigger AoE
+                    speedPerLevel: 0.01
+                },
+                variants: ['Lobber', 'Thumper', 'Popper']
+            },
+            mortar_launcher: {
+                baseName: 'Mortar',
+                type: 'mortar',
+                size: 'heavy',
+                baseDamage: 55,
+                baseFireRate: 1800,
+                baseSpread: 2.0,
+                baseProjectiles: 1,
+                baseSpeed: 0.12,
+                baseCost: 580,
+                scaling: {
+                    damagePerLevel: 12,
+                    damageMultPerLevel: 0.12,
+                    fireRatePerLevel: -35,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.15,
+                    speedPerLevel: 0.008
+                },
+                variants: ['Howitzer', 'Bombardier', 'Siege']
+            },
+            plasma_mortar: {
+                baseName: 'Plasma Mortar',
+                type: 'mortar',
+                size: 'assault',
+                baseDamage: 90,
+                baseFireRate: 2000,
+                baseSpread: 2.5,
+                baseProjectiles: 1,
+                baseSpeed: 0.1,
+                baseCost: 1150,
+                scaling: {
+                    damagePerLevel: 18,
+                    damageMultPerLevel: 0.15,
+                    fireRatePerLevel: -30,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.2,
+                    speedPerLevel: 0.005
+                },
+                variants: ['Devastation', 'Apocalypse', 'Cataclysm']
+            },
+
+            // === LANCE WEAPONS (charged precision beam, narrow and devastating) ===
+            lance_emitter: {
+                baseName: 'Lance Emitter',
+                type: 'lance',
+                size: 'medium',
+                baseDamage: 35,
+                baseFireRate: 1200,     // Includes charge time
+                baseSpread: 0.15,       // Beam width (narrow)
+                baseProjectiles: 1,
+                baseSpeed: 0,
+                baseCost: 340,
+                chargeTime: 400,        // ms to charge before firing
+                scaling: {
+                    damagePerLevel: 8,
+                    damageMultPerLevel: 0.12,
+                    fireRatePerLevel: -25,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.02,
+                    speedPerLevel: 0
+                },
+                variants: ['Spike', 'Needle', 'Stiletto']
+            },
+            heavy_lance: {
+                baseName: 'Heavy Lance',
+                type: 'lance',
+                size: 'heavy',
+                baseDamage: 70,
+                baseFireRate: 1600,
+                baseSpread: 0.2,
+                baseProjectiles: 1,
+                baseSpeed: 0,
+                baseCost: 620,
+                chargeTime: 500,
+                scaling: {
+                    damagePerLevel: 15,
+                    damageMultPerLevel: 0.14,
+                    fireRatePerLevel: -30,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.03,
+                    speedPerLevel: 0
+                },
+                variants: ['Piercer', 'Impaler', 'Skewer']
+            },
+            death_lance: {
+                baseName: 'Death Lance',
+                type: 'lance',
+                size: 'assault',
+                baseDamage: 140,
+                baseFireRate: 2000,
+                baseSpread: 0.3,
+                baseProjectiles: 1,
+                baseSpeed: 0,
+                baseCost: 1300,
+                chargeTime: 600,
+                scaling: {
+                    damagePerLevel: 28,
+                    damageMultPerLevel: 0.18,
+                    fireRatePerLevel: -35,
+                    projectilesPerLevel: 0,
+                    spreadPerLevel: 0.04,
+                    speedPerLevel: 0
+                },
+                variants: ['Extinction', 'Oblivion', 'Annihilation']
             }
         };
 
@@ -4635,7 +4896,127 @@
         }
 
         // Generate a random weapon based on zone level
-        function generateWeapon(zoneLevel, maxSize = 'assault') {
+        // Faction weapon type preferences (higher weight = more likely)
+        const FACTION_WEAPON_PREFS = {
+            federation: { beam: 3, lance: 3, burst: 2, bullet: 1, spread: 1, autocannon: 1, mortar: 0.5 },
+            merchants:  { autocannon: 3, spread: 3, burst: 2, bullet: 2, beam: 1, mortar: 1, lance: 0.5 },
+            pirates:    { burst: 3, mortar: 3, autocannon: 2, spread: 2, bullet: 1, beam: 0.5, lance: 1 },
+            independent:{ bullet: 2, burst: 2, autocannon: 2, spread: 2, beam: 1.5, mortar: 1.5, lance: 1.5 }
+        };
+
+        // Enemy weapon behavior definitions - each provides visual warning to the player
+        const ENEMY_WEAPON_BEHAVIORS = {
+            standard: {
+                name: 'Standard',
+                warningTime: 0,
+                weight: 3,
+                rarity: 1      // Common
+            },
+            burst: {
+                name: 'Burst Fire',
+                warningTime: 500,     // 500ms aim line shown before burst
+                burstCount: 3,
+                burstDelay: 80,
+                weight: 2,
+                rarity: 1.5,
+                dmgMult: 0.7         // Per-shot damage reduced since multiple shots
+            },
+            autocannon: {
+                name: 'Autocannon',
+                warningTime: 0,
+                streamCount: 6,
+                streamDelay: 100,
+                weight: 2,
+                rarity: 1.5,
+                dmgMult: 0.35        // Low per-shot, high total
+            },
+            beam_sweep: {
+                name: 'Beam Sweep',
+                warningTime: 800,     // 800ms thin preview line
+                sweepAngle: 0.4,      // Radians to sweep
+                beamWidth: 0.6,
+                weight: 1,
+                rarity: 2.5,
+                dmgMult: 1.2          // Powerful but telegraphed
+            },
+            mortar: {
+                name: 'Mortar',
+                warningTime: 1200,    // 1.2s target circle preview
+                aoeRadius: 2.0,
+                weight: 1,
+                rarity: 2,
+                dmgMult: 1.5          // High damage but very avoidable
+            },
+            lance: {
+                name: 'Lance',
+                warningTime: 1000,    // 1s charge-up line
+                beamWidth: 0.3,
+                weight: 0.5,
+                rarity: 3,            // Rare
+                dmgMult: 2.0          // Very high damage, well telegraphed
+            }
+        };
+
+        // Map enemy types to allowed weapon behaviors (with rarity weighting)
+        const ENEMY_TYPE_WEAPONS = {
+            basic:      ['standard', 'standard', 'burst', 'autocannon'],
+            light:      ['standard', 'burst', 'burst', 'autocannon'],
+            shooter:    ['standard', 'burst', 'autocannon', 'beam_sweep'],
+            heavy:      ['standard', 'burst', 'mortar', 'beam_sweep', 'lance'],
+            fast:       [],  // Fast enemies don't shoot
+            challenger: []   // Challenger has its own laser system
+        };
+
+        // Assign a weapon behavior to an enemy based on its type and game level
+        function assignEnemyWeapon(enemy) {
+            const options = ENEMY_TYPE_WEAPONS[enemy.type] || ['standard'];
+            if (options.length === 0) return;
+
+            // Higher game levels increase chance of advanced weapons
+            const levelBonus = Math.min(gameState.level * 0.05, 0.4);
+            const weights = options.map(id => {
+                const beh = ENEMY_WEAPON_BEHAVIORS[id];
+                return (beh.weight || 1) * (id === 'standard' ? Math.max(0.5, 1 - levelBonus) : (1 + levelBonus));
+            });
+            const totalW = weights.reduce((a, b) => a + b, 0);
+            let roll = Math.random() * totalW;
+            let picked = options[0];
+            for (let i = 0; i < options.length; i++) {
+                roll -= weights[i];
+                if (roll <= 0) { picked = options[i]; break; }
+            }
+
+            enemy.weaponBehavior = picked;
+            const beh = ENEMY_WEAPON_BEHAVIORS[picked];
+            enemy.weaponDmgMult = beh.dmgMult || 1.0;
+
+            // Always initialize burst state (required for firing condition check)
+            enemy.burstRemaining = 0;
+            enemy.burstNextFire = 0;
+
+            // Mortar state
+            if (picked === 'mortar') {
+                enemy.mortarPreviewMesh = null;
+                enemy.mortarTargetX = 0;
+                enemy.mortarTargetY = 0;
+            }
+            // Beam sweep state
+            if (picked === 'beam_sweep') {
+                enemy.sweepPreviewMesh = null;
+                enemy.sweepCharging = false;
+            }
+            // Lance state
+            if (picked === 'lance') {
+                enemy.lancePreviewMesh = null;
+                enemy.lanceCharging = false;
+            }
+            // Warning/charging state
+            enemy.weaponCharging = false;
+            enemy.weaponChargeStart = 0;
+            enemy.weaponWarningMesh = null;
+        }
+
+        function generateWeapon(zoneLevel, maxSize = 'assault', factionHint = null) {
             // Determine available sizes based on maxSize
             const maxSizeIdx = WEAPON_SIZE_ORDER[maxSize];
             const availableSizes = WEAPON_SIZES.filter(s => WEAPON_SIZE_ORDER[s] <= maxSizeIdx);
@@ -4658,9 +5039,25 @@
             }
 
             // Get templates for this size
-            const sizeTemplates = Object.entries(WEAPON_TEMPLATES)
+            let sizeTemplates = Object.entries(WEAPON_TEMPLATES)
                 .filter(([_, t]) => t.size === selectedSize);
-            const [templateId, template] = sizeTemplates[Math.floor(Math.random() * sizeTemplates.length)];
+
+            // Apply faction preference weighting if provided
+            let templateId, template;
+            if (factionHint && FACTION_WEAPON_PREFS[factionHint] && sizeTemplates.length > 1) {
+                const prefs = FACTION_WEAPON_PREFS[factionHint];
+                const weights = sizeTemplates.map(([_, t]) => prefs[t.type] || 1);
+                const wTotal = weights.reduce((a, b) => a + b, 0);
+                let wRoll = Math.random() * wTotal;
+                let picked = sizeTemplates[0];
+                for (let i = 0; i < sizeTemplates.length; i++) {
+                    wRoll -= weights[i];
+                    if (wRoll <= 0) { picked = sizeTemplates[i]; break; }
+                }
+                [templateId, template] = picked;
+            } else {
+                [templateId, template] = sizeTemplates[Math.floor(Math.random() * sizeTemplates.length)];
+            }
 
             // Determine weapon level based on zone (with some randomness)
             // Zone 1: levels 1-2, Zone 5: levels 3-6, Zone 10: levels 7-10
@@ -4690,7 +5087,7 @@
             // Generate unique ID
             const weaponId = `${templateId}_L${weaponLevel}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 
-            return {
+            const weaponObj = {
                 id: weaponId,
                 templateId: templateId,
                 name: weaponName,
@@ -4706,6 +5103,16 @@
                 cost: stats.cost,
                 quality: quality
             };
+
+            // Add type-specific properties
+            if (template.type === 'burst') {
+                weaponObj.burstDelay = template.burstDelay || 60;
+            }
+            if (template.type === 'lance') {
+                weaponObj.chargeTime = template.chargeTime || 400;
+            }
+
+            return weaponObj;
         }
 
         // Generate weapon description
@@ -4713,11 +5120,19 @@
             const typeDesc = WEAPON_TYPES[template.type].name;
             const sizeDesc = template.size.charAt(0).toUpperCase() + template.size.slice(1);
             let desc = `Lv.${level} ${sizeDesc} ${typeDesc}. `;
-            if (stats.projectiles > 1) {
+            if (template.type === 'burst') {
+                desc += `${stats.projectiles}-shot burst. `;
+            } else if (stats.projectiles > 1) {
                 desc += `${stats.projectiles} projectiles. `;
             }
-            if (template.type === 'beam') {
+            if (template.type === 'beam' || template.type === 'lance') {
                 desc += `Width: ${stats.spread.toFixed(1)}. `;
+            }
+            if (template.type === 'mortar') {
+                desc += `Blast radius: ${stats.spread.toFixed(1)}. `;
+            }
+            if (template.type === 'autocannon') {
+                desc += `Rapid fire. `;
             }
             return desc.trim();
         }
@@ -5967,6 +6382,185 @@
                 }
             }
         }
+
+        // ========== WEAPON DROP SYSTEM ==========
+
+        // Chance for enemies to drop one of their weapons on death
+        // Drop chance is low (3% base, increased for tougher enemies)
+        function tryDropWeapon(x, y, enemyType) {
+            const dropChances = {
+                basic: 0.02,      // 2%
+                light: 0.02,
+                fast: 0.01,
+                shooter: 0.03,
+                heavy: 0.05,      // 5% for heavy
+                challenger: 0.08, // 8% for challenger
+                elite: 0.06,
+                boss: 0.1
+            };
+            const chance = dropChances[enemyType] || 0.03;
+            if (Math.random() > chance) return;
+
+            // Generate a weapon appropriate to the current zone
+            const zoneLevel = Math.max(1, gameState.level || 1);
+            const maxSize = (enemyType === 'heavy' || enemyType === 'challenger' || enemyType === 'boss') ? 'heavy' : 'medium';
+            const weapon = generateWeapon(zoneLevel, maxSize);
+
+            createWeaponDrop(x, y, weapon);
+        }
+
+        // Create a floating weapon pickup with self-destruct timer
+        function createWeaponDrop(x, y, weapon) {
+            if (!scene) return;
+            if (!gameState.weaponDrops) gameState.weaponDrops = [];
+
+            // Quality color mapping
+            const qualityColors = {
+                poor: new BABYLON.Color3(0.5, 0.5, 0.5),
+                common: new BABYLON.Color3(0.8, 0.8, 0.8),
+                good: new BABYLON.Color3(0.2, 0.8, 0.2),
+                excellent: new BABYLON.Color3(0.2, 0.4, 1.0),
+                legendary: new BABYLON.Color3(1.0, 0.6, 0.0)
+            };
+            const color = qualityColors[weapon.quality] || qualityColors.common;
+
+            // Create diamond-shaped pickup
+            const drop = BABYLON.MeshBuilder.CreateSphere('weaponDrop', { diameter: 0.4, segments: 6 }, scene);
+            drop.position.x = x + (Math.random() - 0.5) * 0.5;
+            drop.position.y = y + (Math.random() - 0.5) * 0.5;
+            drop.position.z = -0.15;
+            drop.scaling.y = 1.4; // Elongate to diamond shape
+
+            const dropMat = new BABYLON.StandardMaterial('weaponDropMat', scene);
+            dropMat.emissiveColor = color;
+            dropMat.alpha = 0.9;
+            dropMat.disableLighting = true;
+            dropMat.backFaceCulling = false;
+            drop.material = dropMat;
+            drop.renderingGroupId = 2;
+
+            // Outer glow ring
+            const ring = BABYLON.MeshBuilder.CreateTorus('dropRing', {
+                diameter: 0.8,
+                thickness: 0.04,
+                tessellation: 16
+            }, scene);
+            ring.parent = drop;
+            ring.scaling.y = 1 / 1.4; // Correct for parent scaling
+            const ringMat = new BABYLON.StandardMaterial('dropRingMat', scene);
+            ringMat.emissiveColor = color;
+            ringMat.alpha = 0.5;
+            ringMat.disableLighting = true;
+            ring.material = ringMat;
+            ring.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(drop);
+
+            drop.weapon = weapon;
+            drop.spawnTime = performance.now();
+            drop.selfDestructTime = 15000; // 15 seconds
+            drop.rotSpeed = 0.02 + Math.random() * 0.01;
+
+            gameState.weaponDrops.push(drop);
+        }
+
+        // Update weapon drops - pulse, rotate, self-destruct, player collection
+        function updateWeaponDrops(scrollMultiplier) {
+            if (!gameState.weaponDrops || !playerShip) return;
+            const now = performance.now();
+
+            for (let i = gameState.weaponDrops.length - 1; i >= 0; i--) {
+                const drop = gameState.weaponDrops[i];
+                if (!drop || !drop.material) {
+                    gameState.weaponDrops.splice(i, 1);
+                    continue;
+                }
+
+                // Scroll with world
+                drop.position.y -= (WORLD_SCROLL_SPEED * 1.33) * settings.scrollSpeed * (0.5 + scrollMultiplier);
+
+                // Rotate
+                drop.rotation.y += drop.rotSpeed;
+                drop.rotation.z += drop.rotSpeed * 0.5;
+
+                const elapsed = now - drop.spawnTime;
+                const remaining = drop.selfDestructTime - elapsed;
+
+                // Flash faster as self-destruct approaches
+                if (remaining < 5000) {
+                    // Last 5 seconds: flash rapidly
+                    const flashRate = Math.max(0.02, remaining / 5000 * 0.01);
+                    const flash = Math.sin(now * flashRate * 0.1) > 0 ? 0.9 : 0.3;
+                    drop.material.alpha = flash;
+                } else if (remaining < 10000) {
+                    // 5-10 seconds: gentle pulse
+                    const pulse = Math.sin(now * 0.005) * 0.2;
+                    drop.material.alpha = 0.7 + pulse;
+                }
+
+                // Self-destruct
+                if (remaining <= 0) {
+                    createExplosion(drop.position.x, drop.position.y, 'small', 'yellow');
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(drop);
+                    drop.getChildMeshes().forEach(m => m.dispose());
+                    drop.dispose();
+                    gameState.weaponDrops.splice(i, 1);
+                    continue;
+                }
+
+                // Player collection
+                const dx = drop.position.x - playerShip.position.x;
+                const dy = drop.position.y - playerShip.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < 1.5) {
+                    // Collect the weapon
+                    const weapon = drop.weapon;
+                    gameState.ownedWeapons.push(weapon);
+
+                    // Show pickup notification
+                    createExplosion(drop.position.x, drop.position.y, 'small', 'green');
+
+                    // Show weapon name notification
+                    const container = document.getElementById('loot-notifications');
+                    if (container) {
+                        const notif = document.createElement('div');
+                        notif.className = 'loot-notification';
+                        notif.innerHTML = `<span class="resource-name" style="color: ${getQualityColor(weapon.quality)}">Weapon: ${weapon.name}</span>`;
+                        container.appendChild(notif);
+                        setTimeout(() => notif.remove(), 3000);
+                    }
+
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(drop);
+                    drop.getChildMeshes().forEach(m => m.dispose());
+                    drop.dispose();
+                    gameState.weaponDrops.splice(i, 1);
+                    continue;
+                }
+
+                // Off-screen cleanup
+                if (drop.position.y < -orthoHeight - 3) {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(drop);
+                    drop.getChildMeshes().forEach(m => m.dispose());
+                    drop.dispose();
+                    gameState.weaponDrops.splice(i, 1);
+                }
+            }
+        }
+
+        // Get CSS color for weapon quality
+        function getQualityColor(quality) {
+            const colors = {
+                poor: '#888888',
+                common: '#cccccc',
+                good: '#44cc44',
+                excellent: '#4488ff',
+                legendary: '#ffaa00'
+            };
+            return colors[quality] || colors.common;
+        }
+
+        // ========== END WEAPON DROP SYSTEM ==========
 
         // Global glow layer for suns (initialized in setupScene)
         let sunGlowLayer = null;
@@ -8169,6 +8763,29 @@
             });
             gameState.loot = [];
 
+            // Clear weapon drops
+            if (gameState.weaponDrops) {
+                gameState.weaponDrops.forEach(d => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(d);
+                    d.getChildMeshes().forEach(m => m.dispose());
+                    d.dispose();
+                });
+                gameState.weaponDrops = [];
+            }
+
+            // Clear enemy beam sweeps
+            if (gameState.enemyBeamSweeps) {
+                gameState.enemyBeamSweeps.forEach(b => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                    b.getChildMeshes().forEach(m => m.dispose());
+                    b.dispose();
+                });
+                gameState.enemyBeamSweeps = [];
+            }
+
+            // Clear burst queues
+            gameState.burstQueues = {};
+
             // Clear planets and harvesting state
             gameState.planets.forEach(p => p.dispose());
             gameState.planets = [];
@@ -9623,6 +10240,9 @@
                 enemy.movementCooldownUntil = 0; // Don't move until this time
             }
 
+            // Assign weapon behavior to non-challenger, non-fast enemies
+            assignEnemyWeapon(enemy);
+
             return enemy;
         }
 
@@ -10032,6 +10652,32 @@
                     // Fire based on weapon type
                     if (weapon.type === 'beam') {
                         fireBeamLaser(px, py, weapon);
+                    } else if (weapon.type === 'lance') {
+                        // Lance: charged precision beam - fires a narrow bright beam
+                        fireLanceBeam(px, py, weapon);
+                    } else if (weapon.type === 'burst') {
+                        // Burst: queue rapid successive shots
+                        if (!gameState.burstQueues) gameState.burstQueues = {};
+                        const burstCount = weapon.projectiles || 3;
+                        const burstDelay = weapon.burstDelay || 60;
+                        gameState.burstQueues[idx] = {
+                            remaining: burstCount,
+                            delay: burstDelay,
+                            nextFireTime: currentTime,
+                            px, py, weaponSpeed, boostedDmg,
+                            spread: weapon.spread || 0.05
+                        };
+                    } else if (weapon.type === 'autocannon') {
+                        // Autocannon: single small fast projectile (fire rate handles the stream)
+                        const spreadJitter = (Math.random() - 0.5) * (weapon.spread || 0.08);
+                        const vx = Math.sin(spreadJitter) * weaponSpeed;
+                        const vy = Math.cos(spreadJitter) * weaponSpeed;
+                        const bullet = createAutocannonBullet(true, px, py, vx * 0.4, vy, boostedDmg);
+                        gameState.playerBullets.push(bullet);
+                    } else if (weapon.type === 'mortar') {
+                        // Mortar: slow projectile that explodes on reaching enemy or max range
+                        const mortarBullet = createMortarProjectile(true, px, py, 0, weaponSpeed, boostedDmg, weapon.spread || 1.5);
+                        gameState.playerBullets.push(mortarBullet);
                     } else if (weapon.type === 'spread' || weapon.projectiles > 1) {
                         // Spread/multi-projectile weapon (+ extra projectiles from tech)
                         const count = (weapon.projectiles || 3) + (tb.extraProjectiles || 0);
@@ -10068,6 +10714,240 @@
                     gameState.weaponFireTimes[idx] = currentTime;
                 }
             });
+        }
+
+        // Update burst weapon queues - fires remaining shots in rapid succession
+        function updateBurstQueues(currentTime) {
+            if (!gameState.burstQueues) return;
+            for (const idx in gameState.burstQueues) {
+                const burst = gameState.burstQueues[idx];
+                if (!burst || burst.remaining <= 0) {
+                    delete gameState.burstQueues[idx];
+                    continue;
+                }
+                if (currentTime >= burst.nextFireTime) {
+                    const jitter = (Math.random() - 0.5) * burst.spread;
+                    const vx = Math.sin(jitter) * burst.weaponSpeed;
+                    const vy = Math.cos(jitter) * burst.weaponSpeed;
+                    // Recalculate position from current player position for tracking
+                    const bx = playerShip ? playerShip.position.x + (burst.px - (playerShip.position.x || 0)) : burst.px;
+                    const bullet = createBullet(true, burst.px, burst.py, vx * 0.3, vy, burst.boostedDmg);
+                    gameState.playerBullets.push(bullet);
+                    burst.remaining--;
+                    burst.nextFireTime = currentTime + burst.delay;
+                }
+            }
+        }
+
+        // Create small autocannon bullet (smaller visual, same mechanics)
+        function createAutocannonBullet(isPlayer, x, y, velocityX, velocityY, damage) {
+            let bullet;
+            if (isPlayer) {
+                bullet = BABYLON.MeshBuilder.CreateSphere('acBullet', { diameter: 0.12 }, scene);
+                const mat = new BABYLON.StandardMaterial('acBulletMat', scene);
+                mat.emissiveColor = new BABYLON.Color3(0.5, 1, 0.3);
+                mat.alpha = 0.6;
+                mat.disableLighting = true;
+                bullet.material = mat;
+                if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(bullet);
+            } else {
+                bullet = BABYLON.MeshBuilder.CreateSphere('acBullet', { diameter: 0.1 }, scene);
+                bullet.rotation.z = Math.atan2(velocityX, -velocityY);
+                const mat = new BABYLON.StandardMaterial('acEnemyMat', scene);
+                mat.emissiveColor = new BABYLON.Color3(1, 0.6, 0.2);
+                mat.alpha = 0.7;
+                mat.disableLighting = true;
+                bullet.material = mat;
+                if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(bullet);
+            }
+            bullet.position.x = x;
+            bullet.position.y = y;
+            bullet.position.z = -0.1;
+            bullet.velocityX = velocityX;
+            bullet.velocityY = velocityY;
+            bullet.isPlayer = isPlayer;
+            bullet.damage = damage;
+            bullet.renderingGroupId = 2;
+            return bullet;
+        }
+
+        // Create mortar projectile (slow, glowing, explodes on hit or max range)
+        function createMortarProjectile(isPlayer, x, y, velocityX, velocityY, damage, aoeRadius) {
+            const bullet = BABYLON.MeshBuilder.CreateSphere('mortar', { diameter: 0.35 }, scene);
+            const mat = new BABYLON.StandardMaterial('mortarMat', scene);
+            if (isPlayer) {
+                mat.emissiveColor = new BABYLON.Color3(0.3, 0.8, 1.0);
+            } else {
+                mat.emissiveColor = new BABYLON.Color3(1.0, 0.4, 0.1);
+            }
+            mat.alpha = 0.8;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            bullet.material = mat;
+
+            // Add pulsing glow ring around mortar
+            const ring = BABYLON.MeshBuilder.CreateTorus('mortarRing', { diameter: 0.5, thickness: 0.05, tessellation: 16 }, scene);
+            ring.parent = bullet;
+            const ringMat = new BABYLON.StandardMaterial('mortarRingMat', scene);
+            ringMat.emissiveColor = isPlayer ? new BABYLON.Color3(0.2, 0.6, 1.0) : new BABYLON.Color3(1.0, 0.3, 0.0);
+            ringMat.alpha = 0.5;
+            ringMat.disableLighting = true;
+            ring.material = ringMat;
+            ring.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(bullet);
+
+            bullet.position.x = x;
+            bullet.position.y = y;
+            bullet.position.z = -0.1;
+            bullet.velocityX = velocityX;
+            bullet.velocityY = velocityY;
+            bullet.isPlayer = isPlayer;
+            bullet.damage = damage;
+            bullet.isMortar = true;
+            bullet.aoeRadius = aoeRadius || 1.5;
+            bullet.mortarStartY = y;
+            bullet.mortarMaxRange = 15; // Max travel distance before exploding
+            bullet.renderingGroupId = 2;
+            bullet.getChildMeshes().forEach(m => m.renderingGroupId = 2);
+            return bullet;
+        }
+
+        // Mortar explosion - damages all enemies in radius
+        function triggerMortarExplosion(bullet) {
+            const bx = bullet.position.x;
+            const by = bullet.position.y;
+            const radius = bullet.aoeRadius || 1.5;
+            const damage = bullet.damage;
+
+            // Visual explosion
+            createExplosion(bx, by, 'large', bullet.isPlayer ? 'blue' : 'orange');
+
+            // Create expanding blast ring
+            const blastRing = BABYLON.MeshBuilder.CreateDisc('blastRing', { radius: 0.1, tessellation: 24 }, scene);
+            blastRing.position.x = bx;
+            blastRing.position.y = by;
+            blastRing.position.z = -0.15;
+            const blastMat = new BABYLON.StandardMaterial('blastMat', scene);
+            blastMat.emissiveColor = bullet.isPlayer ? new BABYLON.Color3(0.2, 0.7, 1.0) : new BABYLON.Color3(1.0, 0.4, 0.1);
+            blastMat.alpha = 0.6;
+            blastMat.disableLighting = true;
+            blastMat.backFaceCulling = false;
+            blastRing.material = blastMat;
+            blastRing.renderingGroupId = 2;
+
+            // Animate blast ring expansion
+            const startTime = performance.now();
+            const expandDuration = 300;
+            const animateBlast = () => {
+                const elapsed = performance.now() - startTime;
+                const progress = elapsed / expandDuration;
+                if (progress >= 1) {
+                    blastRing.dispose();
+                    return;
+                }
+                blastRing.scaling.x = 1 + progress * radius * 8;
+                blastRing.scaling.y = 1 + progress * radius * 8;
+                blastMat.alpha = 0.6 * (1 - progress);
+                requestAnimationFrame(animateBlast);
+            };
+            requestAnimationFrame(animateBlast);
+
+            if (bullet.isPlayer) {
+                // Damage enemies in radius
+                for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+                    const enemy = gameState.enemies[i];
+                    if (enemy.isDisabled) continue;
+                    const dx = enemy.position.x - bx;
+                    const dy = enemy.position.y - by;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < radius) {
+                        const falloff = 1 - (dist / radius) * 0.5; // 50% falloff at edge
+                        enemy.health -= Math.round(damage * falloff);
+                        flashShip(enemy.mesh || enemy);
+
+                        if (enemy.health <= 0 && !enemy.isDisabled) {
+                            createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
+                            createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                            tryDropWeapon(enemy.position.x, enemy.position.y, enemy.type);
+                            gameState.score += 50;
+                            gameState.credits += 10 + Math.floor(Math.random() * 15);
+                            gameState.stats.enemiesKilled++;
+                            updateHUD();
+                            if (enemy.laserPreviewMesh) enemy.laserPreviewMesh.dispose();
+                            cleanupEnemyWeaponWarning(enemy);
+                            enemy.getChildMeshes().forEach(m => m.dispose());
+                            enemy.dispose();
+                            gameState.enemies.splice(i, 1);
+                        }
+                    }
+                }
+            } else {
+                // Enemy mortar damages player
+                if (playerShip) {
+                    const dx = playerShip.position.x - bx;
+                    const dy = playerShip.position.y - by;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < radius && !settings.godMode) {
+                        const falloff = 1 - (dist / radius) * 0.5;
+                        let dmg = Math.round(damage * falloff);
+                        dmg = applyShieldDamage(dmg);
+                        if (dmg > 0) gameState.health -= dmg;
+                        flashShip(playerShipMesh);
+                        updateHUD();
+                        if (gameState.health <= 0) {
+                            createExplosion(playerShip.position.x, playerShip.position.y, 'large', 'blue');
+                            gameOver();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fire lance beam - narrow, bright, high-damage precision beam
+        function fireLanceBeam(px, py, weapon = null) {
+            if (!gameState.beamMeshes) gameState.beamMeshes = [];
+
+            const tb = gameState.techBonuses || {};
+            const beamDmgMult = 1 + (tb.beamDamage || 0);
+            const beamDamage = Math.round((weapon ? weapon.damage : 30) * beamDmgMult);
+            const beamWidth = weapon ? (0.1 + weapon.spread * 0.3) : 0.2;
+
+            const beamHeight = orthoHeight * 2;
+            const beam = BABYLON.MeshBuilder.CreatePlane('lanceBeam', { width: beamWidth * 0.8, height: beamHeight }, scene);
+            beam.position.x = px;
+            beam.position.y = py + beamHeight / 2;
+            beam.position.z = -0.1;
+
+            const beamMat = new BABYLON.StandardMaterial('lanceMat', scene);
+            beamMat.emissiveColor = new BABYLON.Color3(0.3, 0.8, 1.0); // Bright blue-white
+            beamMat.alpha = 0.95;
+            beamMat.disableLighting = true;
+            beamMat.backFaceCulling = false;
+            beam.material = beamMat;
+            beam.renderingGroupId = 2;
+
+            // Add bright core
+            const core = BABYLON.MeshBuilder.CreatePlane('lanceCore', { width: beamWidth * 0.3, height: beamHeight }, scene);
+            core.parent = beam;
+            core.position.z = -0.01;
+            const coreMat = new BABYLON.StandardMaterial('lanceCoreMat', scene);
+            coreMat.emissiveColor = new BABYLON.Color3(0.8, 0.95, 1.0);
+            coreMat.alpha = 1.0;
+            coreMat.disableLighting = true;
+            core.material = coreMat;
+            core.renderingGroupId = 2;
+
+            beam.beamDamage = beamDamage;
+            beam.beamWidth = beamWidth;
+            beam.hitEnemies = new Set();
+
+            if (sunGlowLayer) {
+                sunGlowLayer.addIncludedOnlyMesh(beam);
+            }
+
+            gameState.beamMeshes.push(beam);
+            applyBeamDamage(beam);
         }
 
         // Apply beam damage to all enemies in the beam's path (one hit per enemy per beam)
@@ -10109,6 +10989,7 @@
                     if (enemy.health <= 0) {
                         createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
                         createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                            tryDropWeapon(enemy.position.x, enemy.position.y, enemy.type);
                         gameState.score += 50;
                         gameState.credits += 10 + Math.floor(Math.random() * 15);
                         gameState.stats.enemiesKilled++;
@@ -10117,6 +10998,7 @@
                         if (enemy.laserPreviewMesh) {
                             enemy.laserPreviewMesh.dispose();
                         }
+                        cleanupEnemyWeaponWarning(enemy);
 
                         enemy.getChildMeshes().forEach(m => m.dispose());
                         enemy.dispose();
@@ -10564,12 +11446,14 @@
                         if (enemy.health <= 0) {
                             createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
                             createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                            tryDropWeapon(enemy.position.x, enemy.position.y, enemy.type);
                             gameState.score += 50;
                             gameState.credits += 10 + Math.floor(Math.random() * 15);
                             gameState.stats.enemiesKilled++;
                             updateHUD();
 
                             if (enemy.laserPreviewMesh) enemy.laserPreviewMesh.dispose();
+                            cleanupEnemyWeaponWarning(enemy);
                             enemy.getChildMeshes().forEach(cm => cm.dispose());
                             enemy.dispose();
                             gameState.enemies.splice(j, 1);
@@ -10705,10 +11589,12 @@
                     if (enemy.health <= 0) {
                         createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
                         createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                            tryDropWeapon(enemy.position.x, enemy.position.y, enemy.type);
                         gameState.score += 50;
                         gameState.credits += 10 + Math.floor(Math.random() * 15);
                         gameState.stats.enemiesKilled++;
                         if (enemy.laserPreviewMesh) enemy.laserPreviewMesh.dispose();
+                            cleanupEnemyWeaponWarning(enemy);
                         enemy.getChildMeshes().forEach(cm => cm.dispose());
                         enemy.dispose();
                         gameState.enemies.splice(i, 1);
@@ -11556,6 +12442,25 @@
             });
             gameState.loot = [];
 
+            // Clean up weapon drops and beam sweeps from combat
+            if (gameState.weaponDrops) {
+                gameState.weaponDrops.forEach(d => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(d);
+                    d.getChildMeshes().forEach(m => m.dispose());
+                    d.dispose();
+                });
+                gameState.weaponDrops = [];
+            }
+            if (gameState.enemyBeamSweeps) {
+                gameState.enemyBeamSweeps.forEach(b => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                    b.getChildMeshes().forEach(m => m.dispose());
+                    b.dispose();
+                });
+                gameState.enemyBeamSweeps = [];
+            }
+            gameState.burstQueues = {};
+
             // Show exploration goal
             if (gameState.explorationGoal && gameState.explorationGoal.node) {
                 gameState.explorationGoal.node.setEnabled(true);
@@ -11595,13 +12500,56 @@
         // Ship type configs for combat zone (combat-view scale)
         const COMBAT_ZONE_SHIP_TYPES = {
             // Maps encounter enemy types to ship models for the zone
-            basic:      { model: 'Bob', color: 'Blue', scale: 1.2, speed: 0.004, hp: 90, fireRate: 3000, damage: 8, bulletSpeed: 0.1 },
-            light:      { model: 'Dispatcher', color: 'Purple', scale: 0.9, speed: 0.006, hp: 60, fireRate: 2000, damage: 5, bulletSpeed: 0.12 },
-            heavy:      { model: 'Imperial', color: 'Orange', scale: 1.8, speed: 0.002, hp: 300, fireRate: 2500, damage: 15, bulletSpeed: 0.08, spread: true },
-            shooter:    { model: 'Omen', color: 'Green', scale: 1.1, speed: 0.0035, hp: 150, fireRate: 1500, damage: 8, bulletSpeed: 0.1 },
-            fast:       { model: 'Striker', color: 'Red', scale: 0.8, speed: 0.007, hp: 45, fireRate: 4000, damage: 5, bulletSpeed: 0.1 },
-            challenger: { model: 'Executioner', color: 'Red', scale: 2.0, speed: 0.0015, hp: 240, fireRate: 2000, damage: 15, bulletSpeed: 0.08, spread: true },
+            basic:      { model: 'Bob', color: 'Blue', scale: 1.2, speed: 0.004, hp: 90, fireRate: 3000, damage: 8, bulletSpeed: 0.1, weaponPool: ['standard', 'standard', 'burst', 'autocannon'] },
+            light:      { model: 'Dispatcher', color: 'Purple', scale: 0.9, speed: 0.006, hp: 60, fireRate: 2000, damage: 5, bulletSpeed: 0.12, weaponPool: ['standard', 'burst', 'burst', 'autocannon'] },
+            heavy:      { model: 'Imperial', color: 'Orange', scale: 1.8, speed: 0.002, hp: 300, fireRate: 2500, damage: 15, bulletSpeed: 0.08, spread: true, weaponPool: ['standard', 'burst', 'mortar', 'beam_sweep', 'lance'] },
+            shooter:    { model: 'Omen', color: 'Green', scale: 1.1, speed: 0.0035, hp: 150, fireRate: 1500, damage: 8, bulletSpeed: 0.1, weaponPool: ['standard', 'burst', 'autocannon', 'beam_sweep'] },
+            fast:       { model: 'Striker', color: 'Red', scale: 0.8, speed: 0.007, hp: 45, fireRate: 4000, damage: 5, bulletSpeed: 0.1, weaponPool: ['standard', 'autocannon'] },
+            challenger: { model: 'Executioner', color: 'Red', scale: 2.0, speed: 0.0015, hp: 240, fireRate: 2000, damage: 15, bulletSpeed: 0.08, spread: true, weaponPool: ['beam_sweep', 'lance', 'mortar', 'burst'] },
         };
+
+        // Assign a weapon behavior to a combat zone ship based on its type and faction
+        function assignCZShipWeapon(ship) {
+            const pool = ship.config.weaponPool || ['standard'];
+            // Apply faction preference weighting
+            const factionPrefs = FACTION_WEAPON_PREFS[ship.faction] || {};
+            const levelBonus = Math.min(gameState.level * 0.05, 0.4);
+
+            const weights = pool.map(id => {
+                const beh = ENEMY_WEAPON_BEHAVIORS[id];
+                const factionWeight = factionPrefs[id === 'standard' ? 'bullet' : id] || 1;
+                return (beh.weight || 1) * factionWeight * (id === 'standard' ? Math.max(0.5, 1 - levelBonus) : (1 + levelBonus));
+            });
+            const totalW = weights.reduce((a, b) => a + b, 0);
+            let roll = Math.random() * totalW;
+            let picked = pool[0];
+            for (let i = 0; i < pool.length; i++) {
+                roll -= weights[i];
+                if (roll <= 0) { picked = pool[i]; break; }
+            }
+
+            ship.weaponBehavior = picked;
+            const beh = ENEMY_WEAPON_BEHAVIORS[picked];
+            ship.weaponDmgMult = beh.dmgMult || 1.0;
+            ship.burstRemaining = 0;
+            ship.burstNextFire = 0;
+            ship.weaponCharging = false;
+            ship.weaponChargeStart = 0;
+            ship.weaponWarningMesh = null;
+            ship.weaponTargetX = 0;
+            ship.weaponTargetY = 0;
+
+            // Mortar state
+            if (picked === 'mortar') {
+                ship.mortarTargetX = 0;
+                ship.mortarTargetY = 0;
+            }
+            // Beam sweep state
+            if (picked === 'beam_sweep') {
+                ship.sweepStartX = 0;
+                ship.sweepDirection = 1;
+            }
+        }
 
         // Spawn all combat zone content: ships and background planets
         function spawnCombatZoneContent(encounter, pairedEncounter, isBattle) {
@@ -11652,6 +12600,7 @@
                     strafeDir: Math.random() < 0.5 ? 1 : -1,
                     baseScale: shipConfig.scale,
                 };
+                assignCZShipWeapon(ship);
                 cz.ships.push(ship);
                 createCombatZoneShipVisual(ship, factionA);
             });
@@ -11694,6 +12643,7 @@
                         strafeDir: Math.random() < 0.5 ? 1 : -1,
                         baseScale: shipConfig.scale,
                     };
+                    assignCZShipWeapon(ship);
                     cz.ships.push(ship);
                     createCombatZoneShipVisual(ship, factionB);
                 });
@@ -11804,6 +12754,7 @@
         // Dispose a combat zone ship and all its visuals
         function disposeCombatZoneShip(ship) {
             ship.alive = false;
+            cleanupCZWeaponWarning(ship);
             if (ship.mesh) {
                 ship.mesh.getChildMeshes().forEach(m => m.dispose());
                 ship.mesh.dispose();
@@ -11888,6 +12839,397 @@
             return null;
         }
 
+        // ========== COMBAT ZONE WEAPON BEHAVIOR HELPERS ==========
+
+        // Create visual warning for combat zone ship weapon
+        function createCZWeaponWarning(ship, targetX, targetY) {
+            const weaponType = ship.weaponBehavior;
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+
+            if (weaponType === 'burst' || weaponType === 'lance') {
+                // Aim line from ship toward target
+                const dx = targetX - ship.currentX;
+                const dy = targetY - ship.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const lineLength = Math.max(dist, orthoHeight * 0.8);
+
+                const line = BABYLON.MeshBuilder.CreatePlane('czWarning', {
+                    width: 0.05, height: lineLength
+                }, scene);
+                line.position.x = ship.currentX + (dx / dist) * lineLength / 2;
+                line.position.y = ship.currentY + (dy / dist) * lineLength / 2;
+                line.position.z = -0.05;
+                line.rotation.z = Math.atan2(dx, dy);
+
+                const lineMat = new BABYLON.StandardMaterial('czWarningMat', scene);
+                lineMat.emissiveColor = weaponType === 'lance'
+                    ? new BABYLON.Color3(0.8, 0.2, 1.0)
+                    : new BABYLON.Color3(1.0, 0.4, 0.2);
+                lineMat.alpha = 0.2;
+                lineMat.disableLighting = true;
+                lineMat.backFaceCulling = false;
+                line.material = lineMat;
+                line.renderingGroupId = 2;
+                ship.weaponWarningMesh = line;
+
+            } else if (weaponType === 'mortar') {
+                // Target circle at predicted impact
+                const ring = BABYLON.MeshBuilder.CreateTorus('czMortarTarget', {
+                    diameter: (beh.aoeRadius || 2.0) * 2, thickness: 0.08, tessellation: 24
+                }, scene);
+                ring.position.x = targetX;
+                ring.position.y = targetY;
+                ring.position.z = -0.05;
+                ring.rotation.x = Math.PI / 2;
+
+                const ringMat = new BABYLON.StandardMaterial('czMortarMat', scene);
+                ringMat.emissiveColor = new BABYLON.Color3(1.0, 0.3, 0.1);
+                ringMat.alpha = 0.25;
+                ringMat.disableLighting = true;
+                ringMat.backFaceCulling = false;
+                ring.material = ringMat;
+                ring.renderingGroupId = 2;
+
+                // Inner fill
+                const fill = BABYLON.MeshBuilder.CreateDisc('czMortarFill', {
+                    radius: beh.aoeRadius || 2.0, tessellation: 24
+                }, scene);
+                fill.parent = ring;
+                fill.position.z = 0.01;
+                fill.rotation.x = -Math.PI / 2;
+                const fillMat = new BABYLON.StandardMaterial('czMortarFillMat', scene);
+                fillMat.emissiveColor = new BABYLON.Color3(1.0, 0.2, 0.0);
+                fillMat.alpha = 0.08;
+                fillMat.disableLighting = true;
+                fillMat.backFaceCulling = false;
+                fill.material = fillMat;
+                fill.renderingGroupId = 2;
+
+                ship.weaponWarningMesh = ring;
+                ship.mortarTargetX = targetX;
+                ship.mortarTargetY = targetY;
+
+            } else if (weaponType === 'beam_sweep') {
+                // Thin preview beam
+                const beamHeight = orthoHeight * 2 + 4;
+                const preview = BABYLON.MeshBuilder.CreatePlane('czSweepPreview', {
+                    width: 0.08, height: beamHeight
+                }, scene);
+                // Orient beam along the direction from ship to target
+                const dx = targetX - ship.currentX;
+                const dy = targetY - ship.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                preview.position.x = ship.currentX + (dist > 0 ? (dx / dist) * beamHeight / 2 : 0);
+                preview.position.y = ship.currentY + (dist > 0 ? (dy / dist) * beamHeight / 2 : -beamHeight / 2);
+                preview.position.z = -0.05;
+                if (dist > 0) preview.rotation.z = Math.atan2(dx, dy);
+
+                const previewMat = new BABYLON.StandardMaterial('czSweepMat', scene);
+                previewMat.emissiveColor = new BABYLON.Color3(1.0, 0.1, 0.3);
+                previewMat.alpha = 0.2;
+                previewMat.disableLighting = true;
+                previewMat.backFaceCulling = false;
+                preview.material = previewMat;
+                preview.renderingGroupId = 2;
+
+                ship.weaponWarningMesh = preview;
+                ship.sweepStartX = ship.currentX;
+                ship.sweepDirection = targetX > ship.currentX ? 1 : -1;
+            }
+        }
+
+        // Update charging/warning for combat zone ship weapons
+        function updateCZWeaponCharge(ship, currentTime) {
+            const weaponType = ship.weaponBehavior;
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+            const chargeProgress = (currentTime - ship.weaponChargeStart) / beh.warningTime;
+
+            if (chargeProgress >= 1) {
+                // Charge complete - fire
+                cleanupCZWeaponWarning(ship);
+                fireCZShipWeapon(ship, ship.weaponTargetX, ship.weaponTargetY, currentTime);
+                ship.weaponCharging = false;
+                ship.lastFireTime = currentTime;
+                return;
+            }
+
+            if (!ship.weaponWarningMesh) return;
+
+            const pulseSpeed = 0.015 + chargeProgress * 0.015;
+            const pulse = Math.sin(currentTime * pulseSpeed) * 0.15;
+
+            if (weaponType === 'burst' || weaponType === 'lance') {
+                const growthPhase = Math.max(0, (chargeProgress - 0.5) / 0.5);
+                ship.weaponWarningMesh.scaling.x = 1 + growthPhase * 3;
+                ship.weaponWarningMesh.material.alpha = 0.2 + chargeProgress * 0.4 + pulse;
+                if (weaponType === 'lance') {
+                    const b = chargeProgress;
+                    ship.weaponWarningMesh.material.emissiveColor = new BABYLON.Color3(0.8 + b * 0.2, 0.2 + b * 0.6, 1.0);
+                }
+                // Keep attached to ship
+                const dx = ship.weaponTargetX - ship.currentX;
+                const dy = ship.weaponTargetY - ship.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    const lineLength = Math.max(dist, orthoHeight * 0.8);
+                    ship.weaponWarningMesh.position.x = ship.currentX + (dx / dist) * lineLength / 2;
+                    ship.weaponWarningMesh.position.y = ship.currentY + (dy / dist) * lineLength / 2;
+                    ship.weaponWarningMesh.rotation.z = Math.atan2(dx, dy);
+                }
+            } else if (weaponType === 'mortar') {
+                ship.weaponWarningMesh.material.alpha = 0.15 + chargeProgress * 0.3 + pulse;
+                const scale = 1.0 - chargeProgress * 0.2;
+                ship.weaponWarningMesh.scaling.x = scale;
+                ship.weaponWarningMesh.scaling.y = scale;
+                ship.weaponWarningMesh.scaling.z = scale;
+            } else if (weaponType === 'beam_sweep') {
+                ship.weaponWarningMesh.material.alpha = 0.15 + chargeProgress * 0.35 + pulse;
+                const growthPhase = Math.max(0, (chargeProgress - 0.7) / 0.3);
+                ship.weaponWarningMesh.scaling.x = 1 + growthPhase * 6;
+                // Track ship position during charge so preview stays attached
+                const dx = ship.weaponTargetX - ship.currentX;
+                const dy = ship.weaponTargetY - ship.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    const beamHeight = orthoHeight * 2 + 4;
+                    ship.weaponWarningMesh.position.x = ship.currentX + (dx / dist) * beamHeight / 2;
+                    ship.weaponWarningMesh.position.y = ship.currentY + (dy / dist) * beamHeight / 2;
+                    ship.weaponWarningMesh.rotation.z = Math.atan2(dx, dy);
+                }
+                ship.sweepStartX = ship.currentX;
+            }
+        }
+
+        // Fire combat zone ship weapon based on behavior
+        function fireCZShipWeapon(ship, targetX, targetY, currentTime) {
+            const weaponType = ship.weaponBehavior || 'standard';
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+            const dmgMult = ship.weaponDmgMult || 1.0;
+            const adjustedDmg = Math.round(ship.damage * dmgMult);
+
+            const dx = targetX - ship.currentX;
+            const dy = targetY - ship.currentY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist === 0) return;
+
+            const noseOffsetDist = ship.baseScale * 0.5;
+            const noseX = ship.currentX + (dx / dist) * noseOffsetDist;
+            const noseY = ship.currentY + (dy / dist) * noseOffsetDist;
+
+            function markCZBullet(bullet) {
+                bullet.sourceFaction = ship.faction;
+                bullet._combatZoneBullet = true;
+                bullet._sourceShipId = ship.id;
+            }
+
+            switch (weaponType) {
+                case 'standard': {
+                    if (ship.spread) {
+                        [-0.2, 0, 0.2].forEach(angle => {
+                            const cos = Math.cos(angle);
+                            const sin = Math.sin(angle);
+                            const vx = (dx / dist) * ship.bulletSpeed;
+                            const vy = (dy / dist) * ship.bulletSpeed;
+                            const bullet = createBullet(false, noseX, noseY, vx * cos - vy * sin, vx * sin + vy * cos, adjustedDmg);
+                            markCZBullet(bullet);
+                            gameState.enemyBullets.push(bullet);
+                        });
+                    } else {
+                        const bullet = createBullet(false, noseX, noseY,
+                            (dx / dist) * ship.bulletSpeed, (dy / dist) * ship.bulletSpeed, adjustedDmg);
+                        markCZBullet(bullet);
+                        gameState.enemyBullets.push(bullet);
+                    }
+                    break;
+                }
+                case 'burst': {
+                    ship.burstRemaining = beh.burstCount || 3;
+                    ship.burstNextFire = currentTime;
+                    ship.burstDx = dx / dist;
+                    ship.burstDy = dy / dist;
+                    ship.burstDmg = adjustedDmg;
+                    break;
+                }
+                case 'autocannon': {
+                    ship.burstRemaining = beh.streamCount || 6;
+                    ship.burstNextFire = currentTime;
+                    ship.burstDx = dx / dist;
+                    ship.burstDy = dy / dist;
+                    ship.burstDmg = adjustedDmg;
+                    break;
+                }
+                case 'mortar': {
+                    const speed = 0.04;
+                    const mdx = ship.mortarTargetX - ship.currentX;
+                    const mdy = ship.mortarTargetY - ship.currentY;
+                    const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+                    if (mdist > 0) {
+                        const mortar = createMortarProjectile(false, noseX, noseY,
+                            (mdx / mdist) * speed, (mdy / mdist) * speed,
+                            adjustedDmg, beh.aoeRadius || 2.0);
+                        mortar.mortarTargetX = ship.mortarTargetX;
+                        mortar.mortarTargetY = ship.mortarTargetY;
+                        markCZBullet(mortar);
+                        gameState.enemyBullets.push(mortar);
+                    }
+                    break;
+                }
+                case 'beam_sweep': {
+                    fireCZBeamSweep(ship);
+                    break;
+                }
+                case 'lance': {
+                    fireCZLance(ship, adjustedDmg);
+                    break;
+                }
+            }
+        }
+
+        // Fire burst shot for combat zone ship
+        function fireCZBurstShot(ship, currentTime) {
+            const weaponType = ship.weaponBehavior;
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+            const delay = weaponType === 'autocannon' ? (beh.streamDelay || 100) : (beh.burstDelay || 80);
+            const bulletSpeed = weaponType === 'autocannon' ? 0.07 : 0.12;
+            const jitter = weaponType === 'autocannon' ? (Math.random() - 0.5) * 0.15 : (Math.random() - 0.5) * 0.05;
+
+            const vx = (ship.burstDx + jitter) * bulletSpeed;
+            const vy = ship.burstDy * bulletSpeed;
+            const noseX = ship.currentX + ship.burstDx * 0.4;
+            const noseY = ship.currentY + ship.burstDy * 0.4;
+
+            let bullet;
+            if (weaponType === 'autocannon') {
+                bullet = createAutocannonBullet(false, noseX, noseY, vx, vy, ship.burstDmg);
+            } else {
+                bullet = createBullet(false, noseX, noseY, vx, vy, ship.burstDmg);
+            }
+            bullet.sourceFaction = ship.faction;
+            bullet._combatZoneBullet = true;
+            bullet._sourceShipId = ship.id;
+            gameState.enemyBullets.push(bullet);
+
+            ship.burstRemaining--;
+            ship.burstNextFire = currentTime + delay;
+        }
+
+        // Fire beam sweep for combat zone ship
+        function fireCZBeamSweep(ship) {
+            if (!gameState.enemyBeamSweeps) gameState.enemyBeamSweeps = [];
+            const beh = ENEMY_WEAPON_BEHAVIORS['beam_sweep'];
+
+            const beamHeight = orthoHeight * 2 + 4;
+            const beamWidth = beh.beamWidth || 0.6;
+
+            // Compute direction toward target
+            const dx = ship.weaponTargetX - ship.currentX;
+            const dy = ship.weaponTargetY - ship.currentY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            let nx = 0, ny = -1; // default: downward
+            if (dist > 0) { nx = dx / dist; ny = dy / dist; }
+
+            const beam = BABYLON.MeshBuilder.CreatePlane('czBeamSweep', {
+                width: beamWidth, height: beamHeight
+            }, scene);
+            // Position beam so one end is at the ship, extending toward target
+            beam.position.x = ship.currentX + nx * beamHeight / 2;
+            beam.position.y = ship.currentY + ny * beamHeight / 2;
+            beam.position.z = -0.1;
+            if (dist > 0) beam.rotation.z = Math.atan2(dx, dy);
+
+            const beamMat = new BABYLON.StandardMaterial('czBeamMat', scene);
+            beamMat.emissiveColor = new BABYLON.Color3(1.0, 0.15, 0.3);
+            beamMat.alpha = 0.85;
+            beamMat.disableLighting = true;
+            beamMat.backFaceCulling = false;
+            beam.material = beamMat;
+            beam.renderingGroupId = 2;
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(beam);
+
+            beam.laserDamage = ship.damage * (beh.dmgMult || 1.2);
+            beam.laserWidth = beamWidth;
+            beam.sourceShip = ship;
+            beam.lastDamageTime = 0;
+            beam.damageInterval = 150;
+            beam.sweepDirection = ship.sweepDirection || 1;
+            beam.sweepSpeed = (beh.sweepAngle || 0.4) * orthoWidth * 0.015;
+            beam.sweepMaxDist = (beh.sweepAngle || 0.4) * orthoWidth;
+            beam._combatZoneBullet = true;
+            // Store direction for per-frame position recomputation (like engine glows)
+            beam._fireDir = { x: nx, y: ny };
+            beam._beamHeight = beamHeight;
+            beam._sweptDist = 0;
+
+            gameState.enemyBeamSweeps.push(beam);
+        }
+
+        // Fire lance for combat zone ship
+        function fireCZLance(ship, damage) {
+            if (!gameState.challengerLasers) gameState.challengerLasers = [];
+
+            const beamHeight = orthoHeight * 2 + 4;
+            const beamWidth = 0.4;
+            const dx = ship.weaponTargetX - ship.currentX;
+            const dy = ship.weaponTargetY - ship.currentY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            let nx = 0, ny = -1;
+            if (dist > 0) { nx = dx / dist; ny = dy / dist; }
+
+            const laser = BABYLON.MeshBuilder.CreatePlane('czLance', {
+                width: beamWidth, height: beamHeight
+            }, scene);
+            laser.position.x = ship.currentX + nx * beamHeight / 2;
+            laser.position.y = ship.currentY + ny * beamHeight / 2;
+            laser.position.z = -0.1;
+            if (dist > 0) laser.rotation.z = Math.atan2(dx, dy);
+
+            const laserMat = new BABYLON.StandardMaterial('czLanceMat', scene);
+            laserMat.emissiveColor = new BABYLON.Color3(0.6, 0.2, 1.0);
+            laserMat.alpha = 0.9;
+            laserMat.disableLighting = true;
+            laserMat.backFaceCulling = false;
+            laser.material = laserMat;
+            laser.renderingGroupId = 2;
+
+            // Bright core
+            const core = BABYLON.MeshBuilder.CreatePlane('czLanceCore', { width: beamWidth * 0.3, height: beamHeight }, scene);
+            core.parent = laser;
+            core.position.z = -0.01;
+            const coreMat = new BABYLON.StandardMaterial('czLanceCoreMat', scene);
+            coreMat.emissiveColor = new BABYLON.Color3(0.9, 0.7, 1.0);
+            coreMat.alpha = 1.0;
+            coreMat.disableLighting = true;
+            core.material = coreMat;
+            core.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(laser);
+
+            laser.laserDamage = damage;
+            laser.laserWidth = beamWidth;
+            laser.sourceShip = ship;
+            // Store direction for per-frame position recomputation (like engine glows)
+            laser._fireDir = { x: nx, y: ny };
+            laser._beamHeight = beamHeight;
+            laser.lastDamageTime = 0;
+            laser.damageInterval = 100;
+            laser.totalDamageTicks = 8;
+            laser.damagePerTick = damage / laser.totalDamageTicks;
+            laser._combatZoneBullet = true;
+
+            gameState.challengerLasers.push(laser);
+        }
+
+        // Cleanup combat zone weapon warning mesh
+        function cleanupCZWeaponWarning(ship) {
+            if (ship.weaponWarningMesh) {
+                ship.weaponWarningMesh.getChildMeshes().forEach(m => m.dispose());
+                ship.weaponWarningMesh.dispose();
+                ship.weaponWarningMesh = null;
+            }
+        }
+
+        // ========== END COMBAT ZONE WEAPON BEHAVIOR HELPERS ==========
+
         // Main combat zone update - called each frame during encounter combat
         function updateCombatZone(deltaTime, currentTime, scrollMultiplier) {
             const cz = gameState.combatZone;
@@ -11971,43 +13313,35 @@
                     while (faceDiff < -Math.PI) faceDiff += Math.PI * 2;
                     faceAngle = ship.heading + faceDiff * faceBlend;
 
-                    // --- FIRING ---
-                    if (distToTarget < 15 && currentTime - ship.lastFireTime > ship.fireRate) {
-                        // Direction toward target
+                    // --- FIRING (with weapon behaviors) ---
+                    // Update active burst/stream firing
+                    if (ship.burstRemaining > 0 && currentTime >= ship.burstNextFire) {
+                        fireCZBurstShot(ship, currentTime);
+                    }
+
+                    // Update weapon charging/warning indicators
+                    if (ship.weaponCharging) {
+                        updateCZWeaponCharge(ship, currentTime);
+                    }
+                    // Check if ready to fire (cooldown elapsed, no active burst)
+                    else if (distToTarget < 15 && currentTime - ship.lastFireTime > ship.fireRate && ship.burstRemaining <= 0) {
                         const fdx = targetPos.x - ship.currentX;
                         const fdy = targetPos.y - ship.currentY;
                         const fdist = Math.sqrt(fdx * fdx + fdy * fdy);
                         if (fdist > 0) {
-                            const noseOffsetDist = ship.baseScale * 0.5;
-                            const noseX = ship.currentX + (fdx / fdist) * noseOffsetDist;
-                            const noseY = ship.currentY + (fdy / fdist) * noseOffsetDist;
+                            const weaponType = ship.weaponBehavior || 'standard';
+                            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
 
-                            if (ship.spread) {
-                                // Spread weapon - 3 bullets
-                                const spreadAngles = [-0.2, 0, 0.2];
-                                spreadAngles.forEach(angle => {
-                                    const cos = Math.cos(angle);
-                                    const sin = Math.sin(angle);
-                                    const vx = (fdx / fdist) * ship.bulletSpeed;
-                                    const vy = (fdy / fdist) * ship.bulletSpeed;
-                                    const rotatedVx = vx * cos - vy * sin;
-                                    const rotatedVy = vx * sin + vy * cos;
-                                    const bullet = createBullet(false, noseX, noseY, rotatedVx, rotatedVy, ship.damage);
-                                    bullet.sourceFaction = ship.faction;
-                                    bullet._combatZoneBullet = true;
-                                    bullet._sourceShipId = ship.id;
-                                    gameState.enemyBullets.push(bullet);
-                                });
-                            } else {
-                                const bullet = createBullet(false, noseX, noseY,
-                                    (fdx / fdist) * ship.bulletSpeed,
-                                    (fdy / fdist) * ship.bulletSpeed, ship.damage);
-                                bullet.sourceFaction = ship.faction;
-                                bullet._combatZoneBullet = true;
-                                bullet._sourceShipId = ship.id;
-                                gameState.enemyBullets.push(bullet);
+                            if (beh.warningTime > 0 && !ship.weaponCharging) {
+                                ship.weaponCharging = true;
+                                ship.weaponChargeStart = currentTime;
+                                ship.weaponTargetX = targetPos.x;
+                                ship.weaponTargetY = targetPos.y;
+                                createCZWeaponWarning(ship, targetPos.x, targetPos.y);
+                            } else if (beh.warningTime === 0) {
+                                fireCZShipWeapon(ship, targetPos.x, targetPos.y, currentTime);
+                                ship.lastFireTime = currentTime;
                             }
-                            ship.lastFireTime = currentTime;
                         }
                     }
                 } else {
@@ -12090,6 +13424,7 @@
                             createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
                             // Drop loot
                             createLoot(ship.currentX, ship.currentY, ship.type);
+                            tryDropWeapon(ship.currentX, ship.currentY, ship.type);
                             gameState.score += 10 * gameState.wave;
                             gameState.credits += 10 + Math.floor(Math.random() * 15);
                             gameState.stats.enemiesKilled++;
@@ -12133,6 +13468,7 @@
                         if (ship.hp <= 0) {
                             createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
                             createLoot(ship.currentX, ship.currentY, ship.type);
+                            tryDropWeapon(ship.currentX, ship.currentY, ship.type);
                             gameState.score += 10 * gameState.wave;
                             gameState.credits += 10 + Math.floor(Math.random() * 15);
                             gameState.stats.enemiesKilled++;
@@ -14166,6 +15502,479 @@
 
         // ========== END EXPLORATION ENCOUNTER SYSTEM ==========
 
+        // ========== ENEMY WEAPON BEHAVIOR SYSTEM ==========
+
+        // Create visual warning indicator for enemy weapon about to fire
+        function createEnemyWeaponWarning(enemy, targetX, targetY) {
+            const weaponType = enemy.weaponBehavior;
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+
+            if (weaponType === 'burst' || weaponType === 'lance') {
+                // Aim line: thin line from enemy toward target direction
+                const dx = targetX - enemy.position.x;
+                const dy = targetY - enemy.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const lineLength = Math.max(dist, orthoHeight);
+
+                const line = BABYLON.MeshBuilder.CreatePlane('weaponWarning', {
+                    width: 0.05,
+                    height: lineLength
+                }, scene);
+                line.position.x = enemy.position.x + (dx / dist) * lineLength / 2;
+                line.position.y = enemy.position.y + (dy / dist) * lineLength / 2;
+                line.position.z = -0.05;
+                // Rotate line to point toward target
+                line.rotation.z = Math.atan2(dx, dy);
+
+                const lineMat = new BABYLON.StandardMaterial('warningLineMat', scene);
+                if (weaponType === 'lance') {
+                    lineMat.emissiveColor = new BABYLON.Color3(0.8, 0.2, 1.0); // Purple for lance
+                } else {
+                    lineMat.emissiveColor = new BABYLON.Color3(1.0, 0.4, 0.2); // Orange for burst
+                }
+                lineMat.alpha = 0.2;
+                lineMat.disableLighting = true;
+                lineMat.backFaceCulling = false;
+                line.material = lineMat;
+                line.renderingGroupId = 2;
+
+                enemy.weaponWarningMesh = line;
+
+            } else if (weaponType === 'mortar') {
+                // Target circle: pulsing ring at predicted impact location
+                const ring = BABYLON.MeshBuilder.CreateTorus('mortarTarget', {
+                    diameter: beh.aoeRadius * 2,
+                    thickness: 0.08,
+                    tessellation: 24
+                }, scene);
+                ring.position.x = targetX;
+                ring.position.y = targetY;
+                ring.position.z = -0.05;
+                ring.rotation.x = Math.PI / 2; // Flat on screen
+
+                const ringMat = new BABYLON.StandardMaterial('mortarTargetMat', scene);
+                ringMat.emissiveColor = new BABYLON.Color3(1.0, 0.3, 0.1);
+                ringMat.alpha = 0.25;
+                ringMat.disableLighting = true;
+                ringMat.backFaceCulling = false;
+                ring.material = ringMat;
+                ring.renderingGroupId = 2;
+
+                // Inner fill circle
+                const fill = BABYLON.MeshBuilder.CreateDisc('mortarFill', {
+                    radius: beh.aoeRadius,
+                    tessellation: 24
+                }, scene);
+                fill.parent = ring;
+                fill.position.z = 0.01;
+                fill.rotation.x = -Math.PI / 2; // Counter-rotate since parent is rotated
+                const fillMat = new BABYLON.StandardMaterial('mortarFillMat', scene);
+                fillMat.emissiveColor = new BABYLON.Color3(1.0, 0.2, 0.0);
+                fillMat.alpha = 0.08;
+                fillMat.disableLighting = true;
+                fillMat.backFaceCulling = false;
+                fill.material = fillMat;
+                fill.renderingGroupId = 2;
+
+                enemy.weaponWarningMesh = ring;
+                enemy.mortarTargetX = targetX;
+                enemy.mortarTargetY = targetY;
+
+            } else if (weaponType === 'beam_sweep') {
+                // Thin preview beam that will sweep
+                const beamHeight = orthoHeight * 2 + 4;
+                const preview = BABYLON.MeshBuilder.CreatePlane('sweepPreview', {
+                    width: 0.08,
+                    height: beamHeight
+                }, scene);
+                preview.position.x = enemy.position.x;
+                preview.position.y = enemy.position.y - beamHeight / 2 - 0.5;
+                preview.position.z = -0.05;
+
+                const previewMat = new BABYLON.StandardMaterial('sweepPreviewMat', scene);
+                previewMat.emissiveColor = new BABYLON.Color3(1.0, 0.1, 0.3);
+                previewMat.alpha = 0.2;
+                previewMat.disableLighting = true;
+                previewMat.backFaceCulling = false;
+                preview.material = previewMat;
+                preview.renderingGroupId = 2;
+
+                enemy.weaponWarningMesh = preview;
+                // Store sweep direction based on target
+                enemy.sweepStartX = enemy.position.x;
+                enemy.sweepDirection = targetX > enemy.position.x ? 1 : -1;
+            }
+        }
+
+        // Update charging/warning state for enemy weapons
+        function updateEnemyWeaponCharge(enemy, currentTime) {
+            const weaponType = enemy.weaponBehavior;
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+            const chargeProgress = (currentTime - enemy.weaponChargeStart) / beh.warningTime;
+
+            if (chargeProgress >= 1) {
+                // Charge complete - fire the weapon
+                cleanupEnemyWeaponWarning(enemy);
+                fireEnemyWeapon(enemy, enemy.weaponTargetX, enemy.weaponTargetY, currentTime);
+                enemy.weaponCharging = false;
+                enemy.lastFireTime = currentTime;
+                return;
+            }
+
+            // Update warning visual based on charge progress
+            if (!enemy.weaponWarningMesh) return;
+
+            const pulseSpeed = 0.015 + chargeProgress * 0.015;
+            const pulse = Math.sin(currentTime * pulseSpeed) * 0.15;
+
+            if (weaponType === 'burst' || weaponType === 'lance') {
+                // Aim line grows brighter and thicker as charge progresses
+                const growthPhase = Math.max(0, (chargeProgress - 0.5) / 0.5);
+                enemy.weaponWarningMesh.scaling.x = 1 + growthPhase * 3;
+                const baseAlpha = 0.2 + chargeProgress * 0.4;
+                enemy.weaponWarningMesh.material.alpha = baseAlpha + pulse;
+
+                if (weaponType === 'lance') {
+                    const b = chargeProgress;
+                    enemy.weaponWarningMesh.material.emissiveColor = new BABYLON.Color3(0.8 + b * 0.2, 0.2 + b * 0.6, 1.0);
+                }
+
+                // Keep attached to enemy position
+                const dx = enemy.weaponTargetX - enemy.position.x;
+                const dy = enemy.weaponTargetY - enemy.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    const lineLength = Math.max(dist, orthoHeight);
+                    enemy.weaponWarningMesh.position.x = enemy.position.x + (dx / dist) * lineLength / 2;
+                    enemy.weaponWarningMesh.position.y = enemy.position.y + (dy / dist) * lineLength / 2;
+                    enemy.weaponWarningMesh.rotation.z = Math.atan2(dx, dy);
+                }
+            } else if (weaponType === 'mortar') {
+                // Target circle pulses and shrinks toward center
+                const baseAlpha = 0.15 + chargeProgress * 0.3;
+                enemy.weaponWarningMesh.material.alpha = baseAlpha + pulse;
+                // Circle contracts slightly as it charges
+                const scale = 1.0 - chargeProgress * 0.2;
+                enemy.weaponWarningMesh.scaling.x = scale;
+                enemy.weaponWarningMesh.scaling.y = scale;
+                enemy.weaponWarningMesh.scaling.z = scale;
+            } else if (weaponType === 'beam_sweep') {
+                // Preview beam sweeps slowly in the charge direction
+                const sweepProgress = chargeProgress;
+                const sweepRange = (beh.sweepAngle || 0.4) * orthoWidth;
+                enemy.weaponWarningMesh.position.x = enemy.sweepStartX + enemy.sweepDirection * sweepProgress * sweepRange;
+                const beamHeight = orthoHeight * 2 + 4;
+                enemy.weaponWarningMesh.position.y = enemy.position.y - beamHeight / 2 - 0.5;
+                const baseAlpha = 0.15 + chargeProgress * 0.35;
+                enemy.weaponWarningMesh.material.alpha = baseAlpha + pulse;
+                // Grow thicker near end
+                const growthPhase = Math.max(0, (chargeProgress - 0.7) / 0.3);
+                enemy.weaponWarningMesh.scaling.x = 1 + growthPhase * 6;
+            }
+        }
+
+        // Fire the enemy weapon based on its behavior type
+        function fireEnemyWeapon(enemy, targetX, targetY, currentTime) {
+            const weaponType = enemy.weaponBehavior || 'standard';
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+            const dmgMult = enemy.weaponDmgMult || 1.0;
+            const adjustedDmg = Math.round(enemy.damage * dmgMult);
+
+            const dx = targetX - enemy.position.x;
+            const dy = targetY - enemy.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist === 0) return;
+
+            const noseOffsetDist = 0.4;
+            const noseX = enemy.position.x + (dx / dist) * noseOffsetDist;
+            const noseY = enemy.position.y + (dy / dist) * noseOffsetDist;
+
+            switch (weaponType) {
+                case 'standard': {
+                    // Original firing behavior
+                    if (enemy.type === 'heavy') {
+                        const spreadAngles = [-0.2, 0, 0.2];
+                        spreadAngles.forEach(angle => {
+                            const cos = Math.cos(angle);
+                            const sin = Math.sin(angle);
+                            const vx = (dx / dist) * 0.08;
+                            const vy = (dy / dist) * 0.08;
+                            const rotatedVx = vx * cos - vy * sin;
+                            const rotatedVy = vx * sin + vy * cos;
+                            const bullet = createBullet(false, noseX, noseY, rotatedVx, rotatedVy, adjustedDmg);
+                            bullet.sourceFaction = enemy.enemyFaction || null;
+                            gameState.enemyBullets.push(bullet);
+                        });
+                    } else {
+                        const bulletSpeed = enemy.type === 'light' ? 0.12 : 0.1;
+                        const bullet = createBullet(false, noseX, noseY,
+                            (dx / dist) * bulletSpeed, (dy / dist) * bulletSpeed, adjustedDmg);
+                        bullet.sourceFaction = enemy.enemyFaction || null;
+                        gameState.enemyBullets.push(bullet);
+                    }
+                    break;
+                }
+                case 'burst': {
+                    // Start a burst sequence - remaining shots fired by updateEnemies
+                    enemy.burstRemaining = beh.burstCount || 3;
+                    enemy.burstNextFire = currentTime;
+                    enemy.burstDx = dx / dist;
+                    enemy.burstDy = dy / dist;
+                    enemy.burstDmg = adjustedDmg;
+                    break;
+                }
+                case 'autocannon': {
+                    // Start a stream sequence
+                    enemy.burstRemaining = beh.streamCount || 6;
+                    enemy.burstNextFire = currentTime;
+                    enemy.burstDx = dx / dist;
+                    enemy.burstDy = dy / dist;
+                    enemy.burstDmg = adjustedDmg;
+                    break;
+                }
+                case 'mortar': {
+                    // Fire slow mortar projectile toward target position
+                    const speed = 0.04;
+                    const mdx = enemy.mortarTargetX - enemy.position.x;
+                    const mdy = enemy.mortarTargetY - enemy.position.y;
+                    const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+                    if (mdist > 0) {
+                        const mortar = createMortarProjectile(false, noseX, noseY,
+                            (mdx / mdist) * speed, (mdy / mdist) * speed,
+                            adjustedDmg, beh.aoeRadius || 2.0);
+                        mortar.mortarTargetX = enemy.mortarTargetX;
+                        mortar.mortarTargetY = enemy.mortarTargetY;
+                        mortar.sourceFaction = enemy.enemyFaction || null;
+                        gameState.enemyBullets.push(mortar);
+                    }
+                    break;
+                }
+                case 'beam_sweep': {
+                    // Fire a sweeping beam
+                    fireEnemyBeamSweep(enemy);
+                    break;
+                }
+                case 'lance': {
+                    // Fire a high-damage enemy lance beam
+                    fireEnemyLance(enemy, adjustedDmg);
+                    break;
+                }
+            }
+        }
+
+        // Fire a single shot in an enemy's burst sequence
+        function fireEnemyBurstShot(enemy, currentTime) {
+            const weaponType = enemy.weaponBehavior;
+            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
+            const delay = weaponType === 'autocannon' ? (beh.streamDelay || 100) : (beh.burstDelay || 80);
+
+            const bulletSpeed = weaponType === 'autocannon' ? 0.07 : 0.12;
+            const jitter = weaponType === 'autocannon' ? (Math.random() - 0.5) * 0.15 : (Math.random() - 0.5) * 0.05;
+
+            const vx = (enemy.burstDx + jitter) * bulletSpeed;
+            const vy = enemy.burstDy * bulletSpeed;
+
+            const noseX = enemy.position.x + enemy.burstDx * 0.4;
+            const noseY = enemy.position.y + enemy.burstDy * 0.4;
+
+            let bullet;
+            if (weaponType === 'autocannon') {
+                bullet = createAutocannonBullet(false, noseX, noseY, vx, vy, enemy.burstDmg);
+            } else {
+                bullet = createBullet(false, noseX, noseY, vx, vy, enemy.burstDmg);
+            }
+            bullet.sourceFaction = enemy.enemyFaction || null;
+            gameState.enemyBullets.push(bullet);
+
+            enemy.burstRemaining--;
+            enemy.burstNextFire = currentTime + delay;
+        }
+
+        // Fire enemy beam sweep - creates a wide beam that sweeps across
+        function fireEnemyBeamSweep(enemy) {
+            if (!gameState.enemyBeamSweeps) gameState.enemyBeamSweeps = [];
+            const beh = ENEMY_WEAPON_BEHAVIORS['beam_sweep'];
+
+            const beamHeight = orthoHeight * 2 + 4;
+            const beamWidth = beh.beamWidth || 0.6;
+
+            const beam = BABYLON.MeshBuilder.CreatePlane('enemyBeamSweep', {
+                width: beamWidth,
+                height: beamHeight
+            }, scene);
+            beam.position.x = enemy.sweepStartX || enemy.position.x;
+            beam.position.y = enemy.position.y - beamHeight / 2 - 0.5;
+            beam.position.z = -0.1;
+
+            const beamMat = new BABYLON.StandardMaterial('enemyBeamMat', scene);
+            beamMat.emissiveColor = new BABYLON.Color3(1.0, 0.15, 0.3);
+            beamMat.alpha = 0.85;
+            beamMat.disableLighting = true;
+            beamMat.backFaceCulling = false;
+            beam.material = beamMat;
+            beam.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(beam);
+
+            beam.laserDamage = enemy.damage * (beh.dmgMult || 1.2);
+            beam.laserWidth = beamWidth;
+            beam.sourceEnemy = enemy;
+            beam.lastDamageTime = 0;
+            beam.damageInterval = 150;
+            beam.sweepDirection = enemy.sweepDirection || 1;
+            beam.sweepSpeed = (beh.sweepAngle || 0.4) * orthoWidth * 0.015;
+            beam.sweepMaxDist = (beh.sweepAngle || 0.4) * orthoWidth;
+            // Store direction for per-frame position recomputation
+            beam._fireDir = { x: 0, y: -1 }; // Arena beams always fire downward
+            beam._beamHeight = beamHeight;
+            beam._sweptDist = 0;
+
+            gameState.enemyBeamSweeps.push(beam);
+        }
+
+        // Fire enemy lance - a narrow, devastating beam
+        function fireEnemyLance(enemy, damage) {
+            if (!gameState.challengerLasers) gameState.challengerLasers = [];
+
+            const beamHeight = orthoHeight * 2 + 4;
+            const beamWidth = 0.4;
+
+            const laser = BABYLON.MeshBuilder.CreatePlane('enemyLance', {
+                width: beamWidth,
+                height: beamHeight
+            }, scene);
+
+            // Point toward where target was
+            const dx = enemy.weaponTargetX - enemy.position.x;
+            const dy = enemy.weaponTargetY - enemy.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            laser.position.x = enemy.position.x + (dist > 0 ? (dx / dist) * beamHeight / 2 : 0);
+            laser.position.y = enemy.position.y + (dist > 0 ? (dy / dist) * beamHeight / 2 : -beamHeight / 2);
+            laser.position.z = -0.1;
+            if (dist > 0) {
+                laser.rotation.z = Math.atan2(dx, dy);
+            }
+
+            const laserMat = new BABYLON.StandardMaterial('lanceLaserMat', scene);
+            laserMat.emissiveColor = new BABYLON.Color3(0.6, 0.2, 1.0); // Purple lance
+            laserMat.alpha = 0.9;
+            laserMat.disableLighting = true;
+            laserMat.backFaceCulling = false;
+            laser.material = laserMat;
+            laser.renderingGroupId = 2;
+
+            // Bright core
+            const core = BABYLON.MeshBuilder.CreatePlane('lanceCore', { width: beamWidth * 0.3, height: beamHeight }, scene);
+            core.parent = laser;
+            core.position.z = -0.01;
+            const coreMat = new BABYLON.StandardMaterial('lanceCoreMat', scene);
+            coreMat.emissiveColor = new BABYLON.Color3(0.9, 0.7, 1.0);
+            coreMat.alpha = 1.0;
+            coreMat.disableLighting = true;
+            core.material = coreMat;
+            core.renderingGroupId = 2;
+
+            if (sunGlowLayer) sunGlowLayer.addIncludedOnlyMesh(laser);
+
+            laser.laserDamage = damage;
+            laser.laserWidth = beamWidth;
+            laser.sourceEnemy = enemy;
+            // Store direction for per-frame position recomputation
+            const lnx = dist > 0 ? dx / dist : 0;
+            const lny = dist > 0 ? dy / dist : -1;
+            laser._fireDir = { x: lnx, y: lny };
+            laser._beamHeight = beamHeight;
+            laser.lastDamageTime = 0;
+            laser.damageInterval = 100;
+            laser.totalDamageTicks = 8;
+            laser.damagePerTick = damage / laser.totalDamageTicks;
+
+            gameState.challengerLasers.push(laser);
+        }
+
+        // Update enemy beam sweeps (movement + collision)
+        function updateEnemyBeamSweeps() {
+            if (!gameState.enemyBeamSweeps) return;
+            const currentTime = performance.now();
+
+            for (let i = gameState.enemyBeamSweeps.length - 1; i >= 0; i--) {
+                const beam = gameState.enemyBeamSweeps[i];
+                if (!beam || !beam.material) continue;
+
+                // Recompute beam position from source each frame (like engine glows)
+                let srcX, srcY;
+                if (beam.sourceShip) {
+                    srcX = beam.sourceShip.currentX;
+                    srcY = beam.sourceShip.currentY;
+                } else if (beam.sourceEnemy && beam.sourceEnemy.position) {
+                    srcX = beam.sourceEnemy.position.x;
+                    srcY = beam.sourceEnemy.position.y;
+                }
+
+                // Advance sweep distance
+                beam._sweptDist = (beam._sweptDist || 0) + beam.sweepSpeed;
+                const sweptDist = beam._sweptDist;
+
+                if (srcX !== undefined && beam._fireDir) {
+                    // Perpendicular to firing direction for sweep motion
+                    const perpX = -beam._fireDir.y;
+                    const perpY = beam._fireDir.x;
+                    const sweepOff = sweptDist * beam.sweepDirection;
+
+                    // Position: source + half beam in fire dir + sweep offset
+                    beam.position.x = srcX + beam._fireDir.x * beam._beamHeight / 2 + perpX * sweepOff;
+                    beam.position.y = srcY + beam._fireDir.y * beam._beamHeight / 2 + perpY * sweepOff;
+                }
+
+                // Check collision with player (perpendicular distance for rotated beams)
+                if (playerShip && currentTime - beam.lastDamageTime >= beam.damageInterval) {
+                    const theta = beam.rotation.z || 0;
+                    const perpDist = Math.abs(
+                        (playerShip.position.x - beam.position.x) * Math.cos(theta) -
+                        (playerShip.position.y - beam.position.y) * Math.sin(theta)
+                    );
+                    if (perpDist < beam.laserWidth / 2 + 0.4) {
+                        beam.lastDamageTime = currentTime;
+                        createExplosion(playerShip.position.x, playerShip.position.y, 'small', 'red');
+                        flashShip(playerShipMesh);
+                        if (!settings.godMode) {
+                            let dmg = Math.round(beam.laserDamage * 0.15);
+                            dmg = applyShieldDamage(dmg);
+                            if (dmg > 0) gameState.health -= dmg;
+                            updateHUD();
+                            if (gameState.health <= 0) {
+                                createExplosion(playerShip.position.x, playerShip.position.y, 'large', 'blue');
+                                gameOver();
+                            }
+                        }
+                    }
+                }
+
+                // Fade and cleanup when sweep is complete
+                if (sweptDist >= beam.sweepMaxDist) {
+                    beam.material.alpha -= 0.04;
+                }
+                if (beam.material.alpha <= 0) {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(beam);
+                    beam.getChildMeshes().forEach(m => m.dispose());
+                    beam.dispose();
+                    gameState.enemyBeamSweeps.splice(i, 1);
+                }
+            }
+        }
+
+        // Cleanup enemy weapon warning mesh
+        function cleanupEnemyWeaponWarning(enemy) {
+            if (enemy.weaponWarningMesh) {
+                enemy.weaponWarningMesh.getChildMeshes().forEach(m => m.dispose());
+                enemy.weaponWarningMesh.dispose();
+                enemy.weaponWarningMesh = null;
+            }
+        }
+
+        // ========== END ENEMY WEAPON BEHAVIOR SYSTEM ==========
+
         // Update challenger's charging laser attack
         function updateChallengerLaser(enemy, currentTime) {
             if (!playerShip) return;
@@ -14272,6 +16081,9 @@
             laser.laserDamage = enemy.damage;
             laser.laserWidth = beamWidth;
             laser.sourceEnemy = enemy;
+            // Store direction for per-frame position recomputation
+            laser._fireDir = { x: 0, y: -1 }; // Challenger laser always fires downward
+            laser._beamHeight = beamHeight;
             laser.lastDamageTime = 0; // Track continuous damage ticks
             laser.damageInterval = 100; // Deal damage every 100ms
             laser.totalDamageTicks = 10; // Total damage will be dealt over ~10 ticks
@@ -14290,6 +16102,20 @@
                 const laser = gameState.challengerLasers[i];
 
                 if (laser && laser.material) {
+                    // Recompute position from source each frame (like engine glows)
+                    let srcX, srcY;
+                    if (laser.sourceShip) {
+                        srcX = laser.sourceShip.currentX;
+                        srcY = laser.sourceShip.currentY;
+                    } else if (laser.sourceEnemy && laser.sourceEnemy.position) {
+                        srcX = laser.sourceEnemy.position.x;
+                        srcY = laser.sourceEnemy.position.y;
+                    }
+                    if (srcX !== undefined && laser._fireDir) {
+                        laser.position.x = srcX + laser._fireDir.x * laser._beamHeight / 2;
+                        laser.position.y = srcY + laser._fireDir.y * laser._beamHeight / 2;
+                    }
+
                     // Check collision with player - continuous damage while in beam
                     if (playerShip && currentTime - laser.lastDamageTime >= laser.damageInterval) {
                         const dx = Math.abs(playerShip.position.x - laser.position.x);
@@ -14318,10 +16144,14 @@
                         if (sunGlowLayer) {
                             sunGlowLayer.removeIncludedOnlyMesh(laser);
                         }
-                        // Set movement cooldown on source enemy (0.5s delay after laser cleanup)
+                        // Set movement cooldown on source (0.5s delay after laser cleanup)
                         if (laser.sourceEnemy) {
                             laser.sourceEnemy.movementCooldownUntil = performance.now() + 500;
                         }
+                        if (laser.sourceShip) {
+                            laser.sourceShip.movementCooldownUntil = performance.now() + 500;
+                        }
+                        laser.getChildMeshes().forEach(m => m.dispose());
                         laser.dispose();
                         gameState.challengerLasers.splice(i, 1);
                     }
@@ -14504,9 +16334,19 @@
                 if (enemy.type === 'challenger' && enemy.movementPattern !== 'crossfire') {
                     updateChallengerLaser(enemy, currentTime);
                 }
-                // All enemy types except 'fast' can shoot bullets (challengers in crossfire use bullets too)
-                else if (enemy.type !== 'fast' &&
-                    currentTime - enemy.lastFireTime > enemy.fireRate) {
+                // All enemy types except 'fast' can shoot (challengers in crossfire use bullets too)
+                else if (enemy.type !== 'fast') {
+                    // Update active burst/stream firing regardless of cooldown
+                    if (enemy.burstRemaining > 0 && currentTime >= enemy.burstNextFire) {
+                        fireEnemyBurstShot(enemy, currentTime);
+                    }
+
+                    // Update weapon charging/warning indicators
+                    if (enemy.weaponCharging) {
+                        updateEnemyWeaponCharge(enemy, currentTime);
+                    }
+                    // Check if ready to fire (cooldown elapsed, no active burst)
+                    else if (currentTime - enemy.lastFireTime > enemy.fireRate && enemy.burstRemaining <= 0) {
 
                     // In crossfire encounters, enemies target opposing faction enemies
                     let targetX, targetY;
@@ -14544,35 +16384,23 @@
                         const dist = Math.sqrt(dx * dx + dy * dy);
 
                         if (dist > 0) {
-                            // Spawn bullets offset toward the target direction
-                            const noseOffsetDist = 0.4;
-                            const noseX = enemy.position.x + (dx / dist) * noseOffsetDist;
-                            const noseY = enemy.position.y + (dy / dist) * noseOffsetDist;
+                            const weaponType = enemy.weaponBehavior || 'standard';
+                            const beh = ENEMY_WEAPON_BEHAVIORS[weaponType];
 
-                            if (enemy.type === 'heavy') {
-                                const spreadAngles = [-0.2, 0, 0.2];
-                                spreadAngles.forEach(angle => {
-                                    const cos = Math.cos(angle);
-                                    const sin = Math.sin(angle);
-                                    const vx = (dx / dist) * 0.08;
-                                    const vy = (dy / dist) * 0.08;
-                                    const rotatedVx = vx * cos - vy * sin;
-                                    const rotatedVy = vx * sin + vy * cos;
-                                    const bullet = createBullet(false, noseX, noseY,
-                                        rotatedVx, rotatedVy, enemy.damage);
-                                    bullet.sourceFaction = enemy.enemyFaction || null;
-                                    gameState.enemyBullets.push(bullet);
-                                });
-                            } else {
-                                const bulletSpeed = enemy.type === 'light' ? 0.12 : 0.1;
-                                const bullet = createBullet(false, noseX, noseY,
-                                    (dx / dist) * bulletSpeed, (dy / dist) * bulletSpeed, enemy.damage);
-                                bullet.sourceFaction = enemy.enemyFaction || null;
-                                gameState.enemyBullets.push(bullet);
+                            // Weapons with warning time start a charge phase first
+                            if (beh.warningTime > 0 && !enemy.weaponCharging) {
+                                enemy.weaponCharging = true;
+                                enemy.weaponChargeStart = currentTime;
+                                enemy.weaponTargetX = targetX;
+                                enemy.weaponTargetY = targetY;
+                                createEnemyWeaponWarning(enemy, targetX, targetY);
+                            } else if (beh.warningTime === 0) {
+                                // Immediate fire weapons
+                                fireEnemyWeapon(enemy, targetX, targetY, currentTime);
+                                enemy.lastFireTime = currentTime;
                             }
                         }
-
-                        enemy.lastFireTime = currentTime;
+                    }
                     }
                 }
 
@@ -14584,6 +16412,7 @@
                     // Crossfire enemies hold position - only escape if somehow off-screen bottom
                     if (enemy.position.y < -orthoHeight - 3) {
                         gameState.escapedEnemies++;
+                        cleanupEnemyWeaponWarning(enemy);
                         enemy.getChildMeshes().forEach(m => m.dispose());
                         enemy.dispose();
                         gameState.enemies.splice(i, 1);
@@ -14595,6 +16424,7 @@
                     // Enemy escaped (check both directions for faction B)
                     gameState.escapedEnemies++;
 
+                    cleanupEnemyWeaponWarning(enemy);
                     enemy.getChildMeshes().forEach(m => m.dispose());
                     enemy.dispose();
                     gameState.enemies.splice(i, 1);
@@ -14609,18 +16439,45 @@
                 bullet.position.x += bullet.velocityX;
                 bullet.position.y += bullet.velocityY;
 
+                // Mortar: pulse ring visual + check max range for auto-detonation
+                if (bullet.isMortar) {
+                    const travelDist = Math.abs(bullet.position.y - bullet.mortarStartY);
+                    if (travelDist >= bullet.mortarMaxRange) {
+                        triggerMortarExplosion(bullet);
+                        if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                        bullet.getChildMeshes().forEach(m => m.dispose());
+                        bullet.dispose();
+                        gameState.playerBullets.splice(i, 1);
+                        continue;
+                    }
+                    // Pulse the mortar ring
+                    const pulse = Math.sin(performance.now() * 0.01) * 0.15;
+                    if (bullet.material) bullet.material.alpha = 0.7 + pulse;
+                }
+
                 let bulletHit = false;
                 for (let j = gameState.enemies.length - 1; j >= 0; j--) {
                     const enemy = gameState.enemies[j];
                     if (enemy.isDisabled) continue; // Skip disabled ships
                     const dx = bullet.position.x - enemy.position.x;
                     const dy = bullet.position.y - enemy.position.y;
-                    // Use elliptical hitbox - wider for wings
-                    const hitX = dx / (enemy.hitboxWidth || 0.9);
-                    const hitY = dy / (enemy.hitboxHeight || 0.6);
+                    // Use elliptical hitbox - wider for wings (mortars use larger detection)
+                    const hitScale = bullet.isMortar ? 1.5 : 1.0;
+                    const hitX = dx / ((enemy.hitboxWidth || 0.9) * hitScale);
+                    const hitY = dy / ((enemy.hitboxHeight || 0.6) * hitScale);
                     const dist = Math.sqrt(hitX * hitX + hitY * hitY);
 
                     if (dist < 1.0) {
+                        // Mortar explodes on contact with AoE
+                        if (bullet.isMortar) {
+                            triggerMortarExplosion(bullet);
+                            if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                            bullet.getChildMeshes().forEach(m => m.dispose());
+                            bullet.dispose();
+                            gameState.playerBullets.splice(i, 1);
+                            bulletHit = true;
+                            break;
+                        }
                         enemy.health -= bullet.damage;
 
                         createExplosion(bullet.position.x, bullet.position.y, 'small', 'yellow');
@@ -14645,6 +16502,7 @@
                             } else {
                                 createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
                                 createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                            tryDropWeapon(enemy.position.x, enemy.position.y, enemy.type);
 
                                 const points = enemy.type === 'challenger' ? 50 :
                                     enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
@@ -14656,6 +16514,7 @@
                                 if (enemy.laserPreviewMesh) {
                                     enemy.laserPreviewMesh.dispose();
                                 }
+                                cleanupEnemyWeaponWarning(enemy);
 
                                 enemy.getChildMeshes().forEach(m => m.dispose());
                                 enemy.dispose();
@@ -14680,6 +16539,36 @@
                 const bullet = gameState.enemyBullets[i];
                 bullet.position.x += bullet.velocityX;
                 bullet.position.y += bullet.velocityY;
+
+                // Enemy mortar: check max range or proximity to target for detonation
+                if (bullet.isMortar) {
+                    const travelDist = Math.abs(bullet.position.y - bullet.mortarStartY);
+                    if (travelDist >= bullet.mortarMaxRange) {
+                        triggerMortarExplosion(bullet);
+                        if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                        bullet.getChildMeshes().forEach(m => m.dispose());
+                        bullet.dispose();
+                        gameState.enemyBullets.splice(i, 1);
+                        continue;
+                    }
+                    if (bullet.material) {
+                        const pulse = Math.sin(performance.now() * 0.01) * 0.15;
+                        bullet.material.alpha = 0.7 + pulse;
+                    }
+                    // Mortar detonates near target position
+                    if (bullet.mortarTargetX !== undefined) {
+                        const tdx = bullet.position.x - bullet.mortarTargetX;
+                        const tdy = bullet.position.y - bullet.mortarTargetY;
+                        if (Math.sqrt(tdx * tdx + tdy * tdy) < 0.5) {
+                            triggerMortarExplosion(bullet);
+                            if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(bullet);
+                            bullet.getChildMeshes().forEach(m => m.dispose());
+                            bullet.dispose();
+                            gameState.enemyBullets.splice(i, 1);
+                            continue;
+                        }
+                    }
+                }
 
                 // Check if drones block this bullet
                 if (gameState.drones.length > 0 && checkDroneBlockBullet(bullet)) {
@@ -14810,6 +16699,7 @@
                     createExplosion(midX, midY, 'large', 'orange');
 
                     createLoot(enemy.position.x, enemy.position.y, enemy.type);
+                            tryDropWeapon(enemy.position.x, enemy.position.y, enemy.type);
 
                     flashShip(playerShipMesh);
 
@@ -14986,6 +16876,25 @@
                 l.dispose();
             });
             gameState.loot = [];
+
+            // Clear weapon drops, beam sweeps, burst queues on reset
+            if (gameState.weaponDrops) {
+                gameState.weaponDrops.forEach(d => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(d);
+                    d.getChildMeshes().forEach(m => m.dispose());
+                    d.dispose();
+                });
+                gameState.weaponDrops = [];
+            }
+            if (gameState.enemyBeamSweeps) {
+                gameState.enemyBeamSweeps.forEach(b => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                    b.getChildMeshes().forEach(m => m.dispose());
+                    b.dispose();
+                });
+                gameState.enemyBeamSweeps = [];
+            }
+            gameState.burstQueues = {};
 
             gameState.planets.forEach(p => p.dispose());
             gameState.planets = [];
@@ -15822,8 +17731,10 @@
                     updateBackgrounds(0.3, deltaTime);
                     // Keep updating bullets/projectiles so they don't freeze in place
                     updateBullets();
+                    updateBurstQueues(performance.now());
                     updateMissiles(deltaTime);
                     updateChallengerLasers();
+                    updateEnemyBeamSweeps();
                     if (gameState.encounterTimer <= 0) {
                         returnToExploration();
                     }
@@ -16111,7 +18022,9 @@
 
                 updateEnemies(deltaTime, currentTime, scrollMultiplier);
                 updateBullets();
+                updateBurstQueues(currentTime);
                 updateChallengerLasers();
+                updateEnemyBeamSweeps();
                 updatePlayerBeams();
                 updateMissiles(deltaTime);
                 updateDrones(deltaTime, currentTime);
@@ -16121,6 +18034,7 @@
                 updateDisabledShips(deltaTime);
                 checkBoardingProximity(deltaTime);
                 updateLoot(scrollMultiplier);
+                updateWeaponDrops(scrollMultiplier);
                 updatePlanets(scrollMultiplier, deltaTime);
                 updateSystemTraffic(scrollMultiplier, deltaTime);
                 updateStarbase(scrollMultiplier, deltaTime);
@@ -16503,7 +18417,9 @@
                 const scrollMultiplier = 0.5;
                 updateEnemies(deltaTime, currentTime, scrollMultiplier);
                 updateBullets();
+                updateBurstQueues(currentTime);
                 updateChallengerLasers();
+                updateEnemyBeamSweeps();
                 updatePlayerBeams();
                 updateMissiles(deltaTime);
                 updateDrones(deltaTime, currentTime);
@@ -16511,6 +18427,7 @@
                 updateSecondaryCooldown(deltaTime);
                 fireEquipmentWeapons(currentTime);
                 updateLoot(scrollMultiplier);
+                updateWeaponDrops(scrollMultiplier);
                 updateStars(scrollMultiplier);
             });
 
