@@ -13128,6 +13128,9 @@
 
             beam.laserDamage = ship.damage * (beh.dmgMult || 1.2);
             beam.laserWidth = beamWidth;
+            beam.sourceShip = ship;
+            beam._lastSourceX = ship.currentX;
+            beam._lastSourceY = ship.currentY;
             beam.lastDamageTime = 0;
             beam.damageInterval = 150;
             beam.sweepDirection = ship.sweepDirection || 1;
@@ -13180,6 +13183,9 @@
 
             laser.laserDamage = damage;
             laser.laserWidth = beamWidth;
+            laser.sourceShip = ship;
+            laser._offsetX = laser.position.x - ship.currentX;
+            laser._offsetY = laser.position.y - ship.currentY;
             laser.lastDamageTime = 0;
             laser.damageInterval = 100;
             laser.totalDamageTicks = 8;
@@ -15789,6 +15795,8 @@
             beam.laserDamage = enemy.damage * (beh.dmgMult || 1.2);
             beam.laserWidth = beamWidth;
             beam.sourceEnemy = enemy;
+            beam._lastSourceX = enemy.position.x;
+            beam._lastSourceY = enemy.position.y;
             beam.lastDamageTime = 0;
             beam.damageInterval = 150;
             beam.sweepDirection = enemy.sweepDirection || 1;
@@ -15847,6 +15855,8 @@
             laser.laserDamage = damage;
             laser.laserWidth = beamWidth;
             laser.sourceEnemy = enemy;
+            laser._offsetX = laser.position.x - enemy.position.x;
+            laser._offsetY = laser.position.y - enemy.position.y;
             laser.lastDamageTime = 0;
             laser.damageInterval = 100;
             laser.totalDamageTicks = 8;
@@ -15863,6 +15873,23 @@
             for (let i = gameState.enemyBeamSweeps.length - 1; i >= 0; i--) {
                 const beam = gameState.enemyBeamSweeps[i];
                 if (!beam || !beam.material) continue;
+
+                // Track source ship/enemy movement so beam stays attached
+                let sourceDX = 0, sourceDY = 0;
+                if (beam.sourceShip && beam._lastSourceX !== undefined) {
+                    sourceDX = beam.sourceShip.currentX - beam._lastSourceX;
+                    sourceDY = beam.sourceShip.currentY - beam._lastSourceY;
+                    beam._lastSourceX = beam.sourceShip.currentX;
+                    beam._lastSourceY = beam.sourceShip.currentY;
+                } else if (beam.sourceEnemy && beam.sourceEnemy.position && beam._lastSourceX !== undefined) {
+                    sourceDX = beam.sourceEnemy.position.x - beam._lastSourceX;
+                    sourceDY = beam.sourceEnemy.position.y - beam._lastSourceY;
+                    beam._lastSourceX = beam.sourceEnemy.position.x;
+                    beam._lastSourceY = beam.sourceEnemy.position.y;
+                }
+                beam.position.x += sourceDX;
+                beam.position.y += sourceDY;
+                beam.sweepStartX += sourceDX;
 
                 // Sweep the beam horizontally
                 beam.position.x += beam.sweepSpeed * beam.sweepDirection;
@@ -16036,6 +16063,15 @@
                 const laser = gameState.challengerLasers[i];
 
                 if (laser && laser.material) {
+                    // Track source ship/enemy movement so lance stays attached
+                    if (laser.sourceShip && laser._offsetX !== undefined) {
+                        laser.position.x = laser.sourceShip.currentX + laser._offsetX;
+                        laser.position.y = laser.sourceShip.currentY + laser._offsetY;
+                    } else if (laser.sourceEnemy && laser.sourceEnemy.position && laser._offsetX !== undefined) {
+                        laser.position.x = laser.sourceEnemy.position.x + laser._offsetX;
+                        laser.position.y = laser.sourceEnemy.position.y + laser._offsetY;
+                    }
+
                     // Check collision with player - continuous damage while in beam
                     if (playerShip && currentTime - laser.lastDamageTime >= laser.damageInterval) {
                         const dx = Math.abs(playerShip.position.x - laser.position.x);
@@ -16064,10 +16100,14 @@
                         if (sunGlowLayer) {
                             sunGlowLayer.removeIncludedOnlyMesh(laser);
                         }
-                        // Set movement cooldown on source enemy (0.5s delay after laser cleanup)
+                        // Set movement cooldown on source (0.5s delay after laser cleanup)
                         if (laser.sourceEnemy) {
                             laser.sourceEnemy.movementCooldownUntil = performance.now() + 500;
                         }
+                        if (laser.sourceShip) {
+                            laser.sourceShip.movementCooldownUntil = performance.now() + 500;
+                        }
+                        laser.getChildMeshes().forEach(m => m.dispose());
                         laser.dispose();
                         gameState.challengerLasers.splice(i, 1);
                     }
