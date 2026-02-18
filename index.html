@@ -9853,9 +9853,9 @@
                     }
                 }
             } else {
-                // Only reset if we're also not docking at a starbase
+                // Only reset if we're also not docking at a starbase or boarding a disabled ship
                 const nearStarbase = isNearStarbase();
-                if (!nearStarbase) {
+                if (!nearStarbase && !gameState.boardingTarget) {
                     gameState.harvestingPlanet = null;
                     gameState.harvestProgress = 0;
                     harvestBar.style.display = 'none';
@@ -12969,9 +12969,10 @@
                 const ship = cz.ships[i];
                 if (!ship.disabled || !ship.alive) continue;
 
-                // Check invulnerability expiry (1 second grace period)
+                // Mark invulnerability for deferred clearing (cleared at end of updateCombatZone
+                // so checkBoardingProximity and bullet collision see consistent state this frame)
                 if (ship.disabledInvulnerable && now - ship.disabledTime > 1000) {
-                    ship.disabledInvulnerable = false;
+                    ship._invulnExpiredThisFrame = true;
                 }
 
                 // Drift and decelerate
@@ -13806,12 +13807,23 @@
                 return;
             }
 
+            // --- CLEAR DEFERRED INVULNERABILITY ---
+            // Done after bullet collision so boarding proximity gets a frame to detect the ship
+            for (const ship of cz.ships) {
+                if (ship._invulnExpiredThisFrame) {
+                    ship.disabledInvulnerable = false;
+                    delete ship._invulnExpiredThisFrame;
+                }
+            }
+
             // --- PEACEFUL ZONE AUTO-EXIT ---
             // If no ships are hostile to each other, start peace timer
             let hasHostility = false;
+            let hasHarvestableDisabledShips = false;
             const aliveFactions = new Set();
             for (const ship of cz.ships) {
                 if (ship.alive && !ship.disabled) aliveFactions.add(ship.faction);
+                if (ship.alive && ship.disabled) hasHarvestableDisabledShips = true;
             }
             // Check if any two alive factions are hostile
             const factionList = Array.from(aliveFactions);
@@ -13830,7 +13842,8 @@
                 }
             }
 
-            if (!hasHostility || cz.ships.length === 0) {
+            // Disabled ships count as activity — don't exit while harvestable wrecks remain
+            if ((!hasHostility && !hasHarvestableDisabledShips) || cz.ships.length === 0) {
                 cz.peaceTimer += deltaTime;
                 if (cz.peaceTimer >= cz.peaceThreshold) {
                     // Smooth zoom out to exploration
