@@ -5981,6 +5981,34 @@
             }, 100);
         }
 
+        // Show credits gained notification (for salvage/boarding)
+        function showSalvageCredits(amount) {
+            const container = document.getElementById('collectNotifications');
+            if (!container) return;
+            const notif = document.createElement('div');
+            notif.className = 'collect-notif';
+            notif.innerHTML = `
+                <div class="symbol" style="background: #ffcc44">$</div>
+                <span class="amount">${amount} CR</span>
+            `;
+            container.appendChild(notif);
+            setTimeout(() => notif.remove(), 2000);
+        }
+
+        // Show bonus notification (hull repair, shield charge, etc.)
+        function showSalvageBonus(text) {
+            const container = document.getElementById('collectNotifications');
+            if (!container) return;
+            const notif = document.createElement('div');
+            notif.className = 'collect-notif';
+            notif.innerHTML = `
+                <div class="symbol" style="background: #44ffaa">+</div>
+                <span class="amount">${text}</span>
+            `;
+            container.appendChild(notif);
+            setTimeout(() => notif.remove(), 2000);
+        }
+
         // Create explosion effect
         function createExplosion(x, y, size = 'small', color = 'orange') {
             if (!scene) return;
@@ -11813,14 +11841,9 @@
 
         // Check if player is near a disabled ship and auto-board with progress (like harvesting)
         function checkBoardingProximity(deltaTime) {
-            const prompt = document.getElementById('boardingPrompt');
-            if (!prompt) return;
             if (!playerShip) return;
             // Don't process during boarding loot panel
-            if (gameState.boardingInProgress) {
-                prompt.style.display = 'none';
-                return;
-            }
+            if (gameState.boardingInProgress) return;
 
             let nearest = null;
             let nearestDist = Infinity;
@@ -11858,58 +11881,65 @@
                 }
             }
 
+            const harvestBar = document.getElementById('harvestBar');
+            const harvestBarFill = document.getElementById('harvestBarFill');
+            const harvestIcons = document.getElementById('harvestIcons');
+            const harvestFuelCost = document.getElementById('harvestFuelCost');
+
             if (!nearest) {
-                prompt.style.display = 'none';
                 gameState.boardingTarget = null;
                 if (gameState.boardingProgress > 0) {
                     gameState.boardingProgress = 0;
-                    const harvestBar = document.getElementById('harvestBar');
                     if (harvestBar) harvestBar.style.display = 'none';
+                    if (harvestIcons) harvestIcons.innerHTML = '';
+                    if (harvestFuelCost) harvestFuelCost.textContent = '';
                 }
                 return;
             }
 
-            // New target - reset progress
+            // New target - reset progress and update icons
             if (gameState.boardingTarget !== nearest) {
                 gameState.boardingTarget = nearest;
                 gameState.boardingProgress = 0;
+
+                // Show salvage preview in icons area (like planet resource preview)
+                if (harvestIcons) {
+                    const shipType = nearestIsCZ ? (nearest.type || 'ship') : (nearest.type || 'ship');
+                    const typeName = shipType.charAt(0).toUpperCase() + shipType.slice(1);
+                    harvestIcons.innerHTML = `<span class="resource-preview">🔧 ${typeName} Salvage</span>`;
+                }
+                if (harvestFuelCost) harvestFuelCost.textContent = '';
             }
             // Accumulate boarding progress (1.5 seconds to board)
             gameState.boardingProgress = (gameState.boardingProgress || 0) + deltaTime / 1500;
 
-            // Show progress bar using the harvest bar
-            const harvestBar = document.getElementById('harvestBar');
-            const harvestBarFill = document.getElementById('harvestBarFill');
+            // Show progress bar positioned at the ship (same pattern as planet/station)
             if (harvestBar && harvestBarFill) {
                 harvestBar.style.display = 'block';
                 harvestBarFill.style.width = `${Math.min(100, gameState.boardingProgress * 100)}%`;
-                // Position bar near the disabled ship
-                const canvas = document.querySelector('canvas');
-                if (canvas && gameCamera) {
-                    // CZ ships use currentX/currentY, arena ships use position
-                    const worldX = nearestIsCZ ? nearest.currentX : nearest.position.x;
-                    const worldY = nearestIsCZ ? nearest.currentY : nearest.position.y;
-                    const screenPos = BABYLON.Vector3.Project(
-                        new BABYLON.Vector3(worldX, worldY, 0),
-                        BABYLON.Matrix.Identity(),
-                        scene.getTransformMatrix(),
-                        gameCamera.viewport.toGlobal(canvas.width, canvas.height)
-                    );
-                    const barWidth = 60;
-                    harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
-                    harvestBar.style.top = (screenPos.y + 20) + 'px';
-                    harvestBar.style.width = barWidth + 'px';
-                    harvestBar.style.transform = 'none';
-                }
+
+                // Use worldToScreen for consistent positioning (like planets and stations)
+                const worldX = nearestIsCZ ? nearest.currentX : nearest.position.x;
+                const worldY = nearestIsCZ ? nearest.currentY : nearest.position.y;
+                const screenPos = worldToScreen(worldX, worldY);
+
+                // Size bar proportionally to ship (like planets use screenSize)
+                const shipScale = nearestIsCZ ? (nearest.baseScale || 1.0) : 1.0;
+                const screenSize = (shipScale * 2 / (orthoHeight * 2)) * canvas.clientHeight;
+                const halfSize = screenSize / 2;
+                const barWidth = Math.max(screenSize, 60); // Minimum 60px width
+                harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+                harvestBar.style.top = (screenPos.y + halfSize + 8) + 'px';
+                harvestBar.style.width = barWidth + 'px';
+                harvestBar.style.transform = 'none';
             }
-            // Show boarding label
-            prompt.style.display = 'block';
-            prompt.textContent = nearestIsCZ ? 'HARVESTING...' : 'BOARDING...';
 
             // Auto-board/harvest when progress completes
             if (gameState.boardingProgress >= 1) {
                 gameState.boardingProgress = 0;
                 if (harvestBar) harvestBar.style.display = 'none';
+                if (harvestIcons) harvestIcons.innerHTML = '';
+                if (harvestFuelCost) harvestFuelCost.textContent = '';
                 if (nearestIsCZ) {
                     harvestCZDisabledShip(nearest);
                 } else {
@@ -11924,73 +11954,58 @@
             if (!cz) return;
 
             createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
-            createDisabledShipLoot(ship);
+            const lootSummary = createDisabledShipLoot(ship);
             gameState.score += 20 * gameState.wave;
             gameState.stats.enemiesKilled++;
             updateHUD();
+
+            // Show collection notifications (same as planet harvesting)
+            if (lootSummary) {
+                Object.keys(lootSummary.resources).forEach(resName => {
+                    showResourceCollection(resName, lootSummary.resources[resName]);
+                });
+                if (lootSummary.credits > 0) {
+                    showSalvageCredits(lootSummary.credits);
+                }
+            }
 
             disposeCombatZoneShip(ship);
             const idx = cz.ships.indexOf(ship);
             if (idx !== -1) cz.ships.splice(idx, 1);
 
             gameState.boardingTarget = null;
-            const prompt = document.getElementById('boardingPrompt');
-            if (prompt) prompt.style.display = 'none';
         }
 
-        // Board a disabled ship and get loot
+        // Board a disabled ship and get loot (arena mode)
         function boardShip(ship) {
-            if (!ship || ship._isDisposed || gameState.boardingInProgress) return;
-            gameState.boardingInProgress = true;
+            if (!ship || ship._isDisposed) return;
 
-            // Hide boarding prompt and progress bar
-            const prompt = document.getElementById('boardingPrompt');
-            if (prompt) prompt.style.display = 'none';
             const harvestBar = document.getElementById('harvestBar');
             if (harvestBar) harvestBar.style.display = 'none';
             gameState.boardingProgress = 0;
 
             // Generate loot based on ship type
-            const lootTable = [];
             const shipType = ship.type || 'basic';
             const baseCredits = shipType === 'heavy' ? 80 : shipType === 'challenger' ? 150 :
                 shipType === 'shooter' ? 50 : shipType === 'light' ? 40 : 30;
             const credits = baseCredits + Math.floor(Math.random() * baseCredits);
 
-            lootTable.push({ label: credits + ' Credits', type: 'credits', value: credits });
+            gameState.credits += credits;
+            gameState.stats.creditsEarned += credits;
+            showSalvageCredits(credits);
 
             // Chance for bonus items based on ship type
             if (Math.random() < 0.4) {
                 const hpRestore = 10 + Math.floor(Math.random() * 20);
-                lootTable.push({ label: '+' + hpRestore + ' Hull Repair', type: 'hp', value: hpRestore });
+                gameState.health = Math.min(gameState.maxHealth, gameState.health + hpRestore);
+                showSalvageBonus('+' + hpRestore + ' Hull');
             }
             if (shipType === 'heavy' && Math.random() < 0.3) {
                 const shieldRestore = 15 + Math.floor(Math.random() * 25);
-                lootTable.push({ label: '+' + shieldRestore + ' Shield Charge', type: 'shield', value: shieldRestore });
+                gameState.shieldHP = Math.min(gameState.shieldMaxHP, gameState.shieldHP + shieldRestore);
+                showSalvageBonus('+' + shieldRestore + ' Shield');
             }
-
-            // Apply rewards
-            lootTable.forEach(item => {
-                if (item.type === 'credits') {
-                    gameState.credits += item.value;
-                    gameState.stats.creditsEarned += item.value;
-                } else if (item.type === 'hp') {
-                    gameState.health = Math.min(gameState.maxHealth, gameState.health + item.value);
-                } else if (item.type === 'shield') {
-                    gameState.shieldHP = Math.min(gameState.shieldMaxHP, gameState.shieldHP + item.value);
-                }
-            });
             updateHUD();
-
-            // Show loot panel
-            const panel = document.getElementById('boardingLootPanel');
-            const itemsDiv = document.getElementById('boardingLootItems');
-            if (panel && itemsDiv) {
-                itemsDiv.innerHTML = lootTable.map(item =>
-                    '<div class="loot-item">' + item.label + '</div>'
-                ).join('');
-                panel.style.display = 'block';
-            }
 
             // Remove the disabled ship
             const dsIdx = gameState.disabledShips.indexOf(ship);
@@ -11999,7 +12014,7 @@
             if (eIdx !== -1) gameState.enemies.splice(eIdx, 1);
 
             // Dispose ship mesh
-            createExplosion(ship.position.x, ship.position.y, 'small', 'blue');
+            createExplosion(ship.position.x, ship.position.y, 'large', 'blue');
             ship.getChildMeshes().forEach(m => m.dispose());
             ship.dispose();
 
@@ -13044,12 +13059,15 @@
         }
 
         // Enhanced loot for harvesting a disabled ship
+        // Returns { resources: { Metal: 5, Crystals: 3, ... }, credits: 25 }
         function createDisabledShipLoot(ship) {
             const x = ship.currentX;
             const y = ship.currentY;
             const type = ship.type;
             const level = gameState.level || 1;
             const sizeScale = ship.baseScale || 1.0;
+
+            const lootSummary = { resources: {}, credits: 0 };
 
             // --- Resource loot (scaled by level and size) ---
             // Base piece count by type, then multiplied
@@ -13111,12 +13129,14 @@
                 lootMesh.metalTex = metalTex;
 
                 gameState.loot.push(lootMesh);
+                lootSummary.resources[resourceType] = (lootSummary.resources[resourceType] || 0) + resourceAmount;
             }
 
             // --- Credits bonus (scaled) ---
             const baseCredits = { basic: 8, light: 5, fast: 5, shooter: 15, heavy: 25, challenger: 40, elite: 35, boss: 60 };
             const credits = Math.round((baseCredits[type] || 10) * levelMult * sizeMult);
             gameState.credits = (gameState.credits || 0) + credits;
+            lootSummary.credits = credits;
 
             // --- Weapon drop with boosted chance (2x-3x normal) ---
             const dropChances = {
@@ -13143,6 +13163,7 @@
                 const equip = generateEquipment(Math.max(1, level));
                 if (equip) createWeaponDrop(x, y, equip);
             }
+            return lootSummary;
         }
 
         // Check if a faction is hostile to the player in the combat zone
@@ -13730,10 +13751,17 @@
                             if (ship.disabledHp <= 0) {
                                 // Harvested! Enhanced loot
                                 createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
-                                createDisabledShipLoot(ship);
+                                const lootSummary = createDisabledShipLoot(ship);
                                 gameState.score += 20 * gameState.wave;
                                 gameState.stats.enemiesKilled++;
                                 updateHUD();
+                                // Show collection notifications
+                                if (lootSummary) {
+                                    Object.keys(lootSummary.resources).forEach(resName => {
+                                        showResourceCollection(resName, lootSummary.resources[resName]);
+                                    });
+                                    if (lootSummary.credits > 0) showSalvageCredits(lootSummary.credits);
+                                }
                                 disposeCombatZoneShip(ship);
                                 cz.ships.splice(si, 1);
                             } else {
