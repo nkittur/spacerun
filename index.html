@@ -12479,6 +12479,11 @@
             const boardPrompt = document.getElementById('boardingPrompt');
             if (boardPrompt) boardPrompt.style.display = 'none';
 
+            // Clear targeting overlay (corners + harvest bar) so they don't linger during zoom-out
+            updateTargetingOverlay(null);
+            gameState.harvestingPlanet = null;
+            gameState.harvestProgress = 0;
+
             // Combat zone already cleaned up by finishCombatZone() before we get here
 
             // Clean up all combat projectiles and remaining enemies
