@@ -4226,6 +4226,7 @@
             },
             levelEndSpawned: false, // Whether end-of-level content (reward + gates) has been spawned
             speedUp: false,         // Speed-up button pressed
+            speedUpHeldTime: 0,     // How long speed-up has been held (for ramp-up)
             inExploration: false,   // Between waves - no combat, just exploration
             explorationDistance: 0, // Distance traveled in current exploration zone
             // Zoomed-out exploration mode
@@ -18001,9 +18002,16 @@
                 let deltaTime = Math.min(currentTime - gameState.lastFrameTime, 50);
                 gameState.lastFrameTime = currentTime;
 
-                // Apply speed-up multiplier when button is pressed
-                const speedMultiplier = gameState.speedUp ? 24 : 1;
-                deltaTime *= speedMultiplier;
+                // Apply speed-up multiplier when button is pressed (ramps up over time)
+                if (gameState.speedUp) {
+                    gameState.speedUpHeldTime += deltaTime;
+                    // Ramp from 2x to 12x over 2 seconds of holding
+                    const rampProgress = Math.min(gameState.speedUpHeldTime / 2000, 1);
+                    const speedMultiplier = 2 + rampProgress * 10;
+                    deltaTime *= speedMultiplier;
+                } else {
+                    gameState.speedUpHeldTime = 0;
+                }
 
                 // Update speed-up button visibility
                 updateSpeedUpButton();
