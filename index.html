@@ -9614,11 +9614,13 @@
 
             if (!planet) {
                 corners.forEach(c => c.style.display = 'none');
-                harvestBar.style.display = 'none';
                 planetInfo.style.display = 'none';
-                // Clear icons
-                document.getElementById('harvestIcons').innerHTML = '';
-                document.getElementById('harvestFuelCost').textContent = '';
+                // Only hide shared harvest bar/icons if not boarding a disabled ship
+                if (!gameState.boardingTarget) {
+                    harvestBar.style.display = 'none';
+                    document.getElementById('harvestIcons').innerHTML = '';
+                    document.getElementById('harvestFuelCost').textContent = '';
+                }
                 return;
             }
 
