@@ -18935,11 +18935,12 @@
                 gameState.lastFrameTime = currentTime;
 
                 // Apply speed-up multiplier when button is pressed (ramps up over time)
+                let speedMultiplier = 1;
                 if (gameState.speedUp) {
                     gameState.speedUpHeldTime += deltaTime;
                     // Ramp from 2x to 12x over 2 seconds of holding
                     const rampProgress = Math.min(gameState.speedUpHeldTime / 2000, 1);
-                    const speedMultiplier = 2 + rampProgress * 10;
+                    speedMultiplier = 2 + rampProgress * 10;
                     deltaTime *= speedMultiplier;
                 } else {
                     gameState.speedUpHeldTime = 0;
