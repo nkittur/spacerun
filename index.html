@@ -1100,327 +1100,6 @@
             display: none;
         }
 
-        .arena-btn {
-            background: linear-gradient(180deg, #ff6644 0%, #dd4422 100%);
-            border-color: #ff8866;
-            box-shadow: 0 0 20px rgba(255, 102, 68, 0.4);
-        }
-
-        .arena-btn:hover {
-            background: linear-gradient(180deg, #ff7755 0%, #ee5533 100%);
-            box-shadow: 0 0 30px rgba(255, 102, 68, 0.7);
-        }
-
-        /* Arena Configuration Panel */
-        #arenaConfig {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 200;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        .arena-panel {
-            max-width: 900px;
-            margin: 0 auto;
-            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-            border: 2px solid #ff6644;
-            border-radius: 15px;
-            padding: 30px;
-        }
-
-        .arena-panel h2 {
-            color: #ff6644;
-            text-align: center;
-            margin-bottom: 25px;
-            font-size: 28px;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-        }
-
-        .arena-section {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid #334;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .arena-section h3 {
-            color: #88aaff;
-            margin-bottom: 15px;
-            font-size: 16px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            border-bottom: 1px solid #334;
-            padding-bottom: 10px;
-        }
-
-        .arena-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 10px;
-        }
-
-        .arena-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px;
-            background: rgba(68, 136, 255, 0.1);
-            border: 1px solid #335;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .arena-checkbox:hover {
-            background: rgba(68, 136, 255, 0.2);
-            border-color: #4488ff;
-        }
-
-        .arena-checkbox input {
-            width: 18px;
-            height: 18px;
-            accent-color: #ff6644;
-        }
-
-        .arena-checkbox label {
-            color: #aaccff;
-            font-size: 13px;
-            cursor: pointer;
-            flex: 1;
-        }
-
-        .arena-checkbox.selected {
-            background: rgba(255, 102, 68, 0.2);
-            border-color: #ff6644;
-        }
-
-        .arena-row {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .arena-row label {
-            color: #88aaff;
-            min-width: 120px;
-        }
-
-        .arena-select, .arena-input {
-            flex: 1;
-            padding: 10px 15px;
-            background: #1a1a2e;
-            border: 1px solid #335;
-            border-radius: 6px;
-            color: #fff;
-            font-size: 14px;
-        }
-
-        .arena-select:focus, .arena-input:focus {
-            border-color: #ff6644;
-            outline: none;
-        }
-
-        .arena-weapons-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 10px;
-            max-height: 250px;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
-
-        .weapon-card {
-            background: rgba(68, 136, 255, 0.1);
-            border: 1px solid #335;
-            border-radius: 8px;
-            padding: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .weapon-card:hover {
-            background: rgba(68, 136, 255, 0.2);
-            border-color: #4488ff;
-        }
-
-        .weapon-card.selected {
-            background: rgba(255, 102, 68, 0.2);
-            border-color: #ff6644;
-        }
-
-        .weapon-card .weapon-name {
-            color: #fff;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .weapon-card .weapon-stats {
-            color: #88aaff;
-            font-size: 11px;
-        }
-
-        .weapon-card .weapon-size {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 10px;
-            text-transform: uppercase;
-            margin-top: 5px;
-        }
-
-        .weapon-card .weapon-size.light { background: #2d5a2d; color: #8f8; }
-        .weapon-card .weapon-size.medium { background: #5a5a2d; color: #ff8; }
-        .weapon-card .weapon-size.heavy { background: #5a2d2d; color: #f88; }
-        .weapon-card .weapon-size.assault { background: #5a2d5a; color: #f8f; }
-
-        .upgrades-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 10px;
-        }
-
-        .upgrade-card {
-            background: rgba(68, 136, 255, 0.1);
-            border: 1px solid #335;
-            border-radius: 8px;
-            padding: 15px;
-        }
-
-        .upgrade-card .upgrade-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        .upgrade-card .upgrade-icon {
-            font-size: 20px;
-        }
-
-        .upgrade-card .upgrade-name {
-            color: #fff;
-            font-weight: bold;
-            font-size: 13px;
-        }
-
-        .upgrade-card .upgrade-level {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .upgrade-card .upgrade-level button {
-            width: 28px;
-            height: 28px;
-            background: #335;
-            border: 1px solid #446;
-            border-radius: 4px;
-            color: #fff;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        .upgrade-card .upgrade-level button:hover {
-            background: #446;
-        }
-
-        .upgrade-card .upgrade-level span {
-            color: #ff6644;
-            font-weight: bold;
-            min-width: 50px;
-            text-align: center;
-        }
-
-        .arena-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-top: 25px;
-        }
-
-        .arena-buttons button {
-            padding: 15px 40px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.2s;
-        }
-
-        .arena-start-btn {
-            background: linear-gradient(180deg, #44dd44 0%, #22aa22 100%);
-            border: 2px solid #66ff66;
-            color: white;
-        }
-
-        .arena-start-btn:hover {
-            box-shadow: 0 0 20px rgba(68, 221, 68, 0.5);
-        }
-
-        .arena-back-btn {
-            background: #334;
-            border: 2px solid #445;
-            color: #aaa;
-        }
-
-        .arena-back-btn:hover {
-            background: #445;
-            color: #fff;
-        }
-
-        .hardpoint-slots {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
-        .hardpoint-slot {
-            background: rgba(0, 0, 0, 0.3);
-            border: 2px dashed #446;
-            border-radius: 8px;
-            padding: 15px;
-            min-width: 180px;
-            text-align: center;
-        }
-
-        .hardpoint-slot.filled {
-            border-style: solid;
-            border-color: #ff6644;
-        }
-
-        .hardpoint-slot .slot-label {
-            color: #667;
-            font-size: 11px;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .hardpoint-slot .slot-weapon {
-            color: #fff;
-            font-size: 13px;
-        }
-
-        .hardpoint-slot .slot-clear {
-            color: #f66;
-            font-size: 11px;
-            cursor: pointer;
-            margin-top: 5px;
-        }
-
-        .hardpoint-slot .slot-clear:hover {
-            text-decoration: underline;
-        }
-
         #loadingScreen {
             display: none;
             flex-direction: column;
@@ -2480,6 +2159,237 @@
             color: #88a;
         }
 
+        /* ========== BOUNTY MISSION BOARD ========== */
+        .mission-board-header {
+            color: #ff6644;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255, 102, 68, 0.3);
+        }
+        .bounty-card {
+            background: rgba(40, 20, 15, 0.9);
+            border: 1px solid rgba(255, 80, 40, 0.4);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .bounty-card:hover {
+            background: rgba(60, 30, 20, 0.95);
+            border-color: #ff6644;
+            box-shadow: 0 0 15px rgba(255, 80, 40, 0.3);
+        }
+        .bounty-card.active-bounty {
+            border-color: #ffaa33;
+            box-shadow: 0 0 12px rgba(255, 170, 50, 0.3);
+        }
+        .bounty-card.active-bounty::after {
+            content: 'ACTIVE';
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            font-size: 9px;
+            color: #ffaa33;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        .bounty-name {
+            color: #ff8866;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+        .bounty-alias {
+            color: #aa7766;
+            font-size: 11px;
+            font-style: italic;
+            margin-bottom: 6px;
+        }
+        .bounty-skulls {
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .bounty-skulls .skull {
+            color: #ff4433;
+            font-size: 13px;
+            margin-right: 1px;
+        }
+        .bounty-desc {
+            color: #bbaa99;
+            font-size: 11px;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+        .bounty-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+        }
+        .bounty-reward {
+            color: #ffcc44;
+            font-weight: bold;
+        }
+        .bounty-fleet {
+            color: #88aacc;
+        }
+        .bounty-accept-btn {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            background: rgba(255, 80, 40, 0.2);
+            border: 1px solid #ff6644;
+            border-radius: 6px;
+            color: #ff8866;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s ease;
+        }
+        .bounty-accept-btn:hover {
+            background: rgba(255, 80, 40, 0.4);
+            box-shadow: 0 0 12px rgba(255, 80, 40, 0.3);
+        }
+        .bounty-accept-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .bounty-abandon-btn {
+            width: 100%;
+            padding: 8px;
+            margin-top: 6px;
+            background: rgba(80, 40, 30, 0.3);
+            border: 1px solid #664433;
+            border-radius: 6px;
+            color: #886655;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .bounty-abandon-btn:hover {
+            background: rgba(120, 50, 30, 0.4);
+            border-color: #885544;
+            color: #aa7755;
+        }
+        .no-missions-msg {
+            text-align: center;
+            padding: 30px 15px;
+            color: #556;
+            font-size: 13px;
+        }
+        .active-bounty-banner {
+            background: rgba(255, 170, 50, 0.1);
+            border: 1px solid rgba(255, 170, 50, 0.3);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+        }
+        .active-bounty-banner .banner-label {
+            color: #ffaa33;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+        .active-bounty-banner .banner-name {
+            color: #ffcc66;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .active-bounty-banner .banner-skulls {
+            display: inline-block;
+            margin-left: 6px;
+        }
+
+        /* Bounty Reward Dialog */
+        #bountyRewardDialog {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 15, 0.95);
+            display: none;
+            z-index: 210;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .bounty-reward-header {
+            text-align: center;
+            padding: 20px 15px 10px;
+        }
+        .bounty-reward-header h2 {
+            color: #ff6644;
+            font-size: 22px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 4px;
+            text-shadow: 0 0 20px rgba(255, 80, 40, 0.6);
+        }
+        .bounty-reward-header .reward-subtitle {
+            color: #aa7766;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+        .bounty-reward-target {
+            text-align: center;
+            padding: 15px;
+        }
+        .bounty-reward-target .target-name {
+            color: #ffaa66;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .bounty-reward-target .target-skulls {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .bounty-reward-target .target-flavor {
+            color: #bbaa99;
+            font-size: 12px;
+            font-style: italic;
+            max-width: 350px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        .bounty-reward-items {
+            width: 100%;
+            max-width: 350px;
+            padding: 10px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 15px;
+        }
+        .bounty-continue-btn {
+            padding: 14px 40px;
+            background: rgba(255, 80, 40, 0.2);
+            border: 2px solid #ff6644;
+            border-radius: 10px;
+            color: #ff8866;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+        }
+        .bounty-continue-btn:hover {
+            background: rgba(255, 80, 40, 0.4);
+            box-shadow: 0 0 20px rgba(255, 80, 40, 0.4);
+        }
+
         /* Depart Button */
         #stationDepartBtn {
             position: fixed;
@@ -2811,7 +2721,6 @@
             <button id="newGameBtn" class="title-btn">New Game</button>
             <button id="continueBtn" class="title-btn">Continue</button>
             <button id="researchBtn" class="title-btn research-btn">Research Lab</button>
-            <button id="arenaModeBtn" class="title-btn arena-btn">Arena Mode</button>
         </div>
         <div id="loadingScreen">
             <div class="loading-spinner"></div>
@@ -2836,134 +2745,6 @@
         </div>
         <div class="tech-trees-container" id="techTreesContainer"></div>
         <button class="reset-tree-btn" id="resetTreeBtn">Reset All Trees (Free)</button>
-    </div>
-
-    <!-- Arena Mode Configuration Panel -->
-    <div id="arenaConfig">
-        <div class="arena-panel">
-            <h2>Arena Mode</h2>
-
-            <!-- Enemy Selection -->
-            <div class="arena-section">
-                <h3>Select Enemies</h3>
-                <div class="arena-grid" id="arenaEnemyGrid">
-                    <div class="arena-checkbox selected">
-                        <input type="checkbox" id="enemy_basic" checked>
-                        <label for="enemy_basic">Basic</label>
-                    </div>
-                    <div class="arena-checkbox">
-                        <input type="checkbox" id="enemy_fast">
-                        <label for="enemy_fast">Fast</label>
-                    </div>
-                    <div class="arena-checkbox">
-                        <input type="checkbox" id="enemy_shooter">
-                        <label for="enemy_shooter">Shooter</label>
-                    </div>
-                    <div class="arena-checkbox">
-                        <input type="checkbox" id="enemy_light">
-                        <label for="enemy_light">Light (Dispatcher)</label>
-                    </div>
-                    <div class="arena-checkbox">
-                        <input type="checkbox" id="enemy_heavy">
-                        <label for="enemy_heavy">Heavy (Imperial)</label>
-                    </div>
-                    <div class="arena-checkbox">
-                        <input type="checkbox" id="enemy_challenger">
-                        <label for="enemy_challenger">Challenger</label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Wave Configuration -->
-            <div class="arena-section">
-                <h3>Wave Settings</h3>
-                <div class="arena-row">
-                    <label>Starting Enemies:</label>
-                    <input type="number" id="arenaStartEnemies" class="arena-input" value="5" min="1" max="30">
-                </div>
-                <div class="arena-row">
-                    <label>Enemies Per Wave:</label>
-                    <input type="number" id="arenaEnemiesPerWave" class="arena-input" value="2" min="0" max="10">
-                </div>
-                <div class="arena-row">
-                    <label>Enemy Health Scale:</label>
-                    <select id="arenaHealthScale" class="arena-select">
-                        <option value="0.5">Easy (50%)</option>
-                        <option value="1" selected>Normal (100%)</option>
-                        <option value="1.5">Hard (150%)</option>
-                        <option value="2">Extreme (200%)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Ship Selection -->
-            <div class="arena-section">
-                <h3>Select Ship</h3>
-                <div class="arena-row">
-                    <label>Ship Model:</label>
-                    <select id="arenaShipModel" class="arena-select">
-                        <option value="Bob">Bob</option>
-                        <option value="Challenger">Challenger</option>
-                        <option value="Dispatcher">Dispatcher</option>
-                        <option value="Executioner">Executioner</option>
-                        <option value="Imperial">Imperial</option>
-                        <option value="Insurgent">Insurgent</option>
-                        <option value="Omen">Omen</option>
-                        <option value="Pancake">Pancake</option>
-                        <option value="Spitfire">Spitfire</option>
-                        <option value="Striker">Striker</option>
-                        <option value="Zenith">Zenith</option>
-                    </select>
-                </div>
-                <div class="arena-row">
-                    <label>Ship Color:</label>
-                    <select id="arenaShipColor" class="arena-select">
-                        <option value="Blue">Blue</option>
-                        <option value="Red">Red</option>
-                        <option value="Green">Green</option>
-                        <option value="Orange">Orange</option>
-                        <option value="Purple">Purple</option>
-                        <option value="Yellow">Yellow</option>
-                        <option value="White">White</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Hardpoints & Weapons -->
-            <div class="arena-section">
-                <h3>Weapon Loadout</h3>
-                <div class="arena-row">
-                    <label>Hardpoints:</label>
-                    <select id="arenaHardpointCount" class="arena-select">
-                        <option value="1">1 Hardpoint (Medium)</option>
-                        <option value="2">2 Hardpoints (Medium + Light)</option>
-                        <option value="3" selected>3 Hardpoints (Medium + 2 Light)</option>
-                        <option value="4">4 Hardpoints (Heavy + Medium + 2 Light)</option>
-                    </select>
-                </div>
-                <div id="arenaHardpoints" class="hardpoint-slots">
-                    <!-- Dynamically populated -->
-                </div>
-                <h4 style="color: #88aaff; margin: 15px 0 10px; font-size: 13px;">Available Weapons (click to equip)</h4>
-                <div id="arenaWeaponsGrid" class="arena-weapons-grid">
-                    <!-- Dynamically populated -->
-                </div>
-            </div>
-
-            <!-- Upgrades -->
-            <div class="arena-section">
-                <h3>Ship Upgrades</h3>
-                <div id="arenaUpgrades" class="upgrades-grid">
-                    <!-- Dynamically populated -->
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="arena-buttons">
-                <button id="arenaBackBtn" class="arena-back-btn">Back</button>
-                <button id="arenaStartBtn" class="arena-start-btn">Start Arena</button>
-            </div>
-        </div>
     </div>
 
     <button id="systemBtn" style="display: none;">⏸</button>
@@ -3001,6 +2782,20 @@
         <div class="mystery-event-description" id="mysteryEventDesc"></div>
         <div class="mystery-event-choices" id="mysteryEventChoices"></div>
         <div class="mystery-event-outcome" id="mysteryEventOutcome" style="display:none;"></div>
+    </div>
+
+    <div id="bountyRewardDialog">
+        <div class="bounty-reward-header">
+            <h2 id="bountyRewardTitle">Bounty Complete</h2>
+            <div class="reward-subtitle" id="bountyRewardSubtitle">Target eliminated</div>
+        </div>
+        <div class="bounty-reward-target">
+            <div class="target-name" id="bountyRewardName"></div>
+            <div class="target-skulls" id="bountyRewardSkulls"></div>
+            <div class="target-flavor" id="bountyRewardFlavor"></div>
+        </div>
+        <div class="bounty-reward-items" id="bountyRewardItems"></div>
+        <button class="bounty-continue-btn" onclick="closeBountyReward()">Collect Bounty</button>
     </div>
 
     <div id="settingsPanel">
@@ -3088,8 +2883,6 @@
             <div class="hud-stats">
                 <span class="hud-stat">Lv<span id="level">1</span></span>
                 <span class="hud-divider">|</span>
-                <span class="hud-stat"><span id="wave">1</span>/<span id="totalWaves">3</span></span>
-                <span class="hud-divider">|</span>
                 <span class="hud-stat">$<span id="creditsHud">0</span></span>
                 <span class="hud-divider">|</span>
                 <span class="hud-stat" id="fuelStat">⛽<span id="fuelValue">100</span></span>
@@ -3162,10 +2955,7 @@
             <!-- Missions Section -->
             <div id="sectionMissions" class="station-section">
                 <h3>Mission Board</h3>
-                <div class="coming-soon">
-                    <div class="coming-soon-icon">📋</div>
-                    <div class="coming-soon-text">Mission contracts coming soon...</div>
-                </div>
+                <div id="missionBoardContent"></div>
             </div>
 
             <!-- Outfitter Section -->
@@ -4193,7 +3983,6 @@
             // Starbase and weapons
             starbase: null,
             isDocked: false,
-            wavesUntilStarbase: 1,
             credits: 0,
             ownedWeapons: [],  // Now stores full weapon objects
             equippedWeapons: [], // Weapons equipped on hardpoints
@@ -4204,7 +3993,6 @@
             stationWeapons: [],  // Weapons available at current station
             // River navigation - level system
             level: 1,
-            levelWave: 0,           // Current wave within level (0 = not started)
             levelConfig: null,      // Config for current level
             stationsVisited: 0,     // How many stations visited this level
             warpGates: [],          // Active warp gates
@@ -4227,8 +4015,6 @@
             levelEndSpawned: false, // Whether end-of-level content (reward + gates) has been spawned
             speedUp: false,         // Speed-up button pressed
             speedUpHeldTime: 0,     // How long speed-up has been held (for ramp-up)
-            inExploration: false,   // Between waves - no combat, just exploration
-            explorationDistance: 0, // Distance traveled in current exploration zone
             // Zoomed-out exploration mode
             explorationMode: false,         // Whether in zoomed-out exploration view
             currentEncounter: null,         // Encounter currently engaged in combat
@@ -4260,11 +4046,6 @@
             boardingTarget: null,           // Nearest boardable disabled ship
             boardingInProgress: false,      // Whether boarding loot panel is open
             boardingProgress: 0,            // Auto-board progress (0-1, like harvesting)
-            arenaMode: false,       // Arena mode active
-            arenaConfig: null,      // Arena configuration
-            arenaWave: 0,           // Current arena wave
-            arenaKills: 0,          // Total kills in arena
-            arenaSpeedBonus: 1,     // Speed bonus from arena upgrades
             // Mystery events (gate-based)
             mysteryEventActive: false,  // Whether mystery event dialog is open
             eventObject: null,          // Current event object mesh (e.g., behemoth derelict)
@@ -4283,7 +4064,13 @@
             secondaryAbility: null,     // Equipped secondary ability data
             secondaryCooldown: 0,       // Remaining cooldown (ms)
             secondaryMaxCooldown: 0,    // Max cooldown (ms)
-            secondaryActive: false      // Whether secondary is currently firing
+            secondaryActive: false,      // Whether secondary is currently firing
+            // Bounty mission system
+            activeBounty: null,          // Current accepted bounty mission
+            stationBounties: null,       // Bounties available at current station
+            bountyGate: null,            // Bounty warp gate mesh in exploration
+            bountyEncounterActive: false,// Whether currently in a bounty encounter
+            bountyRewardPending: false   // Whether bounty reward dialog should show
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -6881,14 +6668,14 @@
         }
 
         // Create starbase
-        function createStarbase() {
+        function createStarbase(spawnX, spawnY) {
             if (!scene || gameState.starbase) return;
 
             const starbaseSize = 2.5; // Smaller than planets
             const starbase = BABYLON.MeshBuilder.CreatePlane('starbase', { size: starbaseSize }, scene);
 
-            starbase.position.x = (Math.random() - 0.5) * orthoWidth;
-            starbase.position.y = orthoHeight + starbaseSize;
+            starbase.position.x = spawnX !== undefined ? spawnX : (Math.random() - 0.5) * orthoWidth;
+            starbase.position.y = spawnY !== undefined ? spawnY : orthoHeight + starbaseSize;
             starbase.position.z = 0.2; // In front of planets and suns
 
             const texture = new BABYLON.Texture('assets/stellar objects/starbase.png', scene);
@@ -6969,11 +6756,11 @@
                 }
             }
 
-            // Remove if off screen - return to exploration or spawn next wave
+            // Remove if off screen - station scrolled past without docking
             if (starbase.position.y < -orthoHeight - starbase.size) {
                 starbase.dispose();
                 gameState.starbase = null;
-                enterExplorationMode(gameState.levelConfig);
+                gameState.stationsVisited++;
             }
         }
 
@@ -7070,6 +6857,10 @@
 
             // Update ship upgrades display
             updateUpgradesUI();
+
+            // Generate station bounties for mission board
+            gameState.stationBounties = generateStationBounties();
+            populateMissionBoard();
         }
 
         // Update shipyard fuel display
@@ -7525,6 +7316,9 @@
             if (sectionName === 'trading') {
                 updateTradingUI();
             }
+            if (sectionName === 'missions') {
+                populateMissionBoard();
+            }
         }
 
         // Buy weapon from station
@@ -7707,14 +7501,16 @@
             // Increment stations visited counter
             gameState.stationsVisited++;
 
-            // Remove starbase
-            if (gameState.starbase) {
-                gameState.starbase.dispose();
-                gameState.starbase = null;
-            }
+            // Clear station-specific bounties (board refreshes at each station)
+            gameState.stationBounties = null;
 
-            // Return to exploration mode
-            enterExplorationMode(gameState.levelConfig);
+            // Position ship at the station's location (return to system view)
+            if (playerShip && gameState.starbase) {
+                playerShip.position.x = gameState.starbase.position.x;
+                playerShip.position.y = gameState.starbase.position.y - 1;
+                playerShip.targetX = playerShip.position.x;
+                playerShip.targetY = playerShip.position.y;
+            }
 
             // Save game after departing
             saveGame();
@@ -7768,7 +7564,7 @@
 
         // ========== RIVER NAVIGATION - WARP GATES ==========
 
-        // Generate all end-of-level content (reward zone + gate zone)
+        // Generate all system content (sun, planets, stations, gates)
         // Uses position-based spawning - content is placed at specific Y coordinates
         function generateLevelEndContent() {
             if (!scene || gameState.levelEndSpawned) return;
@@ -7776,12 +7572,29 @@
             // Base spawn position - above the visible screen
             const baseSpawnY = orthoHeight + 10;
 
-            // 1. REWARD ZONE: Spawn solar system as reward for completing waves
+            // 1. SYSTEM ZONE: Spawn solar system (sun + planets + traffic)
             const rewardY = baseSpawnY;
             createSolarSystemAt(rewardY);
 
-            // 2. GATE ZONE: Spawn warp gates after the reward zone
-            const gateY = rewardY + LEVEL_ZONE_HEIGHTS.reward;
+            // 2. STATION ZONE: Spawn stations from level config between sun and gates
+            const config = gameState.levelConfig;
+            let stationOffset = 0;
+            if (config && config.stations && config.stations.length > 0 && gameState.stationsVisited < config.stations.length) {
+                const stationSpacing = 8; // Y spacing between stations
+                for (let i = gameState.stationsVisited; i < config.stations.length; i++) {
+                    const stationY = rewardY + LEVEL_ZONE_HEIGHTS.reward * 0.5 + stationSpacing * (i - gameState.stationsVisited);
+                    const stationX = (Math.random() - 0.5) * orthoWidth * 0.6;
+                    // Only one starbase can exist at a time in gameState, so we spawn the first one
+                    // Remaining stations are queued for spawning as player scrolls
+                    if (i === gameState.stationsVisited) {
+                        createStarbase(stationX, stationY);
+                    }
+                    stationOffset = stationSpacing * (config.stations.length - gameState.stationsVisited);
+                }
+            }
+
+            // 3. GATE ZONE: Spawn warp gates after system content + stations
+            const gateY = rewardY + LEVEL_ZONE_HEIGHTS.reward + stationOffset;
             createWarpGates(gateY);
 
             gameState.levelEndSpawned = true;
@@ -8303,6 +8116,275 @@
             gameState.systemTraffic = [];
         }
 
+        // ========== BOUNTY MISSION SYSTEM ==========
+
+        // Named bounty targets - 80s/90s gaming references with tongue-in-cheek names
+        const BOUNTY_TARGETS = [
+            // Skull 1 - Easy
+            { name: 'Bowski the Plumber', alias: 'The Pipe Wrecker', flavor: 'Known for jumping on cargo containers and stealing gold coins from merchants. Surprisingly agile for a plumber.', minSkulls: 1, maxSkulls: 1 },
+            { name: 'Pac-Maw', alias: 'The Hungry One', flavor: 'Consumes everything in his path. Has been known to eat entire fuel depots. Afraid of ghosts, apparently.', minSkulls: 1, maxSkulls: 1 },
+            { name: 'Donkey Krag', alias: 'The Barrel Chucker', flavor: 'A notorious pirate who rolls explosive barrels at anyone who approaches. Big ape energy.', minSkulls: 1, maxSkulls: 2 },
+            { name: 'Lunk', alias: 'The Pot Smasher', flavor: 'Goes around breaking every container he finds looking for credits. Wears a funny green hat. Hyaaa!', minSkulls: 1, maxSkulls: 2 },
+            // Skull 2 - Moderate
+            { name: 'Samus Arant', alias: 'The Bounty Hunter\'s Bounty', flavor: 'Ironic -- a bounty hunter who became the bounty. Her ship can roll into a ball, somehow.', minSkulls: 2, maxSkulls: 2 },
+            { name: 'Solid Serpent', alias: 'The Cardboard Ghost', flavor: 'Master of stealth. Known for hiding inside shipping containers. You\'ll never see him coming... or will you?', minSkulls: 2, maxSkulls: 3 },
+            { name: 'Sonic Hedgerow', alias: 'The Blue Blur', flavor: 'Too fast for his own good. Collects rings obsessively. DO NOT let him near any golden jewelry.', minSkulls: 2, maxSkulls: 2 },
+            { name: 'Mega Dan', alias: 'The Blue Bomber', flavor: 'Copies the weapons of every pilot he defeats. Currently sporting an arm cannon. Very blue, very angry.', minSkulls: 2, maxSkulls: 3 },
+            // Skull 3 - Challenging
+            { name: 'Bowsalot', alias: 'The Turtle King', flavor: 'Commands a fleet of ships from his fortress cruiser. Has kidnapped at least seven princesses. Breathes fire. Seriously.', minSkulls: 3, maxSkulls: 3 },
+            { name: 'Dr. Robuttnik', alias: 'The Egg Baron', flavor: 'An evil genius who puts animals in robots. His flagship is shaped like an egg. Don\'t laugh -- his weapons are no joke.', minSkulls: 3, maxSkulls: 4 },
+            { name: 'Ganondorf the Dorky', alias: 'King of Thieves', flavor: 'Claims to hold the Trifarce of Power. Whatever that means. His fleet casts a mean darkness over trade lanes.', minSkulls: 3, maxSkulls: 3 },
+            { name: 'M. Byscuit', alias: 'The Street Emperor', flavor: 'Rules the underground fighting circuits. His signature move -- the Psycho Smasher -- has destroyed many a hull.', minSkulls: 3, maxSkulls: 4 },
+            // Skull 4 - Hard
+            { name: 'Sephiroth Lite', alias: 'The One-Winged Edgelord', flavor: 'Carries an absurdly long lance weapon. Obsessed with a meteor he calls "mother." Very dramatic entrance music.', minSkulls: 4, maxSkulls: 4 },
+            { name: 'GLaDOS-Adjacent', alias: 'The Cake Liar', flavor: 'An AI that went rogue. Promises cake if you surrender. There is no cake. There never was cake.', minSkulls: 4, maxSkulls: 5 },
+            { name: 'Psycho Mantid', alias: 'The Mind Reader', flavor: 'Claims he can read your flight patterns. Somehow dodges every third shot. Try switching controller ports? Wait...', minSkulls: 4, maxSkulls: 4 },
+            // Skull 5 - Extreme
+            { name: 'Mike Tyson\'s Ghost Ship', alias: 'The Knockout Express', flavor: 'One hit and you\'re done. Pilots describe flashing stars before blacking out. Dodge EVERYTHING or become space dust.', minSkulls: 5, maxSkulls: 5 },
+            { name: 'The Creep King', alias: 'Sssssurprise', flavor: 'Commands a fleet of explosive drones. When you hear the hiss, it\'s already too late. Nice base you had there...', minSkulls: 5, maxSkulls: 5 },
+            { name: 'Lavos Prime', alias: 'The Epoch Ender', flavor: 'An ancient destroyer that hibernates between star systems. Awakened and very cranky. Time will not save you.', minSkulls: 5, maxSkulls: 5 },
+        ];
+
+        // Bounty skull level definitions - difficulty scaling and rewards
+        const BOUNTY_SKULL_LEVELS = {
+            1: {
+                label: 'Nuisance',
+                minibossType: 'heavy',
+                minibossHpMult: 1.5,
+                minibossDmgMult: 1.2,
+                minibossScale: 1.4,
+                escorts: [{ type: 'basic', count: 1 }, { type: 'light', count: 1 }],
+                creditReward: [80, 120],
+                resourceReward: { Metal: [10, 20] },
+                weaponChance: 0.15,
+                weaponQualityBonus: 0,
+            },
+            2: {
+                label: 'Dangerous',
+                minibossType: 'heavy',
+                minibossHpMult: 2.0,
+                minibossDmgMult: 1.4,
+                minibossScale: 1.6,
+                escorts: [{ type: 'basic', count: 2 }, { type: 'shooter', count: 1 }],
+                creditReward: [150, 250],
+                resourceReward: { Metal: [15, 25], Crystals: [3, 8] },
+                weaponChance: 0.25,
+                weaponQualityBonus: 1,
+            },
+            3: {
+                label: 'Deadly',
+                minibossType: 'challenger',
+                minibossHpMult: 2.5,
+                minibossDmgMult: 1.6,
+                minibossScale: 1.5,
+                escorts: [{ type: 'heavy', count: 1 }, { type: 'shooter', count: 2 }, { type: 'light', count: 1 }],
+                creditReward: [300, 500],
+                resourceReward: { Metal: [20, 30], Crystals: [8, 15], Exotic: [2, 5] },
+                weaponChance: 0.40,
+                weaponQualityBonus: 2,
+            },
+            4: {
+                label: 'Lethal',
+                minibossType: 'challenger',
+                minibossHpMult: 3.5,
+                minibossDmgMult: 1.8,
+                minibossScale: 1.8,
+                escorts: [{ type: 'heavy', count: 2 }, { type: 'challenger', count: 1 }, { type: 'shooter', count: 2 }],
+                creditReward: [500, 800],
+                resourceReward: { Metal: [25, 40], Crystals: [12, 25], Exotic: [5, 10] },
+                weaponChance: 0.60,
+                weaponQualityBonus: 3,
+            },
+            5: {
+                label: 'Suicidal',
+                minibossType: 'challenger',
+                minibossHpMult: 5.0,
+                minibossDmgMult: 2.2,
+                minibossScale: 2.0,
+                escorts: [{ type: 'heavy', count: 2 }, { type: 'challenger', count: 2 }, { type: 'shooter', count: 2 }, { type: 'fast', count: 2 }],
+                creditReward: [800, 1500],
+                resourceReward: { Metal: [30, 50], Crystals: [20, 40], Exotic: [10, 20] },
+                weaponChance: 0.85,
+                weaponQualityBonus: 5,
+            },
+        };
+
+        // Generate a bounty mission for the given level
+        function generateBountyMission(worldLevel) {
+            // Determine skull range available at this world level
+            // Even at level 1, offer up to skull 2 so there's variety
+            // Range widens as level increases: L1: 1-2, L2: 1-3, L3: 1-3, L4: 1-4, L5+: 1-5
+            const maxSkull = Math.min(5, 2 + Math.floor(worldLevel / 2));
+            const minSkull = 1;
+
+            // Weighted pick: favor lower skulls, with chance of harder ones
+            // Roll twice and take the lower to bias toward easier missions
+            const roll1 = minSkull + Math.floor(Math.random() * (maxSkull - minSkull + 1));
+            const roll2 = minSkull + Math.floor(Math.random() * (maxSkull - minSkull + 1));
+            const skulls = Math.min(roll1, roll2);
+
+            // Pick a target appropriate for skull level
+            const validTargets = BOUNTY_TARGETS.filter(t => skulls >= t.minSkulls && skulls <= t.maxSkulls);
+            const target = validTargets[Math.floor(Math.random() * validTargets.length)] || BOUNTY_TARGETS[0];
+
+            const skullDef = BOUNTY_SKULL_LEVELS[skulls];
+
+            // Calculate rewards
+            const credits = skullDef.creditReward[0] + Math.floor(Math.random() * (skullDef.creditReward[1] - skullDef.creditReward[0]));
+            const resources = {};
+            for (const [res, range] of Object.entries(skullDef.resourceReward)) {
+                resources[res] = range[0] + Math.floor(Math.random() * (range[1] - range[0]));
+            }
+
+            // Count total escorts
+            const escortCount = skullDef.escorts.reduce((sum, e) => sum + e.count, 0);
+
+            return {
+                id: 'bounty_' + Math.random().toString(36).substr(2, 9),
+                type: 'bounty',
+                targetName: target.name,
+                targetAlias: target.alias,
+                targetFlavor: target.flavor,
+                skulls: skulls,
+                skullLabel: skullDef.label,
+                minibossType: skullDef.minibossType,
+                minibossHpMult: skullDef.minibossHpMult,
+                minibossDmgMult: skullDef.minibossDmgMult,
+                minibossScale: skullDef.minibossScale,
+                escorts: skullDef.escorts,
+                escortCount: escortCount,
+                creditReward: credits,
+                resourceReward: resources,
+                weaponChance: skullDef.weaponChance,
+                weaponQualityBonus: skullDef.weaponQualityBonus,
+                worldLevel: worldLevel,
+                accepted: false,
+                completed: false,
+                gateSpawned: false,
+            };
+        }
+
+        // Generate available bounties for the station mission board
+        function generateStationBounties() {
+            const level = gameState.level || 1;
+            const count = 3 + Math.floor(Math.random() * 2); // 3-4 bounties
+            const bounties = [];
+            const usedNames = new Set();
+            const usedSkulls = new Set();
+
+            for (let i = 0; i < count; i++) {
+                let mission;
+                let attempts = 0;
+                do {
+                    mission = generateBountyMission(level);
+                    attempts++;
+                    // Try to get a mix of different skull levels and unique names
+                } while ((usedNames.has(mission.targetName) || (usedSkulls.has(mission.skulls) && attempts < 10)) && attempts < 30);
+                usedNames.add(mission.targetName);
+                usedSkulls.add(mission.skulls);
+                bounties.push(mission);
+            }
+
+            // Sort by skulls ascending
+            bounties.sort((a, b) => a.skulls - b.skulls);
+            return bounties;
+        }
+
+        // Render skull icons - only show filled skulls (count out of max is shown via label)
+        function renderSkulls(count) {
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += `<span class="skull">\u2620</span>`;
+            }
+            return html;
+        }
+
+        // Populate mission board UI
+        function populateMissionBoard() {
+            const container = document.getElementById('missionBoardContent');
+            if (!container) return;
+
+            // Generate station bounties if not already generated
+            if (!gameState.stationBounties) {
+                gameState.stationBounties = generateStationBounties();
+            }
+
+            let html = '';
+
+            // Show active bounty banner if one exists
+            if (gameState.activeBounty && !gameState.activeBounty.completed) {
+                const b = gameState.activeBounty;
+                html += `<div class="active-bounty-banner">
+                    <div class="banner-label">Active Contract</div>
+                    <div class="banner-name">${b.targetName}
+                        <span class="banner-skulls">${renderSkulls(b.skulls)}</span>
+                    </div>
+                    <div style="color: #aa8866; font-size: 11px; margin-top: 4px;">${b.skullLabel} - ${b.escortCount} escorts - ${b.creditReward} CR reward</div>
+                    <button class="bounty-abandon-btn" onclick="abandonBounty()">Abandon Contract</button>
+                </div>`;
+            }
+
+            // Show available bounties header
+            html += `<div class="mission-board-header">Available Bounties</div>`;
+
+            if (gameState.stationBounties.length === 0) {
+                html += `<div class="no-missions-msg">No bounties posted at this station. Check another station.</div>`;
+            } else {
+                gameState.stationBounties.forEach((bounty, idx) => {
+                    const hasActive = gameState.activeBounty && !gameState.activeBounty.completed;
+                    const isThisActive = hasActive && gameState.activeBounty.id === bounty.id;
+
+                    html += `<div class="bounty-card ${isThisActive ? 'active-bounty' : ''}">
+                        <div class="bounty-name">${bounty.targetName}</div>
+                        <div class="bounty-alias">"${bounty.targetAlias}"</div>
+                        <div class="bounty-desc">${bounty.targetFlavor}</div>
+                        <div class="bounty-info-row">
+                            <div class="bounty-skulls">${renderSkulls(bounty.skulls)}</div>
+                            <span class="bounty-reward">${bounty.creditReward} CR</span>
+                        </div>
+                        <div class="bounty-info-row" style="margin-top: 4px;">
+                            <span class="bounty-fleet">${bounty.escortCount} escort${bounty.escortCount !== 1 ? 's' : ''} + miniboss</span>
+                            <span style="color: #aa6644; font-size: 11px;">${bounty.skullLabel}</span>
+                        </div>
+                        ${!hasActive ? `<button class="bounty-accept-btn" onclick="acceptBounty(${idx})">Accept Contract</button>` : ''}
+                    </div>`;
+                });
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Accept a bounty from the mission board
+        function acceptBounty(idx) {
+            if (gameState.activeBounty && !gameState.activeBounty.completed) return;
+
+            const bounty = gameState.stationBounties[idx];
+            if (!bounty) return;
+
+            bounty.accepted = true;
+            gameState.activeBounty = bounty;
+
+            // Re-render the mission board
+            populateMissionBoard();
+        }
+
+        // Abandon current bounty
+        function abandonBounty() {
+            if (!gameState.activeBounty) return;
+
+            // Clean up bounty gate if spawned
+            cleanupBountyGate();
+
+            gameState.activeBounty = null;
+
+            // Re-render if mission board is visible
+            populateMissionBoard();
+        }
+
+        // Make mission functions globally available
+        window.acceptBounty = acceptBounty;
+        window.abandonBounty = abandonBounty;
+
         // Gate type definitions - each type has visual and behavioral properties
         const GATE_TYPES = {
             system: {
@@ -8314,6 +8396,11 @@
                 name: 'Event Gate',
                 texture: 'assets/stellar objects/warpgate.png',
                 rotationSpeed: 0
+            },
+            bounty: {
+                name: 'Bounty Gate',
+                texture: 'assets/stellar objects/warpgate.png',
+                rotationSpeed: 0.003
             }
         };
 
@@ -8476,10 +8563,6 @@
                     <div class="hud-row">
                         <span class="hud-label">THR</span>
                         <div class="threat-bar" id="${prefix}Threat">${getThreatBar(config)}</div>
-                    </div>
-                    <div class="hud-row">
-                        <span class="hud-label">WAV</span>
-                        <span class="hud-value" id="${prefix}Waves">${config.waveCount}</span>
                     </div>
                     <div class="hud-row">
                         <span class="hud-label">STA</span>
@@ -8715,7 +8798,6 @@
         function startNewLevel(config) {
             gameState.level = config.levelNum;
             gameState.levelConfig = config;
-            gameState.levelWave = 0;
             gameState.stationsVisited = 0;
             gameState.wave = (gameState.level - 1) * 5 + 1; // Global wave number for difficulty
 
@@ -8855,6 +8937,9 @@
             if (gameState.pauseReasons.has('mysteryEvent')) {
                 releasePause('mysteryEvent');
             }
+
+            // Clear bounty gate (not the mission itself, just the visual gate)
+            cleanupBountyGate();
 
             // Clear all beam lasers (both array and legacy single beam)
             if (gameState.beamMeshes) {
@@ -9419,30 +9504,14 @@
             gameState.lastEventOutcome = outcomeType;
 
             // Based on outcome, spawn post-event content just off-screen above
-            if (outcomeType === 'pirates_ambush') {
-                // Combat aftermath: set up pirate waves, then gates spawn after waves complete
+            if (outcomeType === 'pirates_ambush' || outcomeType === 'trap_minor' || outcomeType === 'trap_major') {
+                // Combat aftermath: enter exploration mode leading to system with gates
                 const config = gameState.levelConfig;
-                config.waveCount = 3 + Math.floor(Math.random() * 2); // 3-4 pirate waves
-                config.enemyMultiplier = 1.3 + (config.levelNum * 0.05);
-                config.threatLevel = 'High';
-                config.threatClass = 'danger';
-                config.isEventZone = false; // Now plays as normal combat level
-                gameState.levelWave = 0;
-                gameState.levelEndSpawned = false;
-                spawnWave();
-            } else if (outcomeType === 'trap_minor' || outcomeType === 'trap_major') {
-                // Hazard aftermath: 1-2 quick waves then gates
-                const config = gameState.levelConfig;
-                config.waveCount = 1 + Math.floor(Math.random() * 2);
-                config.enemyMultiplier = 1.0;
-                config.threatLevel = 'Medium';
-                config.threatClass = 'medium';
                 config.isEventZone = false;
-                gameState.levelWave = 0;
                 gameState.levelEndSpawned = false;
-                spawnWave();
+                enterExplorationMode(config);
             } else {
-                // Peaceful outcomes: spawn level end content (reward zone + gates) directly
+                // Peaceful outcomes: spawn level end content (system + gates) directly
                 gameState.levelEndSpawned = false;
                 generateLevelEndContent();
             }
@@ -10391,7 +10460,7 @@
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
                 e.target.closest('button') || e.target.closest('#systemMenu') ||
                 e.target.closest('#settingsPanel') || e.target.closest('#confirmDialog') ||
-                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog')) return;
+                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog') || e.target.closest('#bountyRewardDialog')) return;
             if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
                 // Two-finger tap activates secondary ability
@@ -10407,7 +10476,7 @@
         document.addEventListener('touchmove', (e) => {
             // Allow station interior and mystery event dialog scrolling
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
-                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog')) return;
+                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog') || e.target.closest('#bountyRewardDialog')) return;
             if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
@@ -11711,67 +11780,6 @@
             }
         }
 
-        // Spawn wave
-        function spawnWave() {
-            const waveConfig = {
-                1: { count: 5 },
-                2: { count: 7 },
-                3: { count: 8 },
-                4: { count: 10 },
-                5: { count: 12 }
-            };
-
-            // Use levelWave for difficulty within level, apply enemy multiplier from level config
-            const waveNum = Math.min(gameState.levelWave + 1, 5);
-            const config = waveConfig[waveNum] || waveConfig[5];
-            // Gradual scaling: +1 enemy per level instead of +2
-            let enemyCount = config.count + Math.floor(Math.max(0, gameState.level - 1));
-
-            // Apply level threat multiplier
-            if (gameState.levelConfig) {
-                enemyCount = Math.floor(enemyCount * gameState.levelConfig.enemyMultiplier);
-            }
-
-            gameState.enemiesInWave = enemyCount;
-            gameState.enemiesSpawned = 0;
-        }
-
-        // Spawn enemy
-        async function spawnEnemy() {
-            if (gameState.enemiesSpawned >= gameState.enemiesInWave) return;
-
-            // Enemy types with weighted spawning based on wave progression
-            // Light (Dispatcher) and Heavy (Imperial) unlock at higher waves
-            // Challenger (top-flying laser enemy) unlocks at wave 4+
-            const baseTypes = ['basic', 'basic', 'fast', 'shooter'];
-            const advancedTypes = ['basic', 'fast', 'shooter', 'light', 'light', 'heavy'];
-
-            // Use advanced types after wave 2, mixing in light and heavy attackers
-            let types = gameState.wave >= 3 ? advancedTypes : baseTypes;
-            let type = types[Math.floor(Math.random() * Math.min(types.length, 1 + gameState.wave))];
-
-            // Chance to spawn a challenger at wave 4+ (10% chance, max 1 per wave)
-            const challengerCount = gameState.enemies.filter(e => e.type === 'challenger').length;
-            if (gameState.wave >= 4 && challengerCount === 0 && Math.random() < 0.1) {
-                type = 'challenger';
-            }
-
-            // Increment SYNCHRONOUSLY before async createEnemy to prevent
-            // the render loop from spawning duplicates while awaiting
-            gameState.enemiesSpawned++;
-
-            const maxX = orthoWidth - 1;
-            const x = (Math.random() - 0.5) * maxX * 1.5;
-            const y = orthoHeight + 2;
-
-            try {
-                const enemy = await createEnemy(type, x, y);
-                gameState.enemies.push(enemy);
-            } catch(e) {
-                gameState.enemiesSpawned--;
-            }
-        }
-
         // Disable a ship instead of destroying it - it drifts and can be boarded
         function disableShip(enemy) {
             enemy.isDisabled = true;
@@ -12132,8 +12140,7 @@
                     enemy.dispose();
                 }
             } catch(e) {
-                // Re-push the type back so it can be retried, keeping types array
-                // in sync with enemiesSpawned to prevent fallback to spawnEnemy()
+                // Re-push the type back so it can be retried
                 gameState.enemiesSpawned--;
                 gameState._encounterEnemyTypes.unshift(entry);
             }
@@ -12386,6 +12393,10 @@
                 if (s.strengthMesh) s.strengthMesh.setEnabled(false);
                 if (s.playerBeamMesh) s.playerBeamMesh.setEnabled(false);
             });
+            // Hide bounty gate during combat
+            if (gameState.bountyGate) {
+                gameState.bountyGate.setEnabled(false);
+            }
         }
 
         // Spawn the encounter's enemies after zoom-in completes
@@ -12566,6 +12577,10 @@
                     if (s.strengthMesh) s.strengthMesh.setEnabled(true);
                 }
             });
+            // Show bounty gate again
+            if (gameState.bountyGate) {
+                gameState.bountyGate.setEnabled(true);
+            }
         }
 
         // Clean up all exploration state (encounters, traffic, goal, skirmishes)
@@ -12577,7 +12592,347 @@
             cleanupExplorationGoal();
             cleanupExplorationTraffic();
             cleanupSkirmishes();
+            cleanupBountyGate();
         }
+
+        // ========== BOUNTY GATE SYSTEM ==========
+        // Spawns a bounty warp gate in the exploration map when player has an active bounty
+
+        function spawnBountyGate() {
+            if (!scene || !gameState.activeBounty || gameState.activeBounty.completed || gameState.bountyGate) return;
+            if (gameState.activeBounty.gateSpawned) return;
+
+            const bounty = gameState.activeBounty;
+
+            // Place bounty gate to the side of the map, between player start and goal
+            const goalY = gameState.explorationGoal ? gameState.explorationGoal.y : 85;
+            const gateY = 20 + Math.random() * (goalY * 0.4);
+            const gateX = (Math.random() < 0.5 ? -1 : 1) * (15 + Math.random() * 15);
+
+            const gateSize = 5;
+            const gateColor = [1.0, 0.3, 0.15]; // Red-orange for bounty
+            const gate = createGateMesh('bountyGate', gateX, gateY, gateSize, gateColor, GATE_TYPES.bounty.texture);
+            gate.gateType = 'bounty';
+            gate.position.z = 0.5;
+
+            // Scale for exploration view
+            gate.scaling.scaleInPlace(1.5);
+
+            gameState.bountyGate = gate;
+            bounty.gateSpawned = true;
+
+            // Store gate world position for edge indicators
+            gameState.bountyGatePos = { x: gateX, y: gateY };
+        }
+
+        function cleanupBountyGate() {
+            if (gameState.bountyGate) {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(gameState.bountyGate);
+                gameState.bountyGate.dispose();
+                gameState.bountyGate = null;
+            }
+            gameState.bountyGatePos = null;
+        }
+
+        // Check if player has reached the bounty gate
+        function checkBountyGateEntry() {
+            if (!playerShip || !gameState.bountyGate || !gameState.activeBounty) return false;
+
+            const gate = gameState.bountyGate;
+            const dx = playerShip.position.x - gate.position.x;
+            const dy = playerShip.position.y - gate.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            return dist < 4.5; // Enter when close to gate
+        }
+
+        // Start a bounty combat encounter
+        function enterBountyGate() {
+            if (!gameState.activeBounty) return;
+
+            const bounty = gameState.activeBounty;
+
+            // Clean up bounty gate visual
+            cleanupBountyGate();
+
+            // Build encounter object for combat zone system
+            const skullDef = BOUNTY_SKULL_LEVELS[bounty.skulls];
+
+            // Build enemy types: miniboss + escorts
+            const enemyTypes = [bounty.minibossType]; // First ship is the miniboss
+            for (const escort of bounty.escorts) {
+                for (let i = 0; i < escort.count; i++) {
+                    enemyTypes.push(escort.type);
+                }
+            }
+
+            const encounter = {
+                faction: 'pirates',
+                enemyCount: enemyTypes.length,
+                enemyTypes: enemyTypes,
+                strength: 50 + bounty.skulls * 20,
+                isBounty: true,
+                bountyData: bounty,
+            };
+
+            gameState.bountyEncounterActive = true;
+
+            // Use the standard combat encounter system
+            clearEdgeIndicators();
+
+            // Scale back ship from exploration
+            if (playerShipMesh) {
+                playerShipMesh.scaling.scaleInPlace(1 / settings.exploreShipScale);
+            }
+
+            // Save exploration state
+            gameState.explorationMode = false;
+            gameState.savedExplorePos = {
+                x: playerShip.position.x,
+                y: playerShip.position.y
+            };
+            gameState.explorationCameraPos = {
+                x: gameCamera ? gameCamera.position.x : 0,
+                y: gameCamera ? gameCamera.position.y : 0
+            };
+
+            // Warp animation then start bounty level
+            requestPause('warpAnimation');
+            playWarpAnimation(() => {
+                startBountyLevel(encounter, bounty);
+                releasePause('warpAnimation');
+            });
+        }
+
+        // Start a bounty-specific level (empty system with just enemies)
+        function startBountyLevel(encounter, bounty) {
+            // Save current level config
+            gameState._preBountyLevelConfig = gameState.levelConfig;
+            gameState._preBountyLevel = gameState.level;
+            gameState._preBountyLevelEndSpawned = gameState.levelEndSpawned;
+
+            // Clear existing level objects
+            clearLevelObjects();
+
+            // Change to a dark zone
+            changeToNewZone();
+
+            // Reset player position
+            if (playerShip) {
+                playerShip.position.x = 0;
+                playerShip.position.y = -7;
+                playerShip.targetX = 0;
+                playerShip.targetY = -7;
+            }
+
+            // Set zoom to combat
+            gameState.zoomLevel = 1;
+            gameState.zoomTarget = 1;
+            gameState.encounterTransition = 'combat'; // Required for updateCombatZone to run
+            gameState.explorationMode = false;
+            if (gameState._updateCamera) gameState._updateCamera();
+
+            // Set up combat zone
+            gameState.combatZone = {
+                active: true,
+                scrollDistance: 0,
+                totalScrollDistance: LEVEL_ZONE_HEIGHTS.reward * 2.5,
+                ships: [],
+                planets: [],
+                bullets: [],
+                peaceTimer: 0,
+                peaceThreshold: 3000,
+                playerAggroFactions: new Set(['pirates']),
+                zoomingOut: false,
+                isBounty: true,
+            };
+
+            // Weapons start hot
+            gameState.weaponsHot = true;
+            const wBtn = document.getElementById('weaponsToggleBtn');
+            if (wBtn) {
+                wBtn.textContent = 'WEAPONS: HOT';
+                wBtn.classList.add('weapons-hot');
+            }
+
+            // Spawn bounty enemies
+            spawnBountyCombatContent(encounter, bounty);
+
+            updateHUD();
+        }
+
+        // Spawn bounty combat zone enemies (miniboss + escorts)
+        function spawnBountyCombatContent(encounter, bounty) {
+            const cz = gameState.combatZone;
+            if (!cz) return;
+
+            // Spawn a few background planets
+            spawnCombatZonePlanets(cz);
+
+            const levelHealthMult = 1 + (bounty.worldLevel - 1) * 0.08;
+            const factionA = 'pirates';
+
+            const enemyTypes = encounter.enemyTypes;
+            enemyTypes.forEach((type, idx) => {
+                const shipConfig = COMBAT_ZONE_SHIP_TYPES[type] || COMBAT_ZONE_SHIP_TYPES.basic;
+                const isMiniboss = (idx === 0);
+
+                // Miniboss gets boosted stats
+                const hpMult = isMiniboss ? bounty.minibossHpMult : 1.0;
+                const dmgMult = isMiniboss ? bounty.minibossDmgMult : 1.0;
+                const scaleMult = isMiniboss ? bounty.minibossScale : 1.0;
+
+                const spawnY = orthoHeight + 3 + idx * 4 + Math.random() * 3;
+                const spawnX = (Math.random() - 0.5) * orthoWidth * 1.5;
+
+                const ship = {
+                    id: 'czs_' + Math.random().toString(36).substr(2, 9),
+                    type: type,
+                    config: shipConfig,
+                    faction: factionA,
+                    factionSide: 'A',
+                    currentX: spawnX,
+                    currentY: spawnY,
+                    heading: -Math.PI / 2 + (Math.random() - 0.5) * 0.5,
+                    speed: shipConfig.speed * (0.8 + Math.random() * 0.4),
+                    turnRate: 0.003 + Math.random() * 0.002,
+                    hp: Math.round(shipConfig.hp * levelHealthMult * hpMult),
+                    maxHp: Math.round(shipConfig.hp * levelHealthMult * hpMult),
+                    fireRate: shipConfig.fireRate * (isMiniboss ? 0.75 : (0.9 + Math.random() * 0.2)),
+                    damage: Math.round(shipConfig.damage * levelHealthMult * dmgMult),
+                    bulletSpeed: shipConfig.bulletSpeed,
+                    spread: shipConfig.spread || false,
+                    lastFireTime: 0,
+                    alive: true,
+                    mesh: null,
+                    engineGlows: [],
+                    target: null,
+                    targetSwitchTimer: 0,
+                    engageDistance: 4 + Math.random() * 3,
+                    strafeAngle: Math.random() * Math.PI * 2,
+                    strafeDir: Math.random() < 0.5 ? 1 : -1,
+                    baseScale: shipConfig.scale * scaleMult,
+                    isBountyMiniboss: isMiniboss,
+                    bountyShip: true,
+                };
+                assignCZShipWeapon(ship);
+                cz.ships.push(ship);
+                createCombatZoneShipVisual(ship, factionA);
+            });
+        }
+
+        // Called when bounty combat zone finishes (all enemies dead)
+        function onBountyVictory() {
+            if (!gameState.activeBounty) return;
+
+            const bounty = gameState.activeBounty;
+            bounty.completed = true;
+            gameState.bountyEncounterActive = false;
+            gameState.bountyRewardPending = true;
+
+            // Apply rewards
+            const rewards = applyBountyRewards(bounty);
+
+            // Show reward dialog
+            showBountyRewardDialog(bounty, rewards);
+        }
+
+        // Calculate and apply bounty rewards
+        function applyBountyRewards(bounty) {
+            const rewards = [];
+
+            // Credits
+            gameState.credits = (gameState.credits || 0) + bounty.creditReward;
+            rewards.push({ text: `+${bounty.creditReward} Credits`, css: 'reward-good' });
+
+            // Resources
+            for (const [res, amount] of Object.entries(bounty.resourceReward)) {
+                gameState.resources[res] = (gameState.resources[res] || 0) + amount;
+                rewards.push({ text: `+${amount} ${res}`, css: 'reward-good' });
+            }
+
+            // Weapon drop chance
+            if (Math.random() < bounty.weaponChance) {
+                const weapon = generateWeapon(
+                    bounty.worldLevel + bounty.weaponQualityBonus,
+                    getPlayerMaxHardpointSize()
+                );
+                if (weapon) {
+                    gameState.ownedWeapons.push(weapon);
+                    const qClass = getQualityClass(weapon.quality);
+                    rewards.push({ text: `Weapon: ${weapon.name}`, css: weapon.quality === 'superior' ? 'reward-legendary' : 'reward-good' });
+                }
+            }
+
+            // Stats tracking
+            gameState.stats.creditsEarned = (gameState.stats.creditsEarned || 0) + bounty.creditReward;
+
+            return rewards;
+        }
+
+        // Show bounty reward dialog
+        function showBountyRewardDialog(bounty, rewards) {
+            requestPause('bountyReward');
+
+            document.getElementById('bountyRewardTitle').textContent = 'Bounty Complete';
+            document.getElementById('bountyRewardSubtitle').textContent = `${bounty.skullLabel} threat neutralized`;
+            document.getElementById('bountyRewardName').textContent = bounty.targetName;
+            document.getElementById('bountyRewardSkulls').innerHTML = renderSkulls(bounty.skulls);
+
+            // Pick a flavor text
+            const victoryFlavors = [
+                `"${bounty.targetAlias}" won't be terrorizing anyone anymore.`,
+                `The galaxy sleeps a little safer tonight. ${bounty.targetName} has been eliminated.`,
+                `Contract fulfilled. ${bounty.targetName} made their last stand.`,
+                `Another bounty collected. "${bounty.targetAlias}" is nothing but space debris now.`,
+            ];
+            document.getElementById('bountyRewardFlavor').textContent = victoryFlavors[Math.floor(Math.random() * victoryFlavors.length)];
+
+            let itemsHtml = '';
+            for (const reward of rewards) {
+                itemsHtml += `<div class="outcome-reward-item ${reward.css}">${reward.text}</div>`;
+            }
+            document.getElementById('bountyRewardItems').innerHTML = itemsHtml;
+
+            document.getElementById('bountyRewardDialog').style.display = 'flex';
+        }
+
+        // Close bounty reward dialog and return to exploration
+        function closeBountyReward() {
+            document.getElementById('bountyRewardDialog').style.display = 'none';
+            gameState.bountyRewardPending = false;
+            gameState.bountyEncounterActive = false;
+            gameState.encounterTransition = null;
+            gameState.currentEncounter = null;
+            releasePause('bountyReward');
+
+            // Restore pre-bounty level state
+            if (gameState._preBountyLevelConfig) {
+                gameState.levelConfig = gameState._preBountyLevelConfig;
+                gameState.level = gameState._preBountyLevel;
+                gameState.levelEndSpawned = gameState._preBountyLevelEndSpawned;
+                gameState._preBountyLevelConfig = null;
+                gameState._preBountyLevel = null;
+                gameState._preBountyLevelEndSpawned = null;
+            }
+
+            // Clean up combat state
+            clearLevelObjects();
+
+            // Change back to a zone
+            changeToNewZone();
+
+            // Re-enter exploration mode
+            enterExplorationMode(gameState.levelConfig);
+
+            updateHUD();
+            saveGame();
+            showSavedNotification();
+        }
+
+        window.closeBountyReward = closeBountyReward;
+
+        // ========== END BOUNTY GATE SYSTEM ==========
 
         // ========== NEW COMBAT ZONE SYSTEM ==========
         // Combat zones are scrolling zones (like system zones) with free-flying ships
@@ -13878,6 +14233,21 @@
                 }
             }
 
+            // For bounty encounters: check if all hostile ships are dead/disabled
+            if (cz.isBounty) {
+                const aliveHostile = cz.ships.filter(s => s.alive && !s.disabled);
+                if (aliveHostile.length === 0) {
+                    cz.peaceTimer += deltaTime;
+                    if (cz.peaceTimer >= 1500) { // 1.5s pause after last kill
+                        finishCombatZone();
+                        return;
+                    }
+                } else {
+                    cz.peaceTimer = 0;
+                }
+                return; // Skip normal peace logic for bounty encounters
+            }
+
             // Disabled ships count as activity — don't exit while harvestable wrecks remain
             if ((!hasHostility && !hasHarvestableDisabledShips) || cz.ships.length === 0) {
                 cz.peaceTimer += deltaTime;
@@ -13895,6 +14265,9 @@
         function finishCombatZone() {
             const cz = gameState.combatZone;
             if (!cz) return;
+
+            // Check if this is a bounty encounter
+            const isBounty = cz.isBounty && gameState.bountyEncounterActive;
 
             // Clean up all combat zone ships immediately
             for (const ship of cz.ships) {
@@ -13928,12 +14301,13 @@
             // Null out combatZone so nothing references stale state
             gameState.combatZone = null;
 
-            // Advance wave counter
-            gameState.wave++;
-            gameState.levelWave++;
-            updateHUD();
+            // Bounty encounter: show reward instead of returning to exploration
+            if (isBounty) {
+                onBountyVictory();
+                return;
+            }
 
-            // Skip victory_pause - go directly to zoom-out for a smooth transition
+            // Return to exploration for a smooth transition
             returnToExploration();
         }
 
@@ -15713,6 +16087,11 @@
 
             // Update camera for new zoom
             if (gameState._updateCamera) gameState._updateCamera();
+
+            // Spawn bounty gate if player has an active bounty
+            if (gameState.activeBounty && !gameState.activeBounty.completed && !gameState.bountyGate) {
+                spawnBountyGate();
+            }
         }
 
         // Update edge-of-screen indicators for off-screen objects
@@ -15765,6 +16144,11 @@
                 if (s.resolved) return;
                 targets.push({ x: s.centerX, y: s.centerY, type: 'skirmish', label: 'Conflict' });
             });
+
+            // Bounty gate
+            if (gameState.bountyGatePos && gameState.bountyGate) {
+                targets.push({ x: gameState.bountyGatePos.x, y: gameState.bountyGatePos.y, type: 'enemy', label: 'Bounty' });
+            }
 
             // Build HTML
             let html = '';
@@ -17081,15 +17465,7 @@
             const hp = Math.max(0, Math.ceil(gameState.health));
             document.getElementById('health').textContent = hp;
 
-            if (gameState.arenaMode) {
-                document.getElementById('level').textContent = 'Arena';
-                document.getElementById('wave').textContent = gameState.arenaWave;
-                document.getElementById('totalWaves').textContent = '∞';
-            } else {
-                document.getElementById('level').textContent = gameState.level;
-                document.getElementById('wave').textContent = gameState.levelWave;
-                document.getElementById('totalWaves').textContent = gameState.levelConfig ? gameState.levelConfig.waveCount : 3;
-            }
+            document.getElementById('level').textContent = gameState.level;
 
             // Health bar
             const maxHP = gameState.maxHealth || 100;
@@ -17107,20 +17483,16 @@
             // Fuel stat
             const fuelStat = document.getElementById('fuelStat');
             if (fuelStat) {
-                if (gameState.arenaMode) {
-                    fuelStat.style.display = 'none';
+                fuelStat.style.display = '';
+                const fuelVal = document.getElementById('fuelValue');
+                fuelVal.textContent = Math.max(0, Math.ceil(gameState.fuel));
+                const fuelPct = gameState.fuel / gameState.maxFuel;
+                if (fuelPct <= 0.2) {
+                    fuelStat.style.color = '#ff4444';
+                } else if (fuelPct <= 0.4) {
+                    fuelStat.style.color = '#ffaa44';
                 } else {
-                    fuelStat.style.display = '';
-                    const fuelVal = document.getElementById('fuelValue');
-                    fuelVal.textContent = Math.max(0, Math.ceil(gameState.fuel));
-                    const fuelPct = gameState.fuel / gameState.maxFuel;
-                    if (fuelPct <= 0.2) {
-                        fuelStat.style.color = '#ff4444';
-                    } else if (fuelPct <= 0.4) {
-                        fuelStat.style.color = '#ffaa44';
-                    } else {
-                        fuelStat.style.color = '#ccc';
-                    }
+                    fuelStat.style.color = '#ccc';
                 }
             }
 
@@ -17153,12 +17525,7 @@
         function gameOver() {
             gameState.isPlaying = false;
 
-            if (gameState.arenaMode) {
-                document.getElementById('finalCredits').textContent =
-                    `Wave ${gameState.arenaWave} | Score: ${gameState.score}`;
-            } else {
-                document.getElementById('finalCredits').textContent = gameState.credits;
-            }
+            document.getElementById('finalCredits').textContent = gameState.credits;
 
             // Build run summary
             const s = gameState.stats;
@@ -17174,19 +17541,14 @@
                 <span class="stat-label">Stations Docked</span><span class="stat-value">${s.stationsDocked}</span>
             `;
 
-            // Convert in-run resources to meta resources (not in arena mode)
+            // Convert in-run resources to meta resources
             const gainsDiv = document.getElementById('metaGains');
-            if (!gameState.arenaMode) {
-                const gains = convertRunResourcesToMeta();
-                gainsDiv.innerHTML = Object.entries(META_RESOURCES).map(([key, r]) =>
-                    `<span class="gain-label">${r.icon} ${r.name}</span><span class="gain-value">+${gains[key]}</span>`
-                ).join('');
-                gainsDiv.style.display = 'grid';
-                document.querySelector('.meta-gains-title').style.display = 'block';
-            } else {
-                gainsDiv.style.display = 'none';
-                document.querySelector('.meta-gains-title').style.display = 'none';
-            }
+            const gains = convertRunResourcesToMeta();
+            gainsDiv.innerHTML = Object.entries(META_RESOURCES).map(([key, r]) =>
+                `<span class="gain-label">${r.icon} ${r.name}</span><span class="gain-value">+${gains[key]}</span>`
+            ).join('');
+            gainsDiv.style.display = 'grid';
+            document.querySelector('.meta-gains-title').style.display = 'block';
 
             document.getElementById('gameOver').style.display = 'block';
             document.getElementById('harvestBar').style.display = 'none';
@@ -17388,7 +17750,6 @@
 
             // Reset level/river navigation state
             gameState.level = 1;
-            gameState.levelWave = 0;
             gameState.stationsVisited = 0;
             gameState.levelEndSpawned = false;
             // Generate initial level config
@@ -17412,6 +17773,16 @@
             if (gameState.pauseReasons.has('mysteryEvent')) {
                 releasePause('mysteryEvent');
             }
+            // Clean up bounty state on new game
+            document.getElementById('bountyRewardDialog').style.display = 'none';
+            if (gameState.pauseReasons.has('bountyReward')) {
+                releasePause('bountyReward');
+            }
+            gameState.activeBounty = null;
+            gameState.stationBounties = null;
+            gameState.bountyEncounterActive = false;
+            gameState.bountyRewardPending = false;
+            cleanupBountyGate();
 
             initResources();
 
@@ -17437,7 +17808,6 @@
                 health: gameState.health,
                 wave: gameState.wave,
                 level: gameState.level,
-                levelWave: gameState.levelWave,
                 levelConfig: gameState.levelConfig,
                 stationsVisited: gameState.stationsVisited,
                 currentZone: gameState.currentZone,
@@ -17452,20 +17822,16 @@
                 maxFuel: gameState.maxFuel,
                 resources: gameState.resources,
                 distanceTraveled: gameState.distanceTraveled,
-                wavesUntilStarbase: gameState.wavesUntilStarbase,
                 shipUpgrades: gameState.shipUpgrades,
                 maxHealth: gameState.maxHealth,
                 shields: gameState.shields,
                 maxShields: gameState.maxShields,
-                inExploration: gameState.inExploration,
-                explorationDistance: gameState.explorationDistance,
                 explorationMode: gameState.explorationMode,
                 encountersDefeated: gameState.encountersDefeated,
-                enemiesInWave: gameState.enemiesInWave,
-                enemiesSpawned: gameState.enemiesSpawned,
                 gatesAtLevel: gameState.gatesAtLevel,
                 gatesSinceEvent: gameState.gatesSinceEvent,
                 stats: gameState.stats,
+                activeBounty: gameState.activeBounty,
                 savedAt: Date.now()
             };
         }
@@ -17534,7 +17900,6 @@
             gameState.health = saveData.health || 100;
             gameState.wave = saveData.wave || 1;
             gameState.level = saveData.level || 1;
-            gameState.levelWave = saveData.levelWave || 0;
             gameState.levelConfig = saveData.levelConfig || generateLevelConfig(1);
             gameState.stationsVisited = saveData.stationsVisited || 0;
             gameState.gatesAtLevel = saveData.gatesAtLevel || 0;
@@ -17579,7 +17944,6 @@
             gameState.maxFuel = saveData.maxFuel || 100;
             gameState.resources = saveData.resources || {};
             gameState.distanceTraveled = saveData.distanceTraveled || 0;
-            gameState.wavesUntilStarbase = saveData.wavesUntilStarbase || 1;
 
             // Load ship upgrades
             gameState.shipUpgrades = saveData.shipUpgrades || {};
@@ -17593,15 +17957,15 @@
             // Sync equipped weapons from restored fleet hardpoints
             syncEquippedWeapons();
 
-            // Restore exploration/combat state
-            gameState.inExploration = saveData.inExploration || false;
-            gameState.explorationDistance = saveData.explorationDistance || 0;
-            gameState.enemiesInWave = saveData.enemiesInWave || 0;
-            gameState.enemiesSpawned = saveData.enemiesSpawned || 0;
-
             // If saved during exploration mode, re-enter it (traffic will be regenerated)
             if (saveData.explorationMode) {
                 gameState.encountersDefeated = saveData.encountersDefeated || 0;
+            }
+
+            // Restore active bounty (reset gate spawned since gate needs to be recreated)
+            if (saveData.activeBounty && !saveData.activeBounty.completed) {
+                gameState.activeBounty = saveData.activeBounty;
+                gameState.activeBounty.gateSpawned = false; // Gate will be recreated on exploration entry
             }
 
             // Update zone background
@@ -17688,30 +18052,20 @@
             systemMenu.style.display = 'none';
             releasePause('systemMenu');
 
-            // Don't save arena mode - just quit
-            if (!gameState.arenaMode) {
-                saveGame();
-                showSavedNotification();
-            }
+            saveGame();
+            showSavedNotification();
 
             // Return to start screen after delay
-            const wasArenaMode = gameState.arenaMode;
             setTimeout(() => {
                 gameState.isPlaying = false;
                 gameState.pauseReasons.clear();  // Clear all pause reasons
-
-                // Reset arena mode
-                gameState.arenaMode = false;
-                gameState.arenaConfig = null;
-                // Fuel display handled in updateHUD now
 
                 document.getElementById('hud').style.display = 'none';
                 systemBtn.style.display = 'none';
                 document.getElementById('startScreen').style.display = 'flex';
                 document.getElementById('titleButtons').style.display = 'flex';
                 document.getElementById('loadingScreen').style.display = 'none';
-                // Don't show continue if we were in arena mode
-                document.getElementById('continueBtn').style.display = wasArenaMode ? 'none' : 'block';
+                document.getElementById('continueBtn').style.display = 'block';
             }, 500);
         });
 
@@ -17728,10 +18082,6 @@
             confirmDialog.style.display = 'none';
             releasePause('confirmDialog');
             deleteSave();
-
-            // Reset arena mode if active
-            gameState.arenaMode = false;
-            gameState.arenaConfig = null;
 
             await resetGame();
             gameState.pauseReasons.clear();  // Clear all pause reasons for fresh start
@@ -17967,9 +18317,7 @@
 
                 // Initialize first level
                 gameState.level = 1;
-                gameState.levelWave = 0;
                 gameState.levelConfig = generateLevelConfig(1);
-                gameState.wavesUntilStarbase = gameState.levelConfig.waveCount;
             }
 
             // Apply tech tree bonuses before equipment init (so shield/drone bonuses apply)
@@ -17979,9 +18327,9 @@
             // Initialize equipment from fleet (shields, drones, secondary ability)
             initEquipmentFromFleet();
 
-            // Enter exploration mode if not already in one, no enemies pending, and not in an event zone
+            // Enter exploration mode if not already in one and not in an event zone
             // This preserves state when continuing a saved game
-            if (!gameState.explorationMode && !gameState.inExploration && gameState.enemiesInWave === 0 && !(gameState.levelConfig && gameState.levelConfig.isEventZone)) {
+            if (!gameState.explorationMode && !(gameState.levelConfig && gameState.levelConfig.isEventZone)) {
                 enterExplorationMode(gameState.levelConfig);
             }
 
@@ -18003,11 +18351,12 @@
                 gameState.lastFrameTime = currentTime;
 
                 // Apply speed-up multiplier when button is pressed (ramps up over time)
+                let speedMultiplier = 1;
                 if (gameState.speedUp) {
                     gameState.speedUpHeldTime += deltaTime;
                     // Ramp from 2x to 12x over 2 seconds of holding
                     const rampProgress = Math.min(gameState.speedUpHeldTime / 2000, 1);
-                    const speedMultiplier = 2 + rampProgress * 10;
+                    speedMultiplier = 2 + rampProgress * 10;
                     deltaTime *= speedMultiplier;
                 } else {
                     gameState.speedUpHeldTime = 0;
@@ -18180,6 +18529,14 @@
                     // Update traffic ships
                     updateExplorationTraffic(deltaTime, scrollDist);
 
+                    // Update bounty gate position (scroll with world)
+                    if (gameState.bountyGate && gameState.bountyGatePos) {
+                        gameState.bountyGatePos.y -= scrollDist;
+                        gameState.bountyGate.position.y = gameState.bountyGatePos.y;
+                        // Slow rotation
+                        gameState.bountyGate.rotation.z += GATE_TYPES.bounty.rotationSpeed;
+                    }
+
                     // Update NPC conflicts (fights between ships)
                     updateSkirmishes(deltaTime, scrollDist);
                     checkSkirmishStarts(deltaTime);
@@ -18212,6 +18569,12 @@
                         }
                     }
 
+                    // Check if player reached bounty gate
+                    if (gameState.bountyGate && checkBountyGateEntry()) {
+                        enterBountyGate();
+                        return;
+                    }
+
                     // Check if player reached the goal system
                     if (checkExplorationGoalReached()) {
                         clearEdgeIndicators();
@@ -18221,7 +18584,7 @@
                         }
                         // Clean up exploration visuals
                         cleanupExploration();
-                        // Transition to system/reward view
+                        // Transition to system view
                         gameState.explorationMode = false;
                         gameState.zoomTarget = 1;
                         gameState.zoomLevel = 1;
@@ -18232,7 +18595,6 @@
                             playerShip.targetY = -7;
                         }
                         if (gameState._updateCamera) gameState._updateCamera();
-                        gameState.levelWave = gameState.levelConfig.waveCount;
                         generateLevelEndContent();
                         return;
                     }
@@ -18270,20 +18632,11 @@
                     return;
                 }
 
+                // Spawn encounter enemies on timer (combat zone ships handle their own spawning)
                 gameState.spawnTimer += deltaTime;
                 if (gameState.spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
-                    // Don't spawn arena enemies when combat zone is active — CZ ships handle combat
-                    if (gameState.combatZone && gameState.combatZone.active) {
-                        // Skip arena spawning entirely
-                    } else if (gameState.encounterTransition === 'combat' && gameState._encounterEnemyTypes) {
-                        if (gameState._encounterEnemyTypes.length > 0) {
-                            spawnEncounterEnemy();
-                        }
-                        // If types exhausted but count remains, wait for retry via
-                        // re-queued types from failed spawns rather than falling back
-                        // to spawnEnemy() which would inject regular wave enemies
-                    } else {
-                        spawnEnemy();
+                    if (!(gameState.combatZone && gameState.combatZone.active) && gameState.encounterTransition === 'combat' && gameState._encounterEnemyTypes && gameState._encounterEnemyTypes.length > 0) {
+                        spawnEncounterEnemy();
                     }
                     gameState.spawnTimer = 0;
                 }
@@ -18291,7 +18644,7 @@
                 // Spawn solar systems with spacing - only during active waves
                 // Stop spawning once level end content (reward + gates) has been generated
                 // Don't spawn in event zones (event object is the focus, no distractions)
-                const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates && !gameState.eventObject && !gameState.currentEncounter;
+                const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates && !gameState.eventObject && !gameState.currentEncounter && !gameState.bountyEncounterActive;
 
                 gameState.nextSolarSystemY -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 if (gameState.nextSolarSystemY < orthoHeight + 10 && shouldSpawnSolarSystems) {
@@ -18334,66 +18687,14 @@
                             const factionA = activeEnemies.filter(e => e.enemyFaction === 'A');
                             const factionB = activeEnemies.filter(e => e.enemyFaction === 'B');
                             if (factionA.length === 0 || factionB.length === 0) {
-                                gameState.wave++;
-                                gameState.levelWave++;
-                                updateHUD();
                                 onEncounterVictory();
                             }
                         } else if (!escaped && allSpawned && activeEnemies.length === 0) {
                             // Normal encounter: all active enemies dead
-                            gameState.wave++;
-                            gameState.levelWave++;
-                            updateHUD();
                             onEncounterVictory();
                         }
                     }
                 }
-                // Non-encounter wave completion (level end, stations, etc.)
-                // Skip if zooming out of an encounter - finishCombatZone/onEncounterVictory already advanced the wave
-                else if (!gameState.currentEncounter && gameState.encounterTransition !== 'zooming_out' && gameState.encounterTransition !== 'victory_pause' && gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.eventObject && !gameState.mysteryEventActive) {
-                    gameState.wave++;
-                    gameState.levelWave++;
-                    updateHUD();
-
-                    const config = gameState.levelConfig;
-
-                    // Check if level complete (all waves done)
-                    if (gameState.levelWave >= config.waveCount) {
-                        // Level complete - generate reward zone and gates
-                        generateLevelEndContent();
-                    } else {
-                        // Check if a station should appear after this wave
-                        const shouldSpawnStation = config.stationWaves &&
-                            config.stationWaves.includes(gameState.levelWave) &&
-                            gameState.stationsVisited < config.stations.length;
-
-                        if (shouldSpawnStation) {
-                            createStarbase();
-                            gameState.stationsVisited++;
-                        } else {
-                            // Enter exploration mode - travel through space before next wave
-                            gameState.inExploration = true;
-                            gameState.explorationDistance = 0;
-                            gameState.enemiesInWave = 0;
-                            gameState.enemiesSpawned = 0;
-                        }
-                    }
-                }
-
-                // Exploration mode - travel some distance before next wave starts
-                if (gameState.inExploration) {
-                    // Track distance traveled during exploration
-                    gameState.explorationDistance += scrollMultiplier * 0.1;
-
-                    // After enough distance (about 1-2 screen heights), start next wave
-                    const explorationRequired = 15 + Math.random() * 10; // Random variation
-                    if (gameState.explorationDistance >= explorationRequired) {
-                        gameState.inExploration = false;
-                        gameState.explorationDistance = 0;
-                        spawnWave();
-                    }
-                }
-
                 // Update warp gates
                 updateWarpGates(scrollMultiplier, deltaTime);
 
@@ -18440,453 +18741,11 @@
             renderResearchScreen();
         });
 
-        // Arena Mode Configuration
-        const arenaConfig = {
-            enemies: ['basic'],
-            startEnemies: 5,
-            enemiesPerWave: 2,
-            healthScale: 1,
-            shipModel: 'Bob',
-            shipColor: 'Blue',
-            hardpoints: [
-                { size: 'medium', equipped: null },
-                { size: 'light', equipped: null },
-                { size: 'light', equipped: null }
-            ],
-            upgrades: {
-                hull: 0,
-                engine: 0,
-                shields: 0
-            },
-            selectedHardpoint: 0
-        };
 
-        // Arena weapons pool (generated from templates)
-        function generateArenaWeapons() {
-            const weapons = [];
-            for (const [templateId, template] of Object.entries(WEAPON_TEMPLATES)) {
-                // Generate level 1-5 variants for each weapon
-                for (let level = 1; level <= 5; level++) {
-                    const stats = calculateWeaponStats(template, level, 'common');
-                    weapons.push({
-                        id: `${templateId}_${level}`,
-                        templateId,
-                        name: `${template.baseName} Mk-${level}`,
-                        type: template.type,
-                        size: template.size,
-                        level,
-                        damage: stats.damage,
-                        fireRate: stats.fireRate,
-                        projectiles: stats.projectiles,
-                        spread: stats.spread,
-                        speed: stats.speed,
-                        quality: 'common'
-                    });
-                }
-            }
-            return weapons;
-        }
-
-        const arenaWeapons = generateArenaWeapons();
-
-        // Populate arena weapons grid
-        function populateArenaWeapons() {
-            const grid = document.getElementById('arenaWeaponsGrid');
-            grid.innerHTML = '';
-
-            arenaWeapons.forEach(weapon => {
-                const card = document.createElement('div');
-                card.className = 'weapon-card';
-                card.innerHTML = `
-                    <div class="weapon-name">${weapon.name}</div>
-                    <div class="weapon-stats">DMG: ${weapon.damage} | Rate: ${weapon.fireRate}ms</div>
-                    <div class="weapon-size ${weapon.size}">${weapon.size}</div>
-                `;
-                card.addEventListener('click', () => equipArenaWeapon(weapon));
-                grid.appendChild(card);
-            });
-        }
-
-        // Populate arena hardpoints
-        function populateArenaHardpoints() {
-            const container = document.getElementById('arenaHardpoints');
-            container.innerHTML = '';
-
-            arenaConfig.hardpoints.forEach((hp, idx) => {
-                const slot = document.createElement('div');
-                slot.className = 'hardpoint-slot' + (hp.equipped ? ' filled' : '');
-                slot.innerHTML = `
-                    <div class="slot-label">Slot ${idx + 1} (${hp.size})</div>
-                    <div class="slot-weapon">${hp.equipped ? hp.equipped.name : 'Empty'}</div>
-                    ${hp.equipped ? '<div class="slot-clear">Clear</div>' : ''}
-                `;
-
-                slot.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('slot-clear')) {
-                        arenaConfig.hardpoints[idx].equipped = null;
-                        populateArenaHardpoints();
-                    } else {
-                        arenaConfig.selectedHardpoint = idx;
-                        document.querySelectorAll('.hardpoint-slot').forEach(s => s.style.borderColor = '');
-                        slot.style.borderColor = '#44ff44';
-                    }
-                });
-
-                container.appendChild(slot);
-            });
-        }
-
-        // Equip weapon to selected hardpoint
-        function equipArenaWeapon(weapon) {
-            const hp = arenaConfig.hardpoints[arenaConfig.selectedHardpoint];
-            if (!hp) return;
-
-            // Check size compatibility
-            const sizeOrder = { light: 0, medium: 1, heavy: 2, assault: 3 };
-            if (sizeOrder[weapon.size] > sizeOrder[hp.size]) {
-                // Weapon too big for slot
-                return;
-            }
-
-            hp.equipped = { ...weapon };
-            populateArenaHardpoints();
-        }
-
-        // Populate arena upgrades
-        function populateArenaUpgrades() {
-            const container = document.getElementById('arenaUpgrades');
-            container.innerHTML = '';
-
-            const upgradeList = [
-                { id: 'hull', name: 'Hull', icon: '🛡️', max: 5, effect: '+25 HP' },
-                { id: 'engine', name: 'Engine', icon: '🚀', max: 4, effect: '+10% Speed' },
-                { id: 'shields', name: 'Shields', icon: '💠', max: 3, effect: '+15 Shields' }
-            ];
-
-            upgradeList.forEach(upgrade => {
-                const card = document.createElement('div');
-                card.className = 'upgrade-card';
-                card.innerHTML = `
-                    <div class="upgrade-header">
-                        <span class="upgrade-icon">${upgrade.icon}</span>
-                        <span class="upgrade-name">${upgrade.name}</span>
-                    </div>
-                    <div class="upgrade-level">
-                        <button class="upgrade-minus">-</button>
-                        <span>${arenaConfig.upgrades[upgrade.id]} / ${upgrade.max}</span>
-                        <button class="upgrade-plus">+</button>
-                    </div>
-                `;
-
-                card.querySelector('.upgrade-minus').addEventListener('click', () => {
-                    if (arenaConfig.upgrades[upgrade.id] > 0) {
-                        arenaConfig.upgrades[upgrade.id]--;
-                        populateArenaUpgrades();
-                    }
-                });
-
-                card.querySelector('.upgrade-plus').addEventListener('click', () => {
-                    if (arenaConfig.upgrades[upgrade.id] < upgrade.max) {
-                        arenaConfig.upgrades[upgrade.id]++;
-                        populateArenaUpgrades();
-                    }
-                });
-
-                container.appendChild(card);
-            });
-        }
-
-        // Update hardpoint configuration based on count selection
-        function updateHardpointConfig() {
-            const count = parseInt(document.getElementById('arenaHardpointCount').value);
-            const configs = {
-                1: [{ size: 'medium', equipped: null }],
-                2: [{ size: 'medium', equipped: null }, { size: 'light', equipped: null }],
-                3: [{ size: 'medium', equipped: null }, { size: 'light', equipped: null }, { size: 'light', equipped: null }],
-                4: [{ size: 'heavy', equipped: null }, { size: 'medium', equipped: null }, { size: 'light', equipped: null }, { size: 'light', equipped: null }]
-            };
-            arenaConfig.hardpoints = configs[count];
-            arenaConfig.selectedHardpoint = 0;
-            populateArenaHardpoints();
-        }
-
-        // Initialize arena config panel
-        function initArenaConfig() {
-            populateArenaWeapons();
-            populateArenaHardpoints();
-            populateArenaUpgrades();
-
-            // Enemy checkbox handlers
-            document.querySelectorAll('#arenaEnemyGrid .arena-checkbox').forEach(checkbox => {
-                const input = checkbox.querySelector('input');
-                input.addEventListener('change', () => {
-                    checkbox.classList.toggle('selected', input.checked);
-                    updateArenaEnemies();
-                });
-            });
-
-            // Hardpoint count handler
-            document.getElementById('arenaHardpointCount').addEventListener('change', updateHardpointConfig);
-        }
-
-        // Update selected enemies
-        function updateArenaEnemies() {
-            arenaConfig.enemies = [];
-            document.querySelectorAll('#arenaEnemyGrid input:checked').forEach(input => {
-                arenaConfig.enemies.push(input.id.replace('enemy_', ''));
-            });
-            if (arenaConfig.enemies.length === 0) {
-                arenaConfig.enemies = ['basic'];
-                document.getElementById('enemy_basic').checked = true;
-                document.getElementById('enemy_basic').closest('.arena-checkbox').classList.add('selected');
-            }
-        }
-
-        // Show arena config
-        document.getElementById('arenaModeBtn').addEventListener('click', () => {
-            document.getElementById('startScreen').style.display = 'none';
-            document.getElementById('arenaConfig').style.display = 'block';
-            initArenaConfig();
-        });
-
-        // Hide arena config
-        document.getElementById('arenaBackBtn').addEventListener('click', () => {
-            document.getElementById('arenaConfig').style.display = 'none';
-            document.getElementById('startScreen').style.display = 'flex';
-        });
-
-        // Start arena mode
-        document.getElementById('arenaStartBtn').addEventListener('click', async () => {
-            // Gather config
-            arenaConfig.startEnemies = parseInt(document.getElementById('arenaStartEnemies').value) || 5;
-            arenaConfig.enemiesPerWave = parseInt(document.getElementById('arenaEnemiesPerWave').value) || 2;
-            arenaConfig.healthScale = parseFloat(document.getElementById('arenaHealthScale').value) || 1;
-            arenaConfig.shipModel = document.getElementById('arenaShipModel').value;
-            arenaConfig.shipColor = document.getElementById('arenaShipColor').value;
-            updateArenaEnemies();
-
-            // Hide config panel
-            document.getElementById('arenaConfig').style.display = 'none';
-
-            // Start arena
-            await startArenaMode();
-        });
-
-        // Arena mode game start
-        async function startArenaMode() {
-            // Set arena mode flag
-            gameState.arenaMode = true;
-            gameState.arenaConfig = { ...arenaConfig };
-            gameState.arenaWave = 1;
-            gameState.arenaKills = 0;
-
-            // Use arena ship settings
-            settings.playerShip = arenaConfig.shipModel;
-            settings.playerColor = arenaConfig.shipColor;
-
-            // Show loading
-            const startScreen = document.getElementById('startScreen');
-            const loadingScreen = document.getElementById('loadingScreen');
-            const titleButtons = document.getElementById('titleButtons');
-            const arenaLoadingText = document.querySelector('#loadingScreen .loading-text');
-            const arenaProgressBar = document.getElementById('loadingProgressBar');
-            titleButtons.style.display = 'none';
-            loadingScreen.style.display = 'flex';
-
-            // Create scene + player ship (other ships load lazily)
-            if (arenaLoadingText) arenaLoadingText.textContent = 'Initializing engine...';
-            if (arenaProgressBar) arenaProgressBar.style.width = '33%';
-            createMainScene();
-
-            if (arenaLoadingText) arenaLoadingText.textContent = 'Loading player ship...';
-            if (arenaProgressBar) arenaProgressBar.style.width = '66%';
-            await createPlayerShip();
-            if (arenaProgressBar) arenaProgressBar.style.width = '100%';
-
-            // Hide start screen
-            startScreen.style.display = 'none';
-            document.getElementById('hud').style.display = 'flex';
-            document.getElementById('systemBtn').style.display = 'block';
-
-            // Initialize game state for arena
-            gameState.score = 0;
-            gameState.credits = 0;
-            gameState.level = 1;
-            gameState.wave = 1;
-            gameState.levelWave = 0;
-
-            // Apply upgrades
-            gameState.maxHealth = 100 + arenaConfig.upgrades.hull * 25;
-            gameState.health = gameState.maxHealth;
-            gameState.maxShields = arenaConfig.upgrades.shields * 15;
-            gameState.shields = gameState.maxShields;
-
-            // Set up ship upgrades for arena (used by updatePlayerPosition)
-            gameState.shipUpgrades = { engine: arenaConfig.upgrades.engine };
-
-            // Set up fleet with arena weapons
-            gameState.fleet = [{
-                name: 'Arena Ship',
-                model: arenaConfig.shipModel,
-                hardpoints: arenaConfig.hardpoints.map(hp => ({
-                    size: hp.size,
-                    position: { x: 0, y: 0.3 },
-                    equipped: hp.equipped
-                }))
-            }];
-
-            // Arena level config (no stations, infinite waves)
-            gameState.levelConfig = {
-                waveCount: 999,
-                threatLevel: 'Arena',
-                threatClass: 'arena',
-                enemyMultiplier: arenaConfig.healthScale,
-                stations: [],
-                stationWaves: []
-            };
-
-            // Disable fuel/exploration in arena
-            gameState.fuel = 999;
-            gameState.maxFuel = 999;
-            gameState.inExploration = false;
-
-            // Spawn first wave
-            spawnArenaWave();
-
-            // Variables for game loop
-            let lastFrameTime = performance.now();
-            gameState.isPlaying = true;
-
-            // Arena game loop (same as regular but with arena-specific wave handling)
-            scene.registerBeforeRender(() => {
-                if (!gameState.isPlaying || gameState.pauseReasons.size > 0) return;
-
-                const currentTime = performance.now();
-                const deltaTime = Math.min(currentTime - lastFrameTime, 50);
-                lastFrameTime = currentTime;
-
-                // Player movement (reuse standard movement function)
-                updatePlayerPosition(deltaTime);
-
-                // Fire weapons
-                if (gameState.enemies.length > 0) {
-                    firePlayerWeapons(currentTime);
-                }
-
-                // Spawn enemies during wave
-                if (gameState.enemiesSpawned < gameState.enemiesInWave) {
-                    gameState.waveTimer += deltaTime;
-                    if (gameState.waveTimer > 800) {
-                        gameState.waveTimer = 0;
-                        spawnArenaEnemy();
-                    }
-                }
-
-                // Check wave completion
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0) {
-                    // Wave complete - start next wave
-                    gameState.arenaWave++;
-                    gameState.wave++;
-                    spawnArenaWave();
-                }
-
-                // Update game entities
-                const scrollMultiplier = 0.5;
-                updateEnemies(deltaTime, currentTime, scrollMultiplier);
-                updateBullets();
-                updateBurstQueues(currentTime);
-                updateChallengerLasers();
-                updateEnemyBeamSweeps();
-                updatePlayerBeams();
-                updateMissiles(deltaTime);
-                updateDrones(deltaTime, currentTime);
-                updateShieldEquipment(deltaTime);
-                updateSecondaryCooldown(deltaTime);
-                fireEquipmentWeapons(currentTime);
-                updateLoot(scrollMultiplier);
-                updateWeaponDrops(scrollMultiplier);
-                updateStars(scrollMultiplier);
-            });
-
-            engine.runRenderLoop(() => {
-                scene.render();
-            });
-        }
-
-        // Spawn arena wave
-        function spawnArenaWave() {
-            const config = gameState.arenaConfig;
-            const waveNum = gameState.arenaWave;
-
-            // Calculate enemy count: start + (wave-1) * perWave
-            const enemyCount = config.startEnemies + (waveNum - 1) * config.enemiesPerWave;
-
-            gameState.enemiesInWave = enemyCount;
-            gameState.enemiesSpawned = 0;
-            gameState.waveTimer = 0;
-            gameState.levelWave = waveNum;
-
-            updateHUD();
-        }
-
-        // Spawn arena enemy
-        async function spawnArenaEnemy() {
-            if (gameState.enemiesSpawned >= gameState.enemiesInWave) return;
-
-            const config = gameState.arenaConfig;
-
-            // Pick random enemy type from selected types
-            const type = config.enemies[Math.floor(Math.random() * config.enemies.length)];
-
-            const maxX = orthoWidth - 1;
-            const x = (Math.random() - 0.5) * maxX * 1.5;
-            const y = orthoHeight + 2;
-
-            const enemy = await createEnemy(type, x, y);
-
-            // Apply arena health scaling
-            enemy.maxHealth = Math.round(enemy.maxHealth * config.healthScale);
-            enemy.health = enemy.maxHealth;
-
-            gameState.enemies.push(enemy);
-            gameState.enemiesSpawned++;
-        }
 
         restartBtn.addEventListener('click', async () => {
             gameOverPanel.style.display = 'none';
-
-            if (gameState.arenaMode) {
-                // Restart arena mode
-                await resetGame();
-                gameState.arenaMode = true;
-                gameState.arenaWave = 1;
-                gameState.arenaKills = 0;
-
-                // Reapply arena config
-                const config = gameState.arenaConfig;
-                if (config) {
-                    gameState.maxHealth = 100 + config.upgrades.hull * 25;
-                    gameState.health = gameState.maxHealth;
-                    gameState.maxShields = config.upgrades.shields * 15;
-                    gameState.shields = gameState.maxShields;
-                    gameState.arenaSpeedBonus = 1 + config.upgrades.engine * 0.1;
-                    gameState.levelConfig = {
-                        waveCount: 999,
-                        threatLevel: 'Arena',
-                        threatClass: 'arena',
-                        enemyMultiplier: config.healthScale,
-                        stations: [],
-                        stationWaves: []
-                    };
-                    gameState.fuel = 999;
-                    gameState.maxFuel = 999;
-                }
-
-                spawnArenaWave();
-            } else {
-                await resetGame();
-                // resetGame already calls enterExplorationMode
-            }
+            await resetGame();
             gameState.isPlaying = true;
         });
 
