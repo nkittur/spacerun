@@ -2480,6 +2480,240 @@
             color: #88a;
         }
 
+        /* ========== BOUNTY MISSION BOARD ========== */
+        .mission-board-header {
+            color: #ff6644;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255, 102, 68, 0.3);
+        }
+        .bounty-card {
+            background: rgba(40, 20, 15, 0.9);
+            border: 1px solid rgba(255, 80, 40, 0.4);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .bounty-card:hover {
+            background: rgba(60, 30, 20, 0.95);
+            border-color: #ff6644;
+            box-shadow: 0 0 15px rgba(255, 80, 40, 0.3);
+        }
+        .bounty-card.active-bounty {
+            border-color: #ffaa33;
+            box-shadow: 0 0 12px rgba(255, 170, 50, 0.3);
+        }
+        .bounty-card.active-bounty::after {
+            content: 'ACTIVE';
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            font-size: 9px;
+            color: #ffaa33;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        .bounty-name {
+            color: #ff8866;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+        .bounty-alias {
+            color: #aa7766;
+            font-size: 11px;
+            font-style: italic;
+            margin-bottom: 6px;
+        }
+        .bounty-skulls {
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .bounty-skulls .skull {
+            color: #ff4433;
+            font-size: 13px;
+            margin-right: 1px;
+        }
+        .bounty-skulls .skull.empty {
+            color: #443333;
+        }
+        .bounty-desc {
+            color: #bbaa99;
+            font-size: 11px;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+        .bounty-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+        }
+        .bounty-reward {
+            color: #ffcc44;
+            font-weight: bold;
+        }
+        .bounty-fleet {
+            color: #88aacc;
+        }
+        .bounty-accept-btn {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            background: rgba(255, 80, 40, 0.2);
+            border: 1px solid #ff6644;
+            border-radius: 6px;
+            color: #ff8866;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s ease;
+        }
+        .bounty-accept-btn:hover {
+            background: rgba(255, 80, 40, 0.4);
+            box-shadow: 0 0 12px rgba(255, 80, 40, 0.3);
+        }
+        .bounty-accept-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .bounty-abandon-btn {
+            width: 100%;
+            padding: 8px;
+            margin-top: 6px;
+            background: rgba(80, 40, 30, 0.3);
+            border: 1px solid #664433;
+            border-radius: 6px;
+            color: #886655;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .bounty-abandon-btn:hover {
+            background: rgba(120, 50, 30, 0.4);
+            border-color: #885544;
+            color: #aa7755;
+        }
+        .no-missions-msg {
+            text-align: center;
+            padding: 30px 15px;
+            color: #556;
+            font-size: 13px;
+        }
+        .active-bounty-banner {
+            background: rgba(255, 170, 50, 0.1);
+            border: 1px solid rgba(255, 170, 50, 0.3);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+        }
+        .active-bounty-banner .banner-label {
+            color: #ffaa33;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+        .active-bounty-banner .banner-name {
+            color: #ffcc66;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .active-bounty-banner .banner-skulls {
+            display: inline-block;
+            margin-left: 6px;
+        }
+
+        /* Bounty Reward Dialog */
+        #bountyRewardDialog {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 15, 0.95);
+            display: none;
+            z-index: 210;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .bounty-reward-header {
+            text-align: center;
+            padding: 20px 15px 10px;
+        }
+        .bounty-reward-header h2 {
+            color: #ff6644;
+            font-size: 22px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 4px;
+            text-shadow: 0 0 20px rgba(255, 80, 40, 0.6);
+        }
+        .bounty-reward-header .reward-subtitle {
+            color: #aa7766;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+        .bounty-reward-target {
+            text-align: center;
+            padding: 15px;
+        }
+        .bounty-reward-target .target-name {
+            color: #ffaa66;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .bounty-reward-target .target-skulls {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .bounty-reward-target .target-flavor {
+            color: #bbaa99;
+            font-size: 12px;
+            font-style: italic;
+            max-width: 350px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        .bounty-reward-items {
+            width: 100%;
+            max-width: 350px;
+            padding: 10px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 15px;
+        }
+        .bounty-continue-btn {
+            padding: 14px 40px;
+            background: rgba(255, 80, 40, 0.2);
+            border: 2px solid #ff6644;
+            border-radius: 10px;
+            color: #ff8866;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+        }
+        .bounty-continue-btn:hover {
+            background: rgba(255, 80, 40, 0.4);
+            box-shadow: 0 0 20px rgba(255, 80, 40, 0.4);
+        }
+
         /* Depart Button */
         #stationDepartBtn {
             position: fixed;
@@ -3003,6 +3237,20 @@
         <div class="mystery-event-outcome" id="mysteryEventOutcome" style="display:none;"></div>
     </div>
 
+    <div id="bountyRewardDialog">
+        <div class="bounty-reward-header">
+            <h2 id="bountyRewardTitle">Bounty Complete</h2>
+            <div class="reward-subtitle" id="bountyRewardSubtitle">Target eliminated</div>
+        </div>
+        <div class="bounty-reward-target">
+            <div class="target-name" id="bountyRewardName"></div>
+            <div class="target-skulls" id="bountyRewardSkulls"></div>
+            <div class="target-flavor" id="bountyRewardFlavor"></div>
+        </div>
+        <div class="bounty-reward-items" id="bountyRewardItems"></div>
+        <button class="bounty-continue-btn" onclick="closeBountyReward()">Collect Bounty</button>
+    </div>
+
     <div id="settingsPanel">
         <h2>Settings</h2>
         <div class="setting-group">
@@ -3162,10 +3410,7 @@
             <!-- Missions Section -->
             <div id="sectionMissions" class="station-section">
                 <h3>Mission Board</h3>
-                <div class="coming-soon">
-                    <div class="coming-soon-icon">📋</div>
-                    <div class="coming-soon-text">Mission contracts coming soon...</div>
-                </div>
+                <div id="missionBoardContent"></div>
             </div>
 
             <!-- Outfitter Section -->
@@ -4283,7 +4528,13 @@
             secondaryAbility: null,     // Equipped secondary ability data
             secondaryCooldown: 0,       // Remaining cooldown (ms)
             secondaryMaxCooldown: 0,    // Max cooldown (ms)
-            secondaryActive: false      // Whether secondary is currently firing
+            secondaryActive: false,      // Whether secondary is currently firing
+            // Bounty mission system
+            activeBounty: null,          // Current accepted bounty mission
+            stationBounties: null,       // Bounties available at current station
+            bountyGate: null,            // Bounty warp gate mesh in exploration
+            bountyEncounterActive: false,// Whether currently in a bounty encounter
+            bountyRewardPending: false   // Whether bounty reward dialog should show
         };
 
         // Space zones - different areas with unique backgrounds (Starfield is transition zone)
@@ -7070,6 +7321,10 @@
 
             // Update ship upgrades display
             updateUpgradesUI();
+
+            // Generate station bounties for mission board
+            gameState.stationBounties = generateStationBounties();
+            populateMissionBoard();
         }
 
         // Update shipyard fuel display
@@ -7525,6 +7780,9 @@
             if (sectionName === 'trading') {
                 updateTradingUI();
             }
+            if (sectionName === 'missions') {
+                populateMissionBoard();
+            }
         }
 
         // Buy weapon from station
@@ -7706,6 +7964,9 @@
 
             // Increment stations visited counter
             gameState.stationsVisited++;
+
+            // Clear station-specific bounties (board refreshes at each station)
+            gameState.stationBounties = null;
 
             // Remove starbase
             if (gameState.starbase) {
@@ -8303,6 +8564,267 @@
             gameState.systemTraffic = [];
         }
 
+        // ========== BOUNTY MISSION SYSTEM ==========
+
+        // Named bounty targets - 80s/90s gaming references with tongue-in-cheek names
+        const BOUNTY_TARGETS = [
+            // Skull 1 - Easy
+            { name: 'Bowski the Plumber', alias: 'The Pipe Wrecker', flavor: 'Known for jumping on cargo containers and stealing gold coins from merchants. Surprisingly agile for a plumber.', minSkulls: 1, maxSkulls: 1 },
+            { name: 'Pac-Maw', alias: 'The Hungry One', flavor: 'Consumes everything in his path. Has been known to eat entire fuel depots. Afraid of ghosts, apparently.', minSkulls: 1, maxSkulls: 1 },
+            { name: 'Donkey Krag', alias: 'The Barrel Chucker', flavor: 'A notorious pirate who rolls explosive barrels at anyone who approaches. Big ape energy.', minSkulls: 1, maxSkulls: 2 },
+            { name: 'Lunk', alias: 'The Pot Smasher', flavor: 'Goes around breaking every container he finds looking for credits. Wears a funny green hat. Hyaaa!', minSkulls: 1, maxSkulls: 2 },
+            // Skull 2 - Moderate
+            { name: 'Samus Arant', alias: 'The Bounty Hunter\'s Bounty', flavor: 'Ironic -- a bounty hunter who became the bounty. Her ship can roll into a ball, somehow.', minSkulls: 2, maxSkulls: 2 },
+            { name: 'Solid Serpent', alias: 'The Cardboard Ghost', flavor: 'Master of stealth. Known for hiding inside shipping containers. You\'ll never see him coming... or will you?', minSkulls: 2, maxSkulls: 3 },
+            { name: 'Sonic Hedgerow', alias: 'The Blue Blur', flavor: 'Too fast for his own good. Collects rings obsessively. DO NOT let him near any golden jewelry.', minSkulls: 2, maxSkulls: 2 },
+            { name: 'Mega Dan', alias: 'The Blue Bomber', flavor: 'Copies the weapons of every pilot he defeats. Currently sporting an arm cannon. Very blue, very angry.', minSkulls: 2, maxSkulls: 3 },
+            // Skull 3 - Challenging
+            { name: 'Bowsalot', alias: 'The Turtle King', flavor: 'Commands a fleet of ships from his fortress cruiser. Has kidnapped at least seven princesses. Breathes fire. Seriously.', minSkulls: 3, maxSkulls: 3 },
+            { name: 'Dr. Robuttnik', alias: 'The Egg Baron', flavor: 'An evil genius who puts animals in robots. His flagship is shaped like an egg. Don\'t laugh -- his weapons are no joke.', minSkulls: 3, maxSkulls: 4 },
+            { name: 'Ganondorf the Dorky', alias: 'King of Thieves', flavor: 'Claims to hold the Trifarce of Power. Whatever that means. His fleet casts a mean darkness over trade lanes.', minSkulls: 3, maxSkulls: 3 },
+            { name: 'M. Byscuit', alias: 'The Street Emperor', flavor: 'Rules the underground fighting circuits. His signature move -- the Psycho Smasher -- has destroyed many a hull.', minSkulls: 3, maxSkulls: 4 },
+            // Skull 4 - Hard
+            { name: 'Sephiroth Lite', alias: 'The One-Winged Edgelord', flavor: 'Carries an absurdly long lance weapon. Obsessed with a meteor he calls "mother." Very dramatic entrance music.', minSkulls: 4, maxSkulls: 4 },
+            { name: 'GLaDOS-Adjacent', alias: 'The Cake Liar', flavor: 'An AI that went rogue. Promises cake if you surrender. There is no cake. There never was cake.', minSkulls: 4, maxSkulls: 5 },
+            { name: 'Psycho Mantid', alias: 'The Mind Reader', flavor: 'Claims he can read your flight patterns. Somehow dodges every third shot. Try switching controller ports? Wait...', minSkulls: 4, maxSkulls: 4 },
+            // Skull 5 - Extreme
+            { name: 'Mike Tyson\'s Ghost Ship', alias: 'The Knockout Express', flavor: 'One hit and you\'re done. Pilots describe flashing stars before blacking out. Dodge EVERYTHING or become space dust.', minSkulls: 5, maxSkulls: 5 },
+            { name: 'The Creep King', alias: 'Sssssurprise', flavor: 'Commands a fleet of explosive drones. When you hear the hiss, it\'s already too late. Nice base you had there...', minSkulls: 5, maxSkulls: 5 },
+            { name: 'Lavos Prime', alias: 'The Epoch Ender', flavor: 'An ancient destroyer that hibernates between star systems. Awakened and very cranky. Time will not save you.', minSkulls: 5, maxSkulls: 5 },
+        ];
+
+        // Bounty skull level definitions - difficulty scaling and rewards
+        const BOUNTY_SKULL_LEVELS = {
+            1: {
+                label: 'Nuisance',
+                minibossType: 'heavy',
+                minibossHpMult: 1.5,
+                minibossDmgMult: 1.2,
+                minibossScale: 1.4,
+                escorts: [{ type: 'basic', count: 1 }, { type: 'light', count: 1 }],
+                creditReward: [80, 120],
+                resourceReward: { Metal: [10, 20] },
+                weaponChance: 0.15,
+                weaponQualityBonus: 0,
+            },
+            2: {
+                label: 'Dangerous',
+                minibossType: 'heavy',
+                minibossHpMult: 2.0,
+                minibossDmgMult: 1.4,
+                minibossScale: 1.6,
+                escorts: [{ type: 'basic', count: 2 }, { type: 'shooter', count: 1 }],
+                creditReward: [150, 250],
+                resourceReward: { Metal: [15, 25], Crystals: [3, 8] },
+                weaponChance: 0.25,
+                weaponQualityBonus: 1,
+            },
+            3: {
+                label: 'Deadly',
+                minibossType: 'challenger',
+                minibossHpMult: 2.5,
+                minibossDmgMult: 1.6,
+                minibossScale: 1.5,
+                escorts: [{ type: 'heavy', count: 1 }, { type: 'shooter', count: 2 }, { type: 'light', count: 1 }],
+                creditReward: [300, 500],
+                resourceReward: { Metal: [20, 30], Crystals: [8, 15], Exotic: [2, 5] },
+                weaponChance: 0.40,
+                weaponQualityBonus: 2,
+            },
+            4: {
+                label: 'Lethal',
+                minibossType: 'challenger',
+                minibossHpMult: 3.5,
+                minibossDmgMult: 1.8,
+                minibossScale: 1.8,
+                escorts: [{ type: 'heavy', count: 2 }, { type: 'challenger', count: 1 }, { type: 'shooter', count: 2 }],
+                creditReward: [500, 800],
+                resourceReward: { Metal: [25, 40], Crystals: [12, 25], Exotic: [5, 10] },
+                weaponChance: 0.60,
+                weaponQualityBonus: 3,
+            },
+            5: {
+                label: 'Suicidal',
+                minibossType: 'challenger',
+                minibossHpMult: 5.0,
+                minibossDmgMult: 2.2,
+                minibossScale: 2.0,
+                escorts: [{ type: 'heavy', count: 2 }, { type: 'challenger', count: 2 }, { type: 'shooter', count: 2 }, { type: 'fast', count: 2 }],
+                creditReward: [800, 1500],
+                resourceReward: { Metal: [30, 50], Crystals: [20, 40], Exotic: [10, 20] },
+                weaponChance: 0.85,
+                weaponQualityBonus: 5,
+            },
+        };
+
+        // Generate a bounty mission for the given level
+        function generateBountyMission(worldLevel) {
+            // Determine skull range available at this world level
+            const maxSkull = Math.min(5, 1 + Math.floor(worldLevel / 2));
+            const minSkull = Math.max(1, maxSkull - 2);
+
+            // Pick a skull level weighted toward achievable but challenging
+            const skulls = minSkull + Math.floor(Math.random() * (maxSkull - minSkull + 1));
+
+            // Pick a target appropriate for skull level
+            const validTargets = BOUNTY_TARGETS.filter(t => skulls >= t.minSkulls && skulls <= t.maxSkulls);
+            const target = validTargets[Math.floor(Math.random() * validTargets.length)] || BOUNTY_TARGETS[0];
+
+            const skullDef = BOUNTY_SKULL_LEVELS[skulls];
+
+            // Calculate rewards
+            const credits = skullDef.creditReward[0] + Math.floor(Math.random() * (skullDef.creditReward[1] - skullDef.creditReward[0]));
+            const resources = {};
+            for (const [res, range] of Object.entries(skullDef.resourceReward)) {
+                resources[res] = range[0] + Math.floor(Math.random() * (range[1] - range[0]));
+            }
+
+            // Count total escorts
+            const escortCount = skullDef.escorts.reduce((sum, e) => sum + e.count, 0);
+
+            return {
+                id: 'bounty_' + Math.random().toString(36).substr(2, 9),
+                type: 'bounty',
+                targetName: target.name,
+                targetAlias: target.alias,
+                targetFlavor: target.flavor,
+                skulls: skulls,
+                skullLabel: skullDef.label,
+                minibossType: skullDef.minibossType,
+                minibossHpMult: skullDef.minibossHpMult,
+                minibossDmgMult: skullDef.minibossDmgMult,
+                minibossScale: skullDef.minibossScale,
+                escorts: skullDef.escorts,
+                escortCount: escortCount,
+                creditReward: credits,
+                resourceReward: resources,
+                weaponChance: skullDef.weaponChance,
+                weaponQualityBonus: skullDef.weaponQualityBonus,
+                worldLevel: worldLevel,
+                accepted: false,
+                completed: false,
+                gateSpawned: false,
+            };
+        }
+
+        // Generate available bounties for the station mission board
+        function generateStationBounties() {
+            const level = gameState.level || 1;
+            const count = 2 + Math.floor(Math.random() * 2); // 2-3 bounties
+            const bounties = [];
+            const usedNames = new Set();
+
+            for (let i = 0; i < count; i++) {
+                let mission;
+                let attempts = 0;
+                do {
+                    mission = generateBountyMission(level);
+                    attempts++;
+                } while (usedNames.has(mission.targetName) && attempts < 20);
+                usedNames.add(mission.targetName);
+                bounties.push(mission);
+            }
+
+            // Sort by skulls ascending
+            bounties.sort((a, b) => a.skulls - b.skulls);
+            return bounties;
+        }
+
+        // Render skull icons
+        function renderSkulls(count, max) {
+            let html = '';
+            for (let i = 0; i < max; i++) {
+                html += `<span class="skull ${i < count ? '' : 'empty'}">\u2620</span>`;
+            }
+            return html;
+        }
+
+        // Populate mission board UI
+        function populateMissionBoard() {
+            const container = document.getElementById('missionBoardContent');
+            if (!container) return;
+
+            // Generate station bounties if not already generated
+            if (!gameState.stationBounties) {
+                gameState.stationBounties = generateStationBounties();
+            }
+
+            let html = '';
+
+            // Show active bounty banner if one exists
+            if (gameState.activeBounty && !gameState.activeBounty.completed) {
+                const b = gameState.activeBounty;
+                html += `<div class="active-bounty-banner">
+                    <div class="banner-label">Active Contract</div>
+                    <div class="banner-name">${b.targetName}
+                        <span class="banner-skulls">${renderSkulls(b.skulls, 5)}</span>
+                    </div>
+                    <div style="color: #aa8866; font-size: 11px; margin-top: 4px;">${b.skullLabel} - ${b.escortCount} escorts - ${b.creditReward} CR reward</div>
+                    <button class="bounty-abandon-btn" onclick="abandonBounty()">Abandon Contract</button>
+                </div>`;
+            }
+
+            // Show available bounties header
+            html += `<div class="mission-board-header">Available Bounties</div>`;
+
+            if (gameState.stationBounties.length === 0) {
+                html += `<div class="no-missions-msg">No bounties posted at this station. Check another station.</div>`;
+            } else {
+                gameState.stationBounties.forEach((bounty, idx) => {
+                    const hasActive = gameState.activeBounty && !gameState.activeBounty.completed;
+                    const isThisActive = hasActive && gameState.activeBounty.id === bounty.id;
+
+                    html += `<div class="bounty-card ${isThisActive ? 'active-bounty' : ''}">
+                        <div class="bounty-name">${bounty.targetName}</div>
+                        <div class="bounty-alias">"${bounty.targetAlias}"</div>
+                        <div class="bounty-desc">${bounty.targetFlavor}</div>
+                        <div class="bounty-info-row">
+                            <div class="bounty-skulls">${renderSkulls(bounty.skulls, 5)}</div>
+                            <span class="bounty-reward">${bounty.creditReward} CR</span>
+                        </div>
+                        <div class="bounty-info-row" style="margin-top: 4px;">
+                            <span class="bounty-fleet">${bounty.escortCount} escort${bounty.escortCount !== 1 ? 's' : ''} + miniboss</span>
+                            <span style="color: #aa6644; font-size: 11px;">${bounty.skullLabel}</span>
+                        </div>
+                        ${!hasActive ? `<button class="bounty-accept-btn" onclick="acceptBounty(${idx})">Accept Contract</button>` : ''}
+                    </div>`;
+                });
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Accept a bounty from the mission board
+        function acceptBounty(idx) {
+            if (gameState.activeBounty && !gameState.activeBounty.completed) return;
+
+            const bounty = gameState.stationBounties[idx];
+            if (!bounty) return;
+
+            bounty.accepted = true;
+            gameState.activeBounty = bounty;
+
+            // Re-render the mission board
+            populateMissionBoard();
+        }
+
+        // Abandon current bounty
+        function abandonBounty() {
+            if (!gameState.activeBounty) return;
+
+            // Clean up bounty gate if spawned
+            cleanupBountyGate();
+
+            gameState.activeBounty = null;
+
+            // Re-render if mission board is visible
+            populateMissionBoard();
+        }
+
+        // Make mission functions globally available
+        window.acceptBounty = acceptBounty;
+        window.abandonBounty = abandonBounty;
+
         // Gate type definitions - each type has visual and behavioral properties
         const GATE_TYPES = {
             system: {
@@ -8314,6 +8836,11 @@
                 name: 'Event Gate',
                 texture: 'assets/stellar objects/warpgate.png',
                 rotationSpeed: 0
+            },
+            bounty: {
+                name: 'Bounty Gate',
+                texture: 'assets/stellar objects/warpgate.png',
+                rotationSpeed: 0.003
             }
         };
 
@@ -8855,6 +9382,9 @@
             if (gameState.pauseReasons.has('mysteryEvent')) {
                 releasePause('mysteryEvent');
             }
+
+            // Clear bounty gate (not the mission itself, just the visual gate)
+            cleanupBountyGate();
 
             // Clear all beam lasers (both array and legacy single beam)
             if (gameState.beamMeshes) {
@@ -10391,7 +10921,7 @@
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
                 e.target.closest('button') || e.target.closest('#systemMenu') ||
                 e.target.closest('#settingsPanel') || e.target.closest('#confirmDialog') ||
-                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog')) return;
+                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog') || e.target.closest('#bountyRewardDialog')) return;
             if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
                 // Two-finger tap activates secondary ability
@@ -10407,7 +10937,7 @@
         document.addEventListener('touchmove', (e) => {
             // Allow station interior and mystery event dialog scrolling
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
-                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog')) return;
+                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog') || e.target.closest('#bountyRewardDialog')) return;
             if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
@@ -12386,6 +12916,10 @@
                 if (s.strengthMesh) s.strengthMesh.setEnabled(false);
                 if (s.playerBeamMesh) s.playerBeamMesh.setEnabled(false);
             });
+            // Hide bounty gate during combat
+            if (gameState.bountyGate) {
+                gameState.bountyGate.setEnabled(false);
+            }
         }
 
         // Spawn the encounter's enemies after zoom-in completes
@@ -12566,6 +13100,10 @@
                     if (s.strengthMesh) s.strengthMesh.setEnabled(true);
                 }
             });
+            // Show bounty gate again
+            if (gameState.bountyGate) {
+                gameState.bountyGate.setEnabled(true);
+            }
         }
 
         // Clean up all exploration state (encounters, traffic, goal, skirmishes)
@@ -12577,7 +13115,350 @@
             cleanupExplorationGoal();
             cleanupExplorationTraffic();
             cleanupSkirmishes();
+            cleanupBountyGate();
         }
+
+        // ========== BOUNTY GATE SYSTEM ==========
+        // Spawns a bounty warp gate in the exploration map when player has an active bounty
+
+        function spawnBountyGate() {
+            if (!scene || !gameState.activeBounty || gameState.activeBounty.completed || gameState.bountyGate) return;
+            if (gameState.activeBounty.gateSpawned) return;
+
+            const bounty = gameState.activeBounty;
+
+            // Place bounty gate to the side of the map, between player start and goal
+            const goalY = gameState.explorationGoal ? gameState.explorationGoal.y : 85;
+            const gateY = 20 + Math.random() * (goalY * 0.4);
+            const gateX = (Math.random() < 0.5 ? -1 : 1) * (15 + Math.random() * 15);
+
+            const gateSize = 5;
+            const gateColor = [1.0, 0.3, 0.15]; // Red-orange for bounty
+            const gate = createGateMesh('bountyGate', gateX, gateY, gateSize, gateColor, GATE_TYPES.bounty.texture);
+            gate.gateType = 'bounty';
+            gate.position.z = 0.5;
+
+            // Scale for exploration view
+            gate.scaling.scaleInPlace(1.5);
+
+            gameState.bountyGate = gate;
+            bounty.gateSpawned = true;
+
+            // Store gate world position for edge indicators
+            gameState.bountyGatePos = { x: gateX, y: gateY };
+        }
+
+        function cleanupBountyGate() {
+            if (gameState.bountyGate) {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(gameState.bountyGate);
+                gameState.bountyGate.dispose();
+                gameState.bountyGate = null;
+            }
+            gameState.bountyGatePos = null;
+        }
+
+        // Check if player has reached the bounty gate
+        function checkBountyGateEntry() {
+            if (!playerShip || !gameState.bountyGate || !gameState.activeBounty) return false;
+
+            const gate = gameState.bountyGate;
+            const dx = playerShip.position.x - gate.position.x;
+            const dy = playerShip.position.y - gate.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            return dist < 4.5; // Enter when close to gate
+        }
+
+        // Start a bounty combat encounter
+        function enterBountyGate() {
+            if (!gameState.activeBounty) return;
+
+            const bounty = gameState.activeBounty;
+
+            // Clean up bounty gate visual
+            cleanupBountyGate();
+
+            // Build encounter object for combat zone system
+            const skullDef = BOUNTY_SKULL_LEVELS[bounty.skulls];
+
+            // Build enemy types: miniboss + escorts
+            const enemyTypes = [bounty.minibossType]; // First ship is the miniboss
+            for (const escort of bounty.escorts) {
+                for (let i = 0; i < escort.count; i++) {
+                    enemyTypes.push(escort.type);
+                }
+            }
+
+            const encounter = {
+                faction: 'pirates',
+                enemyCount: enemyTypes.length,
+                enemyTypes: enemyTypes,
+                strength: 50 + bounty.skulls * 20,
+                isBounty: true,
+                bountyData: bounty,
+            };
+
+            gameState.bountyEncounterActive = true;
+
+            // Use the standard combat encounter system
+            clearEdgeIndicators();
+
+            // Scale back ship from exploration
+            if (playerShipMesh) {
+                playerShipMesh.scaling.scaleInPlace(1 / settings.exploreShipScale);
+            }
+
+            // Save exploration state
+            gameState.explorationMode = false;
+            gameState.savedExplorePos = {
+                x: playerShip.position.x,
+                y: playerShip.position.y
+            };
+            gameState.explorationCameraPos = {
+                x: gameCamera ? gameCamera.position.x : 0,
+                y: gameCamera ? gameCamera.position.y : 0
+            };
+
+            // Warp animation then start bounty level
+            requestPause('warpAnimation');
+            playWarpAnimation(() => {
+                startBountyLevel(encounter, bounty);
+                releasePause('warpAnimation');
+            });
+        }
+
+        // Start a bounty-specific level (empty system with just enemies)
+        function startBountyLevel(encounter, bounty) {
+            // Save current level config
+            gameState._preBountyLevelConfig = gameState.levelConfig;
+            gameState._preBountyLevel = gameState.level;
+            gameState._preBountyLevelWave = gameState.levelWave;
+            gameState._preBountyLevelEndSpawned = gameState.levelEndSpawned;
+
+            // Clear existing level objects
+            clearLevelObjects();
+
+            // Change to a dark zone
+            changeToNewZone();
+
+            // Reset player position
+            if (playerShip) {
+                playerShip.position.x = 0;
+                playerShip.position.y = -7;
+                playerShip.targetX = 0;
+                playerShip.targetY = -7;
+            }
+
+            // Set zoom to combat
+            gameState.zoomLevel = 1;
+            gameState.zoomTarget = 1;
+            gameState.encounterTransition = 'combat'; // Required for updateCombatZone to run
+            gameState.explorationMode = false;
+            if (gameState._updateCamera) gameState._updateCamera();
+
+            // Set up combat zone
+            gameState.combatZone = {
+                active: true,
+                scrollDistance: 0,
+                totalScrollDistance: LEVEL_ZONE_HEIGHTS.reward * 2.5,
+                ships: [],
+                planets: [],
+                bullets: [],
+                peaceTimer: 0,
+                peaceThreshold: 3000,
+                playerAggroFactions: new Set(['pirates']),
+                zoomingOut: false,
+                isBounty: true,
+            };
+
+            // Weapons start hot
+            gameState.weaponsHot = true;
+            const wBtn = document.getElementById('weaponsToggleBtn');
+            if (wBtn) {
+                wBtn.textContent = 'WEAPONS: HOT';
+                wBtn.classList.add('weapons-hot');
+            }
+
+            // Spawn bounty enemies
+            spawnBountyCombatContent(encounter, bounty);
+
+            updateHUD();
+        }
+
+        // Spawn bounty combat zone enemies (miniboss + escorts)
+        function spawnBountyCombatContent(encounter, bounty) {
+            const cz = gameState.combatZone;
+            if (!cz) return;
+
+            // Spawn a few background planets
+            spawnCombatZonePlanets(cz);
+
+            const levelHealthMult = 1 + (bounty.worldLevel - 1) * 0.08;
+            const factionA = 'pirates';
+
+            const enemyTypes = encounter.enemyTypes;
+            enemyTypes.forEach((type, idx) => {
+                const shipConfig = COMBAT_ZONE_SHIP_TYPES[type] || COMBAT_ZONE_SHIP_TYPES.basic;
+                const isMiniboss = (idx === 0);
+
+                // Miniboss gets boosted stats
+                const hpMult = isMiniboss ? bounty.minibossHpMult : 1.0;
+                const dmgMult = isMiniboss ? bounty.minibossDmgMult : 1.0;
+                const scaleMult = isMiniboss ? bounty.minibossScale : 1.0;
+
+                const spawnY = orthoHeight + 3 + idx * 4 + Math.random() * 3;
+                const spawnX = (Math.random() - 0.5) * orthoWidth * 1.5;
+
+                const ship = {
+                    id: 'czs_' + Math.random().toString(36).substr(2, 9),
+                    type: type,
+                    config: shipConfig,
+                    faction: factionA,
+                    factionSide: 'A',
+                    currentX: spawnX,
+                    currentY: spawnY,
+                    heading: -Math.PI / 2 + (Math.random() - 0.5) * 0.5,
+                    speed: shipConfig.speed * (0.8 + Math.random() * 0.4),
+                    turnRate: 0.003 + Math.random() * 0.002,
+                    hp: Math.round(shipConfig.hp * levelHealthMult * hpMult),
+                    maxHp: Math.round(shipConfig.hp * levelHealthMult * hpMult),
+                    fireRate: shipConfig.fireRate * (isMiniboss ? 0.75 : (0.9 + Math.random() * 0.2)),
+                    damage: Math.round(shipConfig.damage * levelHealthMult * dmgMult),
+                    bulletSpeed: shipConfig.bulletSpeed,
+                    spread: shipConfig.spread || false,
+                    lastFireTime: 0,
+                    alive: true,
+                    mesh: null,
+                    engineGlows: [],
+                    target: null,
+                    targetSwitchTimer: 0,
+                    engageDistance: 4 + Math.random() * 3,
+                    strafeAngle: Math.random() * Math.PI * 2,
+                    strafeDir: Math.random() < 0.5 ? 1 : -1,
+                    baseScale: shipConfig.scale * scaleMult,
+                    isBountyMiniboss: isMiniboss,
+                    bountyShip: true,
+                };
+                assignCZShipWeapon(ship);
+                cz.ships.push(ship);
+                createCombatZoneShipVisual(ship, factionA);
+            });
+        }
+
+        // Called when bounty combat zone finishes (all enemies dead)
+        function onBountyVictory() {
+            if (!gameState.activeBounty) return;
+
+            const bounty = gameState.activeBounty;
+            bounty.completed = true;
+            gameState.bountyEncounterActive = false;
+            gameState.bountyRewardPending = true;
+
+            // Apply rewards
+            const rewards = applyBountyRewards(bounty);
+
+            // Show reward dialog
+            showBountyRewardDialog(bounty, rewards);
+        }
+
+        // Calculate and apply bounty rewards
+        function applyBountyRewards(bounty) {
+            const rewards = [];
+
+            // Credits
+            gameState.credits = (gameState.credits || 0) + bounty.creditReward;
+            rewards.push({ text: `+${bounty.creditReward} Credits`, css: 'reward-good' });
+
+            // Resources
+            for (const [res, amount] of Object.entries(bounty.resourceReward)) {
+                gameState.resources[res] = (gameState.resources[res] || 0) + amount;
+                rewards.push({ text: `+${amount} ${res}`, css: 'reward-good' });
+            }
+
+            // Weapon drop chance
+            if (Math.random() < bounty.weaponChance) {
+                const weapon = generateWeapon(
+                    bounty.worldLevel + bounty.weaponQualityBonus,
+                    getPlayerMaxHardpointSize()
+                );
+                if (weapon) {
+                    gameState.ownedWeapons.push(weapon);
+                    const qClass = getQualityClass(weapon.quality);
+                    rewards.push({ text: `Weapon: ${weapon.name}`, css: weapon.quality === 'superior' ? 'reward-legendary' : 'reward-good' });
+                }
+            }
+
+            // Stats tracking
+            gameState.stats.creditsEarned = (gameState.stats.creditsEarned || 0) + bounty.creditReward;
+
+            return rewards;
+        }
+
+        // Show bounty reward dialog
+        function showBountyRewardDialog(bounty, rewards) {
+            requestPause('bountyReward');
+
+            document.getElementById('bountyRewardTitle').textContent = 'Bounty Complete';
+            document.getElementById('bountyRewardSubtitle').textContent = `${bounty.skullLabel} threat neutralized`;
+            document.getElementById('bountyRewardName').textContent = bounty.targetName;
+            document.getElementById('bountyRewardSkulls').innerHTML = renderSkulls(bounty.skulls, 5);
+
+            // Pick a flavor text
+            const victoryFlavors = [
+                `"${bounty.targetAlias}" won't be terrorizing anyone anymore.`,
+                `The galaxy sleeps a little safer tonight. ${bounty.targetName} has been eliminated.`,
+                `Contract fulfilled. ${bounty.targetName} made their last stand.`,
+                `Another bounty collected. "${bounty.targetAlias}" is nothing but space debris now.`,
+            ];
+            document.getElementById('bountyRewardFlavor').textContent = victoryFlavors[Math.floor(Math.random() * victoryFlavors.length)];
+
+            let itemsHtml = '';
+            for (const reward of rewards) {
+                itemsHtml += `<div class="outcome-reward-item ${reward.css}">${reward.text}</div>`;
+            }
+            document.getElementById('bountyRewardItems').innerHTML = itemsHtml;
+
+            document.getElementById('bountyRewardDialog').style.display = 'flex';
+        }
+
+        // Close bounty reward dialog and return to exploration
+        function closeBountyReward() {
+            document.getElementById('bountyRewardDialog').style.display = 'none';
+            gameState.bountyRewardPending = false;
+            gameState.bountyEncounterActive = false;
+            gameState.encounterTransition = null;
+            gameState.currentEncounter = null;
+            releasePause('bountyReward');
+
+            // Restore pre-bounty level state
+            if (gameState._preBountyLevelConfig) {
+                gameState.levelConfig = gameState._preBountyLevelConfig;
+                gameState.level = gameState._preBountyLevel;
+                gameState.levelWave = gameState._preBountyLevelWave;
+                gameState.levelEndSpawned = gameState._preBountyLevelEndSpawned;
+                gameState._preBountyLevelConfig = null;
+                gameState._preBountyLevel = null;
+                gameState._preBountyLevelWave = null;
+                gameState._preBountyLevelEndSpawned = null;
+            }
+
+            // Clean up combat state
+            clearLevelObjects();
+
+            // Change back to a zone
+            changeToNewZone();
+
+            // Re-enter exploration mode
+            enterExplorationMode(gameState.levelConfig);
+
+            updateHUD();
+            saveGame();
+            showSavedNotification();
+        }
+
+        window.closeBountyReward = closeBountyReward;
+
+        // ========== END BOUNTY GATE SYSTEM ==========
 
         // ========== NEW COMBAT ZONE SYSTEM ==========
         // Combat zones are scrolling zones (like system zones) with free-flying ships
@@ -13878,6 +14759,21 @@
                 }
             }
 
+            // For bounty encounters: check if all hostile ships are dead/disabled
+            if (cz.isBounty) {
+                const aliveHostile = cz.ships.filter(s => s.alive && !s.disabled);
+                if (aliveHostile.length === 0) {
+                    cz.peaceTimer += deltaTime;
+                    if (cz.peaceTimer >= 1500) { // 1.5s pause after last kill
+                        finishCombatZone();
+                        return;
+                    }
+                } else {
+                    cz.peaceTimer = 0;
+                }
+                return; // Skip normal peace logic for bounty encounters
+            }
+
             // Disabled ships count as activity — don't exit while harvestable wrecks remain
             if ((!hasHostility && !hasHarvestableDisabledShips) || cz.ships.length === 0) {
                 cz.peaceTimer += deltaTime;
@@ -13895,6 +14791,9 @@
         function finishCombatZone() {
             const cz = gameState.combatZone;
             if (!cz) return;
+
+            // Check if this is a bounty encounter
+            const isBounty = cz.isBounty && gameState.bountyEncounterActive;
 
             // Clean up all combat zone ships immediately
             for (const ship of cz.ships) {
@@ -13927,6 +14826,12 @@
 
             // Null out combatZone so nothing references stale state
             gameState.combatZone = null;
+
+            // Bounty encounter: show reward instead of returning to exploration
+            if (isBounty) {
+                onBountyVictory();
+                return;
+            }
 
             // Advance wave counter
             gameState.wave++;
@@ -15713,6 +16618,11 @@
 
             // Update camera for new zoom
             if (gameState._updateCamera) gameState._updateCamera();
+
+            // Spawn bounty gate if player has an active bounty
+            if (gameState.activeBounty && !gameState.activeBounty.completed && !gameState.bountyGate) {
+                spawnBountyGate();
+            }
         }
 
         // Update edge-of-screen indicators for off-screen objects
@@ -15765,6 +16675,11 @@
                 if (s.resolved) return;
                 targets.push({ x: s.centerX, y: s.centerY, type: 'skirmish', label: 'Conflict' });
             });
+
+            // Bounty gate
+            if (gameState.bountyGatePos && gameState.bountyGate) {
+                targets.push({ x: gameState.bountyGatePos.x, y: gameState.bountyGatePos.y, type: 'enemy', label: 'Bounty' });
+            }
 
             // Build HTML
             let html = '';
@@ -17412,6 +18327,16 @@
             if (gameState.pauseReasons.has('mysteryEvent')) {
                 releasePause('mysteryEvent');
             }
+            // Clean up bounty state on new game
+            document.getElementById('bountyRewardDialog').style.display = 'none';
+            if (gameState.pauseReasons.has('bountyReward')) {
+                releasePause('bountyReward');
+            }
+            gameState.activeBounty = null;
+            gameState.stationBounties = null;
+            gameState.bountyEncounterActive = false;
+            gameState.bountyRewardPending = false;
+            cleanupBountyGate();
 
             initResources();
 
@@ -17466,6 +18391,7 @@
                 gatesAtLevel: gameState.gatesAtLevel,
                 gatesSinceEvent: gameState.gatesSinceEvent,
                 stats: gameState.stats,
+                activeBounty: gameState.activeBounty,
                 savedAt: Date.now()
             };
         }
@@ -17602,6 +18528,12 @@
             // If saved during exploration mode, re-enter it (traffic will be regenerated)
             if (saveData.explorationMode) {
                 gameState.encountersDefeated = saveData.encountersDefeated || 0;
+            }
+
+            // Restore active bounty (reset gate spawned since gate needs to be recreated)
+            if (saveData.activeBounty && !saveData.activeBounty.completed) {
+                gameState.activeBounty = saveData.activeBounty;
+                gameState.activeBounty.gateSpawned = false; // Gate will be recreated on exploration entry
             }
 
             // Update zone background
@@ -18180,6 +19112,14 @@
                     // Update traffic ships
                     updateExplorationTraffic(deltaTime, scrollDist);
 
+                    // Update bounty gate position (scroll with world)
+                    if (gameState.bountyGate && gameState.bountyGatePos) {
+                        gameState.bountyGatePos.y -= scrollDist;
+                        gameState.bountyGate.position.y = gameState.bountyGatePos.y;
+                        // Slow rotation
+                        gameState.bountyGate.rotation.z += GATE_TYPES.bounty.rotationSpeed;
+                    }
+
                     // Update NPC conflicts (fights between ships)
                     updateSkirmishes(deltaTime, scrollDist);
                     checkSkirmishStarts(deltaTime);
@@ -18210,6 +19150,12 @@
                             clearEdgeIndicators();
                             startCombatEncounter(detection.encounter, detection.pairedEncounter, detection.isBattle);
                         }
+                    }
+
+                    // Check if player reached bounty gate
+                    if (gameState.bountyGate && checkBountyGateEntry()) {
+                        enterBountyGate();
+                        return;
                     }
 
                     // Check if player reached the goal system
@@ -18291,7 +19237,7 @@
                 // Spawn solar systems with spacing - only during active waves
                 // Stop spawning once level end content (reward + gates) has been generated
                 // Don't spawn in event zones (event object is the focus, no distractions)
-                const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates && !gameState.eventObject && !gameState.currentEncounter;
+                const shouldSpawnSolarSystems = !gameState.levelEndSpawned && !gameState.showingGates && !gameState.eventObject && !gameState.currentEncounter && !gameState.bountyEncounterActive;
 
                 gameState.nextSolarSystemY -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
                 if (gameState.nextSolarSystemY < orthoHeight + 10 && shouldSpawnSolarSystems) {
@@ -18350,7 +19296,7 @@
                 }
                 // Non-encounter wave completion (level end, stations, etc.)
                 // Skip if zooming out of an encounter - finishCombatZone/onEncounterVictory already advanced the wave
-                else if (!gameState.currentEncounter && gameState.encounterTransition !== 'zooming_out' && gameState.encounterTransition !== 'victory_pause' && gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.eventObject && !gameState.mysteryEventActive) {
+                else if (!gameState.currentEncounter && !gameState.bountyEncounterActive && gameState.encounterTransition !== 'zooming_out' && gameState.encounterTransition !== 'victory_pause' && gameState.encounterTransition !== 'combat' && gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.eventObject && !gameState.mysteryEventActive) {
                     gameState.wave++;
                     gameState.levelWave++;
                     updateHUD();
