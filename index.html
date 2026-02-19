@@ -14838,6 +14838,42 @@
             gameState.levelWave++;
             updateHUD();
 
+            // Check if a station should appear after this wave
+            const config = gameState.levelConfig;
+            if (config && config.stationWaves &&
+                config.stationWaves.includes(gameState.levelWave) &&
+                gameState.stationsVisited < config.stations.length) {
+                // Exit encounter state, reset position, and spawn station
+                gameState.currentEncounter = null;
+                gameState.encounterPaired = null;
+                gameState.encounterIsBattle = false;
+                gameState.encounterTransition = null;
+                gameState._encounterEnemyTypes = null;
+                gameState.explorationMode = false;
+                gameState.zoomLevel = 1;
+                gameState.zoomTarget = 1;
+                if (playerShip) {
+                    playerShip.position.x = 0;
+                    playerShip.position.y = -7;
+                    playerShip.targetX = 0;
+                    playerShip.targetY = -7;
+                }
+                if (playerShipMesh) {
+                    // Scale back from exploration if needed
+                    const currentScale = playerShipMesh.scaling.x;
+                    const expectedNormal = 1; // approximate
+                    if (currentScale > 2) {
+                        playerShipMesh.scaling.scaleInPlace(1 / settings.exploreShipScale);
+                    }
+                }
+                if (gameState._updateCamera) gameState._updateCamera();
+                // Clean up exploration visuals (traffic, goal, etc)
+                cleanupExploration();
+                createStarbase();
+                gameState.stationsVisited++;
+                return;
+            }
+
             // Skip victory_pause - go directly to zoom-out for a smooth transition
             returnToExploration();
         }
@@ -19179,8 +19215,20 @@
                             playerShip.targetY = -7;
                         }
                         if (gameState._updateCamera) gameState._updateCamera();
-                        gameState.levelWave = gameState.levelConfig.waveCount;
-                        generateLevelEndContent();
+
+                        // If there are unvisited stations, spawn one before level end
+                        const goalConfig = gameState.levelConfig;
+                        if (goalConfig && goalConfig.stations &&
+                            gameState.stationsVisited < goalConfig.stations.length) {
+                            createStarbase();
+                            gameState.stationsVisited++;
+                            // Don't generate level end yet — station scrolling will
+                            // call enterExplorationMode when it passes, which leads
+                            // back to the goal (re-created) and then level end
+                        } else {
+                            gameState.levelWave = goalConfig.waveCount;
+                            generateLevelEndContent();
+                        }
                         return;
                     }
 
