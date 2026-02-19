@@ -1100,327 +1100,6 @@
             display: none;
         }
 
-        .arena-btn {
-            background: linear-gradient(180deg, #ff6644 0%, #dd4422 100%);
-            border-color: #ff8866;
-            box-shadow: 0 0 20px rgba(255, 102, 68, 0.4);
-        }
-
-        .arena-btn:hover {
-            background: linear-gradient(180deg, #ff7755 0%, #ee5533 100%);
-            box-shadow: 0 0 30px rgba(255, 102, 68, 0.7);
-        }
-
-        /* Arena Configuration Panel */
-        #arenaConfig {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 200;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        .arena-panel {
-            max-width: 900px;
-            margin: 0 auto;
-            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-            border: 2px solid #ff6644;
-            border-radius: 15px;
-            padding: 30px;
-        }
-
-        .arena-panel h2 {
-            color: #ff6644;
-            text-align: center;
-            margin-bottom: 25px;
-            font-size: 28px;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-        }
-
-        .arena-section {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid #334;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .arena-section h3 {
-            color: #88aaff;
-            margin-bottom: 15px;
-            font-size: 16px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            border-bottom: 1px solid #334;
-            padding-bottom: 10px;
-        }
-
-        .arena-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 10px;
-        }
-
-        .arena-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px;
-            background: rgba(68, 136, 255, 0.1);
-            border: 1px solid #335;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .arena-checkbox:hover {
-            background: rgba(68, 136, 255, 0.2);
-            border-color: #4488ff;
-        }
-
-        .arena-checkbox input {
-            width: 18px;
-            height: 18px;
-            accent-color: #ff6644;
-        }
-
-        .arena-checkbox label {
-            color: #aaccff;
-            font-size: 13px;
-            cursor: pointer;
-            flex: 1;
-        }
-
-        .arena-checkbox.selected {
-            background: rgba(255, 102, 68, 0.2);
-            border-color: #ff6644;
-        }
-
-        .arena-row {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .arena-row label {
-            color: #88aaff;
-            min-width: 120px;
-        }
-
-        .arena-select, .arena-input {
-            flex: 1;
-            padding: 10px 15px;
-            background: #1a1a2e;
-            border: 1px solid #335;
-            border-radius: 6px;
-            color: #fff;
-            font-size: 14px;
-        }
-
-        .arena-select:focus, .arena-input:focus {
-            border-color: #ff6644;
-            outline: none;
-        }
-
-        .arena-weapons-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 10px;
-            max-height: 250px;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
-
-        .weapon-card {
-            background: rgba(68, 136, 255, 0.1);
-            border: 1px solid #335;
-            border-radius: 8px;
-            padding: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .weapon-card:hover {
-            background: rgba(68, 136, 255, 0.2);
-            border-color: #4488ff;
-        }
-
-        .weapon-card.selected {
-            background: rgba(255, 102, 68, 0.2);
-            border-color: #ff6644;
-        }
-
-        .weapon-card .weapon-name {
-            color: #fff;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .weapon-card .weapon-stats {
-            color: #88aaff;
-            font-size: 11px;
-        }
-
-        .weapon-card .weapon-size {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 10px;
-            text-transform: uppercase;
-            margin-top: 5px;
-        }
-
-        .weapon-card .weapon-size.light { background: #2d5a2d; color: #8f8; }
-        .weapon-card .weapon-size.medium { background: #5a5a2d; color: #ff8; }
-        .weapon-card .weapon-size.heavy { background: #5a2d2d; color: #f88; }
-        .weapon-card .weapon-size.assault { background: #5a2d5a; color: #f8f; }
-
-        .upgrades-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 10px;
-        }
-
-        .upgrade-card {
-            background: rgba(68, 136, 255, 0.1);
-            border: 1px solid #335;
-            border-radius: 8px;
-            padding: 15px;
-        }
-
-        .upgrade-card .upgrade-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        .upgrade-card .upgrade-icon {
-            font-size: 20px;
-        }
-
-        .upgrade-card .upgrade-name {
-            color: #fff;
-            font-weight: bold;
-            font-size: 13px;
-        }
-
-        .upgrade-card .upgrade-level {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .upgrade-card .upgrade-level button {
-            width: 28px;
-            height: 28px;
-            background: #335;
-            border: 1px solid #446;
-            border-radius: 4px;
-            color: #fff;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        .upgrade-card .upgrade-level button:hover {
-            background: #446;
-        }
-
-        .upgrade-card .upgrade-level span {
-            color: #ff6644;
-            font-weight: bold;
-            min-width: 50px;
-            text-align: center;
-        }
-
-        .arena-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-top: 25px;
-        }
-
-        .arena-buttons button {
-            padding: 15px 40px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.2s;
-        }
-
-        .arena-start-btn {
-            background: linear-gradient(180deg, #44dd44 0%, #22aa22 100%);
-            border: 2px solid #66ff66;
-            color: white;
-        }
-
-        .arena-start-btn:hover {
-            box-shadow: 0 0 20px rgba(68, 221, 68, 0.5);
-        }
-
-        .arena-back-btn {
-            background: #334;
-            border: 2px solid #445;
-            color: #aaa;
-        }
-
-        .arena-back-btn:hover {
-            background: #445;
-            color: #fff;
-        }
-
-        .hardpoint-slots {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
-        .hardpoint-slot {
-            background: rgba(0, 0, 0, 0.3);
-            border: 2px dashed #446;
-            border-radius: 8px;
-            padding: 15px;
-            min-width: 180px;
-            text-align: center;
-        }
-
-        .hardpoint-slot.filled {
-            border-style: solid;
-            border-color: #ff6644;
-        }
-
-        .hardpoint-slot .slot-label {
-            color: #667;
-            font-size: 11px;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .hardpoint-slot .slot-weapon {
-            color: #fff;
-            font-size: 13px;
-        }
-
-        .hardpoint-slot .slot-clear {
-            color: #f66;
-            font-size: 11px;
-            cursor: pointer;
-            margin-top: 5px;
-        }
-
-        .hardpoint-slot .slot-clear:hover {
-            text-decoration: underline;
-        }
-
         #loadingScreen {
             display: none;
             flex-direction: column;
@@ -3045,7 +2724,6 @@
             <button id="newGameBtn" class="title-btn">New Game</button>
             <button id="continueBtn" class="title-btn">Continue</button>
             <button id="researchBtn" class="title-btn research-btn">Research Lab</button>
-            <button id="arenaModeBtn" class="title-btn arena-btn">Arena Mode</button>
         </div>
         <div id="loadingScreen">
             <div class="loading-spinner"></div>
@@ -3070,134 +2748,6 @@
         </div>
         <div class="tech-trees-container" id="techTreesContainer"></div>
         <button class="reset-tree-btn" id="resetTreeBtn">Reset All Trees (Free)</button>
-    </div>
-
-    <!-- Arena Mode Configuration Panel -->
-    <div id="arenaConfig">
-        <div class="arena-panel">
-            <h2>Arena Mode</h2>
-
-            <!-- Enemy Selection -->
-            <div class="arena-section">
-                <h3>Select Enemies</h3>
-                <div class="arena-grid" id="arenaEnemyGrid">
-                    <div class="arena-checkbox selected">
-                        <input type="checkbox" id="enemy_basic" checked>
-                        <label for="enemy_basic">Basic</label>
-                    </div>
-                    <div class="arena-checkbox">
-                        <input type="checkbox" id="enemy_fast">
-                        <label for="enemy_fast">Fast</label>
-                    </div>
-                    <div class="arena-checkbox">
-                        <input type="checkbox" id="enemy_shooter">
-                        <label for="enemy_shooter">Shooter</label>
-                    </div>
-                    <div class="arena-checkbox">
-                        <input type="checkbox" id="enemy_light">
-                        <label for="enemy_light">Light (Dispatcher)</label>
-                    </div>
-                    <div class="arena-checkbox">
-                        <input type="checkbox" id="enemy_heavy">
-                        <label for="enemy_heavy">Heavy (Imperial)</label>
-                    </div>
-                    <div class="arena-checkbox">
-                        <input type="checkbox" id="enemy_challenger">
-                        <label for="enemy_challenger">Challenger</label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Wave Configuration -->
-            <div class="arena-section">
-                <h3>Wave Settings</h3>
-                <div class="arena-row">
-                    <label>Starting Enemies:</label>
-                    <input type="number" id="arenaStartEnemies" class="arena-input" value="5" min="1" max="30">
-                </div>
-                <div class="arena-row">
-                    <label>Enemies Per Wave:</label>
-                    <input type="number" id="arenaEnemiesPerWave" class="arena-input" value="2" min="0" max="10">
-                </div>
-                <div class="arena-row">
-                    <label>Enemy Health Scale:</label>
-                    <select id="arenaHealthScale" class="arena-select">
-                        <option value="0.5">Easy (50%)</option>
-                        <option value="1" selected>Normal (100%)</option>
-                        <option value="1.5">Hard (150%)</option>
-                        <option value="2">Extreme (200%)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Ship Selection -->
-            <div class="arena-section">
-                <h3>Select Ship</h3>
-                <div class="arena-row">
-                    <label>Ship Model:</label>
-                    <select id="arenaShipModel" class="arena-select">
-                        <option value="Bob">Bob</option>
-                        <option value="Challenger">Challenger</option>
-                        <option value="Dispatcher">Dispatcher</option>
-                        <option value="Executioner">Executioner</option>
-                        <option value="Imperial">Imperial</option>
-                        <option value="Insurgent">Insurgent</option>
-                        <option value="Omen">Omen</option>
-                        <option value="Pancake">Pancake</option>
-                        <option value="Spitfire">Spitfire</option>
-                        <option value="Striker">Striker</option>
-                        <option value="Zenith">Zenith</option>
-                    </select>
-                </div>
-                <div class="arena-row">
-                    <label>Ship Color:</label>
-                    <select id="arenaShipColor" class="arena-select">
-                        <option value="Blue">Blue</option>
-                        <option value="Red">Red</option>
-                        <option value="Green">Green</option>
-                        <option value="Orange">Orange</option>
-                        <option value="Purple">Purple</option>
-                        <option value="Yellow">Yellow</option>
-                        <option value="White">White</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Hardpoints & Weapons -->
-            <div class="arena-section">
-                <h3>Weapon Loadout</h3>
-                <div class="arena-row">
-                    <label>Hardpoints:</label>
-                    <select id="arenaHardpointCount" class="arena-select">
-                        <option value="1">1 Hardpoint (Medium)</option>
-                        <option value="2">2 Hardpoints (Medium + Light)</option>
-                        <option value="3" selected>3 Hardpoints (Medium + 2 Light)</option>
-                        <option value="4">4 Hardpoints (Heavy + Medium + 2 Light)</option>
-                    </select>
-                </div>
-                <div id="arenaHardpoints" class="hardpoint-slots">
-                    <!-- Dynamically populated -->
-                </div>
-                <h4 style="color: #88aaff; margin: 15px 0 10px; font-size: 13px;">Available Weapons (click to equip)</h4>
-                <div id="arenaWeaponsGrid" class="arena-weapons-grid">
-                    <!-- Dynamically populated -->
-                </div>
-            </div>
-
-            <!-- Upgrades -->
-            <div class="arena-section">
-                <h3>Ship Upgrades</h3>
-                <div id="arenaUpgrades" class="upgrades-grid">
-                    <!-- Dynamically populated -->
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="arena-buttons">
-                <button id="arenaBackBtn" class="arena-back-btn">Back</button>
-                <button id="arenaStartBtn" class="arena-start-btn">Start Arena</button>
-            </div>
-        </div>
     </div>
 
     <button id="systemBtn" style="display: none;">⏸</button>
@@ -3335,8 +2885,6 @@
         <div class="hud-strip">
             <div class="hud-stats">
                 <span class="hud-stat">Lv<span id="level">1</span></span>
-                <span class="hud-divider">|</span>
-                <span class="hud-stat"><span id="wave">1</span>/<span id="totalWaves">3</span></span>
                 <span class="hud-divider">|</span>
                 <span class="hud-stat">$<span id="creditsHud">0</span></span>
                 <span class="hud-divider">|</span>
@@ -4438,7 +3986,6 @@
             // Starbase and weapons
             starbase: null,
             isDocked: false,
-            wavesUntilStarbase: 1,
             credits: 0,
             ownedWeapons: [],  // Now stores full weapon objects
             equippedWeapons: [], // Weapons equipped on hardpoints
@@ -4449,7 +3996,6 @@
             stationWeapons: [],  // Weapons available at current station
             // River navigation - level system
             level: 1,
-            levelWave: 0,           // Current wave within level (0 = not started)
             levelConfig: null,      // Config for current level
             stationsVisited: 0,     // How many stations visited this level
             warpGates: [],          // Active warp gates
@@ -4472,8 +4018,6 @@
             levelEndSpawned: false, // Whether end-of-level content (reward + gates) has been spawned
             speedUp: false,         // Speed-up button pressed
             speedUpHeldTime: 0,     // How long speed-up has been held (for ramp-up)
-            inExploration: false,   // Between waves - no combat, just exploration
-            explorationDistance: 0, // Distance traveled in current exploration zone
             // Zoomed-out exploration mode
             explorationMode: false,         // Whether in zoomed-out exploration view
             currentEncounter: null,         // Encounter currently engaged in combat
@@ -4505,11 +4049,6 @@
             boardingTarget: null,           // Nearest boardable disabled ship
             boardingInProgress: false,      // Whether boarding loot panel is open
             boardingProgress: 0,            // Auto-board progress (0-1, like harvesting)
-            arenaMode: false,       // Arena mode active
-            arenaConfig: null,      // Arena configuration
-            arenaWave: 0,           // Current arena wave
-            arenaKills: 0,          // Total kills in arena
-            arenaSpeedBonus: 1,     // Speed bonus from arena upgrades
             // Mystery events (gate-based)
             mysteryEventActive: false,  // Whether mystery event dialog is open
             eventObject: null,          // Current event object mesh (e.g., behemoth derelict)
@@ -7132,14 +6671,14 @@
         }
 
         // Create starbase
-        function createStarbase() {
+        function createStarbase(spawnX, spawnY) {
             if (!scene || gameState.starbase) return;
 
             const starbaseSize = 2.5; // Smaller than planets
             const starbase = BABYLON.MeshBuilder.CreatePlane('starbase', { size: starbaseSize }, scene);
 
-            starbase.position.x = (Math.random() - 0.5) * orthoWidth;
-            starbase.position.y = orthoHeight + starbaseSize;
+            starbase.position.x = spawnX !== undefined ? spawnX : (Math.random() - 0.5) * orthoWidth;
+            starbase.position.y = spawnY !== undefined ? spawnY : orthoHeight + starbaseSize;
             starbase.position.z = 0.2; // In front of planets and suns
 
             const texture = new BABYLON.Texture('assets/stellar objects/starbase.png', scene);
@@ -7220,11 +6759,11 @@
                 }
             }
 
-            // Remove if off screen - return to exploration or spawn next wave
+            // Remove if off screen - station scrolled past without docking
             if (starbase.position.y < -orthoHeight - starbase.size) {
                 starbase.dispose();
                 gameState.starbase = null;
-                enterExplorationMode(gameState.levelConfig);
+                gameState.stationsVisited++;
             }
         }
 
@@ -7968,14 +7507,13 @@
             // Clear station-specific bounties (board refreshes at each station)
             gameState.stationBounties = null;
 
-            // Remove starbase
-            if (gameState.starbase) {
-                gameState.starbase.dispose();
-                gameState.starbase = null;
+            // Position ship at the station's location (return to system view)
+            if (playerShip && gameState.starbase) {
+                playerShip.position.x = gameState.starbase.position.x;
+                playerShip.position.y = gameState.starbase.position.y - 1;
+                playerShip.targetX = playerShip.position.x;
+                playerShip.targetY = playerShip.position.y;
             }
-
-            // Return to exploration mode
-            enterExplorationMode(gameState.levelConfig);
 
             // Save game after departing
             saveGame();
@@ -8029,7 +7567,7 @@
 
         // ========== RIVER NAVIGATION - WARP GATES ==========
 
-        // Generate all end-of-level content (reward zone + gate zone)
+        // Generate all system content (sun, planets, stations, gates)
         // Uses position-based spawning - content is placed at specific Y coordinates
         function generateLevelEndContent() {
             if (!scene || gameState.levelEndSpawned) return;
@@ -8037,12 +7575,29 @@
             // Base spawn position - above the visible screen
             const baseSpawnY = orthoHeight + 10;
 
-            // 1. REWARD ZONE: Spawn solar system as reward for completing waves
+            // 1. SYSTEM ZONE: Spawn solar system (sun + planets + traffic)
             const rewardY = baseSpawnY;
             createSolarSystemAt(rewardY);
 
-            // 2. GATE ZONE: Spawn warp gates after the reward zone
-            const gateY = rewardY + LEVEL_ZONE_HEIGHTS.reward;
+            // 2. STATION ZONE: Spawn stations from level config between sun and gates
+            const config = gameState.levelConfig;
+            let stationOffset = 0;
+            if (config && config.stations && config.stations.length > 0 && gameState.stationsVisited < config.stations.length) {
+                const stationSpacing = 8; // Y spacing between stations
+                for (let i = gameState.stationsVisited; i < config.stations.length; i++) {
+                    const stationY = rewardY + LEVEL_ZONE_HEIGHTS.reward * 0.5 + stationSpacing * (i - gameState.stationsVisited);
+                    const stationX = (Math.random() - 0.5) * orthoWidth * 0.6;
+                    // Only one starbase can exist at a time in gameState, so we spawn the first one
+                    // Remaining stations are queued for spawning as player scrolls
+                    if (i === gameState.stationsVisited) {
+                        createStarbase(stationX, stationY);
+                    }
+                    stationOffset = stationSpacing * (config.stations.length - gameState.stationsVisited);
+                }
+            }
+
+            // 3. GATE ZONE: Spawn warp gates after system content + stations
+            const gateY = rewardY + LEVEL_ZONE_HEIGHTS.reward + stationOffset;
             createWarpGates(gateY);
 
             gameState.levelEndSpawned = true;
@@ -9005,10 +8560,6 @@
                         <div class="threat-bar" id="${prefix}Threat">${getThreatBar(config)}</div>
                     </div>
                     <div class="hud-row">
-                        <span class="hud-label">WAV</span>
-                        <span class="hud-value" id="${prefix}Waves">${config.waveCount}</span>
-                    </div>
-                    <div class="hud-row">
                         <span class="hud-label">STA</span>
                         <div class="station-icons" id="${prefix}Stations">${getStationIcons(config)}</div>
                     </div>
@@ -9242,7 +8793,6 @@
         function startNewLevel(config) {
             gameState.level = config.levelNum;
             gameState.levelConfig = config;
-            gameState.levelWave = 0;
             gameState.stationsVisited = 0;
             gameState.wave = (gameState.level - 1) * 5 + 1; // Global wave number for difficulty
 
@@ -9949,30 +9499,14 @@
             gameState.lastEventOutcome = outcomeType;
 
             // Based on outcome, spawn post-event content just off-screen above
-            if (outcomeType === 'pirates_ambush') {
-                // Combat aftermath: set up pirate waves, then gates spawn after waves complete
+            if (outcomeType === 'pirates_ambush' || outcomeType === 'trap_minor' || outcomeType === 'trap_major') {
+                // Combat aftermath: enter exploration mode leading to system with gates
                 const config = gameState.levelConfig;
-                config.waveCount = 3 + Math.floor(Math.random() * 2); // 3-4 pirate waves
-                config.enemyMultiplier = 1.3 + (config.levelNum * 0.05);
-                config.threatLevel = 'High';
-                config.threatClass = 'danger';
-                config.isEventZone = false; // Now plays as normal combat level
-                gameState.levelWave = 0;
-                gameState.levelEndSpawned = false;
-                spawnWave();
-            } else if (outcomeType === 'trap_minor' || outcomeType === 'trap_major') {
-                // Hazard aftermath: 1-2 quick waves then gates
-                const config = gameState.levelConfig;
-                config.waveCount = 1 + Math.floor(Math.random() * 2);
-                config.enemyMultiplier = 1.0;
-                config.threatLevel = 'Medium';
-                config.threatClass = 'medium';
                 config.isEventZone = false;
-                gameState.levelWave = 0;
                 gameState.levelEndSpawned = false;
-                spawnWave();
+                enterExplorationMode(config);
             } else {
-                // Peaceful outcomes: spawn level end content (reward zone + gates) directly
+                // Peaceful outcomes: spawn level end content (system + gates) directly
                 gameState.levelEndSpawned = false;
                 generateLevelEndContent();
             }
@@ -12241,67 +11775,6 @@
             }
         }
 
-        // Spawn wave
-        function spawnWave() {
-            const waveConfig = {
-                1: { count: 5 },
-                2: { count: 7 },
-                3: { count: 8 },
-                4: { count: 10 },
-                5: { count: 12 }
-            };
-
-            // Use levelWave for difficulty within level, apply enemy multiplier from level config
-            const waveNum = Math.min(gameState.levelWave + 1, 5);
-            const config = waveConfig[waveNum] || waveConfig[5];
-            // Gradual scaling: +1 enemy per level instead of +2
-            let enemyCount = config.count + Math.floor(Math.max(0, gameState.level - 1));
-
-            // Apply level threat multiplier
-            if (gameState.levelConfig) {
-                enemyCount = Math.floor(enemyCount * gameState.levelConfig.enemyMultiplier);
-            }
-
-            gameState.enemiesInWave = enemyCount;
-            gameState.enemiesSpawned = 0;
-        }
-
-        // Spawn enemy
-        async function spawnEnemy() {
-            if (gameState.enemiesSpawned >= gameState.enemiesInWave) return;
-
-            // Enemy types with weighted spawning based on wave progression
-            // Light (Dispatcher) and Heavy (Imperial) unlock at higher waves
-            // Challenger (top-flying laser enemy) unlocks at wave 4+
-            const baseTypes = ['basic', 'basic', 'fast', 'shooter'];
-            const advancedTypes = ['basic', 'fast', 'shooter', 'light', 'light', 'heavy'];
-
-            // Use advanced types after wave 2, mixing in light and heavy attackers
-            let types = gameState.wave >= 3 ? advancedTypes : baseTypes;
-            let type = types[Math.floor(Math.random() * Math.min(types.length, 1 + gameState.wave))];
-
-            // Chance to spawn a challenger at wave 4+ (10% chance, max 1 per wave)
-            const challengerCount = gameState.enemies.filter(e => e.type === 'challenger').length;
-            if (gameState.wave >= 4 && challengerCount === 0 && Math.random() < 0.1) {
-                type = 'challenger';
-            }
-
-            // Increment SYNCHRONOUSLY before async createEnemy to prevent
-            // the render loop from spawning duplicates while awaiting
-            gameState.enemiesSpawned++;
-
-            const maxX = orthoWidth - 1;
-            const x = (Math.random() - 0.5) * maxX * 1.5;
-            const y = orthoHeight + 2;
-
-            try {
-                const enemy = await createEnemy(type, x, y);
-                gameState.enemies.push(enemy);
-            } catch(e) {
-                gameState.enemiesSpawned--;
-            }
-        }
-
         // Disable a ship instead of destroying it - it drifts and can be boarded
         function disableShip(enemy) {
             enemy.isDisabled = true;
@@ -12662,8 +12135,7 @@
                     enemy.dispose();
                 }
             } catch(e) {
-                // Re-push the type back so it can be retried, keeping types array
-                // in sync with enemiesSpawned to prevent fallback to spawnEnemy()
+                // Re-push the type back so it can be retried
                 gameState.enemiesSpawned--;
                 gameState._encounterEnemyTypes.unshift(entry);
             }
@@ -13232,7 +12704,6 @@
             // Save current level config
             gameState._preBountyLevelConfig = gameState.levelConfig;
             gameState._preBountyLevel = gameState.level;
-            gameState._preBountyLevelWave = gameState.levelWave;
             gameState._preBountyLevelEndSpawned = gameState.levelEndSpawned;
 
             // Clear existing level objects
@@ -13434,11 +12905,9 @@
             if (gameState._preBountyLevelConfig) {
                 gameState.levelConfig = gameState._preBountyLevelConfig;
                 gameState.level = gameState._preBountyLevel;
-                gameState.levelWave = gameState._preBountyLevelWave;
                 gameState.levelEndSpawned = gameState._preBountyLevelEndSpawned;
                 gameState._preBountyLevelConfig = null;
                 gameState._preBountyLevel = null;
-                gameState._preBountyLevelWave = null;
                 gameState._preBountyLevelEndSpawned = null;
             }
 
@@ -14833,12 +14302,7 @@
                 return;
             }
 
-            // Advance wave counter
-            gameState.wave++;
-            gameState.levelWave++;
-            updateHUD();
-
-            // Skip victory_pause - go directly to zoom-out for a smooth transition
+            // Return to exploration for a smooth transition
             returnToExploration();
         }
 
@@ -17996,15 +17460,7 @@
             const hp = Math.max(0, Math.ceil(gameState.health));
             document.getElementById('health').textContent = hp;
 
-            if (gameState.arenaMode) {
-                document.getElementById('level').textContent = 'Arena';
-                document.getElementById('wave').textContent = gameState.arenaWave;
-                document.getElementById('totalWaves').textContent = '∞';
-            } else {
-                document.getElementById('level').textContent = gameState.level;
-                document.getElementById('wave').textContent = gameState.levelWave;
-                document.getElementById('totalWaves').textContent = gameState.levelConfig ? gameState.levelConfig.waveCount : 3;
-            }
+            document.getElementById('level').textContent = gameState.level;
 
             // Health bar
             const maxHP = gameState.maxHealth || 100;
@@ -18022,20 +17478,16 @@
             // Fuel stat
             const fuelStat = document.getElementById('fuelStat');
             if (fuelStat) {
-                if (gameState.arenaMode) {
-                    fuelStat.style.display = 'none';
+                fuelStat.style.display = '';
+                const fuelVal = document.getElementById('fuelValue');
+                fuelVal.textContent = Math.max(0, Math.ceil(gameState.fuel));
+                const fuelPct = gameState.fuel / gameState.maxFuel;
+                if (fuelPct <= 0.2) {
+                    fuelStat.style.color = '#ff4444';
+                } else if (fuelPct <= 0.4) {
+                    fuelStat.style.color = '#ffaa44';
                 } else {
-                    fuelStat.style.display = '';
-                    const fuelVal = document.getElementById('fuelValue');
-                    fuelVal.textContent = Math.max(0, Math.ceil(gameState.fuel));
-                    const fuelPct = gameState.fuel / gameState.maxFuel;
-                    if (fuelPct <= 0.2) {
-                        fuelStat.style.color = '#ff4444';
-                    } else if (fuelPct <= 0.4) {
-                        fuelStat.style.color = '#ffaa44';
-                    } else {
-                        fuelStat.style.color = '#ccc';
-                    }
+                    fuelStat.style.color = '#ccc';
                 }
             }
 
@@ -18068,12 +17520,7 @@
         function gameOver() {
             gameState.isPlaying = false;
 
-            if (gameState.arenaMode) {
-                document.getElementById('finalCredits').textContent =
-                    `Wave ${gameState.arenaWave} | Score: ${gameState.score}`;
-            } else {
-                document.getElementById('finalCredits').textContent = gameState.credits;
-            }
+            document.getElementById('finalCredits').textContent = gameState.credits;
 
             // Build run summary
             const s = gameState.stats;
@@ -18089,19 +17536,14 @@
                 <span class="stat-label">Stations Docked</span><span class="stat-value">${s.stationsDocked}</span>
             `;
 
-            // Convert in-run resources to meta resources (not in arena mode)
+            // Convert in-run resources to meta resources
             const gainsDiv = document.getElementById('metaGains');
-            if (!gameState.arenaMode) {
-                const gains = convertRunResourcesToMeta();
-                gainsDiv.innerHTML = Object.entries(META_RESOURCES).map(([key, r]) =>
-                    `<span class="gain-label">${r.icon} ${r.name}</span><span class="gain-value">+${gains[key]}</span>`
-                ).join('');
-                gainsDiv.style.display = 'grid';
-                document.querySelector('.meta-gains-title').style.display = 'block';
-            } else {
-                gainsDiv.style.display = 'none';
-                document.querySelector('.meta-gains-title').style.display = 'none';
-            }
+            const gains = convertRunResourcesToMeta();
+            gainsDiv.innerHTML = Object.entries(META_RESOURCES).map(([key, r]) =>
+                `<span class="gain-label">${r.icon} ${r.name}</span><span class="gain-value">+${gains[key]}</span>`
+            ).join('');
+            gainsDiv.style.display = 'grid';
+            document.querySelector('.meta-gains-title').style.display = 'block';
 
             document.getElementById('gameOver').style.display = 'block';
             document.getElementById('harvestBar').style.display = 'none';
@@ -18303,7 +17745,6 @@
 
             // Reset level/river navigation state
             gameState.level = 1;
-            gameState.levelWave = 0;
             gameState.stationsVisited = 0;
             gameState.levelEndSpawned = false;
             // Generate initial level config
@@ -18362,7 +17803,6 @@
                 health: gameState.health,
                 wave: gameState.wave,
                 level: gameState.level,
-                levelWave: gameState.levelWave,
                 levelConfig: gameState.levelConfig,
                 stationsVisited: gameState.stationsVisited,
                 currentZone: gameState.currentZone,
@@ -18377,17 +17817,12 @@
                 maxFuel: gameState.maxFuel,
                 resources: gameState.resources,
                 distanceTraveled: gameState.distanceTraveled,
-                wavesUntilStarbase: gameState.wavesUntilStarbase,
                 shipUpgrades: gameState.shipUpgrades,
                 maxHealth: gameState.maxHealth,
                 shields: gameState.shields,
                 maxShields: gameState.maxShields,
-                inExploration: gameState.inExploration,
-                explorationDistance: gameState.explorationDistance,
                 explorationMode: gameState.explorationMode,
                 encountersDefeated: gameState.encountersDefeated,
-                enemiesInWave: gameState.enemiesInWave,
-                enemiesSpawned: gameState.enemiesSpawned,
                 gatesAtLevel: gameState.gatesAtLevel,
                 gatesSinceEvent: gameState.gatesSinceEvent,
                 stats: gameState.stats,
@@ -18460,7 +17895,6 @@
             gameState.health = saveData.health || 100;
             gameState.wave = saveData.wave || 1;
             gameState.level = saveData.level || 1;
-            gameState.levelWave = saveData.levelWave || 0;
             gameState.levelConfig = saveData.levelConfig || generateLevelConfig(1);
             gameState.stationsVisited = saveData.stationsVisited || 0;
             gameState.gatesAtLevel = saveData.gatesAtLevel || 0;
@@ -18505,7 +17939,6 @@
             gameState.maxFuel = saveData.maxFuel || 100;
             gameState.resources = saveData.resources || {};
             gameState.distanceTraveled = saveData.distanceTraveled || 0;
-            gameState.wavesUntilStarbase = saveData.wavesUntilStarbase || 1;
 
             // Load ship upgrades
             gameState.shipUpgrades = saveData.shipUpgrades || {};
@@ -18518,12 +17951,6 @@
 
             // Sync equipped weapons from restored fleet hardpoints
             syncEquippedWeapons();
-
-            // Restore exploration/combat state
-            gameState.inExploration = saveData.inExploration || false;
-            gameState.explorationDistance = saveData.explorationDistance || 0;
-            gameState.enemiesInWave = saveData.enemiesInWave || 0;
-            gameState.enemiesSpawned = saveData.enemiesSpawned || 0;
 
             // If saved during exploration mode, re-enter it (traffic will be regenerated)
             if (saveData.explorationMode) {
@@ -18620,30 +18047,20 @@
             systemMenu.style.display = 'none';
             releasePause('systemMenu');
 
-            // Don't save arena mode - just quit
-            if (!gameState.arenaMode) {
-                saveGame();
-                showSavedNotification();
-            }
+            saveGame();
+            showSavedNotification();
 
             // Return to start screen after delay
-            const wasArenaMode = gameState.arenaMode;
             setTimeout(() => {
                 gameState.isPlaying = false;
                 gameState.pauseReasons.clear();  // Clear all pause reasons
-
-                // Reset arena mode
-                gameState.arenaMode = false;
-                gameState.arenaConfig = null;
-                // Fuel display handled in updateHUD now
 
                 document.getElementById('hud').style.display = 'none';
                 systemBtn.style.display = 'none';
                 document.getElementById('startScreen').style.display = 'flex';
                 document.getElementById('titleButtons').style.display = 'flex';
                 document.getElementById('loadingScreen').style.display = 'none';
-                // Don't show continue if we were in arena mode
-                document.getElementById('continueBtn').style.display = wasArenaMode ? 'none' : 'block';
+                document.getElementById('continueBtn').style.display = 'block';
             }, 500);
         });
 
@@ -18660,10 +18077,6 @@
             confirmDialog.style.display = 'none';
             releasePause('confirmDialog');
             deleteSave();
-
-            // Reset arena mode if active
-            gameState.arenaMode = false;
-            gameState.arenaConfig = null;
 
             await resetGame();
             gameState.pauseReasons.clear();  // Clear all pause reasons for fresh start
@@ -18899,9 +18312,7 @@
 
                 // Initialize first level
                 gameState.level = 1;
-                gameState.levelWave = 0;
                 gameState.levelConfig = generateLevelConfig(1);
-                gameState.wavesUntilStarbase = gameState.levelConfig.waveCount;
             }
 
             // Apply tech tree bonuses before equipment init (so shield/drone bonuses apply)
@@ -18911,9 +18322,9 @@
             // Initialize equipment from fleet (shields, drones, secondary ability)
             initEquipmentFromFleet();
 
-            // Enter exploration mode if not already in one, no enemies pending, and not in an event zone
+            // Enter exploration mode if not already in one and not in an event zone
             // This preserves state when continuing a saved game
-            if (!gameState.explorationMode && !gameState.inExploration && gameState.enemiesInWave === 0 && !(gameState.levelConfig && gameState.levelConfig.isEventZone)) {
+            if (!gameState.explorationMode && !(gameState.levelConfig && gameState.levelConfig.isEventZone)) {
                 enterExplorationMode(gameState.levelConfig);
             }
 
@@ -19168,7 +18579,7 @@
                         }
                         // Clean up exploration visuals
                         cleanupExploration();
-                        // Transition to system/reward view
+                        // Transition to system view
                         gameState.explorationMode = false;
                         gameState.zoomTarget = 1;
                         gameState.zoomLevel = 1;
@@ -19179,7 +18590,6 @@
                             playerShip.targetY = -7;
                         }
                         if (gameState._updateCamera) gameState._updateCamera();
-                        gameState.levelWave = gameState.levelConfig.waveCount;
                         generateLevelEndContent();
                         return;
                     }
@@ -19217,20 +18627,11 @@
                     return;
                 }
 
+                // Spawn encounter enemies on timer (combat zone ships handle their own spawning)
                 gameState.spawnTimer += deltaTime;
                 if (gameState.spawnTimer > 800 && gameState.enemiesSpawned < gameState.enemiesInWave) {
-                    // Don't spawn arena enemies when combat zone is active — CZ ships handle combat
-                    if (gameState.combatZone && gameState.combatZone.active) {
-                        // Skip arena spawning entirely
-                    } else if (gameState.encounterTransition === 'combat' && gameState._encounterEnemyTypes) {
-                        if (gameState._encounterEnemyTypes.length > 0) {
-                            spawnEncounterEnemy();
-                        }
-                        // If types exhausted but count remains, wait for retry via
-                        // re-queued types from failed spawns rather than falling back
-                        // to spawnEnemy() which would inject regular wave enemies
-                    } else {
-                        spawnEnemy();
+                    if (!(gameState.combatZone && gameState.combatZone.active) && gameState.encounterTransition === 'combat' && gameState._encounterEnemyTypes && gameState._encounterEnemyTypes.length > 0) {
+                        spawnEncounterEnemy();
                     }
                     gameState.spawnTimer = 0;
                 }
@@ -19281,66 +18682,14 @@
                             const factionA = activeEnemies.filter(e => e.enemyFaction === 'A');
                             const factionB = activeEnemies.filter(e => e.enemyFaction === 'B');
                             if (factionA.length === 0 || factionB.length === 0) {
-                                gameState.wave++;
-                                gameState.levelWave++;
-                                updateHUD();
                                 onEncounterVictory();
                             }
                         } else if (!escaped && allSpawned && activeEnemies.length === 0) {
                             // Normal encounter: all active enemies dead
-                            gameState.wave++;
-                            gameState.levelWave++;
-                            updateHUD();
                             onEncounterVictory();
                         }
                     }
                 }
-                // Non-encounter wave completion (level end, stations, etc.)
-                // Skip if zooming out of an encounter - finishCombatZone/onEncounterVictory already advanced the wave
-                else if (!gameState.currentEncounter && !gameState.bountyEncounterActive && gameState.encounterTransition !== 'zooming_out' && gameState.encounterTransition !== 'victory_pause' && gameState.encounterTransition !== 'combat' && gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0 && !gameState.starbase && !gameState.showingGates && !gameState.levelEndSpawned && !gameState.inExploration && !gameState.eventObject && !gameState.mysteryEventActive) {
-                    gameState.wave++;
-                    gameState.levelWave++;
-                    updateHUD();
-
-                    const config = gameState.levelConfig;
-
-                    // Check if level complete (all waves done)
-                    if (gameState.levelWave >= config.waveCount) {
-                        // Level complete - generate reward zone and gates
-                        generateLevelEndContent();
-                    } else {
-                        // Check if a station should appear after this wave
-                        const shouldSpawnStation = config.stationWaves &&
-                            config.stationWaves.includes(gameState.levelWave) &&
-                            gameState.stationsVisited < config.stations.length;
-
-                        if (shouldSpawnStation) {
-                            createStarbase();
-                            gameState.stationsVisited++;
-                        } else {
-                            // Enter exploration mode - travel through space before next wave
-                            gameState.inExploration = true;
-                            gameState.explorationDistance = 0;
-                            gameState.enemiesInWave = 0;
-                            gameState.enemiesSpawned = 0;
-                        }
-                    }
-                }
-
-                // Exploration mode - travel some distance before next wave starts
-                if (gameState.inExploration) {
-                    // Track distance traveled during exploration
-                    gameState.explorationDistance += scrollMultiplier * 0.1;
-
-                    // After enough distance (about 1-2 screen heights), start next wave
-                    const explorationRequired = 15 + Math.random() * 10; // Random variation
-                    if (gameState.explorationDistance >= explorationRequired) {
-                        gameState.inExploration = false;
-                        gameState.explorationDistance = 0;
-                        spawnWave();
-                    }
-                }
-
                 // Update warp gates
                 updateWarpGates(scrollMultiplier, deltaTime);
 
@@ -19387,453 +18736,11 @@
             renderResearchScreen();
         });
 
-        // Arena Mode Configuration
-        const arenaConfig = {
-            enemies: ['basic'],
-            startEnemies: 5,
-            enemiesPerWave: 2,
-            healthScale: 1,
-            shipModel: 'Bob',
-            shipColor: 'Blue',
-            hardpoints: [
-                { size: 'medium', equipped: null },
-                { size: 'light', equipped: null },
-                { size: 'light', equipped: null }
-            ],
-            upgrades: {
-                hull: 0,
-                engine: 0,
-                shields: 0
-            },
-            selectedHardpoint: 0
-        };
 
-        // Arena weapons pool (generated from templates)
-        function generateArenaWeapons() {
-            const weapons = [];
-            for (const [templateId, template] of Object.entries(WEAPON_TEMPLATES)) {
-                // Generate level 1-5 variants for each weapon
-                for (let level = 1; level <= 5; level++) {
-                    const stats = calculateWeaponStats(template, level, 'common');
-                    weapons.push({
-                        id: `${templateId}_${level}`,
-                        templateId,
-                        name: `${template.baseName} Mk-${level}`,
-                        type: template.type,
-                        size: template.size,
-                        level,
-                        damage: stats.damage,
-                        fireRate: stats.fireRate,
-                        projectiles: stats.projectiles,
-                        spread: stats.spread,
-                        speed: stats.speed,
-                        quality: 'common'
-                    });
-                }
-            }
-            return weapons;
-        }
-
-        const arenaWeapons = generateArenaWeapons();
-
-        // Populate arena weapons grid
-        function populateArenaWeapons() {
-            const grid = document.getElementById('arenaWeaponsGrid');
-            grid.innerHTML = '';
-
-            arenaWeapons.forEach(weapon => {
-                const card = document.createElement('div');
-                card.className = 'weapon-card';
-                card.innerHTML = `
-                    <div class="weapon-name">${weapon.name}</div>
-                    <div class="weapon-stats">DMG: ${weapon.damage} | Rate: ${weapon.fireRate}ms</div>
-                    <div class="weapon-size ${weapon.size}">${weapon.size}</div>
-                `;
-                card.addEventListener('click', () => equipArenaWeapon(weapon));
-                grid.appendChild(card);
-            });
-        }
-
-        // Populate arena hardpoints
-        function populateArenaHardpoints() {
-            const container = document.getElementById('arenaHardpoints');
-            container.innerHTML = '';
-
-            arenaConfig.hardpoints.forEach((hp, idx) => {
-                const slot = document.createElement('div');
-                slot.className = 'hardpoint-slot' + (hp.equipped ? ' filled' : '');
-                slot.innerHTML = `
-                    <div class="slot-label">Slot ${idx + 1} (${hp.size})</div>
-                    <div class="slot-weapon">${hp.equipped ? hp.equipped.name : 'Empty'}</div>
-                    ${hp.equipped ? '<div class="slot-clear">Clear</div>' : ''}
-                `;
-
-                slot.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('slot-clear')) {
-                        arenaConfig.hardpoints[idx].equipped = null;
-                        populateArenaHardpoints();
-                    } else {
-                        arenaConfig.selectedHardpoint = idx;
-                        document.querySelectorAll('.hardpoint-slot').forEach(s => s.style.borderColor = '');
-                        slot.style.borderColor = '#44ff44';
-                    }
-                });
-
-                container.appendChild(slot);
-            });
-        }
-
-        // Equip weapon to selected hardpoint
-        function equipArenaWeapon(weapon) {
-            const hp = arenaConfig.hardpoints[arenaConfig.selectedHardpoint];
-            if (!hp) return;
-
-            // Check size compatibility
-            const sizeOrder = { light: 0, medium: 1, heavy: 2, assault: 3 };
-            if (sizeOrder[weapon.size] > sizeOrder[hp.size]) {
-                // Weapon too big for slot
-                return;
-            }
-
-            hp.equipped = { ...weapon };
-            populateArenaHardpoints();
-        }
-
-        // Populate arena upgrades
-        function populateArenaUpgrades() {
-            const container = document.getElementById('arenaUpgrades');
-            container.innerHTML = '';
-
-            const upgradeList = [
-                { id: 'hull', name: 'Hull', icon: '🛡️', max: 5, effect: '+25 HP' },
-                { id: 'engine', name: 'Engine', icon: '🚀', max: 4, effect: '+10% Speed' },
-                { id: 'shields', name: 'Shields', icon: '💠', max: 3, effect: '+15 Shields' }
-            ];
-
-            upgradeList.forEach(upgrade => {
-                const card = document.createElement('div');
-                card.className = 'upgrade-card';
-                card.innerHTML = `
-                    <div class="upgrade-header">
-                        <span class="upgrade-icon">${upgrade.icon}</span>
-                        <span class="upgrade-name">${upgrade.name}</span>
-                    </div>
-                    <div class="upgrade-level">
-                        <button class="upgrade-minus">-</button>
-                        <span>${arenaConfig.upgrades[upgrade.id]} / ${upgrade.max}</span>
-                        <button class="upgrade-plus">+</button>
-                    </div>
-                `;
-
-                card.querySelector('.upgrade-minus').addEventListener('click', () => {
-                    if (arenaConfig.upgrades[upgrade.id] > 0) {
-                        arenaConfig.upgrades[upgrade.id]--;
-                        populateArenaUpgrades();
-                    }
-                });
-
-                card.querySelector('.upgrade-plus').addEventListener('click', () => {
-                    if (arenaConfig.upgrades[upgrade.id] < upgrade.max) {
-                        arenaConfig.upgrades[upgrade.id]++;
-                        populateArenaUpgrades();
-                    }
-                });
-
-                container.appendChild(card);
-            });
-        }
-
-        // Update hardpoint configuration based on count selection
-        function updateHardpointConfig() {
-            const count = parseInt(document.getElementById('arenaHardpointCount').value);
-            const configs = {
-                1: [{ size: 'medium', equipped: null }],
-                2: [{ size: 'medium', equipped: null }, { size: 'light', equipped: null }],
-                3: [{ size: 'medium', equipped: null }, { size: 'light', equipped: null }, { size: 'light', equipped: null }],
-                4: [{ size: 'heavy', equipped: null }, { size: 'medium', equipped: null }, { size: 'light', equipped: null }, { size: 'light', equipped: null }]
-            };
-            arenaConfig.hardpoints = configs[count];
-            arenaConfig.selectedHardpoint = 0;
-            populateArenaHardpoints();
-        }
-
-        // Initialize arena config panel
-        function initArenaConfig() {
-            populateArenaWeapons();
-            populateArenaHardpoints();
-            populateArenaUpgrades();
-
-            // Enemy checkbox handlers
-            document.querySelectorAll('#arenaEnemyGrid .arena-checkbox').forEach(checkbox => {
-                const input = checkbox.querySelector('input');
-                input.addEventListener('change', () => {
-                    checkbox.classList.toggle('selected', input.checked);
-                    updateArenaEnemies();
-                });
-            });
-
-            // Hardpoint count handler
-            document.getElementById('arenaHardpointCount').addEventListener('change', updateHardpointConfig);
-        }
-
-        // Update selected enemies
-        function updateArenaEnemies() {
-            arenaConfig.enemies = [];
-            document.querySelectorAll('#arenaEnemyGrid input:checked').forEach(input => {
-                arenaConfig.enemies.push(input.id.replace('enemy_', ''));
-            });
-            if (arenaConfig.enemies.length === 0) {
-                arenaConfig.enemies = ['basic'];
-                document.getElementById('enemy_basic').checked = true;
-                document.getElementById('enemy_basic').closest('.arena-checkbox').classList.add('selected');
-            }
-        }
-
-        // Show arena config
-        document.getElementById('arenaModeBtn').addEventListener('click', () => {
-            document.getElementById('startScreen').style.display = 'none';
-            document.getElementById('arenaConfig').style.display = 'block';
-            initArenaConfig();
-        });
-
-        // Hide arena config
-        document.getElementById('arenaBackBtn').addEventListener('click', () => {
-            document.getElementById('arenaConfig').style.display = 'none';
-            document.getElementById('startScreen').style.display = 'flex';
-        });
-
-        // Start arena mode
-        document.getElementById('arenaStartBtn').addEventListener('click', async () => {
-            // Gather config
-            arenaConfig.startEnemies = parseInt(document.getElementById('arenaStartEnemies').value) || 5;
-            arenaConfig.enemiesPerWave = parseInt(document.getElementById('arenaEnemiesPerWave').value) || 2;
-            arenaConfig.healthScale = parseFloat(document.getElementById('arenaHealthScale').value) || 1;
-            arenaConfig.shipModel = document.getElementById('arenaShipModel').value;
-            arenaConfig.shipColor = document.getElementById('arenaShipColor').value;
-            updateArenaEnemies();
-
-            // Hide config panel
-            document.getElementById('arenaConfig').style.display = 'none';
-
-            // Start arena
-            await startArenaMode();
-        });
-
-        // Arena mode game start
-        async function startArenaMode() {
-            // Set arena mode flag
-            gameState.arenaMode = true;
-            gameState.arenaConfig = { ...arenaConfig };
-            gameState.arenaWave = 1;
-            gameState.arenaKills = 0;
-
-            // Use arena ship settings
-            settings.playerShip = arenaConfig.shipModel;
-            settings.playerColor = arenaConfig.shipColor;
-
-            // Show loading
-            const startScreen = document.getElementById('startScreen');
-            const loadingScreen = document.getElementById('loadingScreen');
-            const titleButtons = document.getElementById('titleButtons');
-            const arenaLoadingText = document.querySelector('#loadingScreen .loading-text');
-            const arenaProgressBar = document.getElementById('loadingProgressBar');
-            titleButtons.style.display = 'none';
-            loadingScreen.style.display = 'flex';
-
-            // Create scene + player ship (other ships load lazily)
-            if (arenaLoadingText) arenaLoadingText.textContent = 'Initializing engine...';
-            if (arenaProgressBar) arenaProgressBar.style.width = '33%';
-            createMainScene();
-
-            if (arenaLoadingText) arenaLoadingText.textContent = 'Loading player ship...';
-            if (arenaProgressBar) arenaProgressBar.style.width = '66%';
-            await createPlayerShip();
-            if (arenaProgressBar) arenaProgressBar.style.width = '100%';
-
-            // Hide start screen
-            startScreen.style.display = 'none';
-            document.getElementById('hud').style.display = 'flex';
-            document.getElementById('systemBtn').style.display = 'block';
-
-            // Initialize game state for arena
-            gameState.score = 0;
-            gameState.credits = 0;
-            gameState.level = 1;
-            gameState.wave = 1;
-            gameState.levelWave = 0;
-
-            // Apply upgrades
-            gameState.maxHealth = 100 + arenaConfig.upgrades.hull * 25;
-            gameState.health = gameState.maxHealth;
-            gameState.maxShields = arenaConfig.upgrades.shields * 15;
-            gameState.shields = gameState.maxShields;
-
-            // Set up ship upgrades for arena (used by updatePlayerPosition)
-            gameState.shipUpgrades = { engine: arenaConfig.upgrades.engine };
-
-            // Set up fleet with arena weapons
-            gameState.fleet = [{
-                name: 'Arena Ship',
-                model: arenaConfig.shipModel,
-                hardpoints: arenaConfig.hardpoints.map(hp => ({
-                    size: hp.size,
-                    position: { x: 0, y: 0.3 },
-                    equipped: hp.equipped
-                }))
-            }];
-
-            // Arena level config (no stations, infinite waves)
-            gameState.levelConfig = {
-                waveCount: 999,
-                threatLevel: 'Arena',
-                threatClass: 'arena',
-                enemyMultiplier: arenaConfig.healthScale,
-                stations: [],
-                stationWaves: []
-            };
-
-            // Disable fuel/exploration in arena
-            gameState.fuel = 999;
-            gameState.maxFuel = 999;
-            gameState.inExploration = false;
-
-            // Spawn first wave
-            spawnArenaWave();
-
-            // Variables for game loop
-            let lastFrameTime = performance.now();
-            gameState.isPlaying = true;
-
-            // Arena game loop (same as regular but with arena-specific wave handling)
-            scene.registerBeforeRender(() => {
-                if (!gameState.isPlaying || gameState.pauseReasons.size > 0) return;
-
-                const currentTime = performance.now();
-                const deltaTime = Math.min(currentTime - lastFrameTime, 50);
-                lastFrameTime = currentTime;
-
-                // Player movement (reuse standard movement function)
-                updatePlayerPosition(deltaTime);
-
-                // Fire weapons
-                if (gameState.enemies.length > 0) {
-                    firePlayerWeapons(currentTime);
-                }
-
-                // Spawn enemies during wave
-                if (gameState.enemiesSpawned < gameState.enemiesInWave) {
-                    gameState.waveTimer += deltaTime;
-                    if (gameState.waveTimer > 800) {
-                        gameState.waveTimer = 0;
-                        spawnArenaEnemy();
-                    }
-                }
-
-                // Check wave completion
-                if (gameState.enemiesSpawned >= gameState.enemiesInWave && gameState.enemies.length === 0) {
-                    // Wave complete - start next wave
-                    gameState.arenaWave++;
-                    gameState.wave++;
-                    spawnArenaWave();
-                }
-
-                // Update game entities
-                const scrollMultiplier = 0.5;
-                updateEnemies(deltaTime, currentTime, scrollMultiplier);
-                updateBullets();
-                updateBurstQueues(currentTime);
-                updateChallengerLasers();
-                updateEnemyBeamSweeps();
-                updatePlayerBeams();
-                updateMissiles(deltaTime);
-                updateDrones(deltaTime, currentTime);
-                updateShieldEquipment(deltaTime);
-                updateSecondaryCooldown(deltaTime);
-                fireEquipmentWeapons(currentTime);
-                updateLoot(scrollMultiplier);
-                updateWeaponDrops(scrollMultiplier);
-                updateStars(scrollMultiplier);
-            });
-
-            engine.runRenderLoop(() => {
-                scene.render();
-            });
-        }
-
-        // Spawn arena wave
-        function spawnArenaWave() {
-            const config = gameState.arenaConfig;
-            const waveNum = gameState.arenaWave;
-
-            // Calculate enemy count: start + (wave-1) * perWave
-            const enemyCount = config.startEnemies + (waveNum - 1) * config.enemiesPerWave;
-
-            gameState.enemiesInWave = enemyCount;
-            gameState.enemiesSpawned = 0;
-            gameState.waveTimer = 0;
-            gameState.levelWave = waveNum;
-
-            updateHUD();
-        }
-
-        // Spawn arena enemy
-        async function spawnArenaEnemy() {
-            if (gameState.enemiesSpawned >= gameState.enemiesInWave) return;
-
-            const config = gameState.arenaConfig;
-
-            // Pick random enemy type from selected types
-            const type = config.enemies[Math.floor(Math.random() * config.enemies.length)];
-
-            const maxX = orthoWidth - 1;
-            const x = (Math.random() - 0.5) * maxX * 1.5;
-            const y = orthoHeight + 2;
-
-            const enemy = await createEnemy(type, x, y);
-
-            // Apply arena health scaling
-            enemy.maxHealth = Math.round(enemy.maxHealth * config.healthScale);
-            enemy.health = enemy.maxHealth;
-
-            gameState.enemies.push(enemy);
-            gameState.enemiesSpawned++;
-        }
 
         restartBtn.addEventListener('click', async () => {
             gameOverPanel.style.display = 'none';
-
-            if (gameState.arenaMode) {
-                // Restart arena mode
-                await resetGame();
-                gameState.arenaMode = true;
-                gameState.arenaWave = 1;
-                gameState.arenaKills = 0;
-
-                // Reapply arena config
-                const config = gameState.arenaConfig;
-                if (config) {
-                    gameState.maxHealth = 100 + config.upgrades.hull * 25;
-                    gameState.health = gameState.maxHealth;
-                    gameState.maxShields = config.upgrades.shields * 15;
-                    gameState.shields = gameState.maxShields;
-                    gameState.arenaSpeedBonus = 1 + config.upgrades.engine * 0.1;
-                    gameState.levelConfig = {
-                        waveCount: 999,
-                        threatLevel: 'Arena',
-                        threatClass: 'arena',
-                        enemyMultiplier: config.healthScale,
-                        stations: [],
-                        stationWaves: []
-                    };
-                    gameState.fuel = 999;
-                    gameState.maxFuel = 999;
-                }
-
-                spawnArenaWave();
-            } else {
-                await resetGame();
-                // resetGame already calls enterExplorationMode
-            }
+            await resetGame();
             gameState.isPlaying = true;
         });
 
