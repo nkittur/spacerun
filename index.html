@@ -2219,9 +2219,6 @@
             font-size: 13px;
             margin-right: 1px;
         }
-        .bounty-skulls .skull.empty {
-            color: #443333;
-        }
         .bounty-desc {
             color: #bbaa99;
             font-size: 11px;
@@ -8215,11 +8212,16 @@
         // Generate a bounty mission for the given level
         function generateBountyMission(worldLevel) {
             // Determine skull range available at this world level
-            const maxSkull = Math.min(5, 1 + Math.floor(worldLevel / 2));
-            const minSkull = Math.max(1, maxSkull - 2);
+            // Even at level 1, offer up to skull 2 so there's variety
+            // Range widens as level increases: L1: 1-2, L2: 1-3, L3: 1-3, L4: 1-4, L5+: 1-5
+            const maxSkull = Math.min(5, 2 + Math.floor(worldLevel / 2));
+            const minSkull = 1;
 
-            // Pick a skull level weighted toward achievable but challenging
-            const skulls = minSkull + Math.floor(Math.random() * (maxSkull - minSkull + 1));
+            // Weighted pick: favor lower skulls, with chance of harder ones
+            // Roll twice and take the lower to bias toward easier missions
+            const roll1 = minSkull + Math.floor(Math.random() * (maxSkull - minSkull + 1));
+            const roll2 = minSkull + Math.floor(Math.random() * (maxSkull - minSkull + 1));
+            const skulls = Math.min(roll1, roll2);
 
             // Pick a target appropriate for skull level
             const validTargets = BOUNTY_TARGETS.filter(t => skulls >= t.minSkulls && skulls <= t.maxSkulls);
@@ -8265,9 +8267,10 @@
         // Generate available bounties for the station mission board
         function generateStationBounties() {
             const level = gameState.level || 1;
-            const count = 2 + Math.floor(Math.random() * 2); // 2-3 bounties
+            const count = 3 + Math.floor(Math.random() * 2); // 3-4 bounties
             const bounties = [];
             const usedNames = new Set();
+            const usedSkulls = new Set();
 
             for (let i = 0; i < count; i++) {
                 let mission;
@@ -8275,8 +8278,10 @@
                 do {
                     mission = generateBountyMission(level);
                     attempts++;
-                } while (usedNames.has(mission.targetName) && attempts < 20);
+                    // Try to get a mix of different skull levels and unique names
+                } while ((usedNames.has(mission.targetName) || (usedSkulls.has(mission.skulls) && attempts < 10)) && attempts < 30);
                 usedNames.add(mission.targetName);
+                usedSkulls.add(mission.skulls);
                 bounties.push(mission);
             }
 
@@ -8285,11 +8290,11 @@
             return bounties;
         }
 
-        // Render skull icons
-        function renderSkulls(count, max) {
+        // Render skull icons - only show filled skulls (count out of max is shown via label)
+        function renderSkulls(count) {
             let html = '';
-            for (let i = 0; i < max; i++) {
-                html += `<span class="skull ${i < count ? '' : 'empty'}">\u2620</span>`;
+            for (let i = 0; i < count; i++) {
+                html += `<span class="skull">\u2620</span>`;
             }
             return html;
         }
@@ -8312,7 +8317,7 @@
                 html += `<div class="active-bounty-banner">
                     <div class="banner-label">Active Contract</div>
                     <div class="banner-name">${b.targetName}
-                        <span class="banner-skulls">${renderSkulls(b.skulls, 5)}</span>
+                        <span class="banner-skulls">${renderSkulls(b.skulls)}</span>
                     </div>
                     <div style="color: #aa8866; font-size: 11px; margin-top: 4px;">${b.skullLabel} - ${b.escortCount} escorts - ${b.creditReward} CR reward</div>
                     <button class="bounty-abandon-btn" onclick="abandonBounty()">Abandon Contract</button>
@@ -8334,7 +8339,7 @@
                         <div class="bounty-alias">"${bounty.targetAlias}"</div>
                         <div class="bounty-desc">${bounty.targetFlavor}</div>
                         <div class="bounty-info-row">
-                            <div class="bounty-skulls">${renderSkulls(bounty.skulls, 5)}</div>
+                            <div class="bounty-skulls">${renderSkulls(bounty.skulls)}</div>
                             <span class="bounty-reward">${bounty.creditReward} CR</span>
                         </div>
                         <div class="bounty-info-row" style="margin-top: 4px;">
@@ -12872,7 +12877,7 @@
             document.getElementById('bountyRewardTitle').textContent = 'Bounty Complete';
             document.getElementById('bountyRewardSubtitle').textContent = `${bounty.skullLabel} threat neutralized`;
             document.getElementById('bountyRewardName').textContent = bounty.targetName;
-            document.getElementById('bountyRewardSkulls').innerHTML = renderSkulls(bounty.skulls, 5);
+            document.getElementById('bountyRewardSkulls').innerHTML = renderSkulls(bounty.skulls);
 
             // Pick a flavor text
             const victoryFlavors = [
