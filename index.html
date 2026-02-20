@@ -2951,8 +2951,8 @@
         </div>
         <div class="setting-group">
             <label>Max Ship Height (% of screen)</label>
-            <input type="range" id="maxHeight" min="30" max="80" step="5" value="70">
-            <div class="setting-value" id="maxHeightValue">70%</div>
+            <input type="range" id="maxHeight" min="30" max="95" step="5" value="90">
+            <div class="setting-value" id="maxHeightValue">90%</div>
         </div>
         <div class="setting-group">
             <label>Ship Speed</label>
@@ -3892,7 +3892,7 @@
             return world;
         }
 
-        // Get fuel cost to jump between systems
+        // Get fuel cost to jump between systems (factors in engine efficiency)
         function getJumpFuelCost(fromSysId, toSysId) {
             const world = gameState.world;
             if (!world) return 999;
@@ -3902,15 +3902,23 @@
             const dx = from.x - to.x;
             const dy = from.y - to.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            return Math.max(5, Math.round(dist / 30)); // ~5-15 fuel per jump
+            const baseCost = Math.max(5, Math.round(dist / 30));
+            return Math.max(3, Math.round(baseCost * getJumpEfficiency()));
         }
 
-        // Jump to a connected system
+        // Check if a system is within jump range
+        function isSystemInJumpRange(targetSysId) {
+            const world = gameState.world;
+            if (!world) return false;
+            const reachable = getSystemsInRange(world.currentSystem, getJumpRange());
+            return reachable[targetSysId] !== undefined;
+        }
+
+        // Jump to a system within jump range (not limited to direct connections)
         function jumpToSystem(targetSysId) {
             const world = gameState.world;
             if (!world) return false;
-            const currentSys = world.systems[world.currentSystem];
-            if (!currentSys || !currentSys.connections.includes(targetSysId)) return false;
+            if (!isSystemInJumpRange(targetSysId)) return false;
 
             const fuelCost = getJumpFuelCost(world.currentSystem, targetSysId);
             if (gameState.fuel < fuelCost) return false;
@@ -4420,7 +4428,7 @@
         const settings = {
             xSensitivity: 1.5,
             ySensitivity: 1.2,
-            maxHeight: 0.7,
+            maxHeight: 0.9,
             shipSpeed: 1.0,
             fireRate: 1.0,
             scrollSpeed: 1.0,
@@ -4903,7 +4911,7 @@
 
         // Level zone heights in world Y units (1 screen height ≈ orthoHeight*2 ≈ 20 units)
         const LEVEL_ZONE_HEIGHTS = {
-            reward: 25,  // Y distance for reward/exploration zone (~1.25 screens)
+            reward: 12,  // Y distance for reward/exploration zone (~0.6 screens)
             gate: 10     // Y distance for gate zone
         };
 
@@ -5822,6 +5830,16 @@
                 baseCost: { Metal: 20, Crystals: 8, Exotic: 1 },
                 costMultiplier: 3.0,
                 hardpointSizes: ['light', 'medium']  // Size of hardpoint added at each level
+            },
+            jumpDrive: {
+                name: 'Jump Drive',
+                icon: '⚡',
+                description: 'Increases jump range and fuel efficiency',
+                maxLevel: 4,
+                effectPerLevel: 1,  // +1 system range per level
+                effectUnit: 'range',
+                baseCost: { Metal: 15, Crystals: 5 },
+                costMultiplier: 2.2
             }
         };
 
@@ -5911,6 +5929,7 @@
                     break;
 
                 // Engine/speed is applied dynamically in movement code
+                // Jump drive range/efficiency is queried dynamically
             }
         }
 
@@ -5918,6 +5937,42 @@
         function getSpeedMultiplier() {
             const level = (gameState.shipUpgrades && gameState.shipUpgrades.engine) || 0;
             return 1 + level * 0.1;  // +10% per level
+        }
+
+        // Get jump drive range (max hops away the player can jump)
+        function getJumpRange() {
+            const level = (gameState.shipUpgrades && gameState.shipUpgrades.jumpDrive) || 0;
+            return 1 + level;  // Base 1 hop, +1 per level (max 5 at level 4)
+        }
+
+        // Get jump fuel efficiency multiplier (lower = cheaper jumps)
+        function getJumpEfficiency() {
+            const level = (gameState.shipUpgrades && gameState.shipUpgrades.jumpDrive) || 0;
+            return 1 - level * 0.12;  // 12% cheaper per level (max 52% off at level 4)
+        }
+
+        // Find all systems reachable within N hops from a given system
+        function getSystemsInRange(fromSysId, maxHops) {
+            const world = gameState.world;
+            if (!world) return {};
+            const visited = {};  // sysId → hop count
+            const queue = [{ sysId: fromSysId, hops: 0 }];
+            visited[fromSysId] = 0;
+
+            while (queue.length > 0) {
+                const { sysId, hops } = queue.shift();
+                if (hops >= maxHops) continue;
+                const sys = world.systems[sysId];
+                if (!sys) continue;
+                for (const connId of (sys.connections || [])) {
+                    if (visited[connId] === undefined) {
+                        visited[connId] = hops + 1;
+                        queue.push({ sysId: connId, hops: hops + 1 });
+                    }
+                }
+            }
+            delete visited[fromSysId];  // Don't include current system
+            return visited;  // { sysId: hopCount }
         }
 
         // Apply all saved upgrades (called on game load)
@@ -7973,7 +8028,14 @@
 
                 // Effect description
                 let effectText = '';
-                if (isMaxed) {
+                if (upgradeId === 'jumpDrive') {
+                    const curRange = 1 + currentLevel;
+                    if (isMaxed) {
+                        effectText = `MAX: ${curRange} hop range, ${Math.round((1 - getJumpEfficiency()) * 100)}% fuel savings`;
+                    } else {
+                        effectText = `Current: ${curRange} hop${curRange > 1 ? 's' : ''} | Next: ${curRange + 1} hops, -${(currentLevel + 1) * 12}% fuel`;
+                    }
+                } else if (isMaxed) {
                     effectText = `MAX: +${currentLevel * upgrade.effectPerLevel} ${upgrade.effectUnit}`;
                 } else {
                     const nextEffect = (currentLevel + 1) * upgrade.effectPerLevel;
@@ -9495,8 +9557,8 @@
             const gateTypeDef = GATE_TYPES[gate.gateType] || GATE_TYPES.system;
             gate.rotation.z += gateTypeDef.rotationSpeed;
 
-            // Check if player has reached gate — open star map
-            if (playerShip && playerShip.position.y >= gate.position.y) {
+            // Check if player has reached gate — open star map (once)
+            if (playerShip && !gameState.atWarpGate && playerShip.position.y >= gate.position.y) {
                 gameState.atWarpGate = true;
                 openStarMap();
                 return;
@@ -9571,11 +9633,14 @@
                 gameState.levelEndSpawned = false;
                 gameState.stationsVisited = 0;
 
+                // Reset player ship scale to normal before startNewLevel re-scales for exploration
+                // Only needed when jumping from exploration mode (ship already scaled up)
+                // When jumping from a gate, ship is already at normal scale
+                const wasExploring = gameState.explorationMode;
                 cleanupExploration();
                 gameState.explorationMode = false;
 
-                // Reset player ship scale to normal before startNewLevel re-scales for exploration
-                if (playerShipMesh) {
+                if (wasExploring && playerShipMesh) {
                     playerShipMesh.scaling.scaleInPlace(1 / settings.exploreShipScale);
                 }
 
@@ -19258,10 +19323,14 @@
             requestPause('starmap');
             starmapSelectedSystem = null;
             renderStarMap();
-            document.getElementById('starmapFuelDisplay').textContent = `Fuel: ${gameState.fuel}/${gameState.maxFuel}`;
+            document.getElementById('starmapFuelDisplay').textContent = `Fuel: ${gameState.fuel}/${gameState.maxFuel} | Range: ${getJumpRange()} hop${getJumpRange() > 1 ? 's' : ''}`;
             document.getElementById('starmapJumpBtn').style.display = 'none';
             document.getElementById('starmapSystemName').textContent = 'Select a system';
             document.getElementById('starmapSystemDetails').textContent = '';
+
+            // See planning/gate-map-lock.md — gate-opened map is not closeable
+            const closeBtn = document.getElementById('starmapCloseBtn');
+            closeBtn.style.display = gameState.atWarpGate ? 'none' : '';
         }
 
         function closeStarMap() {
@@ -19328,6 +19397,9 @@
                 federation: '#4488ff', merchants: '#44cc44', pirates: '#ff4444', independent: '#cccc44'
             };
 
+            // Compute reachable systems based on jump drive range
+            const reachableSystems = getSystemsInRange(world.currentSystem, getJumpRange());
+
             // Draw systems
             for (const sysId in world.systems) {
                 const sys = world.systems[sysId];
@@ -19335,7 +19407,7 @@
                 const p = toScreen(sys);
                 const isCurrent = sysId === world.currentSystem;
                 const isSelected = sysId === starmapSelectedSystem;
-                const isConnected = world.systems[world.currentSystem]?.connections.includes(sysId);
+                const isReachable = reachableSystems[sysId] !== undefined;
                 const color = factionColors[sys.faction] || '#888888';
 
                 // Node circle
@@ -19353,7 +19425,7 @@
                     ctx.strokeStyle = '#ffff44';
                     ctx.lineWidth = 2;
                     ctx.stroke();
-                } else if (isConnected) {
+                } else if (isReachable) {
                     ctx.strokeStyle = color + '88';
                     ctx.lineWidth = 1;
                     ctx.stroke();
@@ -19408,7 +19480,7 @@
                 starmapSelectedSystem = closest;
                 const sys = world.systems[closest];
                 const isCurrent = closest === world.currentSystem;
-                const isConnected = world.systems[world.currentSystem]?.connections.includes(closest);
+                const isReachable = isSystemInJumpRange(closest);
 
                 document.getElementById('starmapSystemName').textContent = sys.name + (isCurrent ? ' (Current)' : '');
 
@@ -19425,16 +19497,16 @@
 
                 // Jump button
                 const jumpBtn = document.getElementById('starmapJumpBtn');
-                if (!isCurrent && isConnected) {
+                if (!isCurrent && isReachable) {
                     const fuelCost = getJumpFuelCost(world.currentSystem, closest);
                     document.getElementById('starmapFuelCost').textContent = fuelCost;
                     jumpBtn.style.display = 'inline-block';
                     jumpBtn.disabled = gameState.fuel < fuelCost;
                 } else {
                     jumpBtn.style.display = isCurrent ? 'none' : 'inline-block';
-                    if (!isConnected && !isCurrent) {
+                    if (!isReachable && !isCurrent) {
                         jumpBtn.disabled = true;
-                        document.getElementById('starmapFuelCost').textContent = '∞';
+                        document.getElementById('starmapFuelCost').textContent = 'OUT OF RANGE';
                     }
                 }
             }
@@ -19446,11 +19518,8 @@
         document.getElementById('starmapJumpBtn').addEventListener('click', () => {
             if (!starmapSelectedSystem) return;
             // Validate jump is possible before starting charge-up
-            const world = gameState.world;
-            if (!world) return;
-            const currentSys = world.systems[world.currentSystem];
-            if (!currentSys || !currentSys.connections.includes(starmapSelectedSystem)) return;
-            const fuelCost = getJumpFuelCost(world.currentSystem, starmapSelectedSystem);
+            if (!isSystemInJumpRange(starmapSelectedSystem)) return;
+            const fuelCost = getJumpFuelCost(gameState.world.currentSystem, starmapSelectedSystem);
             if (gameState.fuel < fuelCost) return;
 
             // Close star map and start 2-second charge-up
@@ -19458,17 +19527,20 @@
             startJumpCharge(starmapSelectedSystem);
         });
 
-        // Close button
-        document.getElementById('starmapCloseBtn').addEventListener('click', closeStarMap);
+        // Close button — blocked when at gate (see planning/gate-map-lock.md)
+        document.getElementById('starmapCloseBtn').addEventListener('click', () => {
+            if (!gameState.atWarpGate) closeStarMap();
+        });
 
         // Star map button
         document.getElementById('starMapBtn').addEventListener('click', openStarMap);
 
         // M key opens star map
+        // See planning/gate-map-lock.md — M key toggle, blocked when at gate
         document.addEventListener('keydown', (e) => {
             if (e.key === 'm' || e.key === 'M') {
                 if (document.getElementById('starMapOverlay').style.display === 'flex') {
-                    closeStarMap();
+                    if (!gameState.atWarpGate) closeStarMap();
                 } else if (gameState.isPlaying && !gameState.isDocked) {
                     openStarMap();
                 }

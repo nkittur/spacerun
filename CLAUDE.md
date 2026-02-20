@@ -128,3 +128,23 @@ The game has **two completely separate combat systems**. Any weapon, enemy, or c
 - Auto-saves on station dock, system jump, and death
 - `SAVE_KEY = 'spacerun_save'` in localStorage
 - Save version 2 = persistent world format
+
+## Development Workflow
+
+All new features follow this pattern:
+
+1. **Add to `todos.md`** — Feature name, brief description, status (pending → in-progress → review → done)
+2. **Write design doc in `/planning/`** — Create `planning/<feature-slug>.md` with:
+   - Rationale (why this feature, what problem it solves)
+   - Design plan (data structures, key functions, UI changes, integration points)
+   - Edge cases and interactions with existing systems
+   - Update `todos.md` to link to this doc
+3. **Implement** — Write code with inline comments referencing the design doc (`// See planning/<feature>.md`). Keep changes modular and well-commented.
+4. **Update `latest.md`** — Summary of what was designed and implemented
+5. **Move to review** — Update `todos.md` status to "review"
+
+### Code Standards for New Features
+- Add `// See planning/<feature>.md` comments at major integration points
+- Keep new constants/data structures near related existing ones
+- New gameState fields documented in the design doc
+- Save/load compatibility: always add defaults for new fields in `applySavedState()`
