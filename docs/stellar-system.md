@@ -107,7 +107,7 @@ Landing on planets costs fuel based on planet type:
 | **Arid Planets** | 3-4 |
 
 - High gravity planets cost 50% more fuel
-- Running out of fuel = Game Over
+- Running out of fuel = Stranded (must harvest hydrogen, call for help, or drift to station)
 - Starting fuel: 100 units
 - Refuel at Fuel stations or harvest hydrogen from gas giants
 
@@ -130,13 +130,13 @@ Landing on planets costs fuel based on planet type:
 | **Biologics** | Bio | Bright green | Life planets |
 | **Artifacts** | Art | Magenta | Ancient ruins |
 
-## Gate Preview Icons
+## Star Map
 
-When approaching warp gates, the preview shows:
-- **SYS**: Star type icon + planet feature icons (life, ruins, fuel, minerals)
-- **THR**: Threat level (1-4 pips)
-- **WAV**: Number of enemy waves
-- **STA**: Station types available (T=Trade, A=Armory, R=Repair, F=Fuel)
+Players navigate between systems using the star map (M key). Each system has:
+- **Faction**: Controls station services, tariffs, and NPC behavior
+- **Security**: 0-5 scale, affects pirate density and NPC trade flow
+- **Nodes**: 1-3 stations/planets with trade goods, industries, and services
+- **Connections**: Links to adjacent systems for jump travel
 
 ## Design Philosophy
 
@@ -145,7 +145,7 @@ The system follows real astronomical principles:
 2. **Middle-aged stars** (Yellow Dwarf, White): Best chance for life, some ancient ruins
 3. **Old stars** (Red Giant, Red Dwarf): High ruins chance, concentrated minerals, less life
 
-This creates meaningful choices at warp gates:
+This creates meaningful choices when exploring the star map:
 - Need artifacts? Seek old red stars
 - Need biologics? Seek yellow sun-like stars
 - Need fuel? Seek young gas-rich systems (but watch out for hazards!)

@@ -40,9 +40,10 @@ Combat Encounter (1x zoom) → Victory/Escape → Back to Exploration (4x zoom) 
 - Player uses "Weapons Hot/Safe" toggle to control whether they fire
 - After the encounter resolves, camera zooms back to 4x and exploration resumes
 
-### Level Completion
+### Level Completion (Legacy — replaced by star map travel)
 - Reaching the goal sun triggers `generateLevelEndContent()` — a reward zone
-  with loot and warp gates to the next level
+  with loot and stations
+- Players now navigate between systems via the star map (M key) rather than warp gates
 
 ## Key Rules (Do Not Break These)
 
@@ -94,4 +95,4 @@ Combat Encounter (1x zoom) → Victory/Escape → Back to Exploration (4x zoom) 
 - **Pacing variety**: Exploration stretches between combat let the player breathe
 - **Difficulty scaling**: Combat difficulty comes from NPC strength and numbers, not
   wave scripts — it scales naturally with level config
-- **Replayability**: Random traffic generation means no two runs play the same
+- **Variety**: Random traffic generation means each system visit feels different

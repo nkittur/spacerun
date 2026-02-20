@@ -624,6 +624,101 @@
             background: #ff5555;
         }
 
+        /* Star Map Button */
+        #starMapBtn {
+            position: absolute;
+            top: 10px;
+            right: 60px;
+            z-index: 100;
+            background: rgba(20, 40, 80, 0.8);
+            border: 1px solid #4488cc;
+            color: #88ccff;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            display: none;
+        }
+        #starMapBtn:hover {
+            background: rgba(40, 60, 120, 0.9);
+            border-color: #66aaff;
+        }
+
+        /* Star Map Overlay */
+        #starMapOverlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(5, 5, 20, 0.95);
+            z-index: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .starmap-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: rgba(10, 10, 30, 0.9);
+            border-bottom: 1px solid #334;
+        }
+        .starmap-header h2 { margin: 0; color: #88ccff; font-size: 18px; }
+        #starmapFuelDisplay { color: #ffaa44; font-size: 14px; }
+        #starmapCloseBtn {
+            background: #443;
+            border: 1px solid #665;
+            color: #ccc;
+            padding: 5px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        #starmapCanvas {
+            flex: 1;
+            max-width: 100%;
+            max-height: calc(100vh - 120px);
+            cursor: pointer;
+        }
+        .starmap-info {
+            width: 100%;
+            padding: 10px 20px;
+            background: rgba(10, 10, 30, 0.9);
+            border-top: 1px solid #334;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            min-height: 50px;
+        }
+        #starmapSystemName { color: #88ccff; font-size: 16px; font-weight: bold; min-width: 120px; }
+        #starmapSystemDetails { color: #aaa; font-size: 13px; flex: 1; }
+        #starmapJumpBtn {
+            background: #2266cc;
+            border: 1px solid #4488ff;
+            color: white;
+            padding: 8px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        #starmapJumpBtn:hover { background: #3377dd; }
+        #starmapJumpBtn:disabled { background: #333; border-color: #555; color: #666; cursor: not-allowed; }
+
+        /* Trading UI improvements */
+        .trading-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #334;
+            margin-bottom: 8px;
+            color: #88ccff;
+            font-weight: bold;
+        }
+        .cargo-status { color: #ffaa44; font-size: 13px; font-weight: normal; }
+
         /* Warp Gate HUD Previews - minimal, blends with background */
         #warpGatePanel {
             position: absolute;
@@ -2716,11 +2811,10 @@
 
     <div id="startScreen">
         <h1>Space Run</h1>
-        <div class="subtitle">Bullet Hell Shooter</div>
+        <div class="subtitle">Open World Space Trader</div>
         <div id="titleButtons">
             <button id="newGameBtn" class="title-btn">New Game</button>
             <button id="continueBtn" class="title-btn">Continue</button>
-            <button id="researchBtn" class="title-btn research-btn">Research Lab</button>
         </div>
         <div id="loadingScreen">
             <div class="loading-spinner"></div>
@@ -2748,6 +2842,7 @@
     </div>
 
     <button id="systemBtn" style="display: none;">⏸</button>
+    <button id="starMapBtn" style="display: none;">MAP</button>
     <div id="systemMenu">
         <div class="menu-item" id="menuSettings">⚙ Settings</div>
         <div class="menu-divider"></div>
@@ -3012,12 +3107,15 @@
             <div id="sectionTrading" class="station-section">
                 <h3>Trading Post</h3>
                 <div class="trading-panel">
-                    <div class="trading-header">Sell Resources for Credits</div>
+                    <div class="trading-header">
+                        <span>Commodity Exchange</span>
+                        <span class="cargo-status">Cargo: <span id="tradingCargoUsed">0</span>/<span id="tradingCargoMax">50</span></span>
+                    </div>
                     <div id="tradingInventory" class="trading-inventory">
-                        <!-- Populated dynamically -->
+                        <!-- Populated dynamically with trade goods -->
                     </div>
                     <div class="trading-footer">
-                        <span>Your Credits: <span id="tradingCredits">0</span> CR</span>
+                        <span>Credits: <span id="tradingCredits">0</span> CR</span>
                     </div>
                 </div>
             </div>
@@ -3077,6 +3175,21 @@
         </div>
     </div>
 
+    <!-- Star Map UI -->
+    <div id="starMapOverlay" style="display:none;">
+        <div class="starmap-header">
+            <h2>Star Map</h2>
+            <span id="starmapFuelDisplay">Fuel: 100</span>
+            <button id="starmapCloseBtn">Close</button>
+        </div>
+        <canvas id="starmapCanvas" width="800" height="600"></canvas>
+        <div id="starmapInfo" class="starmap-info">
+            <div id="starmapSystemName">Select a system</div>
+            <div id="starmapSystemDetails"></div>
+            <button id="starmapJumpBtn" style="display:none;">Jump (<span id="starmapFuelCost">0</span> Fuel)</button>
+        </div>
+    </div>
+
     <div id="edgeIndicators"></div>
     <div id="warpOverlay"></div>
     <div id="warpFlash"></div>
@@ -3091,12 +3204,10 @@
     </div>
 
     <div id="gameOver">
-        <h2>Game Over</h2>
-        <p>Final Credits: <span id="finalCredits">0</span></p>
-        <div id="runSummary" class="run-summary"></div>
-        <div class="meta-gains-title">Resources Salvaged</div>
-        <div id="metaGains" class="meta-gains"></div>
-        <button id="restartBtn">Play Again</button>
+        <h2>Ship Destroyed</h2>
+        <p id="deathPenaltyText">Your cargo was lost and salvage fees deducted.</p>
+        <p>Credits remaining: <span id="finalCredits">0</span></p>
+        <button id="restartBtn">Respawn at Station</button>
     </div>
     </div><!-- end gameContainer -->
 
@@ -3111,7 +3222,7 @@
                           'Insurgent', 'Omen', 'Pancake', 'Spitfire', 'Striker', 'Zenith'];
         const colorVariants = ['Blue', 'Green', 'Orange', 'Purple', 'Red'];
 
-        // Simplified resource types
+        // Simplified resource types (legacy, used by planet harvesting - now maps to trade goods)
         const RESOURCES = {
             Metal: { color: '#aaaaaa', symbol: '⚙️', tradeValue: 1 },
             Hydrogen: { color: '#aaddff', symbol: 'H₂', tradeValue: 1 },
@@ -3121,7 +3232,7 @@
             Plasma: { color: '#cc66ff', symbol: '⚡', tradeValue: 15 }
         };
 
-        // Meta resources - persist across deaths, used for tech tree
+        // Meta resources - DEPRECATED (kept for backward compat, no longer used)
         const META_RESOURCES = {
             Alloys: { name: 'Alloys', icon: '🔩', desc: 'Refined metals for kinetic research', color: '#99aacc', from: 'Metal from rocky planets' },
             Plasma: { name: 'Plasma', icon: '🔮', desc: 'Ionized gas for energy research', color: '#cc66ff', from: 'Gas giants' },
@@ -3130,6 +3241,655 @@
         };
 
         const META_SAVE_KEY = 'spacerun_meta';
+
+        // =============================================
+        // TRADE GOODS & ECONOMY SYSTEM (Persistent World)
+        // =============================================
+
+        const TRADE_GOODS = {
+            // Tier 0: Raw materials
+            ore:          { name: 'Ore',              tier: 0, basePrice: 20,  symbol: 'ite',  color: '#998877' },
+            hydrocarbons: { name: 'Hydrocarbons',     tier: 0, basePrice: 30,  symbol: 'HC',   color: '#77aadd' },
+            biomass:      { name: 'Biomass',          tier: 0, basePrice: 25,  symbol: 'Bio',  color: '#66cc66' },
+            // Tier 1: Processed
+            metals:       { name: 'Metals',           tier: 1, basePrice: 55,  symbol: 'Met',  color: '#aabbcc' },
+            polymers:     { name: 'Polymers',         tier: 1, basePrice: 50,  symbol: 'Pol',  color: '#cc88aa' },
+            rations:      { name: 'Rations',          tier: 1, basePrice: 45,  symbol: 'Rat',  color: '#ccaa66' },
+            // Tier 2: Manufactured
+            consumerGoods:   { name: 'Consumer Goods', tier: 2, basePrice: 100, symbol: 'Con', color: '#dd99dd' },
+            industrialParts: { name: 'Industrial Parts', tier: 2, basePrice: 120, symbol: 'Ind', color: '#88aacc' },
+            electronics:     { name: 'Electronics',    tier: 2, basePrice: 150, symbol: 'Ele', color: '#44ddff' },
+            // Strategic
+            fuel:         { name: 'Fuel',              tier: 1, basePrice: 40,  symbol: 'Fue',  color: '#ffaa44' },
+            medical:      { name: 'Medical Supplies',  tier: 2, basePrice: 180, symbol: 'Med',  color: '#ff6666' },
+            munitions:    { name: 'Munitions',         tier: 2, basePrice: 160, symbol: 'Mun',  color: '#ff4444', restricted: true },
+            // Contraband
+            narcotics:    { name: 'Narcotics',         tier: 2, basePrice: 300, symbol: 'Nar',  color: '#aa44ff', contraband: true }
+        };
+
+        // Map legacy planet harvest resources to trade goods
+        const HARVEST_TO_TRADE = {
+            Metal: 'ore',
+            Hydrogen: 'hydrocarbons',
+            Organics: 'biomass',
+            Crystals: 'electronics',
+            Exotic: 'electronics',
+            Plasma: 'fuel'
+        };
+
+        const INDUSTRIES = {
+            mine:             { name: 'Mine',            inputs: {},                              outputs: { ore: 10 } },
+            gasHarvester:     { name: 'Gas Harvester',   inputs: {},                              outputs: { hydrocarbons: 8 } },
+            biofarm:          { name: 'Biofarm',         inputs: {},                              outputs: { biomass: 8 } },
+            refinery:         { name: 'Refinery',        inputs: { ore: 6 },                     outputs: { metals: 4 } },
+            chemPlant:        { name: 'Chem Plant',      inputs: { hydrocarbons: 6 },            outputs: { polymers: 3, fuel: 2 } },
+            foodPlant:        { name: 'Food Plant',      inputs: { biomass: 5 },                 outputs: { rations: 4 } },
+            factory:          { name: 'Factory',         inputs: { metals: 3, polymers: 2 },     outputs: { industrialParts: 2 } },
+            consumerPlant:    { name: 'Consumer Plant',  inputs: { metals: 2, polymers: 2 },     outputs: { consumerGoods: 2 } },
+            electronicsPlant: { name: 'Electronics Lab', inputs: { metals: 2, polymers: 1 },     outputs: { electronics: 1 } },
+            pharmaLab:        { name: 'Pharma Lab',      inputs: { rations: 2, electronics: 1 }, outputs: { medical: 1 } },
+            ordnanceWorks:    { name: 'Ordnance Works',  inputs: { metals: 3, fuel: 2 },         outputs: { munitions: 2 } }
+        };
+
+        // Population consumption rates per tick by population tier
+        const POP_CONSUMPTION = {
+            outpost:   { rations: 1, consumerGoods: 0, fuel: 1 },
+            colony:    { rations: 3, consumerGoods: 2, fuel: 2, medical: 1 },
+            coreWorld: { rations: 6, consumerGoods: 5, fuel: 3, medical: 2, electronics: 1 }
+        };
+
+        // Military consumption (only for military nodes)
+        const MILITARY_CONSUMPTION = { munitions: 4, fuel: 3, medical: 2 };
+
+        // Node type templates - define what industries/services each type has
+        const NODE_TYPES = {
+            extractor: {
+                desc: 'Mining & extraction operations',
+                industries: ['mine', 'gasHarvester'],
+                services: ['trade', 'fuel'],
+                basePop: 'outpost'
+            },
+            agri: {
+                desc: 'Agricultural production',
+                industries: ['biofarm', 'foodPlant'],
+                services: ['trade', 'fuel'],
+                basePop: 'colony'
+            },
+            industrial: {
+                desc: 'Refining & manufacturing hub',
+                industries: ['refinery', 'chemPlant', 'factory'],
+                services: ['trade', 'fuel', 'repair', 'armory'],
+                basePop: 'colony'
+            },
+            core: {
+                desc: 'Major population center',
+                industries: ['consumerPlant', 'electronicsPlant'],
+                services: ['trade', 'fuel', 'repair', 'armory', 'shipyard'],
+                basePop: 'coreWorld'
+            },
+            frontier: {
+                desc: 'Remote frontier settlement',
+                industries: [],
+                services: ['trade', 'fuel'],
+                basePop: 'outpost'
+            },
+            military: {
+                desc: 'Military installation',
+                industries: ['ordnanceWorks'],
+                services: ['trade', 'fuel', 'repair', 'armory'],
+                basePop: 'colony'
+            }
+        };
+
+        // ===== STARTER SECTOR: 12 systems with 1-3 nodes each =====
+        function generateStarterSector() {
+            const systems = {
+                haven: {
+                    name: 'Haven', x: 150, y: 300, starType: 'YellowDwarf', faction: 'federation',
+                    security: 4, connections: ['nexus', 'forge', 'dust'],
+                    nodes: {
+                        haven_greenfield: {
+                            name: 'Greenfield',     type: 'agri',     population: 'colony',
+                            industries: ['biofarm', 'foodPlant'],
+                            services: ['trade', 'fuel', 'repair']
+                        },
+                        haven_orbital: {
+                            name: 'Haven Orbital',   type: 'core',     population: 'coreWorld',
+                            industries: ['consumerPlant', 'foodPlant'],
+                            services: ['trade', 'fuel', 'repair', 'armory']
+                        }
+                    }
+                },
+                nexus: {
+                    name: 'Nexus', x: 350, y: 250, starType: 'WhiteStar', faction: 'federation',
+                    security: 5, connections: ['haven', 'forge', 'bastion', 'reach'],
+                    nodes: {
+                        nexus_prime: {
+                            name: 'Nexus Prime',     type: 'core',     population: 'coreWorld',
+                            industries: ['consumerPlant', 'electronicsPlant', 'pharmaLab'],
+                            services: ['trade', 'fuel', 'repair', 'armory', 'shipyard']
+                        },
+                        nexus_market: {
+                            name: 'Grand Exchange',  type: 'core',     population: 'coreWorld',
+                            industries: ['electronicsPlant'],
+                            services: ['trade', 'fuel']
+                        }
+                    }
+                },
+                forge: {
+                    name: 'Forge', x: 250, y: 150, starType: 'OrangeDwarf', faction: 'independent',
+                    security: 3, connections: ['haven', 'nexus', 'dust', 'voidEdge'],
+                    nodes: {
+                        forge_works: {
+                            name: 'Forge Works',     type: 'industrial', population: 'colony',
+                            industries: ['refinery', 'chemPlant', 'factory'],
+                            services: ['trade', 'fuel', 'repair', 'armory']
+                        }
+                    }
+                },
+                bastion: {
+                    name: 'Bastion', x: 550, y: 200, starType: 'BlueGiant', faction: 'federation',
+                    security: 5, connections: ['nexus', 'reach', 'gateway'],
+                    nodes: {
+                        bastion_fort: {
+                            name: 'Fort Bastion',    type: 'military', population: 'colony',
+                            industries: ['ordnanceWorks'],
+                            services: ['trade', 'fuel', 'repair', 'armory']
+                        },
+                        bastion_yard: {
+                            name: 'Bastion Shipyard', type: 'industrial', population: 'colony',
+                            industries: ['refinery', 'factory'],
+                            services: ['trade', 'fuel', 'shipyard']
+                        }
+                    }
+                },
+                dust: {
+                    name: 'Dust', x: 100, y: 100, starType: 'RedDwarf', faction: 'independent',
+                    security: 2, connections: ['haven', 'forge', 'fringe'],
+                    nodes: {
+                        dust_mine: {
+                            name: 'Dustfall Mine',   type: 'extractor', population: 'outpost',
+                            industries: ['mine', 'gasHarvester'],
+                            services: ['trade', 'fuel']
+                        }
+                    }
+                },
+                reach: {
+                    name: 'Reach', x: 500, y: 400, starType: 'YellowDwarf', faction: 'merchants',
+                    security: 3, connections: ['nexus', 'bastion', 'fringe', 'tidewater'],
+                    nodes: {
+                        reach_colony: {
+                            name: 'Reach Colony',    type: 'frontier', population: 'outpost',
+                            industries: [],
+                            services: ['trade', 'fuel']
+                        }
+                    }
+                },
+                fringe: {
+                    name: 'Fringe', x: 300, y: 500, starType: 'RedGiant', faction: 'independent',
+                    security: 1, connections: ['dust', 'reach', 'shadow'],
+                    nodes: {
+                        fringe_post: {
+                            name: 'Fringe Outpost',  type: 'frontier', population: 'outpost',
+                            industries: ['mine'],
+                            services: ['trade', 'fuel']
+                        }
+                    }
+                },
+                voidEdge: {
+                    name: "Void's Edge", x: 150, y: 30, starType: 'RedDwarf', faction: 'independent',
+                    security: 2, connections: ['forge', 'deeprift'],
+                    nodes: {
+                        voidedge_harvest: {
+                            name: 'Edge Harvester',  type: 'extractor', population: 'outpost',
+                            industries: ['gasHarvester'],
+                            services: ['trade', 'fuel']
+                        }
+                    }
+                },
+                shadow: {
+                    name: 'Shadow', x: 400, y: 580, starType: 'RedDwarf', faction: 'pirates',
+                    security: 0, connections: ['fringe', 'tidewater'],
+                    nodes: {
+                        shadow_den: {
+                            name: "Pirate's Den",    type: 'frontier', population: 'outpost',
+                            industries: [],
+                            services: ['trade', 'fuel'],
+                            blackMarket: true
+                        }
+                    }
+                },
+                tidewater: {
+                    name: 'Tidewater', x: 600, y: 500, starType: 'YellowDwarf', faction: 'merchants',
+                    security: 3, connections: ['reach', 'shadow', 'gateway'],
+                    nodes: {
+                        tidewater_port: {
+                            name: 'Tidewater Port',  type: 'core',     population: 'colony',
+                            industries: ['consumerPlant', 'foodPlant'],
+                            services: ['trade', 'fuel', 'repair']
+                        }
+                    }
+                },
+                gateway: {
+                    name: 'Gateway', x: 700, y: 350, starType: 'WhiteStar', faction: 'merchants',
+                    security: 4, connections: ['bastion', 'tidewater'],
+                    nodes: {
+                        gateway_hub: {
+                            name: 'Gateway Hub',     type: 'industrial', population: 'colony',
+                            industries: ['refinery', 'chemPlant', 'electronicsPlant'],
+                            services: ['trade', 'fuel', 'repair', 'armory']
+                        }
+                    }
+                },
+                deeprift: {
+                    name: 'Deep Rift', x: 50, y: 0, starType: 'BlueGiant', faction: 'independent',
+                    security: 1, connections: ['voidEdge'],
+                    nodes: {
+                        deeprift_station: {
+                            name: 'Rift Station',    type: 'extractor', population: 'outpost',
+                            industries: ['mine', 'gasHarvester'],
+                            services: ['trade', 'fuel']
+                        }
+                    }
+                }
+            };
+            return systems;
+        }
+
+        // Initialize node inventories based on node type and industries
+        function initNodeInventory(node) {
+            const inv = {};
+            const typeInfo = NODE_TYPES[node.type] || NODE_TYPES.frontier;
+            const popTier = node.population || typeInfo.basePop;
+
+            // Every node can potentially stock every good, but desired stock varies
+            for (const goodId in TRADE_GOODS) {
+                let desiredStock = 10; // Minimum baseline
+
+                // Industries that OUTPUT this good → high stock, low desired (they produce it)
+                let produces = false;
+                for (const indId of (node.industries || [])) {
+                    const ind = INDUSTRIES[indId];
+                    if (ind && ind.outputs[goodId]) {
+                        produces = true;
+                        desiredStock = 30 + ind.outputs[goodId] * 5;
+                    }
+                }
+
+                // Industries that INPUT this good → high desired stock (they consume it)
+                let consumes = false;
+                for (const indId of (node.industries || [])) {
+                    const ind = INDUSTRIES[indId];
+                    if (ind && ind.inputs[goodId]) {
+                        consumes = true;
+                        desiredStock = Math.max(desiredStock, 40 + ind.inputs[goodId] * 5);
+                    }
+                }
+
+                // Population consumption
+                const popCon = POP_CONSUMPTION[popTier];
+                if (popCon && popCon[goodId]) {
+                    consumes = true;
+                    desiredStock = Math.max(desiredStock, 30 + popCon[goodId] * 10);
+                }
+
+                // Military consumption
+                if (node.type === 'military' && MILITARY_CONSUMPTION[goodId]) {
+                    consumes = true;
+                    desiredStock = Math.max(desiredStock, 50 + MILITARY_CONSUMPTION[goodId] * 10);
+                }
+
+                // Core worlds want more of everything
+                if (popTier === 'coreWorld') desiredStock = Math.max(desiredStock, 40);
+                if (popTier === 'colony') desiredStock = Math.max(desiredStock, 20);
+
+                // Start stock near desired for producers, below desired for consumers
+                let startStock;
+                if (produces && !consumes) {
+                    startStock = Math.floor(desiredStock * 1.2); // Surplus
+                } else if (consumes && !produces) {
+                    startStock = Math.floor(desiredStock * 0.6); // Slight shortage
+                } else {
+                    startStock = Math.floor(desiredStock * 0.8);
+                }
+
+                // Contraband only stocked at black markets
+                if (TRADE_GOODS[goodId].contraband && !node.blackMarket) {
+                    startStock = 0;
+                    desiredStock = 0;
+                }
+
+                inv[goodId] = {
+                    stock: startStock,
+                    desiredStock: desiredStock,
+                    demandSpike: 0
+                };
+            }
+
+            return inv;
+        }
+
+        // Calculate price at a node for a given good
+        function calculateTradePrice(nodeId, goodId) {
+            const world = gameState.world;
+            if (!world || !world.nodes[nodeId]) return TRADE_GOODS[goodId].basePrice;
+            const nodeData = world.nodes[nodeId];
+            const inv = nodeData.inventory[goodId];
+            if (!inv || inv.desiredStock === 0) return TRADE_GOODS[goodId].basePrice;
+
+            const good = TRADE_GOODS[goodId];
+            const scarcity = Math.max(-1, Math.min(1, (inv.desiredStock - inv.stock) / inv.desiredStock));
+            const a = 1.5; // Price elasticity
+            let price = good.basePrice * (1 + a * scarcity);
+
+            // Event spike
+            if (inv.demandSpike > 0) {
+                price *= (1 + 0.8 * inv.demandSpike);
+            }
+
+            // Floor/ceiling: 30%-300% of base
+            price = Math.max(good.basePrice * 0.3, Math.min(good.basePrice * 3.0, price));
+            return Math.round(price);
+        }
+
+        // Get sell price (player selling to station) - 85% of buy price
+        function getSellPrice(nodeId, goodId) {
+            return Math.round(calculateTradePrice(nodeId, goodId) * 0.85);
+        }
+
+        // Calculate value of selling multiple units (diminishing returns for bulk)
+        function calculateBulkSellValue(nodeId, goodId, quantity) {
+            const world = gameState.world;
+            const nodeData = world.nodes[nodeId];
+            if (!nodeData) return 0;
+
+            let totalValue = 0;
+            const chunkSize = Math.max(1, Math.floor(quantity / 10));
+            let remaining = quantity;
+
+            // Simulate selling in chunks, stock rises each chunk
+            const origStock = nodeData.inventory[goodId].stock;
+            while (remaining > 0) {
+                const chunk = Math.min(chunkSize, remaining);
+                const price = getSellPrice(nodeId, goodId);
+                totalValue += price * chunk;
+                nodeData.inventory[goodId].stock += chunk;
+                remaining -= chunk;
+            }
+            // Restore original stock (actual sale happens separately)
+            nodeData.inventory[goodId].stock = origStock;
+            return totalValue;
+        }
+
+        // Execute a buy transaction
+        function buyTradeGood(nodeId, goodId, quantity) {
+            const world = gameState.world;
+            const nodeData = world.nodes[nodeId];
+            if (!nodeData) return false;
+            const inv = nodeData.inventory[goodId];
+            if (!inv || inv.stock < quantity) return false;
+
+            const cargo = gameState.cargo;
+            const freeSpace = cargo.capacity - Object.values(cargo.contents).reduce((s, q) => s + q, 0);
+            if (freeSpace < quantity) return false;
+
+            // Calculate total cost (buy in chunks for fair pricing)
+            let totalCost = 0;
+            for (let i = 0; i < quantity; i++) {
+                totalCost += calculateTradePrice(nodeId, goodId);
+                inv.stock--;
+            }
+            // Restore stock, check affordability, then actually deduct
+            inv.stock += quantity;
+            if (gameState.credits < totalCost) return false;
+
+            gameState.credits -= totalCost;
+            inv.stock -= quantity;
+            cargo.contents[goodId] = (cargo.contents[goodId] || 0) + quantity;
+            return totalCost;
+        }
+
+        // Execute a sell transaction
+        function sellTradeGood(nodeId, goodId, quantity) {
+            const cargo = gameState.cargo;
+            if (!cargo.contents[goodId] || cargo.contents[goodId] < quantity) return false;
+            const world = gameState.world;
+            const nodeData = world.nodes[nodeId];
+            if (!nodeData) return false;
+
+            let totalValue = 0;
+            for (let i = 0; i < quantity; i++) {
+                totalValue += getSellPrice(nodeId, goodId);
+                nodeData.inventory[goodId].stock++;
+            }
+            // Restore stock, then do actual transaction
+            nodeData.inventory[goodId].stock -= quantity;
+
+            gameState.credits += totalValue;
+            nodeData.inventory[goodId].stock += quantity;
+            cargo.contents[goodId] -= quantity;
+            if (cargo.contents[goodId] <= 0) delete cargo.contents[goodId];
+            return totalValue;
+        }
+
+        // Economy tick - runs N times per system jump
+        function worldEconomyTick(ticks) {
+            const world = gameState.world;
+            if (!world) return;
+
+            for (let t = 0; t < ticks; t++) {
+                // 1. Run industries at each node
+                for (const nodeId in world.nodes) {
+                    const node = world.nodes[nodeId];
+                    const inv = node.inventory;
+
+                    // Run each industry
+                    for (const indId of (node.industries || [])) {
+                        const ind = INDUSTRIES[indId];
+                        if (!ind) continue;
+
+                        // Check if all inputs are available
+                        let canProduce = true;
+                        for (const inGood in ind.inputs) {
+                            if (!inv[inGood] || inv[inGood].stock < ind.inputs[inGood]) {
+                                canProduce = false;
+                                break;
+                            }
+                        }
+                        if (!canProduce) continue;
+
+                        // Consume inputs
+                        for (const inGood in ind.inputs) {
+                            inv[inGood].stock -= ind.inputs[inGood];
+                        }
+                        // Produce outputs
+                        for (const outGood in ind.outputs) {
+                            if (!inv[outGood]) continue;
+                            inv[outGood].stock += ind.outputs[outGood];
+                        }
+                    }
+
+                    // 2. Population consumption
+                    const popCon = POP_CONSUMPTION[node.population] || POP_CONSUMPTION.outpost;
+                    for (const goodId in popCon) {
+                        if (inv[goodId] && inv[goodId].stock > 0) {
+                            inv[goodId].stock = Math.max(0, inv[goodId].stock - popCon[goodId]);
+                        }
+                    }
+
+                    // Military consumption
+                    if (node.type === 'military') {
+                        for (const goodId in MILITARY_CONSUMPTION) {
+                            if (inv[goodId] && inv[goodId].stock > 0) {
+                                inv[goodId].stock = Math.max(0, inv[goodId].stock - MILITARY_CONSUMPTION[goodId]);
+                            }
+                        }
+                    }
+                }
+
+                // 3. NPC trade flows (abstract: smooth out extreme imbalances between connected nodes)
+                npcTradeFlow(world);
+
+                // 4. Tick events
+                tickWorldEvents(world);
+            }
+
+            world.tickCount = (world.tickCount || 0) + ticks;
+        }
+
+        // NPC trade flows: move goods between connected nodes at ~30% efficiency
+        function npcTradeFlow(world) {
+            const processed = new Set();
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                for (const connId of (sys.connections || [])) {
+                    const pairKey = [sysId, connId].sort().join('-');
+                    if (processed.has(pairKey)) continue;
+                    processed.add(pairKey);
+
+                    const connSys = world.systems[connId];
+                    if (!connSys) continue;
+
+                    // Security affects flow rate (higher security = more NPC traders)
+                    const securityFactor = (Math.min(sys.security, connSys.security) + 1) / 6;
+                    const flowRate = 0.3 * securityFactor; // Max ~30% of deficit
+
+                    // For each node pair between the two systems
+                    for (const nodeIdA in sys.nodes || {}) {
+                        for (const nodeIdB in connSys.nodes || {}) {
+                            const nodeA = world.nodes[nodeIdA];
+                            const nodeB = world.nodes[nodeIdB];
+                            if (!nodeA || !nodeB) continue;
+
+                            for (const goodId in TRADE_GOODS) {
+                                const invA = nodeA.inventory[goodId];
+                                const invB = nodeB.inventory[goodId];
+                                if (!invA || !invB) continue;
+
+                                // Flow from surplus to deficit
+                                const surplusA = invA.stock - invA.desiredStock;
+                                const surplusB = invB.stock - invB.desiredStock;
+
+                                if (surplusA > 5 && surplusB < -5) {
+                                    const flow = Math.floor(Math.min(surplusA, -surplusB) * flowRate);
+                                    if (flow > 0) {
+                                        invA.stock -= flow;
+                                        invB.stock += flow;
+                                    }
+                                } else if (surplusB > 5 && surplusA < -5) {
+                                    const flow = Math.floor(Math.min(surplusB, -surplusA) * flowRate);
+                                    if (flow > 0) {
+                                        invB.stock -= flow;
+                                        invA.stock += flow;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Tick world events (placeholder for Phase 4)
+        function tickWorldEvents(world) {
+            // TODO: spawn/advance/expire events
+            if (!world.activeEvents) world.activeEvents = [];
+        }
+
+        // Generate the persistent world from the starter sector
+        function generateWorld() {
+            const systems = generateStarterSector();
+            const world = {
+                seed: Math.floor(Math.random() * 999999),
+                systems: {},
+                nodes: {},
+                currentSystem: 'haven',
+                lastDockedNode: 'haven_orbital',
+                tickCount: 0,
+                activeEvents: [],
+                eventHistory: []
+            };
+
+            for (const sysId in systems) {
+                const sys = systems[sysId];
+                world.systems[sysId] = {
+                    name: sys.name,
+                    x: sys.x, y: sys.y,
+                    starType: sys.starType,
+                    faction: sys.faction,
+                    security: sys.security,
+                    connections: sys.connections,
+                    nodeIds: Object.keys(sys.nodes),
+                    discovered: sysId === 'haven' || sysId === 'nexus' || sysId === 'dust',
+                    visited: sysId === 'haven'
+                };
+
+                for (const nodeId in sys.nodes) {
+                    const nodeDef = sys.nodes[nodeId];
+                    const nodeData = {
+                        name: nodeDef.name,
+                        systemId: sysId,
+                        type: nodeDef.type,
+                        population: nodeDef.population,
+                        industries: nodeDef.industries,
+                        services: nodeDef.services,
+                        blackMarket: nodeDef.blackMarket || false,
+                        inventory: null // Will be initialized below
+                    };
+                    nodeData.inventory = initNodeInventory(nodeData);
+                    world.nodes[nodeId] = nodeData;
+                }
+            }
+
+            return world;
+        }
+
+        // Get fuel cost to jump between systems
+        function getJumpFuelCost(fromSysId, toSysId) {
+            const world = gameState.world;
+            if (!world) return 999;
+            const from = world.systems[fromSysId];
+            const to = world.systems[toSysId];
+            if (!from || !to) return 999;
+            const dx = from.x - to.x;
+            const dy = from.y - to.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            return Math.max(5, Math.round(dist / 30)); // ~5-15 fuel per jump
+        }
+
+        // Jump to a connected system
+        function jumpToSystem(targetSysId) {
+            const world = gameState.world;
+            if (!world) return false;
+            const currentSys = world.systems[world.currentSystem];
+            if (!currentSys || !currentSys.connections.includes(targetSysId)) return false;
+
+            const fuelCost = getJumpFuelCost(world.currentSystem, targetSysId);
+            if (gameState.fuel < fuelCost) return false;
+
+            gameState.fuel -= fuelCost;
+
+            // Economy ticks on jump (2-4 ticks per jump based on distance)
+            const ticksPerJump = Math.max(2, Math.round(fuelCost / 3));
+            worldEconomyTick(ticksPerJump);
+
+            // Update world state
+            world.currentSystem = targetSysId;
+            const targetSys = world.systems[targetSysId];
+            targetSys.visited = true;
+            targetSys.discovered = true;
+
+            // Discover adjacent systems
+            for (const adjId of (targetSys.connections || [])) {
+                if (world.systems[adjId]) {
+                    world.systems[adjId].discovered = true;
+                }
+            }
+
+            // Save game on jump
+            saveGame();
+            return true;
+        }
 
         // ========== TECH TREE SYSTEM ==========
         const TECH_TREES = {
@@ -3969,7 +4729,7 @@
             harvestingPlanet: null,
             harvestProgress: 0,
             resources: {},
-            fuel: 100,           // Fuel for planet landings (0 = game over)
+            fuel: 100,           // Fuel for system jumps and planet landings (0 = stranded)
             maxFuel: 100,        // Maximum fuel capacity
             baseShields: 100,
             escapedEnemies: 0,
@@ -3983,7 +4743,7 @@
             // Starbase and weapons
             starbase: null,
             isDocked: false,
-            credits: 0,
+            credits: 100,       // Starting credits for persistent world
             ownedWeapons: [],  // Now stores full weapon objects
             equippedWeapons: [], // Weapons equipped on hardpoints
             beamActive: false,
@@ -3991,7 +4751,11 @@
             // Fleet and hardpoint system
             fleet: [],  // Array of ships with hardpoints
             stationWeapons: [],  // Weapons available at current station
-            // River navigation - level system
+            // Cargo system for trading
+            cargo: { capacity: 50, contents: {} },
+            // Persistent world state
+            world: null,        // Generated by generateWorld()
+            // River navigation - level system (legacy, being replaced by world system)
             level: 1,
             levelConfig: null,      // Config for current level
             stationsVisited: 0,     // How many stations visited this level
@@ -4000,7 +4764,7 @@
             showingGates: false,    // Whether gates are currently displayed
             gatesAtLevel: 0,        // Gates passed at current level (level-up offered at 5, then every 3)
             gatesSinceEvent: 0,     // Gates passed since last event gate (force event after 3)
-            // Run statistics
+            // Lifetime statistics (persist across deaths)
             stats: {
                 totalGatesPassed: 0,
                 systemGatesTaken: 0,
@@ -4010,7 +4774,9 @@
                 creditsEarned: 0,
                 planetsHarvested: 0,
                 stationsDocked: 0,
-                highestLevel: 1
+                highestLevel: 1,
+                goodsTraded: 0,
+                systemsVisited: 0
             },
             levelEndSpawned: false, // Whether end-of-level content (reward + gates) has been spawned
             speedUp: false,         // Speed-up button pressed
@@ -6179,9 +6945,18 @@
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
                 if (dist < 1.2) {
-                    // Collect resource (no notification for enemy loot, only planets)
+                    // Collect resource and add to cargo as trade goods
                     gameState.resources[loot.resourceType] += loot.resourceAmount;
-                    gameState.score += loot.resourceAmount * 5;
+                    // Convert harvested resources to trade goods in cargo
+                    const tradeGoodId = HARVEST_TO_TRADE[loot.resourceType];
+                    if (tradeGoodId && gameState.cargo) {
+                        const cargoUsed = Object.values(gameState.cargo.contents).reduce((s, q) => s + q, 0);
+                        const canFit = Math.min(loot.resourceAmount, gameState.cargo.capacity - cargoUsed);
+                        if (canFit > 0) {
+                            gameState.cargo.contents[tradeGoodId] = (gameState.cargo.contents[tradeGoodId] || 0) + canFit;
+                        }
+                    }
+                    // score removed in persistent world
                     updateHUD();
 
                     createExplosion(loot.position.x, loot.position.y, 'small', 'blue');
@@ -6823,6 +7598,18 @@
                 currentStationType = gameState.levelConfig.stations[stationIndex] || 'Trade';
             }
 
+            // Set last docked node for persistent world
+            if (gameState.world) {
+                const sys = gameState.world.systems[gameState.world.currentSystem];
+                if (sys && sys.nodeIds && sys.nodeIds.length > 0) {
+                    // Pick the node that matches the station type, or first node
+                    const nodeId = sys.nodeIds[Math.min(gameState.stationsVisited, sys.nodeIds.length - 1)];
+                    gameState.world.lastDockedNode = nodeId;
+                }
+                // Auto-save on dock
+                saveGame();
+            }
+
             // Generate weapons for sale at this station
             generateStationInventory();
 
@@ -6955,30 +7742,94 @@
         }
 
         // Update trading UI
+        // Get the current docked node ID based on world state
+        function getCurrentDockedNodeId() {
+            const world = gameState.world;
+            if (!world) return null;
+            // Use lastDockedNode, or find first node in current system
+            if (world.lastDockedNode && world.nodes[world.lastDockedNode]) return world.lastDockedNode;
+            const sys = world.systems[world.currentSystem];
+            if (sys && sys.nodeIds && sys.nodeIds.length > 0) return sys.nodeIds[0];
+            return null;
+        }
+
         function updateTradingUI() {
             const container = document.getElementById('tradingInventory');
             const creditsDisplay = document.getElementById('tradingCredits');
             if (!container) return;
 
-            if (!gameState.resources) gameState.resources = {};
+            const nodeId = getCurrentDockedNodeId();
+            const world = gameState.world;
+            const cargo = gameState.cargo;
+            const cargoUsed = Object.values(cargo.contents).reduce((s, q) => s + q, 0);
 
-            // Build trade items for each resource
-            container.innerHTML = Object.entries(RESOURCES).map(([resourceName, resourceInfo]) => {
-                const stock = gameState.resources[resourceName] || 0;
-                const tradeValue = resourceInfo.tradeValue || 1;
+            // Update cargo display
+            const cargoUsedEl = document.getElementById('tradingCargoUsed');
+            const cargoMaxEl = document.getElementById('tradingCargoMax');
+            if (cargoUsedEl) cargoUsedEl.textContent = cargoUsed;
+            if (cargoMaxEl) cargoMaxEl.textContent = cargo.capacity;
+
+            if (!nodeId || !world || !world.nodes[nodeId]) {
+                // Fallback: sell legacy resources for credits
+                container.innerHTML = '<div style="padding:10px;color:#888;">No trade data available at this location.</div>';
+                if (creditsDisplay) creditsDisplay.textContent = gameState.credits || 0;
+                return;
+            }
+
+            const nodeData = world.nodes[nodeId];
+            const isBlackMarket = nodeData.blackMarket;
+
+            // Build trade items for each good
+            container.innerHTML = Object.entries(TRADE_GOODS).map(([goodId, good]) => {
+                const inv = nodeData.inventory[goodId];
+                if (!inv) return '';
+                // Hide contraband at non-black-market stations
+                if (good.contraband && !isBlackMarket) return '';
+                // Hide goods with 0 desired stock and 0 station stock (irrelevant)
+                if (inv.desiredStock === 0 && inv.stock === 0) return '';
+
+                const buyPrice = calculateTradePrice(nodeId, goodId);
+                const sellPrice = getSellPrice(nodeId, goodId);
+                const playerHas = cargo.contents[goodId] || 0;
+                const stationStock = inv.stock;
+                const cargoFree = cargo.capacity - cargoUsed;
+
+                // Price color: green if below base (good buy), red if above (good sell)
+                const priceRatio = buyPrice / good.basePrice;
+                let priceColor = '#cccccc';
+                if (priceRatio < 0.8) priceColor = '#44ff44';
+                else if (priceRatio < 0.95) priceColor = '#88dd88';
+                else if (priceRatio > 1.2) priceColor = '#ff6644';
+                else if (priceRatio > 1.05) priceColor = '#dd8844';
+
+                // Stock trend arrow
+                const surplus = stationStock - inv.desiredStock;
+                let trendIcon = '';
+                if (surplus > 10) trendIcon = '<span style="color:#44aa44">▲</span>';
+                else if (surplus < -10) trendIcon = '<span style="color:#ff4444">▼</span>';
+
+                // Restricted/contraband warning
+                let tagHtml = '';
+                if (good.restricted) tagHtml = '<span style="color:#ff8844;font-size:10px"> [RESTRICTED]</span>';
+                if (good.contraband) tagHtml = '<span style="color:#aa44ff;font-size:10px"> [CONTRABAND]</span>';
 
                 return `
-                    <div class="trade-item">
+                    <div class="trade-item" style="border-left: 3px solid ${good.color}">
                         <div class="trade-item-header">
-                            <span class="trade-item-symbol">${resourceInfo.symbol}</span>
-                            <span class="trade-item-name">${resourceName}</span>
-                            <span class="trade-item-stock">×${stock}</span>
+                            <span class="trade-item-name" style="color:${good.color}">${good.name}${tagHtml}</span>
+                            <span class="trade-item-stock">${trendIcon} Stk: ${stationStock}</span>
                         </div>
-                        <div class="trade-item-value">Value: ${tradeValue} CR each</div>
+                        <div class="trade-item-value" style="color:${priceColor}">
+                            Buy: ${buyPrice} CR | Sell: ${sellPrice} CR
+                            <span style="color:#666;font-size:10px">(base: ${good.basePrice})</span>
+                        </div>
+                        <div style="color:#88aacc;font-size:11px;margin:2px 0;">You have: ${playerHas}</div>
                         <div class="trade-item-actions">
-                            <button class="sell-btn" onclick="sellResource('${resourceName}', 1)" ${stock < 1 ? 'disabled' : ''}>Sell 1</button>
-                            <button class="sell-btn" onclick="sellResource('${resourceName}', 5)" ${stock < 5 ? 'disabled' : ''}>Sell 5</button>
-                            <button class="sell-btn" onclick="sellResource('${resourceName}', ${stock})" ${stock < 1 ? 'disabled' : ''}>Sell All</button>
+                            <button class="sell-btn" onclick="window.tradeGood('buy','${goodId}',1)" ${stationStock < 1 || gameState.credits < buyPrice || cargoFree < 1 ? 'disabled' : ''}>Buy 1</button>
+                            <button class="sell-btn" onclick="window.tradeGood('buy','${goodId}',10)" ${stationStock < 10 || gameState.credits < buyPrice * 10 || cargoFree < 10 ? 'disabled' : ''}>Buy 10</button>
+                            <button class="sell-btn" onclick="window.tradeGood('sell','${goodId}',1)" ${playerHas < 1 ? 'disabled' : ''}>Sell 1</button>
+                            <button class="sell-btn" onclick="window.tradeGood('sell','${goodId}',10)" ${playerHas < 10 ? 'disabled' : ''}>Sell 10</button>
+                            <button class="sell-btn" onclick="window.tradeGood('sell','${goodId}',${playerHas})" ${playerHas < 1 ? 'disabled' : ''}>Sell All</button>
                         </div>
                     </div>
                 `;
@@ -6990,7 +7841,31 @@
             }
         }
 
-        // Handle selling resources
+        // Handle buying/selling trade goods
+        window.tradeGood = function(action, goodId, quantity) {
+            const nodeId = getCurrentDockedNodeId();
+            if (!nodeId) return;
+
+            if (action === 'buy') {
+                const cost = buyTradeGood(nodeId, goodId, quantity);
+                if (cost !== false) {
+                    gameState.stats.goodsTraded = (gameState.stats.goodsTraded || 0) + quantity;
+                }
+            } else {
+                const value = sellTradeGood(nodeId, goodId, quantity);
+                if (value !== false) {
+                    gameState.stats.goodsTraded = (gameState.stats.goodsTraded || 0) + quantity;
+                }
+            }
+
+            updateTradingUI();
+            updateHUD();
+            // Update credits in station header too
+            const creditsEl = document.getElementById('creditsDisplay');
+            if (creditsEl) creditsEl.textContent = gameState.credits;
+        };
+
+        // Legacy sellResource (for backward compat with old resource system)
         function sellResource(resourceName, amount) {
             const stock = gameState.resources[resourceName] || 0;
             const sellAmount = Math.min(amount, stock);
@@ -7003,7 +7878,6 @@
             gameState.resources[resourceName] -= sellAmount;
             gameState.credits = (gameState.credits || 0) + creditsGained;
 
-            // Update displays
             updateTradingUI();
             updateHUD();
         }
@@ -9927,7 +10801,16 @@
                         const baseAmount = Math.floor(Math.random() * (max - min + 1)) + min;
                         const amount = Math.floor(baseAmount * richnessMultiplier);
                         gameState.resources[resName] += amount;
-                        gameState.score += amount * 2;
+                        // Convert to trade goods in cargo
+                        const tradeGoodId = HARVEST_TO_TRADE[resName];
+                        if (tradeGoodId && gameState.cargo) {
+                            const cargoUsed = Object.values(gameState.cargo.contents).reduce((s, q) => s + q, 0);
+                            const canFit = Math.min(amount, gameState.cargo.capacity - cargoUsed);
+                            if (canFit > 0) {
+                                gameState.cargo.contents[tradeGoodId] = (gameState.cargo.contents[tradeGoodId] || 0) + canFit;
+                            }
+                        }
+                        // score removed in persistent world
                         showResourceCollection(resName, amount);
                     });
 
@@ -10971,7 +11854,7 @@
                             createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
                             createLoot(enemy.position.x, enemy.position.y, enemy.type);
                             tryDropWeapon(enemy.position.x, enemy.position.y, enemy.type);
-                            gameState.score += 50;
+                            // score removed in persistent world
                             gameState.credits += 10 + Math.floor(Math.random() * 15);
                             gameState.stats.enemiesKilled++;
                             updateHUD();
@@ -11091,7 +11974,7 @@
                         createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
                         createLoot(enemy.position.x, enemy.position.y, enemy.type);
                             tryDropWeapon(enemy.position.x, enemy.position.y, enemy.type);
-                        gameState.score += 50;
+                        // score removed in persistent world
                         gameState.credits += 10 + Math.floor(Math.random() * 15);
                         gameState.stats.enemiesKilled++;
                         updateHUD();
@@ -11548,7 +12431,7 @@
                             createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
                             createLoot(enemy.position.x, enemy.position.y, enemy.type);
                             tryDropWeapon(enemy.position.x, enemy.position.y, enemy.type);
-                            gameState.score += 50;
+                            // score removed in persistent world
                             gameState.credits += 10 + Math.floor(Math.random() * 15);
                             gameState.stats.enemiesKilled++;
                             updateHUD();
@@ -11691,7 +12574,7 @@
                         createExplosion(enemy.position.x, enemy.position.y, 'large', 'orange');
                         createLoot(enemy.position.x, enemy.position.y, enemy.type);
                             tryDropWeapon(enemy.position.x, enemy.position.y, enemy.type);
-                        gameState.score += 50;
+                        // score removed in persistent world
                         gameState.credits += 10 + Math.floor(Math.random() * 15);
                         gameState.stats.enemiesKilled++;
                         if (enemy.laserPreviewMesh) enemy.laserPreviewMesh.dispose();
@@ -11966,7 +12849,7 @@
 
             createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
             const lootSummary = createDisabledShipLoot(ship);
-            gameState.score += 20 * gameState.wave;
+            // score removed in persistent world
             gameState.stats.enemiesKilled++;
             updateHUD();
 
@@ -14047,7 +14930,7 @@
                                 createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
                                 createLoot(ship.currentX, ship.currentY, ship.type);
                                 tryDropWeapon(ship.currentX, ship.currentY, ship.type);
-                                gameState.score += 10 * gameState.wave;
+                                // score removed in persistent world
                                 gameState.stats.enemiesKilled++;
                                 updateHUD();
                                 disposeCombatZoneShip(ship);
@@ -14063,7 +14946,7 @@
                                     createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
                                     createLoot(ship.currentX, ship.currentY, ship.type);
                                     tryDropWeapon(ship.currentX, ship.currentY, ship.type);
-                                    gameState.score += 10 * gameState.wave;
+                                    // score removed in persistent world
                                     gameState.credits += 10 + Math.floor(Math.random() * 15);
                                     gameState.stats.enemiesKilled++;
                                     updateHUD();
@@ -14115,7 +14998,7 @@
                                 // Harvested! Enhanced loot
                                 createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
                                 const lootSummary = createDisabledShipLoot(ship);
-                                gameState.score += 20 * gameState.wave;
+                                // score removed in persistent world
                                 gameState.stats.enemiesKilled++;
                                 updateHUD();
                                 // Show collection notifications
@@ -14147,7 +15030,7 @@
                                     createExplosion(ship.currentX, ship.currentY, 'large', 'orange');
                                     createLoot(ship.currentX, ship.currentY, ship.type);
                                     tryDropWeapon(ship.currentX, ship.currentY, ship.type);
-                                    gameState.score += 10 * gameState.wave;
+                                    // score removed in persistent world
                                     gameState.credits += 10 + Math.floor(Math.random() * 15);
                                     gameState.stats.enemiesKilled++;
                                     updateHUD();
@@ -17243,7 +18126,7 @@
 
                                 const points = enemy.type === 'challenger' ? 50 :
                                     enemy.type === 'shooter' ? 30 : enemy.type === 'fast' ? 20 : 10;
-                                gameState.score += points * gameState.wave;
+                                // score removed in persistent world
                                 gameState.credits += 10 + Math.floor(Math.random() * 15);
                                 gameState.stats.enemiesKilled++;
                                 updateHUD();
@@ -17465,7 +18348,13 @@
             const hp = Math.max(0, Math.ceil(gameState.health));
             document.getElementById('health').textContent = hp;
 
-            document.getElementById('level').textContent = gameState.level;
+            // Show current system name instead of level number
+            const levelEl = document.getElementById('level');
+            if (gameState.world && gameState.world.systems[gameState.world.currentSystem]) {
+                levelEl.textContent = gameState.world.systems[gameState.world.currentSystem].name;
+            } else {
+                levelEl.textContent = gameState.level;
+            }
 
             // Health bar
             const maxHP = gameState.maxHealth || 100;
@@ -17522,41 +18411,197 @@
         }
 
         // Game over
-        function gameOver() {
+        // Backward compat alias
+        function gameOver() { playerDestroyed(); }
+
+        function playerDestroyed() {
             gameState.isPlaying = false;
 
+            // Death penalty: lose 20% credits and all cargo
+            const creditPenalty = Math.floor(gameState.credits * 0.20);
+            gameState.credits -= creditPenalty;
+            const lostCargo = { ...gameState.cargo.contents };
+            gameState.cargo.contents = {};
+
+            // Show penalty info
+            const penaltyText = document.getElementById('deathPenaltyText');
+            if (penaltyText) {
+                const cargoCount = Object.values(lostCargo).reduce((s, q) => s + q, 0);
+                penaltyText.textContent = `Lost ${creditPenalty} credits in salvage fees` +
+                    (cargoCount > 0 ? ` and ${cargoCount} units of cargo.` : '.');
+            }
             document.getElementById('finalCredits').textContent = gameState.credits;
-
-            // Build run summary
-            const s = gameState.stats;
-            const summaryDiv = document.getElementById('runSummary');
-            summaryDiv.innerHTML = `
-                <span class="stat-label">Highest Level</span><span class="stat-value">${s.highestLevel}</span>
-                <span class="stat-label">Gates Passed</span><span class="stat-value">${s.totalGatesPassed}</span>
-                <span class="stat-label">System Gates</span><span class="stat-value">${s.systemGatesTaken}</span>
-                <span class="stat-label">Event Gates</span><span class="stat-value">${s.eventGatesTaken}</span>
-                <span class="stat-label">Events Completed</span><span class="stat-value">${s.eventsCompleted}</span>
-                <span class="stat-label">Enemies Killed</span><span class="stat-value">${s.enemiesKilled}</span>
-                <span class="stat-label">Planets Harvested</span><span class="stat-value">${s.planetsHarvested}</span>
-                <span class="stat-label">Stations Docked</span><span class="stat-value">${s.stationsDocked}</span>
-            `;
-
-            // Convert in-run resources to meta resources
-            const gainsDiv = document.getElementById('metaGains');
-            const gains = convertRunResourcesToMeta();
-            gainsDiv.innerHTML = Object.entries(META_RESOURCES).map(([key, r]) =>
-                `<span class="gain-label">${r.icon} ${r.name}</span><span class="gain-value">+${gains[key]}</span>`
-            ).join('');
-            gainsDiv.style.display = 'grid';
-            document.querySelector('.meta-gains-title').style.display = 'block';
 
             document.getElementById('gameOver').style.display = 'block';
             document.getElementById('harvestBar').style.display = 'none';
             document.getElementById('planetInfo').style.display = 'none';
             updateTargetingOverlay(null);
+
+            // Save immediately (persist the penalty)
+            saveGame();
         }
 
-        // Reset game
+        // Respawn at last docked station (persistent world - no full reset)
+        async function respawnAtStation() {
+            // Clean up combat state (same as resetGame's disposal code)
+            gameState.enemies.forEach(enemy => {
+                enemy.getChildMeshes().forEach(m => m.dispose());
+                enemy.dispose();
+            });
+            gameState.enemies = [];
+            gameState.playerBullets.forEach(b => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                b.getChildMeshes().forEach(m => m.dispose());
+                b.dispose();
+            });
+            gameState.playerBullets = [];
+            gameState.enemyBullets.forEach(b => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                b.getChildMeshes().forEach(m => m.dispose());
+                b.dispose();
+            });
+            gameState.enemyBullets = [];
+            if (gameState.challengerLasers) {
+                gameState.challengerLasers.forEach(l => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(l);
+                    l.dispose();
+                });
+                gameState.challengerLasers = [];
+            }
+            gameState.loot.forEach(l => {
+                l.getChildMeshes().forEach(m => m.dispose());
+                l.dispose();
+            });
+            gameState.loot = [];
+            if (gameState.weaponDrops) {
+                gameState.weaponDrops.forEach(d => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(d);
+                    d.getChildMeshes().forEach(m => m.dispose());
+                    d.dispose();
+                });
+                gameState.weaponDrops = [];
+            }
+            if (gameState.enemyBeamSweeps) {
+                gameState.enemyBeamSweeps.forEach(b => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                    b.getChildMeshes().forEach(m => m.dispose());
+                    b.dispose();
+                });
+                gameState.enemyBeamSweeps = [];
+            }
+            gameState.burstQueues = {};
+            gameState.planets.forEach(p => p.dispose());
+            gameState.planets = [];
+            gameState.suns.forEach(s => {
+                if (s.coronas) s.coronas.forEach(c => c.dispose());
+                if (s.sunMesh) s.sunMesh.dispose();
+                s.dispose();
+            });
+            gameState.suns = [];
+
+            // Reset health and combat state only (NOT credits, cargo, weapons, world)
+            gameState.health = gameState.maxHealth || 100;
+            gameState.shields = gameState.maxShields || 0;
+            gameState.lastFireTime = 0;
+            gameState.waveTimer = 0;
+            gameState.enemiesInWave = 0;
+            gameState.enemiesSpawned = 0;
+            gameState.harvestingPlanet = null;
+            gameState.harvestProgress = 0;
+            gameState.escapedEnemies = 0;
+            gameState.pendingNotifications = {};
+            gameState.lastFrameTime = performance.now();
+            gameState.spawnTimer = 0;
+
+            // Clean up exploration state
+            cleanupExploration();
+            gameState.explorationMode = false;
+            gameState.zoomLevel = 1;
+            gameState.zoomTarget = 1;
+            gameState.encounterTransition = null;
+            gameState.currentEncounter = null;
+            gameState.encounterPaired = null;
+            gameState.encounterIsBattle = false;
+            gameState.weaponsHot = false;
+            gameState.disabledShips = [];
+            gameState.boardingTarget = null;
+            gameState.boardingInProgress = false;
+            gameState.boardingProgress = 0;
+            gameState.explorationSkirmishes = [];
+            const boardPanel = document.getElementById('boardingLootPanel');
+            if (boardPanel) boardPanel.style.display = 'none';
+            const boardPrompt = document.getElementById('boardingPrompt');
+            if (boardPrompt) boardPrompt.style.display = 'none';
+            gameState.skirmishIdCounter = 0;
+
+            // Reset weapons toggle
+            const wBtn = document.getElementById('weaponsToggleBtn');
+            if (wBtn) {
+                wBtn.textContent = 'WEAPONS: SAFE';
+                wBtn.classList.remove('weapons-hot');
+            }
+            if (gameCamera) {
+                gameCamera.position.x = 0;
+                gameCamera.position.y = 0;
+            }
+
+            // Clean up beam meshes
+            if (gameState.beamMesh) {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(gameState.beamMesh);
+                gameState.beamMesh.dispose();
+                gameState.beamMesh = null;
+            }
+            if (gameState.beamMeshes) {
+                gameState.beamMeshes.forEach(b => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(b);
+                    b.dispose();
+                });
+            }
+            gameState.beamMeshes = [];
+
+            // Clean up warp gates
+            gameState.warpGates.forEach(gate => {
+                if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(gate);
+                gate.dispose();
+            });
+            gameState.warpGates = [];
+            gameState.gateChoices = null;
+            gameState.showingGates = false;
+            document.getElementById('warpGatePanel').style.display = 'none';
+            document.getElementById('stationInterior').style.display = 'none';
+
+            // Clean up events
+            cleanupEventObject();
+            gameState.mysteryEventActive = false;
+            gameState.pendingEventConfig = null;
+            gameState.lastEventOutcome = null;
+            document.getElementById('mysteryEventDialog').style.display = 'none';
+            if (gameState.pauseReasons.has('mysteryEvent')) releasePause('mysteryEvent');
+            document.getElementById('bountyRewardDialog').style.display = 'none';
+            if (gameState.pauseReasons.has('bountyReward')) releasePause('bountyReward');
+
+            gameState.isDocked = false;
+
+            if (playerShip) {
+                playerShip.position.x = 0;
+                playerShip.position.y = -7;
+                playerShip.targetX = 0;
+                playerShip.targetY = -7;
+            }
+
+            // Generate level config based on current system's security
+            const currentSys = gameState.world ? gameState.world.systems[gameState.world.currentSystem] : null;
+            const dangerLevel = currentSys ? Math.max(1, 6 - currentSys.security) : 1;
+            gameState.levelConfig = generateLevelConfig(dangerLevel);
+            gameState.levelEndSpawned = false;
+            gameState.stationsVisited = 0;
+
+            updateHUD();
+            enterExplorationMode(gameState.levelConfig);
+            saveGame();
+        }
+
+        // Reset game (full reset for New Game only)
         async function resetGame() {
             gameState.enemies.forEach(enemy => {
                 enemy.getChildMeshes().forEach(m => m.dispose());
@@ -17804,7 +18849,7 @@
 
         function getSaveableState() {
             return {
-                score: gameState.score,
+                saveVersion: 2,        // Persistent world save format
                 health: gameState.health,
                 wave: gameState.wave,
                 level: gameState.level,
@@ -17832,6 +18877,10 @@
                 gatesSinceEvent: gameState.gatesSinceEvent,
                 stats: gameState.stats,
                 activeBounty: gameState.activeBounty,
+                // Persistent world data
+                world: gameState.world,
+                cargo: gameState.cargo,
+                factionReputation: gameState.factionReputation,
                 savedAt: Date.now()
             };
         }
@@ -17966,6 +19015,17 @@
             if (saveData.activeBounty && !saveData.activeBounty.completed) {
                 gameState.activeBounty = saveData.activeBounty;
                 gameState.activeBounty.gateSpawned = false; // Gate will be recreated on exploration entry
+            }
+
+            // Restore persistent world data
+            if (saveData.world) {
+                gameState.world = saveData.world;
+            }
+            if (saveData.cargo) {
+                gameState.cargo = saveData.cargo;
+            }
+            if (saveData.factionReputation) {
+                gameState.factionReputation = saveData.factionReputation;
             }
 
             // Update zone background
@@ -18236,6 +19296,245 @@
             applyGraphicsSettings();
         });
 
+        // =============================================
+        // STAR MAP UI
+        // =============================================
+        let starmapSelectedSystem = null;
+
+        function openStarMap() {
+            if (!gameState.world) return;
+            const overlay = document.getElementById('starMapOverlay');
+            overlay.style.display = 'flex';
+            requestPause('starmap');
+            starmapSelectedSystem = null;
+            renderStarMap();
+            document.getElementById('starmapFuelDisplay').textContent = `Fuel: ${gameState.fuel}/${gameState.maxFuel}`;
+            document.getElementById('starmapJumpBtn').style.display = 'none';
+            document.getElementById('starmapSystemName').textContent = 'Select a system';
+            document.getElementById('starmapSystemDetails').textContent = '';
+        }
+
+        function closeStarMap() {
+            document.getElementById('starMapOverlay').style.display = 'none';
+            releasePause('starmap');
+        }
+
+        function renderStarMap() {
+            const canvas = document.getElementById('starmapCanvas');
+            const ctx = canvas.getContext('2d');
+            const world = gameState.world;
+
+            // Size canvas to fit container
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = Math.min(800, rect.width - 40);
+            canvas.height = Math.min(600, rect.height - 140);
+
+            // Find map bounds
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                if (!sys.discovered) continue;
+                minX = Math.min(minX, sys.x); minY = Math.min(minY, sys.y);
+                maxX = Math.max(maxX, sys.x); maxY = Math.max(maxY, sys.y);
+            }
+            const pad = 60;
+            const scaleX = (canvas.width - pad * 2) / Math.max(1, maxX - minX);
+            const scaleY = (canvas.height - pad * 2) / Math.max(1, maxY - minY);
+            const scale = Math.min(scaleX, scaleY);
+            const offsetX = (canvas.width - (maxX - minX) * scale) / 2;
+            const offsetY = (canvas.height - (maxY - minY) * scale) / 2;
+
+            function toScreen(sys) {
+                return {
+                    x: (sys.x - minX) * scale + offsetX,
+                    y: (sys.y - minY) * scale + offsetY
+                };
+            }
+
+            // Clear
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw connections
+            ctx.lineWidth = 1;
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                if (!sys.discovered) continue;
+                const p1 = toScreen(sys);
+                for (const connId of sys.connections) {
+                    const conn = world.systems[connId];
+                    if (!conn || !conn.discovered) continue;
+                    const p2 = toScreen(conn);
+                    ctx.strokeStyle = (sysId === world.currentSystem || connId === world.currentSystem) ? '#335588' : '#1a1a33';
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+            }
+
+            // Faction colors
+            const factionColors = {
+                federation: '#4488ff', merchants: '#44cc44', pirates: '#ff4444', independent: '#cccc44'
+            };
+
+            // Draw systems
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                if (!sys.discovered) continue;
+                const p = toScreen(sys);
+                const isCurrent = sysId === world.currentSystem;
+                const isSelected = sysId === starmapSelectedSystem;
+                const isConnected = world.systems[world.currentSystem]?.connections.includes(sysId);
+                const color = factionColors[sys.faction] || '#888888';
+
+                // Node circle
+                const radius = isCurrent ? 10 : (sys.visited ? 7 : 5);
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = sys.visited ? color : color + '44';
+                ctx.fill();
+
+                if (isCurrent) {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                } else if (isSelected) {
+                    ctx.strokeStyle = '#ffff44';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                } else if (isConnected) {
+                    ctx.strokeStyle = color + '88';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+
+                // Label
+                ctx.fillStyle = isCurrent ? '#ffffff' : (sys.visited ? '#bbbbbb' : '#666666');
+                ctx.font = isCurrent ? 'bold 12px sans-serif' : '11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(sys.name, p.x, p.y + radius + 14);
+
+                // Security pips
+                if (sys.visited) {
+                    const pipY = p.y - radius - 6;
+                    for (let i = 0; i < 5; i++) {
+                        ctx.fillStyle = i < sys.security ? '#44aa44' : '#333';
+                        ctx.fillRect(p.x - 12 + i * 5, pipY, 4, 3);
+                    }
+                }
+
+                // Store screen coords for hit testing
+                sys._screenX = p.x;
+                sys._screenY = p.y;
+                sys._screenR = radius;
+            }
+        }
+
+        // Star map click handling
+        document.getElementById('starmapCanvas').addEventListener('click', (e) => {
+            const world = gameState.world;
+            if (!world) return;
+            const canvas = e.target;
+            const rect = canvas.getBoundingClientRect();
+            const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+            let closest = null;
+            let closestDist = Infinity;
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                if (!sys.discovered || sys._screenX === undefined) continue;
+                const dx = mx - sys._screenX;
+                const dy = my - sys._screenY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 25 && dist < closestDist) {
+                    closest = sysId;
+                    closestDist = dist;
+                }
+            }
+
+            if (closest) {
+                starmapSelectedSystem = closest;
+                const sys = world.systems[closest];
+                const isCurrent = closest === world.currentSystem;
+                const isConnected = world.systems[world.currentSystem]?.connections.includes(closest);
+
+                document.getElementById('starmapSystemName').textContent = sys.name + (isCurrent ? ' (Current)' : '');
+
+                // Build details
+                let details = `${sys.faction.charAt(0).toUpperCase() + sys.faction.slice(1)} space`;
+                details += ` | Security: ${'●'.repeat(sys.security)}${'○'.repeat(5 - sys.security)}`;
+                if (sys.visited) {
+                    const nodeNames = (sys.nodeIds || []).map(nid => world.nodes[nid]?.name || nid).join(', ');
+                    details += ` | ${nodeNames}`;
+                } else {
+                    details += ' | Unexplored';
+                }
+                document.getElementById('starmapSystemDetails').textContent = details;
+
+                // Jump button
+                const jumpBtn = document.getElementById('starmapJumpBtn');
+                if (!isCurrent && isConnected) {
+                    const fuelCost = getJumpFuelCost(world.currentSystem, closest);
+                    document.getElementById('starmapFuelCost').textContent = fuelCost;
+                    jumpBtn.style.display = 'inline-block';
+                    jumpBtn.disabled = gameState.fuel < fuelCost;
+                } else {
+                    jumpBtn.style.display = isCurrent ? 'none' : 'inline-block';
+                    if (!isConnected && !isCurrent) {
+                        jumpBtn.disabled = true;
+                        document.getElementById('starmapFuelCost').textContent = '∞';
+                    }
+                }
+            }
+
+            renderStarMap();
+        });
+
+        // Jump button
+        document.getElementById('starmapJumpBtn').addEventListener('click', () => {
+            if (!starmapSelectedSystem) return;
+            const success = jumpToSystem(starmapSelectedSystem);
+            if (success) {
+                closeStarMap();
+
+                // Enter new system with warp animation
+                const world = gameState.world;
+                const currentSys = world.systems[world.currentSystem];
+                const dangerLevel = currentSys ? Math.max(1, 6 - currentSys.security) : 1;
+                gameState.levelConfig = generateLevelConfig(dangerLevel);
+                gameState.levelEndSpawned = false;
+                gameState.stationsVisited = 0;
+
+                // Clean up current exploration and enter new system
+                cleanupExploration();
+                gameState.explorationMode = false;
+                enterExplorationMode(gameState.levelConfig);
+                updateHUD();
+            }
+        });
+
+        // Close button
+        document.getElementById('starmapCloseBtn').addEventListener('click', closeStarMap);
+
+        // Star map button
+        document.getElementById('starMapBtn').addEventListener('click', openStarMap);
+
+        // M key opens star map
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'm' || e.key === 'M') {
+                if (document.getElementById('starMapOverlay').style.display === 'flex') {
+                    closeStarMap();
+                } else if (gameState.isPlaying && !gameState.isDocked) {
+                    openStarMap();
+                }
+            }
+        });
+
+        // Update docking to set lastDockedNode
+        const _origOpenDockingScreen = typeof openDockingScreen === 'function' ? openDockingScreen : null;
+
         // Start game
         const startScreen = document.getElementById('startScreen');
         const newGameBtn = document.getElementById('newGameBtn');
@@ -18278,6 +19577,7 @@
             // Load complete, hide start screen
             startScreen.style.display = 'none';
             document.getElementById('systemBtn').style.display = 'flex';
+            document.getElementById('starMapBtn').style.display = 'flex';
             document.getElementById('hud').style.display = 'block';
 
             if (loadSave) {
@@ -18297,10 +19597,8 @@
                 // New game - clear any existing save
                 deleteSave();
 
-                // Debug mode: start with 1000 credits
-                if (settings.debugMode) {
-                    gameState.credits = 1000;
-                }
+                // Starting credits
+                gameState.credits = settings.debugMode ? 1000 : 100;
 
                 // Initialize fleet with starter ship and basic weapon
                 const starterWeapon = { ...WEAPONS.basic, id: 'basic_' + Date.now() };
@@ -18315,7 +19613,11 @@
                 }];
                 gameState.ownedWeapons = [starterWeapon];
 
-                // Initialize first level
+                // Initialize persistent world
+                gameState.world = generateWorld();
+                gameState.cargo = { capacity: 50, contents: {} };
+
+                // Initialize first level based on starting system
                 gameState.level = 1;
                 gameState.levelConfig = generateLevelConfig(1);
             }
@@ -18732,8 +20034,9 @@
         newGameBtn.addEventListener('click', () => startGame(false));
         continueBtn.addEventListener('click', () => startGame(true));
 
-        // Research Lab button
-        document.getElementById('researchBtn').addEventListener('click', openResearchScreen);
+        // Research Lab button (removed from persistent world, but guard in case element exists)
+        const researchBtnEl = document.getElementById('researchBtn');
+        if (researchBtnEl) researchBtnEl.addEventListener('click', openResearchScreen);
         document.getElementById('researchBackBtn').addEventListener('click', closeResearchScreen);
         document.getElementById('resetTreeBtn').addEventListener('click', resetAllTrees);
         document.getElementById('upgradeSlotBtn').addEventListener('click', () => {
@@ -18745,7 +20048,7 @@
 
         restartBtn.addEventListener('click', async () => {
             gameOverPanel.style.display = 'none';
-            await resetGame();
+            await respawnAtStation();
             gameState.isPlaying = true;
         });
 

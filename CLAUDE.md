@@ -2,7 +2,65 @@
 
 ## Architecture Overview
 
-Single-file game (`index.html`) using Babylon.js for 3D rendering with an orthographic camera (top-down 2D gameplay).
+Single-file game (`index.html`) using Babylon.js for 3D rendering with an orthographic camera (top-down 2D gameplay). **Persistent open world** space trader (Escape Velocity / Starsector style) with a connected star map, commodity trading economy, and respawn-on-death mechanics.
+
+## Persistent World System
+
+### World Graph (`gameState.world`)
+- `world.systems{}` - Map of systemId → system data (name, position, starType, faction, security, connections, nodeIds)
+- `world.nodes{}` - Map of nodeId → node data (station/planet with type, population, industries, inventory)
+- `world.currentSystem` - Player's current system
+- `world.lastDockedNode` - Last station the player docked at (respawn point)
+- `world.tickCount` - Economy simulation tick counter
+- `world.activeEvents[]` - Active economy events
+
+### Star Map
+- Opened with M key or MAP button
+- Shows discovered systems, faction colors, security pips
+- Click to select, Jump button to travel (costs fuel)
+- Adjacent undiscovered systems shown when visiting neighbors
+
+### System Travel
+- `jumpToSystem(targetSysId)` - Deducts fuel, runs economy ticks, enters new system
+- `getJumpFuelCost(from, to)` - Distance-based fuel cost (5-15 per jump)
+- Economy advances 2-4 ticks per jump (jump-based, not real-time)
+
+## Economy System
+
+### Trade Goods (`TRADE_GOODS`)
+- **Tier 0 (raw)**: ore, hydrocarbons, biomass
+- **Tier 1 (processed)**: metals, polymers, rations, fuel
+- **Tier 2 (manufactured)**: consumerGoods, industrialParts, electronics, medical, munitions
+- **Contraband**: narcotics (only at black markets)
+- Planet harvest resources map to trade goods via `HARVEST_TO_TRADE`
+
+### Industries (`INDUSTRIES`)
+- 11 industry types that consume inputs and produce outputs per tick
+- Assigned to nodes based on node type (extractor, agri, industrial, core, frontier, military)
+
+### Pricing (`calculateTradePrice()`, `getSellPrice()`)
+- Stock-and-flow: price = basePrice * (1 + 1.5 * scarcity)
+- Scarcity = (desiredStock - stock) / desiredStock, clamped [-1, 1]
+- Buy/sell spread: stations sell at full price, buy from player at 85%
+- Floor/ceiling: 30-300% of base price
+
+### Economy Simulation (`worldEconomyTick()`)
+- Triggered on system jumps (2-4 ticks per jump)
+- Industries consume inputs, produce outputs
+- Population/military consume goods passively
+- NPC trade flows smooth extreme imbalances between connected nodes
+
+### Cargo System (`gameState.cargo`)
+- `cargo.capacity` - Max cargo units (default 50)
+- `cargo.contents{}` - goodId → quantity
+- `buyTradeGood()` / `sellTradeGood()` - Execute transactions at stations
+
+## Death & Respawn
+
+- **No permadeath** - death calls `playerDestroyed()` (aliased as `gameOver()` for compat)
+- Penalty: lose 20% credits, lose all cargo
+- `respawnAtStation()` - Resets combat state, respawns at `world.lastDockedNode`
+- `resetGame()` still exists for "New Game" full reset only
 
 ## Two Combat Systems
 
@@ -19,15 +77,12 @@ The game has **two completely separate combat systems**. Any weapon, enemy, or c
 - Ship disposal: `disposeCombatZoneShip()`
 - Faction system: `areFactionsHostile()`, `isFactionHostileToPlayer()`
 - Key functions: `updateCombatZone()`, `findCombatZoneTarget()`, `getCombatZoneTargetPos()`
+- Combat difficulty based on system security level (low security = more dangerous)
 
-### 2. Arena Mode (wave-based, original game mode)
+### 2. Arena Mode (legacy, being phased out)
 - Traditional wave-based shooter with enemies spawning from the top
 - Enemies are Babylon.js TransformNodes stored in `gameState.enemies[]`
-- Enemy position: `enemy.position.x`, `enemy.position.y` (Babylon Vector3)
-- Enemy AI: `updateEnemies()` handles movement patterns and firing
-- Firing logic: uses `fireEnemyWeapon()` with weapon behavior system
-- Enemy creation: `createEnemy()` → `assignEnemyWeapon()`
-- Challenger enemies have their own laser system: `updateChallengerLaser()`
+- Being replaced by exploration combat zones as the primary combat system
 
 ## Weapon System
 
@@ -55,8 +110,11 @@ The game has **two completely separate combat systems**. Any weapon, enemy, or c
 - Defined in `FACTIONS`: federation, merchants, pirates, independent
 - Weapon preferences in `FACTION_WEAPON_PREFS` (affects generation weighting)
 - Pirates always hostile; others can be aggro'd by player attacks
+- Each system has a faction and security level (0-5)
 
 ## Key State
+- `gameState.world` - persistent world graph (systems, nodes, economy)
+- `gameState.cargo` - player cargo hold
 - `gameState.combatZone` - active combat zone encounter data
 - `gameState.enemies[]` - arena mode enemies
 - `gameState.enemyBullets[]` - all enemy bullets (both systems)
@@ -64,3 +122,9 @@ The game has **two completely separate combat systems**. Any weapon, enemy, or c
 - `gameState.challengerLasers[]` - active laser/lance beams
 - `gameState.weaponDrops[]` - dropped weapon pickups
 - `gameState.burstQueues{}` - player burst weapon fire queues
+
+## Save System
+- `getSaveableState()` includes world, cargo, factionReputation
+- Auto-saves on station dock, system jump, and death
+- `SAVE_KEY = 'spacerun_save'` in localStorage
+- Save version 2 = persistent world format
