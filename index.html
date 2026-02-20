@@ -937,6 +937,50 @@
             pointer-events: none;
         }
 
+        /* Jump Charge-up Overlay */
+        #jumpChargeOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 240;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, rgba(0,80,160,0.15) 0%, transparent 70%);
+        }
+        .jump-charge-text {
+            font-family: monospace;
+            font-size: 20px;
+            color: #66ccff;
+            text-shadow: 0 0 10px #0088ff, 0 0 20px #0066cc;
+            letter-spacing: 3px;
+            margin-bottom: 12px;
+            animation: chargeTextPulse 0.6s ease-in-out infinite alternate;
+        }
+        @keyframes chargeTextPulse {
+            from { opacity: 0.7; }
+            to { opacity: 1; }
+        }
+        .jump-charge-bar {
+            width: 300px;
+            height: 8px;
+            background: rgba(0, 40, 80, 0.6);
+            border: 1px solid #0088ff;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        #jumpChargeBarFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0066cc, #00ccff);
+            box-shadow: 0 0 8px #00aaff;
+            transition: width 0.05s linear;
+        }
+
         /* Speed Up Button - Sci-fi HUD style */
         #speedUpBtn {
             position: absolute;
@@ -3193,6 +3237,10 @@
     <div id="edgeIndicators"></div>
     <div id="warpOverlay"></div>
     <div id="warpFlash"></div>
+    <div id="jumpChargeOverlay" style="display:none;">
+        <div class="jump-charge-text">CHARGING JUMP DRIVE...</div>
+        <div class="jump-charge-bar"><div id="jumpChargeBarFill"></div></div>
+    </div>
 
     <button id="speedUpBtn">&gt;&gt; WARP</button>
     <button id="weaponsToggleBtn">WEAPONS: SAFE</button>
@@ -4760,10 +4808,11 @@
             levelConfig: null,      // Config for current level
             stationsVisited: 0,     // How many stations visited this level
             warpGates: [],          // Active warp gates
-            gateChoices: null,      // The two gate options
-            showingGates: false,    // Whether gates are currently displayed
-            gatesAtLevel: 0,        // Gates passed at current level (level-up offered at 5, then every 3)
-            gatesSinceEvent: 0,     // Gates passed since last event gate (force event after 3)
+            showingGates: false,    // Whether gate is currently displayed
+            atWarpGate: false,      // Whether player reached a warp gate (vs jumped from map)
+            jumpCharging: false,    // Whether jump drive is charging
+            jumpChargeStart: 0,     // When charge-up started (performance.now())
+            jumpTargetSystem: null, // Target system ID during charge-up
             // Lifetime statistics (persist across deaths)
             stats: {
                 totalGatesPassed: 0,
@@ -9284,79 +9333,21 @@
             return eventKeys[Math.floor(Math.random() * eventKeys.length)];
         }
 
-        // Create warp gates at specified Y position
+        // Create a single warp gate at specified Y position (opens star map on contact)
         function createWarpGates(spawnY) {
             if (!scene || gameState.showingGates) return;
 
-            // Gate dimensions for positioning
             const gateSize = 7;
-            const gateSpacing = gateSize + 1;
             const gateY = spawnY !== undefined ? spawnY : orthoHeight + gateSize / 2;
-            const leftGateX = -gateSpacing / 2;
-            const rightGateX = gateSpacing / 2;
 
-            // Player-driven progression:
-            // Level-up option offered after 5 gates at same level, then every 3 if declined
-            const currentLevel = gameState.level;
-            const gatesAtLevel = gameState.gatesAtLevel;
-
-            const shouldOfferLevelUp = gatesAtLevel >= 5 && (gatesAtLevel - 5) % 3 === 0;
-            const rightLevel = shouldOfferLevelUp ? currentLevel + 1 : currentLevel;
-
-            // Determine if one gate should be an event gate
-            // ~25% chance, scaling slightly with level, not on the very first gate
-            // Guaranteed after 3 consecutive gates without an event
-            const eventGateChance = 0.20 + (currentLevel * 0.02);
-            const forceEvent = gameState.gatesSinceEvent >= 3;
-            const shouldOfferEvent = gatesAtLevel >= 1 && (forceEvent || Math.random() < eventGateChance);
-
-            // Randomly pick which side gets the event gate (if any)
-            const eventSide = shouldOfferEvent ? (Math.random() < 0.5 ? 'left' : 'right') : null;
-
-            // Build gate choices -- each has a gateType and associated config
-            gameState.gateChoices = {
-                left: generateLevelConfig(currentLevel),
-                right: generateLevelConfig(rightLevel)
-            };
-
-            // Mark system gate properties
-            gameState.gateChoices.left.gateType = 'system';
-            gameState.gateChoices.left.isSafeChoice = true;
-            gameState.gateChoices.right.gateType = 'system';
-            gameState.gateChoices.right.isSafeChoice = !shouldOfferLevelUp;
-
-            // Override one gate as an event gate if applicable
-            if (eventSide) {
-                const eventConfig = gameState.gateChoices[eventSide];
-                eventConfig.gateType = 'event';
-                eventConfig.eventType = pickMysteryEventType();
-                eventConfig.isSafeChoice = false;
-            }
-
-            // Update UI with gate signatures
-            updateGateUI();
-
-            // Create gate meshes with appropriate visuals per type
-            const leftType = GATE_TYPES[gameState.gateChoices.left.gateType];
-            const leftColor = gameState.gateChoices.left.gateType === 'event'
-                ? [0.8, 0.5, 1.0]   // Purple/violet for event gates
-                : [0.3, 0.7, 1.0];  // Blue/cyan for safe system gates
-            const leftGate = createGateMesh('warpGateLeft', leftGateX, gateY, gateSize, leftColor, leftType.texture);
-            leftGate.gateId = 'left';
-            leftGate.gateType = gameState.gateChoices.left.gateType;
-            gameState.warpGates.push(leftGate);
-
-            const rightType = GATE_TYPES[gameState.gateChoices.right.gateType];
-            const rightColor = gameState.gateChoices.right.gateType === 'event'
-                ? [0.8, 0.5, 1.0]   // Purple/violet for event gates
-                : [1.0, 0.5, 0.2];  // Orange/red for harder system gates
-            const rightGate = createGateMesh('warpGateRight', rightGateX, gateY, gateSize, rightColor, rightType.texture);
-            rightGate.gateId = 'right';
-            rightGate.gateType = gameState.gateChoices.right.gateType;
-            gameState.warpGates.push(rightGate);
+            // Single centered gate — cyan/blue jump point
+            const gate = createGateMesh('warpGate', 0, gateY, gateSize, [0.3, 0.7, 1.0]);
+            gate.gateId = 'center';
+            gate.gateType = 'system';
+            gameState.warpGates.push(gate);
 
             gameState.showingGates = true;
-            document.getElementById('warpGatePanel').style.display = 'flex';
+            // No warpGatePanel — star map handles destination selection
         }
 
         // Create a single warp gate mesh using the warpgate.png texture
@@ -9495,143 +9486,98 @@
         function updateWarpGates(scrollMultiplier, deltaTime) {
             if (!gameState.showingGates || gameState.warpGates.length === 0) return;
 
-            // Find reference gate for Y position check
-            const leftGate = gameState.warpGates.find(g => g.gateId === 'left');
-            const rightGate = gameState.warpGates.find(g => g.gateId === 'right');
+            const gate = gameState.warpGates[0];
 
-            for (let i = gameState.warpGates.length - 1; i >= 0; i--) {
-                const gate = gameState.warpGates[i];
+            // Move gate down
+            gate.position.y -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
 
-                // Move gate down
-                gate.position.y -= WORLD_SCROLL_SPEED * settings.scrollSpeed * (0.5 + scrollMultiplier);
+            // Slow rotation
+            const gateTypeDef = GATE_TYPES[gate.gateType] || GATE_TYPES.system;
+            gate.rotation.z += gateTypeDef.rotationSpeed;
 
-                // Slow rotation (event gates rotate slower)
-                const gateTypeDef = GATE_TYPES[gate.gateType] || GATE_TYPES.system;
-                gate.rotation.z += gateTypeDef.rotationSpeed;
-
-                // Update UI position below gate (so player can see it longer)
-                const screenPos = worldToScreen(gate.position.x, gate.position.y - gate.size / 2 - 0.5);
-                const previewId = gate.gateId === 'left' ? 'gateLeftPreview' : 'gateRightPreview';
-                const preview = document.getElementById(previewId);
-                if (preview) {
-                    preview.style.left = screenPos.x + 'px';
-                    preview.style.top = screenPos.y + 'px';
-                    preview.style.transform = 'translate(-50%, 0)';
-                }
-            }
-
-            // Check if player has reached gate height - screen split horizontally
-            if (playerShip && leftGate) {
-                const gateY = leftGate.position.y;
-
-                // When player reaches gate vertical position, force entry based on X position
-                // Left half of screen = left gate, right half = right gate
-                if (playerShip.position.y >= gateY) {
-                    const gateChoice = playerShip.position.x < 0 ? 'left' : 'right';
-                    enterWarpGate(gateChoice);
-                    return;
-                }
-
-                // Tint background based on which side player is on
-                updateGateBackgroundTint(playerShip.position.x, leftGate, rightGate);
+            // Check if player has reached gate — open star map
+            if (playerShip && playerShip.position.y >= gate.position.y) {
+                gameState.atWarpGate = true;
+                openStarMap();
+                return;
             }
         }
 
-        // Tint background subtly based on gate choice
-        function updateGateBackgroundTint(playerX, leftGate, rightGate) {
-            // Calculate how far player is toward each side
-            const maxOffset = orthoWidth * 0.5;
-            const normalizedX = Math.max(-1, Math.min(1, playerX / maxOffset));
+        // Start the 2-second jump charge-up before warping
+        function startJumpCharge(targetSysId) {
+            gameState.jumpCharging = true;
+            gameState.jumpChargeStart = performance.now();
+            gameState.jumpTargetSystem = targetSysId;
 
-            // Get colors for each gate
-            const leftColor = leftGate ? leftGate.tintColor : [1, 0.5, 0.2];
-            const rightColor = rightGate ? rightGate.tintColor : [0.2, 1, 0.5];
-
-            // Blend based on position (subtle effect)
-            const intensity = Math.abs(normalizedX) * 0.15;
-            let r, g, b;
-            if (normalizedX < 0) {
-                r = leftColor[0] * intensity;
-                g = leftColor[1] * intensity;
-                b = leftColor[2] * intensity;
-            } else {
-                r = rightColor[0] * intensity;
-                g = rightColor[1] * intensity;
-                b = rightColor[2] * intensity;
-            }
-
-            // Apply to ambient light or scene clear color
-            if (scene) {
-                scene.ambientColor = new BABYLON.Color3(0.05 + r, 0.05 + g, 0.1 + b);
-            }
+            // Show charge-up overlay
+            const overlay = document.getElementById('jumpChargeOverlay');
+            overlay.style.display = 'flex';
+            document.getElementById('jumpChargeBarFill').style.width = '0%';
         }
 
-        // Handle entering a warp gate
-        function enterWarpGate(gateId) {
-            const chosenConfig = gameState.gateChoices[gateId];
+        // Cancel jump charge (e.g. combat interruption)
+        function cancelJumpCharge() {
+            gameState.jumpCharging = false;
+            gameState.jumpTargetSystem = null;
+            document.getElementById('jumpChargeOverlay').style.display = 'none';
+        }
 
-            // Track gate progression for level-up timing
-            // If leveling up, reset counter; otherwise increment
-            if (chosenConfig.levelNum > gameState.level) {
-                gameState.gatesAtLevel = 0;  // Reset on level-up
-            } else {
-                gameState.gatesAtLevel++;    // Increment when staying at same level
+        // Update jump charge-up progress each frame
+        function updateJumpChargeUI(progress) {
+            const fill = document.getElementById('jumpChargeBarFill');
+            fill.style.width = (Math.min(1, progress) * 100) + '%';
+        }
+
+        // Execute the warp jump after charge-up completes
+        function executeWarpJump() {
+            const targetSysId = gameState.jumpTargetSystem;
+            gameState.jumpCharging = false;
+            gameState.jumpTargetSystem = null;
+            document.getElementById('jumpChargeOverlay').style.display = 'none';
+
+            // Perform the actual system jump (fuel, economy ticks, world state)
+            const success = jumpToSystem(targetSysId);
+            if (!success) return;
+
+            // Clean up warp gate if player reached one
+            if (gameState.atWarpGate) {
+                gameState.warpGates.forEach(gate => {
+                    if (sunGlowLayer) sunGlowLayer.removeIncludedOnlyMesh(gate);
+                    gate.dispose();
+                });
+                gameState.warpGates = [];
+                gameState.showingGates = false;
+                gameState.atWarpGate = false;
             }
-
-            // Track gates since last event (reset when entering an event gate)
-            if (chosenConfig.gateType === 'event') {
-                gameState.gatesSinceEvent = 0;
-                gameState.stats.eventGatesTaken++;
-            } else {
-                gameState.gatesSinceEvent++;
-                gameState.stats.systemGatesTaken++;
-            }
-            gameState.stats.totalGatesPassed++;
-            gameState.stats.highestLevel = Math.max(gameState.stats.highestLevel, chosenConfig.levelNum);
-
-            // Consume fuel for warp jump (higher level = more fuel)
-            const warpFuelCost = 10 + (chosenConfig.levelNum - 1) * 2;
-            gameState.fuel = Math.max(0, gameState.fuel - warpFuelCost);
-            updateHUD();
 
             // Reset ambient color
             if (scene) {
                 scene.ambientColor = new BABYLON.Color3(0.05, 0.05, 0.1);
             }
 
-            // Clean up gates
-            gameState.warpGates.forEach(gate => {
-                if (sunGlowLayer) {
-                    sunGlowLayer.removeIncludedOnlyMesh(gate);
-                }
-                gate.dispose();
-            });
-            gameState.warpGates = [];
-            gameState.showingGates = false;
-            gameState.gateChoices = null;
-            document.getElementById('warpGatePanel').style.display = 'none';
+            // Track stats
+            gameState.stats.totalGatesPassed++;
+            gameState.stats.systemGatesTaken++;
 
-            // Branch based on gate type
-            if (chosenConfig.gateType === 'event') {
-                // Event gate: warp into an event zone with the event object to discover
-                const eventZoneConfig = createEventZoneConfig(chosenConfig);
-                requestPause('warpAnimation');
-                playWarpAnimation(() => {
-                    startNewLevel(eventZoneConfig);
-                    saveGame();
-                    showSavedNotification();
-                    releasePause('warpAnimation');
-                });
-            } else {
-                // System gate: standard warp to new level
-                requestPause('warpAnimation');
-                playWarpAnimation(() => {
-                    startNewLevel(chosenConfig);
-                    saveGame();
-                    showSavedNotification();
-                    releasePause('warpAnimation');
-                });
-            }
+            // Play warp animation and enter new system
+            requestPause('warpAnimation');
+            playWarpAnimation(() => {
+                const world = gameState.world;
+                const currentSys = world.systems[world.currentSystem];
+                const dangerLevel = currentSys ? Math.max(1, 6 - currentSys.security) : 1;
+                const config = generateLevelConfig(dangerLevel);
+
+                gameState.levelConfig = config;
+                gameState.levelEndSpawned = false;
+                gameState.stationsVisited = 0;
+
+                cleanupExploration();
+                gameState.explorationMode = false;
+                startNewLevel(config);
+                saveGame();
+                showSavedNotification();
+                releasePause('warpAnimation');
+            });
         }
 
         // Play lightspeed warp animation
@@ -18565,9 +18511,9 @@
                 gate.dispose();
             });
             gameState.warpGates = [];
-            gameState.gateChoices = null;
             gameState.showingGates = false;
-            document.getElementById('warpGatePanel').style.display = 'none';
+            gameState.atWarpGate = false;
+            cancelJumpCharge();
             document.getElementById('stationInterior').style.display = 'none';
 
             // Clean up events
@@ -18673,7 +18619,6 @@
             gameState.score = 0;
             gameState.health = 100;
             gameState.wave = 1;
-            gameState.gatesSinceEvent = 0;
             gameState.stats = {
                 totalGatesPassed: 0, systemGatesTaken: 0, eventGatesTaken: 0,
                 eventsCompleted: 0, enemiesKilled: 0, creditsEarned: 0,
@@ -18805,9 +18750,9 @@
                 gate.dispose();
             });
             gameState.warpGates = [];
-            gameState.gateChoices = null;
             gameState.showingGates = false;
-            document.getElementById('warpGatePanel').style.display = 'none';
+            gameState.atWarpGate = false;
+            cancelJumpCharge();
             document.getElementById('stationInterior').style.display = 'none';
             // Clean up event objects and mystery events on new game
             cleanupEventObject();
@@ -18873,8 +18818,6 @@
                 maxShields: gameState.maxShields,
                 explorationMode: gameState.explorationMode,
                 encountersDefeated: gameState.encountersDefeated,
-                gatesAtLevel: gameState.gatesAtLevel,
-                gatesSinceEvent: gameState.gatesSinceEvent,
                 stats: gameState.stats,
                 activeBounty: gameState.activeBounty,
                 // Persistent world data
@@ -18951,8 +18894,6 @@
             gameState.level = saveData.level || 1;
             gameState.levelConfig = saveData.levelConfig || generateLevelConfig(1);
             gameState.stationsVisited = saveData.stationsVisited || 0;
-            gameState.gatesAtLevel = saveData.gatesAtLevel || 0;
-            gameState.gatesSinceEvent = saveData.gatesSinceEvent || 0;
             if (saveData.stats) {
                 gameState.stats = { ...gameState.stats, ...saveData.stats };
             }
@@ -19303,6 +19244,8 @@
 
         function openStarMap() {
             if (!gameState.world) return;
+            // Block star map during combat
+            if (gameState.encounterTransition || (gameState.combatZone && gameState.combatZone.active)) return;
             const overlay = document.getElementById('starMapOverlay');
             overlay.style.display = 'flex';
             requestPause('starmap');
@@ -19495,24 +19438,17 @@
         // Jump button
         document.getElementById('starmapJumpBtn').addEventListener('click', () => {
             if (!starmapSelectedSystem) return;
-            const success = jumpToSystem(starmapSelectedSystem);
-            if (success) {
-                closeStarMap();
+            // Validate jump is possible before starting charge-up
+            const world = gameState.world;
+            if (!world) return;
+            const currentSys = world.systems[world.currentSystem];
+            if (!currentSys || !currentSys.connections.includes(starmapSelectedSystem)) return;
+            const fuelCost = getJumpFuelCost(world.currentSystem, starmapSelectedSystem);
+            if (gameState.fuel < fuelCost) return;
 
-                // Enter new system with warp animation
-                const world = gameState.world;
-                const currentSys = world.systems[world.currentSystem];
-                const dangerLevel = currentSys ? Math.max(1, 6 - currentSys.security) : 1;
-                gameState.levelConfig = generateLevelConfig(dangerLevel);
-                gameState.levelEndSpawned = false;
-                gameState.stationsVisited = 0;
-
-                // Clean up current exploration and enter new system
-                cleanupExploration();
-                gameState.explorationMode = false;
-                enterExplorationMode(gameState.levelConfig);
-                updateHUD();
-            }
+            // Close star map and start 2-second charge-up
+            closeStarMap();
+            startJumpCharge(starmapSelectedSystem);
         });
 
         // Close button
@@ -19675,6 +19611,21 @@
                         gameState.zoomLevel = gameState.zoomTarget;
                     }
                     if (gameState._updateCamera) gameState._updateCamera();
+                }
+
+                // ========== JUMP CHARGE-UP ==========
+                if (gameState.jumpCharging) {
+                    const elapsed = performance.now() - gameState.jumpChargeStart;
+                    updateJumpChargeUI(elapsed / 2000);
+
+                    // Cancel if combat starts
+                    if (gameState.encounterTransition === 'zooming_in' ||
+                        (gameState.combatZone && gameState.combatZone.active)) {
+                        cancelJumpCharge();
+                    } else if (elapsed >= 2000) {
+                        // Charge complete — execute warp
+                        executeWarpJump();
+                    }
                 }
 
                 // ========== ENCOUNTER TRANSITIONS ==========
