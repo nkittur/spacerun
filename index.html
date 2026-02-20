@@ -3308,6 +3308,7 @@
 
         <div id="stationHeader">
             <div id="stationName">Starbase</div>
+            <div id="stationSubtitle" style="font-size:10px;color:#668;text-transform:uppercase;letter-spacing:1px;margin-top:2px;"></div>
             <div id="stationCredits"><span id="creditsDisplay">0</span> CR</div>
         </div>
 
@@ -3406,6 +3407,7 @@
             <!-- Trading Post Section -->
             <div id="sectionTrading" class="station-section">
                 <h3>Trading Post</h3>
+                <div id="tradingNodeInfo" style="color:#88aacc;font-size:11px;padding:0 12px 6px;"></div>
                 <div class="trading-panel">
                     <div class="trading-header">
                         <span>Commodity Exchange</span>
@@ -6804,27 +6806,32 @@
             // Enemy multiplier based on threat - reduced multipliers for smoother curve
             const enemyMultiplier = { 'Low': 0.8, 'Medium': 1.0, 'High': 1.15, 'Extreme': 1.3 }[threatLevel];
 
-            // Stations (0-2, random types)
-            // Level 1 always gets an Armory station for the outfitter
+            // Stations: one per world node in the current system (deterministic)
             const stations = [];
-            if (levelNum === 1) {
-                stations.push('Armory');
-            } else {
-                const stationCount = Math.floor(Math.random() * 3);
-                for (let i = 0; i < stationCount; i++) {
-                    stations.push(STATION_TYPES[Math.floor(Math.random() * STATION_TYPES.length)]);
+            const _world = gameState.world;
+            if (_world) {
+                const _sys = _world.systems[_world.currentSystem];
+                if (_sys && _sys.nodeIds) {
+                    for (const nodeId of _sys.nodeIds) {
+                        const node = _world.nodes[nodeId];
+                        if (node) {
+                            stations.push({
+                                nodeId: nodeId,
+                                name: node.name,
+                                type: node.type,
+                                services: node.services || ['trade', 'fuel']
+                            });
+                        }
+                    }
                 }
+            }
+            // Fallback for no-world (arena mode / legacy)
+            if (stations.length === 0) {
+                stations.push({ nodeId: null, name: 'Outpost', type: 'frontier', services: ['trade', 'fuel'] });
             }
 
             // Format stations for display
-            let stationDisplay = 'None';
-            if (stations.length > 0) {
-                const stationCounts = {};
-                stations.forEach(s => stationCounts[s] = (stationCounts[s] || 0) + 1);
-                stationDisplay = Object.entries(stationCounts)
-                    .map(([type, count]) => count > 1 ? `${count} ${type}` : type)
-                    .join(', ');
-            }
+            let stationDisplay = stations.map(s => s.name).join(', ');
 
             // Calculate which waves should have stations after them
             // Distribute stations evenly through the level
@@ -8279,7 +8286,9 @@
                 resultText = `Sold ${sold} fuel for ${sold * enc.unitPrice} CR.`;
             } else if (enc.type === 'tradeIntel') {
                 const good = TRADE_GOODS[enc.goodId];
-                resultText = `Intel acquired: ${good.name} prices ${enc.spike > 0 ? 'rising' : 'dropping'} in this system.`;
+                const targetName = gameState.world && gameState.world.systems[enc.targetSysId]
+                    ? gameState.world.systems[enc.targetSysId].name : enc.targetSysId;
+                resultText = `Intel acquired: ${good.name} prices ${enc.spike > 0 ? 'rising' : 'dropping'} in ${targetName}.`;
             }
 
             const resultEl = document.getElementById('encounterResult');
@@ -8449,23 +8458,38 @@
             gameState.harvestProgress = 0;
             document.getElementById('harvestBar').style.display = 'none';
 
-            // Determine station type from level config
+            // Determine docked station from level config (node-derived objects)
+            let dockedStation = null;
             if (gameState.levelConfig && gameState.levelConfig.stations.length > 0) {
                 const stationIndex = Math.min(gameState.stationsVisited, gameState.levelConfig.stations.length - 1);
-                currentStationType = gameState.levelConfig.stations[stationIndex] || 'Trade';
+                const raw = gameState.levelConfig.stations[stationIndex];
+                // Handle legacy saves where stations were strings
+                dockedStation = typeof raw === 'string'
+                    ? { nodeId: null, name: raw + ' Station', type: 'frontier', services: ['trade', 'fuel'] }
+                    : raw;
             }
+            // Derive currentStationType for any remaining legacy code
+            const nodeTypeToStation = { extractor: 'Fuel', agri: 'Trade', industrial: 'Armory', core: 'Trade', frontier: 'Fuel', military: 'Armory' };
+            currentStationType = dockedStation ? (nodeTypeToStation[dockedStation.type] || 'Trade') : 'Trade';
 
-            // Set last docked node for persistent world
-            if (gameState.world) {
+            // Set last docked node from station object
+            if (gameState.world && dockedStation && dockedStation.nodeId) {
+                gameState.world.lastDockedNode = dockedStation.nodeId;
+            } else if (gameState.world) {
+                // Fallback for legacy saves
                 const sys = gameState.world.systems[gameState.world.currentSystem];
                 if (sys && sys.nodeIds && sys.nodeIds.length > 0) {
-                    // Pick the node that matches the station type, or first node
                     const nodeId = sys.nodeIds[Math.min(gameState.stationsVisited, sys.nodeIds.length - 1)];
                     gameState.world.lastDockedNode = nodeId;
                 }
-                // Auto-save on dock
-                saveGame();
             }
+            if (gameState.world) saveGame();
+
+            // Store docked station for use by updateStationInterior
+            gameState._dockedStation = dockedStation;
+
+            // Filter station tabs based on node services
+            updateStationTabs(dockedStation ? dockedStation.services : ['trade', 'fuel']);
 
             // Generate weapons for sale at this station
             generateStationInventory();
@@ -8479,10 +8503,26 @@
 
         // Update station interior with current state
         function updateStationInterior() {
-            // Set station name
-            const nameList = STATION_NAMES[currentStationType] || STATION_NAMES.Trade;
-            const stationName = nameList[Math.floor(Math.random() * nameList.length)];
+            // Set station name from docked node (or fallback to random)
+            const dockedStation = gameState._dockedStation;
+            let stationName;
+            if (dockedStation && dockedStation.nodeId) {
+                stationName = dockedStation.name;
+            } else {
+                const nameList = STATION_NAMES[currentStationType] || STATION_NAMES.Trade;
+                stationName = nameList[Math.floor(Math.random() * nameList.length)];
+            }
             document.getElementById('stationName').textContent = stationName;
+
+            // Set node type subtitle
+            const subtitleEl = document.getElementById('stationSubtitle');
+            if (subtitleEl) {
+                if (dockedStation && dockedStation.type && NODE_TYPES[dockedStation.type]) {
+                    subtitleEl.textContent = NODE_TYPES[dockedStation.type].desc;
+                } else {
+                    subtitleEl.textContent = '';
+                }
+            }
 
             // Set credits
             document.getElementById('creditsDisplay').textContent = gameState.credits;
@@ -8500,8 +8540,13 @@
             // Update shipyard fuel display
             updateShipyardFuel();
 
-            // Update ship upgrades display
+            // Update ship upgrades display — hide upgrades panel if no shipyard service
             updateUpgradesUI();
+            const upgradesPanel = document.querySelector('.upgrades-panel');
+            if (upgradesPanel) {
+                const hasShipyard = dockedStation && dockedStation.services && dockedStation.services.includes('shipyard');
+                upgradesPanel.style.display = hasShipyard ? '' : 'none';
+            }
 
             // Generate station bounties for mission board
             gameState.stationBounties = generateStationBounties();
@@ -8636,6 +8681,16 @@
 
             const nodeData = world.nodes[nodeId];
             const isBlackMarket = nodeData.blackMarket;
+
+            // Show node economy context
+            const nodeInfoEl = document.getElementById('tradingNodeInfo');
+            if (nodeInfoEl) {
+                const nodeType = NODE_TYPES[nodeData.type];
+                const industries = (nodeData.industries || [])
+                    .map(id => INDUSTRIES[id] ? INDUSTRIES[id].name : id)
+                    .join(', ');
+                nodeInfoEl.textContent = `${nodeData.name} — ${nodeType ? nodeType.desc : nodeData.type}${industries ? ' | ' + industries : ''}`;
+            }
 
             // Build trade items for each good
             container.innerHTML = Object.entries(TRADE_GOODS).map(([goodId, good]) => {
@@ -9189,6 +9244,28 @@
             if (creditsEl) creditsEl.textContent = gameState.credits;
         }
         window.handleEquipmentPurchase = handleEquipmentPurchase;
+
+        // Show/hide station tabs based on node services
+        function updateStationTabs(services) {
+            const tabServiceMap = {
+                bar: null,          // Always available
+                missions: null,     // Always available
+                outfitter: 'armory',
+                shipyard: null,     // Always available (refueling is universal)
+                trading: 'trade'    // Every node has this
+            };
+            document.querySelectorAll('.station-nav-btn').forEach(btn => {
+                const section = btn.dataset.section;
+                const required = tabServiceMap[section];
+                if (required === null || (services && services.includes(required))) {
+                    btn.classList.remove('disabled');
+                    btn.style.display = '';
+                } else {
+                    btn.classList.add('disabled');
+                    btn.style.display = 'none';
+                }
+            });
+        }
 
         // Switch station section
         function switchStationSection(sectionName) {
@@ -16355,9 +16432,19 @@
                     // Positive spike (demand up = price up) or negative (price down)
                     const spike = Math.random() < 0.5 ? 0.6 : -0.4;
                     const direction = spike > 0 ? 'high demand' : 'a surplus';
+                    // Pick a connected system (not the current one)
+                    const world = gameState.world;
+                    const curSys = world && world.systems[gameState.currentSystem];
+                    const neighbors = curSys ? (curSys.connections || []) : [];
+                    const targetSysId = neighbors.length > 0
+                        ? neighbors[Math.floor(Math.random() * neighbors.length)]
+                        : gameState.currentSystem;
+                    const targetSysName = world && world.systems[targetSysId]
+                        ? world.systems[targetSysId].name
+                        : targetSysId;
                     return {
-                        type: 'tradeIntel', cost, goodId, spike,
-                        text: `"I've got inside info — there's ${direction} for ${good.name} in this system. ${cost} CR for the tip."`,
+                        type: 'tradeIntel', cost, goodId, spike, targetSysId,
+                        text: `"I've got inside info — there's ${direction} for ${good.name} over in ${targetSysName}. ${cost} CR for the tip."`,
                         acceptLabel: `Buy Intel (${cost} CR)`
                     };
                 },
@@ -16367,10 +16454,9 @@
                 },
                 apply(enc) {
                     gameState.credits -= enc.cost;
-                    // Apply demandSpike to all nodes in current system
+                    // Apply demandSpike to all nodes in the target system
                     const world = gameState.world;
-                    const sysId = gameState.currentSystem;
-                    const sys = world.systems[sysId];
+                    const sys = world.systems[enc.targetSysId];
                     if (sys) {
                         for (const nodeId of (sys.nodeIds || [])) {
                             const node = world.nodes[nodeId];
@@ -20073,6 +20159,23 @@
             gameState.wave = saveData.wave || 1;
             gameState.level = saveData.level || 1;
             gameState.levelConfig = saveData.levelConfig || generateLevelConfig(1);
+            // Migrate legacy station format (string[] → object[])
+            if (gameState.levelConfig.stations && gameState.levelConfig.stations.length > 0
+                && typeof gameState.levelConfig.stations[0] === 'string') {
+                const _w = gameState.world;
+                const _s = _w ? _w.systems[_w.currentSystem] : null;
+                const _nids = _s ? (_s.nodeIds || []) : [];
+                gameState.levelConfig.stations = gameState.levelConfig.stations.map((stationType, i) => {
+                    const nid = _nids[i] || null;
+                    const nd = nid && _w ? _w.nodes[nid] : null;
+                    return {
+                        nodeId: nid,
+                        name: nd ? nd.name : stationType + ' Station',
+                        type: nd ? nd.type : 'frontier',
+                        services: nd ? (nd.services || ['trade', 'fuel']) : ['trade', 'fuel']
+                    };
+                });
+            }
             gameState.stationsVisited = saveData.stationsVisited || 0;
             if (saveData.stats) {
                 gameState.stats = { ...gameState.stats, ...saveData.stats };

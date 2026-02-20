@@ -157,3 +157,21 @@ A full world events system that dynamically disrupts the economy. 5 event types 
 - New gameState fields: `activeTradeEncounter`, `tradeEncounterCooldown`
 - Encounter ring position+pulse updated in `updateExplorationTraffic()` loop
 - Lazy ring creation for async mesh loading
+
+## Node-Driven Station Generation (Feature 9)
+
+### What was implemented
+Stations now derive from world nodes instead of random generation. Each system spawns exactly as many stations as it has nodes (1-2), inheriting the node's name, services, and economic identity. Station tabs are filtered based on node services.
+
+### Problem Solved
+The trade overlay showed production/consumption for systems, but players couldn't reliably trade because: station count was random (0-2, often 0), station type was random, station name was random, and node services were ignored.
+
+### Changes
+- `generateLevelConfig()`: replaced random station generation (0-2 random types) with node-derived station objects `{ nodeId, name, type, services }`
+- `openDockingScreen()`: extracts station object, sets `lastDockedNode` from station.nodeId, calls `updateStationTabs()`
+- `updateStationInterior()`: shows node name (e.g. "Forge Works") instead of random name, shows node type subtitle (e.g. "Refining & manufacturing hub"), hides upgrades panel if no `shipyard` service
+- New `updateStationTabs(services)`: shows/hides tab buttons based on node services (outfitter requires `armory`, trading requires `trade`, etc.)
+- `updateTradingUI()`: shows node economy context header with name, type, and industries
+- HTML: added `#stationSubtitle` element, `#tradingNodeInfo` element
+- `applySavedState()`: migrates legacy station format (string[] → object[]) for old saves
+- Backward compat: legacy string station entries wrapped in objects automatically

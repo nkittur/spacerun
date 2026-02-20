@@ -8,6 +8,9 @@
 
 ## Review
 
+### 9. Node-Driven Station Generation for Galactic Trading
+Stations now derive from world nodes instead of random generation. Each system spawns 1-2 stations matching its nodes, with correct names, services, and economic identity. Tabs filtered by node services (e.g. no Outfitter at mining outposts). Trading UI shows node economy context.
+
 ### 8. NPC Ship Encounters — Trade Opportunities
 **Design:** [planning/npc-trade-encounters.md](planning/npc-trade-encounters.md)
 3 encounter types (Cargo Dump, Fuel Buyer, Trade Intel) on 1-2 civilian ships per system. Pulsing green ring + emoji icon indicators. Proximity + 1s harvest bar interaction. Dialog with Accept/Decline. Targeting corners when in range.
