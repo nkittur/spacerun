@@ -5,10 +5,16 @@
 
 ## Pending
 
-### 7. World Events Affecting Economy
-Audit how we currently handle events that impact surplus/shortages — convoys, disasters, pirate raids, blockades, etc. Add them if missing, or make existing ones more visible. Events should show up in the station bar (rumors/news), on the galactic map trade overlay (icons or markers), and affect node inventories in meaningful ways. Examples: pirate blockade cuts trade flow, famine spikes ration demand, factory accident halts production, convoy delivery restocks a deficit.
 
 ## Review
+
+### 8. NPC Ship Encounters — Trade Opportunities
+**Design:** [planning/npc-trade-encounters.md](planning/npc-trade-encounters.md)
+3 encounter types (Cargo Dump, Fuel Buyer, Trade Intel) on 1-2 civilian ships per system. Pulsing green ring + emoji icon indicators. Proximity + 1s harvest bar interaction. Dialog with Accept/Decline. Targeting corners when in range.
+
+### 7. World Events Affecting Economy
+**Design:** [planning/world-events.md](planning/world-events.md)
+5 event types (pirate blockade, industrial accident, military mobilization, famine, trade boom) that dynamically affect the economy. Visible in bar rumors, trade overlay markers, and info panel. Fixed NPC trade flow bug.
 
 ### 6. Improved Trade Overlay on Galaxy Map
 **Design:** [planning/trade-overlay-v2.md](planning/trade-overlay-v2.md)

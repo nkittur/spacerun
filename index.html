@@ -2246,6 +2246,11 @@
             padding: 12px;
             margin-bottom: 10px;
         }
+        /* See planning/world-events.md — event rumors highlighted */
+        .rumor-item.event-rumor {
+            background: rgba(60, 40, 30, 0.7);
+            border-color: #664422;
+        }
 
         .rumor-source {
             color: #ffaa44;
@@ -2260,6 +2265,92 @@
             font-size: 13px;
             line-height: 1.5;
             font-style: italic;
+        }
+
+        /* NPC Trade Encounter Dialog */
+        #tradeEncounterDialog {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 340px;
+            background: rgba(10, 15, 25, 0.95);
+            border: 1px solid rgba(100, 200, 150, 0.4);
+            border-radius: 10px;
+            padding: 20px;
+            display: none;
+            z-index: 215;
+            color: white;
+            text-align: center;
+        }
+        .encounter-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+        }
+        .encounter-title {
+            font-size: 16px;
+            color: #88ddaa;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+        }
+        .encounter-text {
+            font-size: 14px;
+            color: #bbccdd;
+            line-height: 1.5;
+            font-style: italic;
+            margin-bottom: 16px;
+        }
+        .encounter-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .encounter-btn {
+            padding: 8px 20px;
+            border: 1px solid #556;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            background: rgba(30, 40, 50, 0.8);
+            color: #ccc;
+        }
+        .encounter-btn.accept {
+            border-color: #4a8;
+            color: #88ddaa;
+        }
+        .encounter-btn.accept:hover { background: rgba(40, 80, 60, 0.8); }
+        .encounter-btn.accept:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+        .encounter-btn.decline:hover { background: rgba(60, 40, 40, 0.8); }
+        .encounter-result {
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #aaddaa;
+            background: rgba(40, 80, 50, 0.3);
+            border: 1px solid rgba(80, 160, 80, 0.3);
+        }
+
+        /* Floating encounter icons above ships */
+        #encounterIcons {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+        .encounter-ship-icon {
+            position: absolute;
+            font-size: 18px;
+            text-align: center;
+            transform: translate(-50%, -100%);
+            text-shadow: 0 0 6px rgba(50, 200, 100, 0.6);
+            pointer-events: none;
         }
 
         .tip-item {
@@ -3069,6 +3160,17 @@
         <button class="bounty-continue-btn" onclick="closeBountyReward()">Collect Bounty</button>
     </div>
 
+    <div id="tradeEncounterDialog">
+        <div class="encounter-icon" id="encounterIcon"></div>
+        <div class="encounter-title" id="encounterTitle">Merchant Hail</div>
+        <div class="encounter-text" id="encounterText"></div>
+        <div class="encounter-actions">
+            <button class="encounter-btn accept" id="encounterAcceptBtn" onclick="acceptTradeEncounter()">Accept</button>
+            <button class="encounter-btn decline" onclick="declineTradeEncounter()">Decline</button>
+        </div>
+        <div class="encounter-result" id="encounterResult" style="display:none;"></div>
+    </div>
+
     <div id="settingsPanel">
         <h2>Settings</h2>
         <div class="setting-group">
@@ -3179,6 +3281,8 @@
     </div>
 
     <div id="collectNotifications"></div>
+
+    <div id="encounterIcons"></div>
 
     <div id="harvestBar">
         <div id="harvestBarFill"></div>
@@ -3885,10 +3989,11 @@
                     const node = world.nodes[nodeId];
                     const inv = node.inventory;
 
-                    // Run each industry
+                    // Run each industry (skip if disabled by event — see planning/world-events.md)
                     for (const indId of (node.industries || [])) {
                         const ind = INDUSTRIES[indId];
                         if (!ind) continue;
+                        if (isIndustryDisabledByEvent(world, nodeId, indId)) continue;
 
                         // Check if all inputs are available
                         let canProduce = true;
@@ -3940,6 +4045,9 @@
         }
 
         // NPC trade flows: move goods between connected nodes at ~30% efficiency
+        // NPC trade flow: smooths out imbalances between connected systems.
+        // See planning/world-events.md — flow rate modified by active events (blockades/booms).
+        // Bug fix: was iterating sys.nodes (undefined) instead of sys.nodeIds.
         function npcTradeFlow(world) {
             const processed = new Set();
             for (const sysId in world.systems) {
@@ -3954,11 +4062,14 @@
 
                     // Security affects flow rate (higher security = more NPC traders)
                     const securityFactor = (Math.min(sys.security, connSys.security) + 1) / 6;
-                    const flowRate = 0.3 * securityFactor; // Max ~30% of deficit
+                    let flowRate = 0.3 * securityFactor; // Max ~30% of deficit
 
-                    // For each node pair between the two systems
-                    for (const nodeIdA in sys.nodes || {}) {
-                        for (const nodeIdB in connSys.nodes || {}) {
+                    // Apply event modifiers (blockades reduce flow, booms increase it)
+                    flowRate *= getLaneFlowModifier(world, sysId, connId);
+
+                    // Iterate node pairs between the two systems (using nodeIds arrays)
+                    for (const nodeIdA of (sys.nodeIds || [])) {
+                        for (const nodeIdB of (connSys.nodeIds || [])) {
                             const nodeA = world.nodes[nodeIdA];
                             const nodeB = world.nodes[nodeIdB];
                             if (!nodeA || !nodeB) continue;
@@ -3992,10 +4103,279 @@
             }
         }
 
-        // Tick world events (placeholder for Phase 4)
+        // See planning/world-events.md — event types that disrupt the economy
+        const EVENT_TYPES = {
+            pirateBlockade: {
+                name: 'Pirate Blockade',
+                icon: '☠',
+                frequency: 3, // common
+                targetType: 'lane', // affects a connection between two systems
+                durationRange: [4, 6],
+                effects: { reduceNpcFlow: 0.2, demandSpike: { rations: 0.5, medical: 0.4 } },
+                newsTemplates: [
+                    'Pirate raids intensify along the {sys1}-{sys2} corridor',
+                    'Armed raiders blockading trade between {sys1} and {sys2}',
+                    'Merchant convoys ambushed near {sys1} — trade route to {sys2} disrupted'
+                ]
+            },
+            industrialAccident: {
+                name: 'Industrial Accident',
+                icon: '🔥',
+                frequency: 2, // uncommon
+                targetType: 'node', // disables an industry at a specific node
+                durationRange: [5, 8],
+                effects: { disableIndustry: true },
+                newsTemplates: [
+                    'Explosion at {industry} in {node} — production halted',
+                    'Catastrophic failure at {node}\'s {industry}',
+                    '{industry} in {node} shut down after major accident'
+                ]
+            },
+            militaryMobilization: {
+                name: 'Military Mobilization',
+                icon: '⚔',
+                frequency: 1, // rare
+                targetType: 'node',
+                durationRange: [3, 5],
+                effects: { demandSpike: { munitions: 1.0, fuel: 0.6, medical: 0.4 } },
+                newsTemplates: [
+                    'Federation fleet mobilizing at {node}',
+                    'Military buildup reported near {node} — supplies in high demand',
+                    'Warships massing at {node}, requisitioning fuel and munitions'
+                ]
+            },
+            famine: {
+                name: 'Famine',
+                icon: '🍂',
+                frequency: 2, // uncommon
+                targetType: 'node',
+                durationRange: [4, 7],
+                effects: { demandSpike: { rations: 0.8, biomass: 0.6 } },
+                newsTemplates: [
+                    'Crop failure at {node} — food shortages reported',
+                    'Famine conditions spreading at {node}',
+                    'Desperate need for rations at {node} after harvest collapse'
+                ]
+            },
+            tradeBoom: {
+                name: 'Trade Boom',
+                icon: '📈',
+                frequency: 3, // common
+                targetType: 'lane',
+                durationRange: [3, 5],
+                effects: { boostNpcFlow: 1.5 },
+                newsTemplates: [
+                    'Trade flourishing between {sys1} and {sys2}',
+                    'Record cargo volumes on the {sys1}-{sys2} route',
+                    'Merchant guilds report booming trade between {sys1} and {sys2}'
+                ]
+            }
+        };
+
+        // Tick world events: spawn new events, apply effects, expire completed ones.
+        // Called each tick from worldEconomyTick().
         function tickWorldEvents(world) {
-            // TODO: spawn/advance/expire events
             if (!world.activeEvents) world.activeEvents = [];
+
+            // --- Advance and expire existing events ---
+            for (let i = world.activeEvents.length - 1; i >= 0; i--) {
+                const evt = world.activeEvents[i];
+                evt.ticksRemaining--;
+
+                if (evt.ticksRemaining <= 0) {
+                    // Clear demandSpike values this event set
+                    clearEventDemandSpikes(world, evt);
+                    world.activeEvents.splice(i, 1);
+                    if (!world.eventHistory) world.eventHistory = [];
+                    world.eventHistory.push({ type: evt.type, ended: world.tickCount, text: evt.newsText });
+                }
+            }
+
+            // --- Apply demandSpike from active events each tick ---
+            // Reset all demandSpikes to 0 first, then re-apply from active events
+            for (const nodeId in world.nodes) {
+                const inv = world.nodes[nodeId].inventory;
+                if (!inv) continue;
+                for (const g in inv) {
+                    if (inv[g]) inv[g].demandSpike = 0;
+                }
+            }
+            for (const evt of world.activeEvents) {
+                applyEventDemandSpikes(world, evt);
+            }
+
+            // --- Spawn new events (15% chance per tick, max 3 active) ---
+            if (world.activeEvents.length < 3 && Math.random() < 0.15) {
+                const newEvent = trySpawnWorldEvent(world);
+                if (newEvent) {
+                    world.activeEvents.push(newEvent);
+                }
+            }
+        }
+
+        // Apply demand spikes from an event to the affected nodes
+        function applyEventDemandSpikes(world, evt) {
+            const evtType = EVENT_TYPES[evt.type];
+            if (!evtType || !evtType.effects.demandSpike) return;
+
+            const spikes = evtType.effects.demandSpike;
+            // For lane events, apply to all nodes in both systems
+            // For node events, apply to the specific node
+            const targetNodeIds = [];
+            if (evt.targetNode) {
+                targetNodeIds.push(evt.targetNode);
+            } else if (evt.targetLane) {
+                for (const sysId of evt.targetLane) {
+                    const sys = world.systems[sysId];
+                    if (sys && sys.nodeIds) targetNodeIds.push(...sys.nodeIds);
+                }
+            }
+
+            for (const nodeId of targetNodeIds) {
+                const node = world.nodes[nodeId];
+                if (!node || !node.inventory) continue;
+                for (const goodId in spikes) {
+                    if (node.inventory[goodId]) {
+                        node.inventory[goodId].demandSpike = Math.max(
+                            node.inventory[goodId].demandSpike, spikes[goodId]
+                        );
+                    }
+                }
+            }
+        }
+
+        // Clear demand spikes set by an expiring event (reset handled by bulk reset above)
+        function clearEventDemandSpikes(world, evt) {
+            // No-op: the bulk reset at top of tickWorldEvents handles this.
+            // Kept as hook for future per-event cleanup if needed.
+        }
+
+        // Attempt to spawn a new world event. Returns event object or null.
+        function trySpawnWorldEvent(world) {
+            // Weighted random selection by frequency
+            const typeEntries = Object.entries(EVENT_TYPES);
+            const totalWeight = typeEntries.reduce((sum, [, t]) => sum + t.frequency, 0);
+            let roll = Math.random() * totalWeight;
+            let selectedType = null, selectedKey = null;
+            for (const [key, t] of typeEntries) {
+                roll -= t.frequency;
+                if (roll <= 0) { selectedKey = key; selectedType = t; break; }
+            }
+            if (!selectedType) return null;
+
+            // Find a valid target
+            const allSysIds = Object.keys(world.systems);
+
+            if (selectedType.targetType === 'lane') {
+                // Pick a random connection between two discovered systems
+                const candidates = [];
+                for (const sysId of allSysIds) {
+                    const sys = world.systems[sysId];
+                    if (!sys.discovered) continue;
+                    for (const connId of sys.connections) {
+                        if (!world.systems[connId] || !world.systems[connId].discovered) continue;
+                        const laneKey = [sysId, connId].sort().join('-');
+                        // Don't duplicate same event type on same lane
+                        const dup = world.activeEvents.some(e =>
+                            e.type === selectedKey && e.targetLane && [e.targetLane[0], e.targetLane[1]].sort().join('-') === laneKey
+                        );
+                        if (!dup) candidates.push([sysId, connId]);
+                    }
+                }
+                if (candidates.length === 0) return null;
+                const lane = candidates[Math.floor(Math.random() * candidates.length)];
+                const sys1Name = world.systems[lane[0]].name;
+                const sys2Name = world.systems[lane[1]].name;
+                const duration = selectedType.durationRange[0] + Math.floor(Math.random() * (selectedType.durationRange[1] - selectedType.durationRange[0] + 1));
+                const template = selectedType.newsTemplates[Math.floor(Math.random() * selectedType.newsTemplates.length)];
+                const newsText = template.replace('{sys1}', sys1Name).replace('{sys2}', sys2Name);
+                return {
+                    id: 'evt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+                    type: selectedKey,
+                    targetSystem: lane[0],
+                    targetLane: lane,
+                    ticksRemaining: duration,
+                    totalDuration: duration,
+                    newsText
+                };
+            } else {
+                // Node-targeted event — pick a random node in a discovered system
+                const candidates = [];
+                for (const sysId of allSysIds) {
+                    const sys = world.systems[sysId];
+                    if (!sys.discovered) continue;
+                    for (const nodeId of (sys.nodeIds || [])) {
+                        const node = world.nodes[nodeId];
+                        if (!node) continue;
+                        // Industrial accident needs at least one industry
+                        if (selectedKey === 'industrialAccident' && (!node.industries || node.industries.length === 0)) continue;
+                        // Military mobilization needs military or federation node
+                        if (selectedKey === 'militaryMobilization' && node.type !== 'military' && world.systems[node.systemId]?.faction !== 'federation') continue;
+                        // Famine needs populated node
+                        if (selectedKey === 'famine' && node.population === 'outpost') continue;
+                        // Don't duplicate
+                        const dup = world.activeEvents.some(e => e.type === selectedKey && e.targetNode === nodeId);
+                        if (!dup) candidates.push({ sysId, nodeId, node });
+                    }
+                }
+                if (candidates.length === 0) return null;
+                const pick = candidates[Math.floor(Math.random() * candidates.length)];
+                const duration = selectedType.durationRange[0] + Math.floor(Math.random() * (selectedType.durationRange[1] - selectedType.durationRange[0] + 1));
+                const template = selectedType.newsTemplates[Math.floor(Math.random() * selectedType.newsTemplates.length)];
+                // Fill template variables
+                let newsText = template.replace('{node}', pick.node.name);
+                if (selectedKey === 'industrialAccident' && pick.node.industries && pick.node.industries.length > 0) {
+                    const indId = pick.node.industries[Math.floor(Math.random() * pick.node.industries.length)];
+                    const indName = INDUSTRIES[indId]?.name || indId;
+                    newsText = newsText.replace('{industry}', indName);
+                }
+                return {
+                    id: 'evt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+                    type: selectedKey,
+                    targetSystem: pick.sysId,
+                    targetNode: pick.nodeId,
+                    disabledIndustry: selectedKey === 'industrialAccident' && pick.node.industries?.length > 0
+                        ? pick.node.industries[Math.floor(Math.random() * pick.node.industries.length)] : null,
+                    ticksRemaining: duration,
+                    totalDuration: duration,
+                    newsText
+                };
+            }
+        }
+
+        // Helper: check if an industry at a node is disabled by an active event
+        function isIndustryDisabledByEvent(world, nodeId, industryId) {
+            if (!world.activeEvents) return false;
+            return world.activeEvents.some(e =>
+                e.type === 'industrialAccident' && e.targetNode === nodeId && e.disabledIndustry === industryId
+            );
+        }
+
+        // Helper: get flow modifier for a lane (pair of system IDs) from active events
+        function getLaneFlowModifier(world, sysIdA, sysIdB) {
+            if (!world.activeEvents) return 1.0;
+            let modifier = 1.0;
+            const laneKey = [sysIdA, sysIdB].sort().join('-');
+            for (const evt of world.activeEvents) {
+                if (!evt.targetLane) continue;
+                const evtLaneKey = [evt.targetLane[0], evt.targetLane[1]].sort().join('-');
+                if (evtLaneKey !== laneKey) continue;
+                const evtType = EVENT_TYPES[evt.type];
+                if (!evtType) continue;
+                if (evtType.effects.reduceNpcFlow !== undefined) modifier *= evtType.effects.reduceNpcFlow;
+                if (evtType.effects.boostNpcFlow !== undefined) modifier *= evtType.effects.boostNpcFlow;
+            }
+            return modifier;
+        }
+
+        // Helper: get active events affecting a system
+        function getSystemEvents(world, sysId) {
+            if (!world.activeEvents) return [];
+            return world.activeEvents.filter(e =>
+                e.targetSystem === sysId ||
+                (e.targetLane && e.targetLane.includes(sysId)) ||
+                (e.targetNode && world.nodes[e.targetNode]?.systemId === sysId)
+            );
         }
 
         // Generate the persistent world from the starter sector
@@ -4955,6 +5335,9 @@
             starbase: null,
             isDocked: false,
             dockCooldownStation: null, // See planning/station-redock-cooldown.md
+            // NPC trade encounters — see planning/npc-trade-encounters.md
+            activeTradeEncounter: null,     // Ship currently showing encounter dialog
+            tradeEncounterCooldown: null,   // Ship player just declined (prevent re-trigger)
             credits: 100,       // Starting credits for persistent world
             ownedWeapons: [],  // Now stores full weapon objects
             equippedWeapons: [], // Weapons equipped on hardpoints
@@ -7850,6 +8233,215 @@
         let currentStationType = 'Trade';
 
         // Open station interior screen
+        // === NPC Trade Encounter Functions (see planning/npc-trade-encounters.md) ===
+
+        function openTradeEncounterDialog(ship) {
+            const enc = ship.tradeEncounter;
+            gameState.activeTradeEncounter = ship;
+            requestPause('tradeEncounter');
+
+            document.getElementById('encounterIcon').textContent = enc._icon;
+            document.getElementById('encounterTitle').textContent = enc._label;
+            document.getElementById('encounterText').textContent = enc.text;
+
+            const acceptBtn = document.getElementById('encounterAcceptBtn');
+            acceptBtn.textContent = enc.acceptLabel;
+            const encType = TRADE_ENCOUNTER_TYPES[enc.type];
+            const check = encType.canAccept(enc);
+            acceptBtn.disabled = !check.ok;
+            acceptBtn.title = check.ok ? '' : check.reason;
+
+            document.getElementById('encounterResult').style.display = 'none';
+            document.getElementById('encounterAcceptBtn').style.display = '';
+            document.querySelector('#tradeEncounterDialog .encounter-btn.decline').textContent = 'Decline';
+            document.getElementById('tradeEncounterDialog').style.display = 'block';
+        }
+
+        function acceptTradeEncounter() {
+            const ship = gameState.activeTradeEncounter;
+            if (!ship) return;
+            const enc = ship.tradeEncounter;
+            const encType = TRADE_ENCOUNTER_TYPES[enc.type];
+
+            // Double-check
+            const check = encType.canAccept(enc);
+            if (!check.ok) return;
+
+            encType.apply(enc);
+            ship.encountered = true;
+
+            // Show result
+            let resultText = '';
+            if (enc.type === 'cargoDump') {
+                resultText = `Acquired ${enc.quantity} ${TRADE_GOODS[enc.goodId].name} for ${enc.totalPrice} CR.`;
+            } else if (enc.type === 'fuelBuyer') {
+                const sold = enc._soldQty || enc.quantity;
+                resultText = `Sold ${sold} fuel for ${sold * enc.unitPrice} CR.`;
+            } else if (enc.type === 'tradeIntel') {
+                const good = TRADE_GOODS[enc.goodId];
+                resultText = `Intel acquired: ${good.name} prices ${enc.spike > 0 ? 'rising' : 'dropping'} in this system.`;
+            }
+
+            const resultEl = document.getElementById('encounterResult');
+            resultEl.textContent = resultText;
+            resultEl.style.display = 'block';
+            document.getElementById('encounterAcceptBtn').style.display = 'none';
+            document.querySelector('#tradeEncounterDialog .encounter-btn.decline').textContent = 'Close';
+            updateHUD();
+        }
+
+        function declineTradeEncounter() {
+            const ship = gameState.activeTradeEncounter;
+            if (ship) {
+                // If already accepted (Close button), mark encountered
+                if (ship.encountered) {
+                    // Already marked
+                } else {
+                    // Declined — set cooldown so bar doesn't restart
+                    gameState.tradeEncounterCooldown = ship;
+                }
+            }
+            document.getElementById('tradeEncounterDialog').style.display = 'none';
+            gameState.activeTradeEncounter = null;
+            gameState.harvestProgress = 0;
+            document.getElementById('harvestBar').style.display = 'none';
+            releasePause('tradeEncounter');
+        }
+
+        function checkTradeEncounterProximity(deltaTime) {
+            if (!playerShip || gameState.isDocked || gameState.activeTradeEncounter) return;
+            if (gameState.encounterTransition || (gameState.combatZone && gameState.combatZone.active)) return;
+
+            const interactRadius = 3.0;
+            let nearest = null;
+            let nearestDist = Infinity;
+
+            for (const ship of gameState.explorationTraffic) {
+                if (!ship.alive || !ship.tradeEncounter || ship.encountered) continue;
+                if (ship === gameState.tradeEncounterCooldown) continue;
+                if (ship.behavior === 'fighting' || ship.behavior === 'fleeing') continue;
+
+                const dx = ship.currentX - playerShip.position.x;
+                const dy = ship.currentY - playerShip.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < interactRadius && dist < nearestDist) {
+                    nearestDist = dist;
+                    nearest = ship;
+                }
+            }
+
+            // Clear cooldown if player leaves range of declined ship
+            if (gameState.tradeEncounterCooldown) {
+                const cs = gameState.tradeEncounterCooldown;
+                if (!cs.alive) {
+                    gameState.tradeEncounterCooldown = null;
+                } else {
+                    const cdx = cs.currentX - playerShip.position.x;
+                    const cdy = cs.currentY - playerShip.position.y;
+                    if (Math.sqrt(cdx * cdx + cdy * cdy) >= interactRadius) {
+                        gameState.tradeEncounterCooldown = null;
+                    }
+                }
+            }
+
+            if (nearest) {
+                // Suppress if near a dockable station (station takes priority)
+                if (gameState.starbase) {
+                    const sb = gameState.starbase;
+                    const sdx = sb.position.x - playerShip.position.x;
+                    const sdy = sb.position.y - playerShip.position.y;
+                    if (Math.sqrt(sdx * sdx + sdy * sdy) < sb.dockRadius) return;
+                }
+                // Suppress if harvesting a planet
+                if (gameState.harvestingPlanet) return;
+
+                // Use harvestProgress for the approach bar (1.0s fill)
+                if (!nearest._dockProgress) nearest._dockProgress = 0;
+                nearest._dockProgress += deltaTime / 1000;
+
+                const harvestBar = document.getElementById('harvestBar');
+                const harvestBarFill = document.getElementById('harvestBarFill');
+                harvestBar.style.display = 'block';
+                harvestBarFill.style.width = `${Math.min(100, nearest._dockProgress * 100)}%`;
+
+                // Position bar at ship
+                const screenPos = worldToScreen(nearest.currentX, nearest.currentY);
+                const barWidth = 60;
+                harvestBar.style.left = (screenPos.x - barWidth / 2) + 'px';
+                harvestBar.style.top = (screenPos.y + 20) + 'px';
+                harvestBar.style.width = barWidth + 'px';
+                harvestBar.style.transform = 'none';
+
+                // Show targeting corners around encounter ship
+                updateEncounterTargeting(nearest);
+
+                if (nearest._dockProgress >= 1) {
+                    openTradeEncounterDialog(nearest);
+                }
+            } else {
+                // Clear any encounter ship dock progress
+                for (const ship of gameState.explorationTraffic) {
+                    if (ship._dockProgress) ship._dockProgress = 0;
+                }
+                // Hide targeting if no encounter ship nearby (and no planet being harvested)
+                if (!gameState.harvestingPlanet && !gameState.boardingTarget) {
+                    hideEncounterTargeting();
+                }
+            }
+        }
+
+        function updateEncounterTargeting(ship) {
+            const overlay = document.getElementById('targetingOverlay');
+            const corners = overlay.querySelectorAll('.targeting-corner');
+
+            const screenPos = worldToScreen(ship.currentX, ship.currentY);
+            const screenSize = (ship.type.scale * 2 / (orthoHeight * 2)) * canvas.clientHeight;
+            const halfSize = Math.max(screenSize, 20);
+
+            const targetColor = '#44dd88';
+            corners.forEach(c => c.style.borderColor = targetColor);
+
+            const positions = [
+                { x: screenPos.x - halfSize - 10, y: screenPos.y - halfSize - 10 },
+                { x: screenPos.x + halfSize - 10, y: screenPos.y - halfSize - 10 },
+                { x: screenPos.x - halfSize - 10, y: screenPos.y + halfSize - 10 },
+                { x: screenPos.x + halfSize - 10, y: screenPos.y + halfSize - 10 }
+            ];
+
+            corners.forEach((corner, i) => {
+                corner.style.display = 'block';
+                corner.style.left = positions[i].x + 'px';
+                corner.style.top = positions[i].y + 'px';
+            });
+        }
+
+        function hideEncounterTargeting() {
+            const overlay = document.getElementById('targetingOverlay');
+            const corners = overlay.querySelectorAll('.targeting-corner');
+            corners.forEach(c => c.style.display = 'none');
+        }
+
+        function updateEncounterIcons() {
+            const container = document.getElementById('encounterIcons');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (!gameState.explorationMode || gameState.zoomLevel < 3) return;
+
+            for (const ship of gameState.explorationTraffic) {
+                if (!ship.alive || !ship.tradeEncounter || ship.encountered) continue;
+                const screenPos = worldToScreen(ship.currentX, ship.currentY);
+                const shipScreenSize = (ship.type.scale * settings.exploreShipScale / (orthoHeight * 2)) * canvas.clientHeight;
+                const iconEl = document.createElement('div');
+                iconEl.className = 'encounter-ship-icon';
+                iconEl.textContent = ship.tradeEncounter._icon;
+                iconEl.style.left = screenPos.x + 'px';
+                iconEl.style.top = (screenPos.y - shipScreenSize / 2 - 4) + 'px';
+                container.appendChild(iconEl);
+            }
+        }
+
         function openDockingScreen() {
             gameState.isDocked = true;
             gameState.stats.stationsDocked++;
@@ -8240,12 +8832,29 @@
             const rumorsContainer = document.getElementById('barRumors');
             const tipsContainer = document.getElementById('barTips');
 
-            // Pick 2-3 random rumors
+            // See planning/world-events.md — dynamic event rumors from active world events
+            const eventRumors = [];
+            if (gameState.world && gameState.world.activeEvents) {
+                const eventSources = ['Worried Trader', 'Merchant Captain', 'Military Officer', 'Station Comms', 'Dock Worker'];
+                for (const evt of gameState.world.activeEvents) {
+                    const evtType = EVENT_TYPES[evt.type];
+                    if (!evtType) continue;
+                    eventRumors.push({
+                        source: eventSources[Math.floor(Math.random() * eventSources.length)],
+                        text: `${evtType.icon} ${evt.newsText}`,
+                        isEvent: true
+                    });
+                }
+            }
+
+            // Pick 2-3 random static rumors
             const shuffledRumors = [...BAR_RUMORS].sort(() => Math.random() - 0.5);
             const selectedRumors = shuffledRumors.slice(0, 2 + Math.floor(Math.random() * 2));
+            // Prepend event rumors before static ones
+            const allRumors = [...eventRumors, ...selectedRumors];
 
-            rumorsContainer.innerHTML = selectedRumors.map(rumor => `
-                <div class="rumor-item">
+            rumorsContainer.innerHTML = allRumors.map(rumor => `
+                <div class="rumor-item${rumor.isEvent ? ' event-rumor' : ''}">
                     <div class="rumor-source">${rumor.source}</div>
                     <div class="rumor-text">"${rumor.text}"</div>
                 </div>
@@ -11677,11 +12286,11 @@
         }
 
         document.addEventListener('touchstart', (e) => {
-            // Allow buttons, inputs, station interior, and mystery event dialog to work normally
+            // Allow buttons, inputs, station interior, and dialog overlays to work normally
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
                 e.target.closest('button') || e.target.closest('#systemMenu') ||
                 e.target.closest('#settingsPanel') || e.target.closest('#confirmDialog') ||
-                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog') || e.target.closest('#bountyRewardDialog')) return;
+                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog') || e.target.closest('#bountyRewardDialog') || e.target.closest('#tradeEncounterDialog')) return;
             if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
                 // Two-finger tap activates secondary ability
@@ -11695,9 +12304,9 @@
         }, { passive: false });
 
         document.addEventListener('touchmove', (e) => {
-            // Allow station interior and mystery event dialog scrolling
+            // Allow station interior and dialog scrolling
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
-                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog') || e.target.closest('#bountyRewardDialog')) return;
+                e.target.closest('#stationInterior') || e.target.closest('#mysteryEventDialog') || e.target.closest('#bountyRewardDialog') || e.target.closest('#tradeEncounterDialog')) return;
             if (gameState.isPlaying && !isPaused() && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
@@ -13514,6 +14123,11 @@
                 if (ship.detectionRingMesh.material) ship.detectionRingMesh.material.dispose();
                 ship.detectionRingMesh.dispose();
                 ship.detectionRingMesh = null;
+            }
+            if (ship._encounterRing) {
+                if (ship._encounterRing.material) ship._encounterRing.material.dispose();
+                ship._encounterRing.dispose();
+                ship._encounterRing = null;
             }
         }
 
@@ -15675,6 +16289,100 @@
             { role: 'raider', model: 'Dispatcher', color: 'Purple', speed: 0.0013, scale: 1.1, faction: 'pirates', strength: 40, warship: true },
         ];
 
+        // See planning/npc-trade-encounters.md
+        const TRADE_ENCOUNTER_TYPES = {
+            cargoDump: {
+                icon: '💰',
+                label: 'Merchant Hail',
+                generate(ship) {
+                    // Pick a random trade good, offer 5-15 units at 50% off
+                    const goodIds = Object.keys(TRADE_GOODS).filter(g => !TRADE_GOODS[g].contraband);
+                    const goodId = goodIds[Math.floor(Math.random() * goodIds.length)];
+                    const good = TRADE_GOODS[goodId];
+                    const quantity = 5 + Math.floor(Math.random() * 11);
+                    const unitPrice = Math.round(good.basePrice * 0.5);
+                    const totalPrice = unitPrice * quantity;
+                    return {
+                        type: 'cargoDump', goodId, quantity, unitPrice, totalPrice,
+                        text: `"We need to offload ${quantity} units of ${good.name} fast. Half price — ${totalPrice} CR total. Interested?"`,
+                        acceptLabel: `Buy (${totalPrice} CR)`
+                    };
+                },
+                canAccept(enc) {
+                    if (gameState.credits < enc.totalPrice) return { ok: false, reason: 'Not enough credits' };
+                    const cargoUsed = Object.values(gameState.cargo.contents).reduce((s, q) => s + q, 0);
+                    if (cargoUsed + enc.quantity > gameState.cargo.capacity) return { ok: false, reason: 'Not enough cargo space' };
+                    return { ok: true };
+                },
+                apply(enc) {
+                    gameState.credits -= enc.totalPrice;
+                    gameState.cargo.contents[enc.goodId] = (gameState.cargo.contents[enc.goodId] || 0) + enc.quantity;
+                }
+            },
+            fuelBuyer: {
+                icon: '⛽',
+                label: 'Distress Signal',
+                generate(ship) {
+                    const quantity = 5 + Math.floor(Math.random() * 16); // 5-20
+                    const unitPrice = Math.round(TRADE_GOODS.fuel.basePrice * 2);
+                    const totalPayout = unitPrice * quantity;
+                    return {
+                        type: 'fuelBuyer', quantity, unitPrice, totalPayout,
+                        text: `"Running on fumes out here. I'll pay ${unitPrice} CR per unit for up to ${quantity} units of fuel. That's double market rate!"`,
+                        acceptLabel: `Sell Fuel (+${totalPayout} CR)`
+                    };
+                },
+                canAccept(enc) {
+                    if (gameState.fuel < 5) return { ok: false, reason: 'Not enough fuel' };
+                    return { ok: true };
+                },
+                apply(enc) {
+                    const sellQty = Math.min(enc.quantity, gameState.fuel);
+                    gameState.fuel -= sellQty;
+                    gameState.credits += enc.unitPrice * sellQty;
+                    enc._soldQty = sellQty;
+                }
+            },
+            tradeIntel: {
+                icon: '📡',
+                label: 'Trader Tip',
+                generate(ship) {
+                    const cost = 50 + Math.floor(Math.random() * 51); // 50-100 CR
+                    // Pick a random non-contraband good
+                    const goodIds = Object.keys(TRADE_GOODS).filter(g => !TRADE_GOODS[g].contraband);
+                    const goodId = goodIds[Math.floor(Math.random() * goodIds.length)];
+                    const good = TRADE_GOODS[goodId];
+                    // Positive spike (demand up = price up) or negative (price down)
+                    const spike = Math.random() < 0.5 ? 0.6 : -0.4;
+                    const direction = spike > 0 ? 'high demand' : 'a surplus';
+                    return {
+                        type: 'tradeIntel', cost, goodId, spike,
+                        text: `"I've got inside info — there's ${direction} for ${good.name} in this system. ${cost} CR for the tip."`,
+                        acceptLabel: `Buy Intel (${cost} CR)`
+                    };
+                },
+                canAccept(enc) {
+                    if (gameState.credits < enc.cost) return { ok: false, reason: 'Not enough credits' };
+                    return { ok: true };
+                },
+                apply(enc) {
+                    gameState.credits -= enc.cost;
+                    // Apply demandSpike to all nodes in current system
+                    const world = gameState.world;
+                    const sysId = gameState.currentSystem;
+                    const sys = world.systems[sysId];
+                    if (sys) {
+                        for (const nodeId of (sys.nodeIds || [])) {
+                            const node = world.nodes[nodeId];
+                            if (node && node.inventory && node.inventory[enc.goodId]) {
+                                node.inventory[enc.goodId].demandSpike = (node.inventory[enc.goodId].demandSpike || 0) + enc.spike;
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
         // Generate a neutral traffic ship heading to or from the sun
         function generateTrafficShip(goalY, forceType, fromEdge) {
             const type = forceType || TRAFFIC_TYPES[Math.floor(Math.random() * TRAFFIC_TYPES.length)];
@@ -16073,6 +16781,50 @@
                 gameState.explorationTraffic.push(ship);
                 createTrafficVisual(ship);
             }
+
+            // Mark 1-2 civilian (non-pirate, non-warship) ships as trade encounter ships
+            const encounterCandidates = gameState.explorationTraffic.filter(
+                s => s.alive && s.type.faction !== 'pirates' && !s.type.warship
+            );
+            const encounterCount = Math.min(1 + Math.floor(Math.random() * 2), encounterCandidates.length);
+            const shuffled = encounterCandidates.sort(() => Math.random() - 0.5);
+            const typeKeys = Object.keys(TRADE_ENCOUNTER_TYPES);
+            for (let i = 0; i < encounterCount; i++) {
+                const ship = shuffled[i];
+                const typeKey = typeKeys[Math.floor(Math.random() * typeKeys.length)];
+                const encType = TRADE_ENCOUNTER_TYPES[typeKey];
+                ship.tradeEncounter = encType.generate(ship);
+                ship.tradeEncounter._icon = encType.icon;
+                ship.tradeEncounter._label = encType.label;
+                ship.encountered = false;
+                createEncounterRing(ship);
+            }
+        }
+
+        function createEncounterRing(ship) {
+            if (!scene || !ship.mesh) return;
+            const ringRadius = (ship.type.scale || 1.0) * settings.exploreShipScale * 1.2;
+            const ring = BABYLON.MeshBuilder.CreateTorus('encounterRing_' + Math.random(), {
+                diameter: ringRadius * 2,
+                thickness: 0.12,
+                tessellation: 32
+            }, scene);
+            ring.position.x = ship.currentX;
+            ring.position.y = ship.currentY;
+            ring.position.z = 0.15;
+            ring.rotation.x = Math.PI / 2;
+
+            const mat = new BABYLON.StandardMaterial('encounterRingMat_' + Math.random(), scene);
+            mat.emissiveColor = new BABYLON.Color3(0.3, 0.85, 0.5);
+            mat.alpha = 0.25;
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            ring.material = mat;
+            ring.renderingGroupId = 1;
+            if (sunGlowLayer) sunGlowLayer.addExcludedMesh(ring);
+            if (lootGlowLayer) lootGlowLayer.addExcludedMesh(ring);
+
+            ship._encounterRing = ring;
         }
 
         // Update traffic ship positions and spawn new ones
@@ -16243,6 +16995,22 @@
                     ship.detectionRingMesh.position.y = ship.currentY;
                 }
 
+                // Update encounter ring position + pulse (create lazily if mesh loaded late)
+                if (ship.tradeEncounter && !ship.encountered && !ship._encounterRing && ship.mesh) {
+                    createEncounterRing(ship);
+                }
+                if (ship._encounterRing) {
+                    if (ship.encountered) {
+                        ship._encounterRing.dispose();
+                        ship._encounterRing = null;
+                    } else {
+                        ship._encounterRing.position.x = ship.currentX;
+                        ship._encounterRing.position.y = ship.currentY;
+                        const pulse = 0.15 + Math.sin(Date.now() * 0.004) * 0.1;
+                        ship._encounterRing.material.alpha = pulse;
+                    }
+                }
+
                 // Remove if route complete or scrolled way off screen
                 const effectiveOrthoH = orthoHeight * gameState.zoomLevel;
                 const effectiveOrthoW = effectiveOrthoH * (gameWidth / gameHeight);
@@ -16283,6 +17051,11 @@
                 disposeTrafficShip(ship);
             });
             gameState.explorationTraffic = [];
+            // Clear encounter state
+            gameState.activeTradeEncounter = null;
+            gameState.tradeEncounterCooldown = null;
+            const encIcons = document.getElementById('encounterIcons');
+            if (encIcons) encIcons.innerHTML = '';
         }
 
         // ========== NPC CONFLICT SYSTEM ==========
@@ -19369,6 +20142,9 @@
             // Restore persistent world data
             if (saveData.world) {
                 gameState.world = saveData.world;
+                // Ensure activeEvents exists for old saves (see planning/world-events.md)
+                if (!gameState.world.activeEvents) gameState.world.activeEvents = [];
+                if (!gameState.world.eventHistory) gameState.world.eventHistory = [];
             }
             if (saveData.cargo) {
                 gameState.cargo = saveData.cargo;
@@ -19856,6 +20632,46 @@
                     }
                 }
             }
+
+            // See planning/world-events.md — draw event markers on affected systems
+            if (world.activeEvents) {
+                for (const evt of world.activeEvents) {
+                    const evtType = EVENT_TYPES[evt.type];
+                    if (!evtType) continue;
+
+                    // Collect systems this event affects
+                    const affectedSysIds = new Set();
+                    if (evt.targetSystem) affectedSysIds.add(evt.targetSystem);
+                    if (evt.targetLane) evt.targetLane.forEach(s => affectedSysIds.add(s));
+                    if (evt.targetNode) {
+                        const node = world.nodes[evt.targetNode];
+                        if (node) affectedSysIds.add(node.systemId);
+                    }
+
+                    for (const sysId of affectedSysIds) {
+                        const sys = world.systems[sysId];
+                        if (!sys || !sys.discovered || sys._screenX === undefined) continue;
+
+                        // Draw event icon badge to the left of the system circle
+                        const radius = sysId === world.currentSystem ? 10 : (sys.visited ? 7 : 5);
+                        const ex = sys._screenX - radius - 14;
+                        const ey = sys._screenY;
+
+                        // Pulsing background circle
+                        const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 300);
+                        ctx.fillStyle = `rgba(200, 80, 40, ${0.3 * pulse})`;
+                        ctx.beginPath();
+                        ctx.arc(ex, ey, 9, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Event icon
+                        ctx.font = '12px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(evtType.icon, ex, ey);
+                    }
+                }
+            }
         }
 
         // Draw a colored arrow with the good's icon at the midpoint
@@ -20078,6 +20894,15 @@
                             }
                             if (exportItems.length) details += ` | Exports: ${exportItems.join(', ')}`;
                             if (importItems.length) details += ` | Needs: ${importItems.join(', ')}`;
+                        }
+                        // See planning/world-events.md — show active events affecting this system
+                        const sysEvents = getSystemEvents(world, closest);
+                        if (sysEvents.length > 0) {
+                            const evtTexts = sysEvents.map(e => {
+                                const et = EVENT_TYPES[e.type];
+                                return `${et ? et.icon : '?'} ${et ? et.name : e.type} (${e.ticksRemaining}t left)`;
+                            });
+                            details += ` | Events: ${evtTexts.join(', ')}`;
                         }
                     }
                 } else {
@@ -20467,6 +21292,10 @@
 
                     // Update traffic ships
                     updateExplorationTraffic(deltaTime, scrollDist);
+
+                    // Check NPC trade encounter proximity and draw icons
+                    checkTradeEncounterProximity(deltaTime);
+                    updateEncounterIcons();
 
                     // Update bounty gate position (scroll with world)
                     if (gameState.bountyGate && gameState.bountyGatePos) {

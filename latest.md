@@ -88,3 +88,72 @@ Flow arrows between connected systems now show the good's icon at the midpoint. 
 - Rewrote `renderTradeOverlay()`: draws icon rows with ▲/▼ labels and subtle colored background bars
 - Rewrote `drawTradeFlowArrow()`: now takes the full `good` object, draws the good's icon at the arrow midpoint
 - Updated star map click handler trade info to use `icon + name + value` format
+
+## World Events Affecting Economy (Feature 7)
+**Design:** [planning/world-events.md](planning/world-events.md)
+
+### What was implemented
+A full world events system that dynamically disrupts the economy. 5 event types spawn randomly each economy tick, apply economic effects (demand spikes, trade flow disruption, industry shutdowns), and are visible to the player through bar rumors, trade overlay markers, and the system info panel.
+
+### Audit Findings
+- `tickWorldEvents()` was a stub — called but did nothing
+- `demandSpike` field existed on inventory items but was never set to non-zero
+- `npcTradeFlow()` had a bug — iterated `sys.nodes` (undefined) instead of `sys.nodeIds`
+- Bar rumors were static flavor text with no connection to world state
+- Convoys existed visually in exploration mode but had no economic impact
+- Phase 4 event design existed in `economy_design_impl.md` but was never coded
+
+### Event Types
+| Type | Icon | Frequency | Duration | Effect |
+|------|------|-----------|----------|--------|
+| Pirate Blockade | ☠ | Common | 4-6 ticks | Reduces NPC trade flow to 20%, spikes rations/medical demand |
+| Industrial Accident | 🔥 | Uncommon | 5-8 ticks | Disables one industry at a node |
+| Military Mobilization | ⚔ | Rare | 3-5 ticks | Spikes munitions/fuel/medical demand |
+| Famine | 🍂 | Uncommon | 4-7 ticks | Spikes rations/biomass demand |
+| Trade Boom | 📈 | Common | 3-5 ticks | Boosts NPC trade flow by 50% |
+
+### Changes
+- New `EVENT_TYPES` constant with 5 event types, each with news templates, effects, duration ranges
+- Rewrote `tickWorldEvents()`: advances/expires events, resets+reapplies demandSpikes, spawns new events (15% chance/tick, max 3 active)
+- New `trySpawnWorldEvent()`: weighted random type selection, finds valid target (lane or node), prevents duplicates
+- New `applyEventDemandSpikes()`: sets `demandSpike` on affected node inventories (feeds into existing price calculation)
+- New `isIndustryDisabledByEvent()`: checked in `worldEconomyTick()` industry loop to skip disabled industries
+- New `getLaneFlowModifier()`: returns combined flow multiplier for a connection from active blockade/boom events
+- New `getSystemEvents()`: returns active events affecting a given system
+- Fixed `npcTradeFlow()`: changed `sys.nodes` to `sys.nodeIds`, added `getLaneFlowModifier()` call
+- Modified `worldEconomyTick()` industry loop: skips industries disabled by events
+- Modified `populateBarSection()`: prepends dynamic event rumors (highlighted with orange border) before static rumors
+- Modified `renderTradeOverlay()`: draws pulsing event icon badges on affected systems
+- Modified star map click handler: shows event names, icons, and ticks remaining in info panel
+- `applySavedState()`: ensures `activeEvents`/`eventHistory` arrays exist for old saves
+- New CSS `.event-rumor` for highlighted event rumors in the bar
+
+## NPC Ship Trade Encounters (Feature 8)
+**Design:** [planning/npc-trade-encounters.md](planning/npc-trade-encounters.md)
+
+### What was implemented
+1-2 civilian NPC ships in each exploration system are marked as trade encounter ships. They display a pulsing green ring and an emoji icon above them (💰/⛽/📡). When the player flies within 3 units, targeting corners appear and a 1-second harvest bar fills. On completion, a dialog offers one of 3 encounter types.
+
+### Encounter Types
+| Type | Icon | Offer |
+|------|------|-------|
+| Cargo Dump | 💰 | Buy 5-15 units of a random good at 50% off base price |
+| Fuel Buyer | ⛽ | Sell fuel at 2x market rate (5-20 units) |
+| Trade Intel | 📡 | Buy a tip (50-100 CR) that applies a demandSpike to a good in the current system |
+
+### Changes
+- New `TRADE_ENCOUNTER_TYPES` constant with 3 types, each with `generate()`, `canAccept()`, `apply()` methods
+- Modified `generateExplorationTraffic()`: marks 1-2 non-pirate non-warship civilians with `ship.tradeEncounter` data
+- New `createEncounterRing(ship)`: pulsing green torus ring around encounter ships
+- New `checkTradeEncounterProximity(deltaTime)`: proximity detection with harvest bar, targeting corners, cooldown handling
+- New `updateEncounterTargeting(ship)` / `hideEncounterTargeting()`: targeting corner overlay
+- New `updateEncounterIcons()`: floating emoji icons above encounter ships (HTML overlay)
+- New `openTradeEncounterDialog(ship)`, `acceptTradeEncounter()`, `declineTradeEncounter()`: dialog flow
+- New `#tradeEncounterDialog` HTML element with Accept/Decline buttons
+- New CSS for encounter dialog, floating icons
+- `disposeTrafficShip()`: cleans up encounter ring mesh
+- `cleanupExplorationTraffic()`: clears encounter state
+- Touch handlers: added `#tradeEncounterDialog` to exclusion list
+- New gameState fields: `activeTradeEncounter`, `tradeEncounterCooldown`
+- Encounter ring position+pulse updated in `updateExplorationTraffic()` loop
+- Lazy ring creation for async mesh loading
