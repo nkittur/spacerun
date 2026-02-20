@@ -2296,35 +2296,20 @@
             text-transform: uppercase;
         }
 
-        /* See planning/ship-outfitter.md — Outfitter layout */
+        /* See planning/ship-outfitter.md — Outfitter single-column layout */
         .outfitter-layout {
             display: flex;
-            gap: 12px;
-            height: 100%;
-            min-height: 0;
-        }
-        .outfitter-left {
-            flex: 0 0 45%;
-            display: flex;
             flex-direction: column;
             gap: 10px;
-            min-height: 0;
-        }
-        .outfitter-right {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            overflow-y: auto;
-            min-height: 0;
         }
         .outfitter-preview {
             position: relative;
             background: #0a0a18;
             border: 1px solid #1a2a3a;
             border-radius: 6px;
-            height: 200px;
+            height: 180px;
             overflow: hidden;
+            flex-shrink: 0;
         }
         .outfitter-preview canvas {
             width: 100%;
@@ -3245,35 +3230,30 @@
             </div>
 
             <!-- Outfitter Section — See planning/ship-outfitter.md -->
+            <!-- Single-column layout: preview at top, then panels stacked vertically -->
             <div id="sectionOutfitter" class="station-section">
                 <h3>Outfitter</h3>
                 <div class="outfitter-layout">
-                    <!-- Left: Ship preview + inventory -->
-                    <div class="outfitter-left">
-                        <div class="outfitter-preview">
-                            <canvas id="outfitterCanvas"></canvas>
-                            <div class="outfitter-ship-label" id="outfitterShipName">Scout</div>
-                        </div>
-                        <div class="outfitter-panel">
-                            <h4>Inventory</h4>
-                            <div id="outfitterInventory"></div>
-                        </div>
+                    <div class="outfitter-preview">
+                        <canvas id="outfitterCanvas"></canvas>
+                        <div class="outfitter-ship-label" id="outfitterShipName">Scout</div>
                     </div>
-                    <!-- Right: Hardpoints, systems, equipment, shop -->
-                    <div class="outfitter-right">
-                        <div class="outfitter-panel">
-                            <h4>Hardpoints</h4>
-                            <div id="outfitterHardpoints"></div>
-                        </div>
-                        <div class="outfitter-panel">
-                            <h4>Systems & Equipment</h4>
-                            <div id="outfitterSystems"></div>
-                            <div id="equipmentList"></div>
-                        </div>
-                        <div class="outfitter-panel">
-                            <h4>Weapon Shop</h4>
-                            <div id="outfitterShop"></div>
-                        </div>
+                    <div class="outfitter-panel">
+                        <h4>Hardpoints</h4>
+                        <div id="outfitterHardpoints"></div>
+                    </div>
+                    <div class="outfitter-panel">
+                        <h4>Systems & Equipment</h4>
+                        <div id="outfitterSystems"></div>
+                        <div id="equipmentList"></div>
+                    </div>
+                    <div class="outfitter-panel">
+                        <h4>Inventory</h4>
+                        <div id="outfitterInventory"></div>
+                    </div>
+                    <div class="outfitter-panel">
+                        <h4>Weapon Shop</h4>
+                        <div id="outfitterShop"></div>
                     </div>
                 </div>
             </div>
@@ -3467,25 +3447,26 @@
         // TRADE GOODS & ECONOMY SYSTEM (Persistent World)
         // =============================================
 
+        // See planning/trade-overlay-v2.md — icons used on trade overlay map
         const TRADE_GOODS = {
             // Tier 0: Raw materials
-            ore:          { name: 'Ore',              tier: 0, basePrice: 20,  symbol: 'ite',  color: '#998877' },
-            hydrocarbons: { name: 'Hydrocarbons',     tier: 0, basePrice: 30,  symbol: 'HC',   color: '#77aadd' },
-            biomass:      { name: 'Biomass',          tier: 0, basePrice: 25,  symbol: 'Bio',  color: '#66cc66' },
+            ore:          { name: 'Ore',              tier: 0, basePrice: 20,  symbol: 'ite',  color: '#998877', icon: '⛏' },
+            hydrocarbons: { name: 'Hydrocarbons',     tier: 0, basePrice: 30,  symbol: 'HC',   color: '#77aadd', icon: '🛢' },
+            biomass:      { name: 'Biomass',          tier: 0, basePrice: 25,  symbol: 'Bio',  color: '#66cc66', icon: '🌿' },
             // Tier 1: Processed
-            metals:       { name: 'Metals',           tier: 1, basePrice: 55,  symbol: 'Met',  color: '#aabbcc' },
-            polymers:     { name: 'Polymers',         tier: 1, basePrice: 50,  symbol: 'Pol',  color: '#cc88aa' },
-            rations:      { name: 'Rations',          tier: 1, basePrice: 45,  symbol: 'Rat',  color: '#ccaa66' },
+            metals:       { name: 'Metals',           tier: 1, basePrice: 55,  symbol: 'Met',  color: '#aabbcc', icon: '⚙' },
+            polymers:     { name: 'Polymers',         tier: 1, basePrice: 50,  symbol: 'Pol',  color: '#cc88aa', icon: '🧪' },
+            rations:      { name: 'Rations',          tier: 1, basePrice: 45,  symbol: 'Rat',  color: '#ccaa66', icon: '🍞' },
             // Tier 2: Manufactured
-            consumerGoods:   { name: 'Consumer Goods', tier: 2, basePrice: 100, symbol: 'Con', color: '#dd99dd' },
-            industrialParts: { name: 'Industrial Parts', tier: 2, basePrice: 120, symbol: 'Ind', color: '#88aacc' },
-            electronics:     { name: 'Electronics',    tier: 2, basePrice: 150, symbol: 'Ele', color: '#44ddff' },
+            consumerGoods:   { name: 'Consumer Goods', tier: 2, basePrice: 100, symbol: 'Con', color: '#dd99dd', icon: '📦' },
+            industrialParts: { name: 'Industrial Parts', tier: 2, basePrice: 120, symbol: 'Ind', color: '#88aacc', icon: '🔩' },
+            electronics:     { name: 'Electronics',    tier: 2, basePrice: 150, symbol: 'Ele', color: '#44ddff', icon: '💡' },
             // Strategic
-            fuel:         { name: 'Fuel',              tier: 1, basePrice: 40,  symbol: 'Fue',  color: '#ffaa44' },
-            medical:      { name: 'Medical Supplies',  tier: 2, basePrice: 180, symbol: 'Med',  color: '#ff6666' },
-            munitions:    { name: 'Munitions',         tier: 2, basePrice: 160, symbol: 'Mun',  color: '#ff4444', restricted: true },
+            fuel:         { name: 'Fuel',              tier: 1, basePrice: 40,  symbol: 'Fue',  color: '#ffaa44', icon: '⛽' },
+            medical:      { name: 'Medical Supplies',  tier: 2, basePrice: 180, symbol: 'Med',  color: '#ff6666', icon: '💊' },
+            munitions:    { name: 'Munitions',         tier: 2, basePrice: 160, symbol: 'Mun',  color: '#ff4444', restricted: true, icon: '💥' },
             // Contraband
-            narcotics:    { name: 'Narcotics',         tier: 2, basePrice: 300, symbol: 'Nar',  color: '#aa44ff', contraband: true }
+            narcotics:    { name: 'Narcotics',         tier: 2, basePrice: 300, symbol: 'Nar',  color: '#aa44ff', contraband: true, icon: '💜' }
         };
 
         // Map legacy planet harvest resources to trade goods
@@ -4973,6 +4954,7 @@
             // Starbase and weapons
             starbase: null,
             isDocked: false,
+            dockCooldownStation: null, // See planning/station-redock-cooldown.md
             credits: 100,       // Starting credits for persistent world
             ownedWeapons: [],  // Now stores full weapon objects
             equippedWeapons: [], // Weapons equipped on hardpoints
@@ -7774,7 +7756,12 @@
             // Check if starbase is fully visible
             const fullyVisible = starbase.position.y < (orthoHeight - starbase.size / 2);
 
-            if (fullyVisible && dist < starbase.dockRadius) {
+            // See planning/station-redock-cooldown.md — clear cooldown once player leaves dock radius
+            if (gameState.dockCooldownStation === starbase && dist >= starbase.dockRadius) {
+                gameState.dockCooldownStation = null;
+            }
+
+            if (fullyVisible && dist < starbase.dockRadius && gameState.dockCooldownStation !== starbase) {
                 // Station always takes priority - clear planet harvesting if active
                 if (gameState.harvestingPlanet) {
                     gameState.harvestingPlanet = null;
@@ -8422,8 +8409,7 @@
                 shipLabel.textContent = gameState.fleet[0].name;
             }
 
-            // Init 3D preview if outfitter section is active
-            initOutfitterPreview();
+            // 3D preview is initialized from switchStationSection() when outfitter becomes visible
         }
 
         // See planning/ship-outfitter.md — 3D ship preview in outfitter canvas.
@@ -8439,6 +8425,24 @@
             const canvas = document.getElementById('outfitterCanvas');
             if (!canvas) return;
 
+            // Wait one frame so the section is laid out and canvas has real dimensions
+            requestAnimationFrame(() => {
+                if (outfitterEngine) return; // Guard against double-init during async gap
+                const container = canvas.parentElement;
+                if (!container) return;
+
+                // Set canvas pixel dimensions from the container's rendered size
+                const rect = container.getBoundingClientRect();
+                if (rect.width < 10 || rect.height < 10) return; // Not visible yet
+                canvas.width = Math.round(rect.width * window.devicePixelRatio);
+                canvas.height = Math.round(rect.height * window.devicePixelRatio);
+
+                _createOutfitterEngine(canvas);
+            });
+        }
+
+        // Separated so the rAF callback stays clean
+        function _createOutfitterEngine(canvas) {
             // Lightweight engine+scene just for the ship preview
             outfitterEngine = new BABYLON.Engine(canvas, true, {
                 preserveDrawingBuffer: true, stencil: true
@@ -8613,6 +8617,10 @@
             }
             if (sectionName === 'missions') {
                 populateMissionBoard();
+            }
+            // Initialize 3D ship preview when outfitter becomes visible
+            if (sectionName === 'outfitter') {
+                initOutfitterPreview();
             }
         }
 
@@ -8790,6 +8798,8 @@
         // Close station interior and depart
         function departStarbase() {
             disposeOutfitterPreview(); // Clean up 3D preview if it was open
+            // See planning/station-redock-cooldown.md — prevent instant re-dock
+            gameState.dockCooldownStation = gameState.starbase;
             gameState.isDocked = false;
             releasePause('docked');
             document.getElementById('stationInterior').style.display = 'none';
@@ -19733,8 +19743,13 @@
             return { produces, consumes, surplus, goods };
         }
 
-        // Draw trade overlay badges and flow arrows on the star map canvas
+        // See planning/trade-overlay-v2.md — icon-based trade overlay on star map.
+        // Shows emoji icon rows for exports (surplus goods) above each system and
+        // imports (deficit goods) below the system name. Flow arrows between
+        // connected systems show which goods are being traded.
         function renderTradeOverlay(ctx, world, toScreen) {
+            const iconSize = 11;
+
             for (const sysId in world.systems) {
                 const sys = world.systems[sysId];
                 if (!sys.discovered || !sys.visited) continue;
@@ -19743,59 +19758,78 @@
                 if (!profile) continue;
 
                 const p = toScreen(sys);
+                const isCurrent = sysId === world.currentSystem;
+                const radius = isCurrent ? 10 : (sys.visited ? 7 : 5);
 
-                // Count goods in surplus (>10) and deficit (<-10)
-                let surplusCount = 0, deficitCount = 0;
-                const surplusList = [];
-                const deficitList = [];
+                // Collect exports (surplus > 10) and imports (deficit < -10), limit to top 4 each
+                const exports = [];
+                const imports = [];
                 for (const g in profile.surplus) {
-                    if (profile.surplus[g] > 10) {
-                        surplusCount++;
-                        surplusList.push({ id: g, val: profile.surplus[g] });
-                    } else if (profile.surplus[g] < -10) {
-                        deficitCount++;
-                        deficitList.push({ id: g, val: profile.surplus[g] });
-                    }
+                    if (!TRADE_GOODS[g]) continue;
+                    if (profile.surplus[g] > 10) exports.push({ id: g, val: profile.surplus[g] });
+                    else if (profile.surplus[g] < -10) imports.push({ id: g, val: profile.surplus[g] });
+                }
+                exports.sort((a, b) => b.val - a.val);
+                imports.sort((a, b) => a.val - b.val);
+                const topExports = exports.slice(0, 4);
+                const topImports = imports.slice(0, 4);
+
+                // Draw exports row (above system) — green underline
+                if (topExports.length > 0) {
+                    const rowWidth = topExports.length * (iconSize + 2);
+                    const startX = p.x - rowWidth / 2;
+                    const rowY = p.y - radius - 18;
+
+                    // Subtle green background bar
+                    ctx.fillStyle = 'rgba(34, 170, 68, 0.15)';
+                    ctx.fillRect(startX - 2, rowY - 2, rowWidth + 4, iconSize + 4);
+                    ctx.strokeStyle = 'rgba(34, 170, 68, 0.4)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(startX - 2, rowY - 2, rowWidth + 4, iconSize + 4);
+
+                    // "▲" label
+                    ctx.fillStyle = '#44cc66';
+                    ctx.font = '8px sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('▲', startX - 4, rowY + iconSize / 2);
+
+                    // Draw good icons
+                    ctx.font = `${iconSize}px sans-serif`;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    topExports.forEach((item, i) => {
+                        ctx.fillText(TRADE_GOODS[item.id].icon, startX + i * (iconSize + 2), rowY);
+                    });
                 }
 
-                // Draw production dots (small colored squares above-left of system)
-                const prodGoods = Object.keys(profile.produces);
-                const dotSize = 4;
-                const dotGap = 2;
-                const dotsStartX = p.x - ((prodGoods.length * (dotSize + dotGap)) / 2);
-                prodGoods.forEach((g, i) => {
-                    const tg = TRADE_GOODS[g];
-                    if (!tg) return;
-                    ctx.fillStyle = tg.color;
-                    ctx.fillRect(dotsStartX + i * (dotSize + dotGap), p.y - 18, dotSize, dotSize);
-                });
+                // Draw imports row (below system name) — orange underline
+                if (topImports.length > 0) {
+                    const rowWidth = topImports.length * (iconSize + 2);
+                    const startX = p.x - rowWidth / 2;
+                    const rowY = p.y + radius + 22;
 
-                // Draw surplus badge (green, top-right)
-                if (surplusCount > 0) {
-                    const bx = p.x + 12, by = p.y - 10;
-                    ctx.fillStyle = '#22aa44';
-                    ctx.beginPath();
-                    ctx.arc(bx, by, 7, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 9px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('+' + surplusCount, bx, by);
-                }
+                    // Subtle orange background bar
+                    ctx.fillStyle = 'rgba(204, 120, 34, 0.15)';
+                    ctx.fillRect(startX - 2, rowY - 2, rowWidth + 4, iconSize + 4);
+                    ctx.strokeStyle = 'rgba(204, 120, 34, 0.4)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(startX - 2, rowY - 2, rowWidth + 4, iconSize + 4);
 
-                // Draw deficit badge (red, bottom-right)
-                if (deficitCount > 0) {
-                    const bx = p.x + 12, by = p.y + 4;
-                    ctx.fillStyle = '#cc3333';
-                    ctx.beginPath();
-                    ctx.arc(bx, by, 7, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 9px sans-serif';
-                    ctx.textAlign = 'center';
+                    // "▼" label
+                    ctx.fillStyle = '#cc8822';
+                    ctx.font = '8px sans-serif';
+                    ctx.textAlign = 'right';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText('-' + deficitCount, bx, by);
+                    ctx.fillText('▼', startX - 4, rowY + iconSize / 2);
+
+                    // Draw good icons
+                    ctx.font = `${iconSize}px sans-serif`;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    topImports.forEach((item, i) => {
+                        ctx.fillText(TRADE_GOODS[item.id].icon, startX + i * (iconSize + 2), rowY);
+                    });
                 }
 
                 // Draw flow arrows from selected system to this one
@@ -19805,20 +19839,18 @@
                         const selProfile = getSystemTradeProfile(starmapSelectedSystem);
                         if (selProfile) {
                             const sp = toScreen(selSys);
-                            // Check each good for flow direction
                             let flowIdx = 0;
                             for (const g in TRADE_GOODS) {
                                 const selSurplus = selProfile.surplus[g] || 0;
                                 const thisSurplus = profile.surplus[g] || 0;
-                                // Flow from surplus to deficit
                                 if (selSurplus > 5 && thisSurplus < -5) {
-                                    drawTradeFlowArrow(ctx, sp, p, TRADE_GOODS[g].color, flowIdx);
+                                    drawTradeFlowArrow(ctx, sp, p, TRADE_GOODS[g], flowIdx);
                                     flowIdx++;
                                 } else if (thisSurplus > 5 && selSurplus < -5) {
-                                    drawTradeFlowArrow(ctx, p, sp, TRADE_GOODS[g].color, flowIdx);
+                                    drawTradeFlowArrow(ctx, p, sp, TRADE_GOODS[g], flowIdx);
                                     flowIdx++;
                                 }
-                                if (flowIdx >= 4) break; // Limit visual clutter
+                                if (flowIdx >= 4) break;
                             }
                         }
                     }
@@ -19826,8 +19858,8 @@
             }
         }
 
-        // Draw a colored arrow from one point to another, offset for parallel arrows
-        function drawTradeFlowArrow(ctx, from, to, color, offsetIndex) {
+        // Draw a colored arrow with the good's icon at the midpoint
+        function drawTradeFlowArrow(ctx, from, to, good, offsetIndex) {
             const dx = to.x - from.x;
             const dy = to.y - from.y;
             const len = Math.sqrt(dx * dx + dy * dy);
@@ -19836,14 +19868,15 @@
             // Perpendicular offset so parallel arrows don't overlap
             const perpX = -dy / len;
             const perpY = dx / len;
-            const offset = (offsetIndex - 1.5) * 4;
+            const offset = (offsetIndex - 1.5) * 6;
 
-            const x1 = from.x + perpX * offset + dx * 0.25;
-            const y1 = from.y + perpY * offset + dy * 0.25;
-            const x2 = from.x + perpX * offset + dx * 0.75;
-            const y2 = from.y + perpY * offset + dy * 0.75;
+            const x1 = from.x + perpX * offset + dx * 0.2;
+            const y1 = from.y + perpY * offset + dy * 0.2;
+            const x2 = from.x + perpX * offset + dx * 0.8;
+            const y2 = from.y + perpY * offset + dy * 0.8;
 
-            ctx.strokeStyle = color + 'aa';
+            // Arrow line
+            ctx.strokeStyle = good.color + 'aa';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(x1, y1);
@@ -19852,16 +19885,24 @@
 
             // Arrowhead
             const arrowLen = 6;
-            const ndx = (x2 - x1) / Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-            const ndy = (y2 - y1) / Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const aLen = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) || 1;
+            const ndx = (x2 - x1) / aLen;
+            const ndy = (y2 - y1) / aLen;
             ctx.beginPath();
             ctx.moveTo(x2, y2);
             ctx.lineTo(x2 - ndx * arrowLen + ndy * arrowLen * 0.5, y2 - ndy * arrowLen - ndx * arrowLen * 0.5);
             ctx.moveTo(x2, y2);
             ctx.lineTo(x2 - ndx * arrowLen - ndy * arrowLen * 0.5, y2 - ndy * arrowLen + ndx * arrowLen * 0.5);
             ctx.stroke();
-
             ctx.lineWidth = 1;
+
+            // Good icon at midpoint
+            const mx = (x1 + x2) / 2 + perpX * offset * 0.3;
+            const my = (y1 + y2) / 2 + perpY * offset * 0.3;
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(good.icon, mx, my);
         }
 
         function renderStarMap() {
@@ -20022,22 +20063,21 @@
                     const nodeNames = (sys.nodeIds || []).map(nid => world.nodes[nid]?.name || nid).join(', ');
                     details += ` | ${nodeNames}`;
 
-                    // See planning/supply-chain-map.md — append trade info when overlay is on
+                    // See planning/trade-overlay-v2.md — append trade info with icons when overlay is on
                     if (starmapTradeOverlay) {
                         const profile = getSystemTradeProfile(closest);
                         if (profile) {
-                            const prodNames = Object.keys(profile.produces)
-                                .map(g => TRADE_GOODS[g]?.name || g).join(', ');
-                            const surplusItems = [];
-                            const deficitItems = [];
+                            const exportItems = [];
+                            const importItems = [];
                             for (const g in profile.surplus) {
+                                const tg = TRADE_GOODS[g];
+                                if (!tg) continue;
                                 const val = Math.round(profile.surplus[g]);
-                                if (val > 10) surplusItems.push(`${TRADE_GOODS[g]?.symbol || g} +${val}`);
-                                else if (val < -10) deficitItems.push(`${TRADE_GOODS[g]?.symbol || g} ${val}`);
+                                if (val > 10) exportItems.push(`${tg.icon} ${tg.name} (+${val})`);
+                                else if (val < -10) importItems.push(`${tg.icon} ${tg.name} (${val})`);
                             }
-                            if (prodNames) details += ` | Produces: ${prodNames}`;
-                            if (surplusItems.length) details += ` | Surplus: ${surplusItems.join(', ')}`;
-                            if (deficitItems.length) details += ` | Needs: ${deficitItems.join(', ')}`;
+                            if (exportItems.length) details += ` | Exports: ${exportItems.join(', ')}`;
+                            if (importItems.length) details += ` | Needs: ${importItems.join(', ')}`;
                         }
                     }
                 } else {

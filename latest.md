@@ -52,15 +52,39 @@ The Outfitter station tab now has a visual two-column layout with a 3D ship prev
 **Design:** [planning/supply-chain-map.md](planning/supply-chain-map.md)
 
 ### What was implemented
-A "Trade Overlay" toggle on the star map shows supply chain information for visited systems: production dots (colored by trade good), surplus/deficit badges (green/red circles with counts), trade flow arrows between connected systems, and detailed trade info in the system details panel.
+A "Trade Overlay" toggle on the star map shows supply chain information for visited systems. Toggle button in the star map header activates the overlay.
 
 ### Changes
 - New HTML: `starmapTradeToggle` button in star map header
 - New CSS: `.starmap-trade-toggle` with active state styling
 - New `starmapTradeOverlay` boolean toggle
 - New `getSystemTradeProfile(sysId)`: aggregates node inventories, industry outputs/inputs, and population consumption for a system — returns `{ produces, consumes, surplus, goods }`
-- New `renderTradeOverlay(ctx, world, toScreen)`: draws production dots, surplus/deficit badges, and trade flow arrows on the star map canvas
-- New `drawTradeFlowArrow()`: colored directional arrows between systems showing NPC trade flows
 - `renderStarMap()`: calls `renderTradeOverlay()` when toggle is active
-- Star map click handler: appends trade info (produces, surplus, needs) to system details when overlay is on
 - Toggle button listener toggles state and re-renders map
+
+## Station Re-docking Cooldown (Feature 5)
+**Design:** [planning/station-redock-cooldown.md](planning/station-redock-cooldown.md)
+
+### What was implemented
+After departing a station, the docking proximity check is suppressed until the player physically leaves the dock radius. This prevents the immediate re-dock that occurred because `departStarbase()` places the player at `starbase.y - 1`, which is still within `dockRadius` of 2.0.
+
+### Changes
+- Added `gameState.dockCooldownStation` (null by default)
+- `departStarbase()`: sets `dockCooldownStation = gameState.starbase`
+- Docking proximity check: skips if `dockCooldownStation === starbase`
+- Each frame: clears cooldown when player moves outside `starbase.dockRadius`
+
+## Improved Trade Overlay (Feature 6)
+**Design:** [planning/trade-overlay-v2.md](planning/trade-overlay-v2.md)
+
+### What was implemented
+Replaced the v1 trade overlay (colored dots + confusing green/red numbered circles) with an icon-based approach. Each trade good now has an emoji icon. Systems show two labeled rows:
+- **Exports row** (▲, green-tinted): emoji icons for goods in surplus, above the system circle
+- **Needs row** (▼, orange-tinted): emoji icons for goods in deficit, below the system name
+Flow arrows between connected systems now show the good's icon at the midpoint. Info panel shows "Exports: icon Name (+val)" and "Needs: icon Name (val)".
+
+### Changes
+- Added `icon` property to every `TRADE_GOODS` entry (ore=⛏, metals=⚙, rations=🍞, fuel=⛽, etc.)
+- Rewrote `renderTradeOverlay()`: draws icon rows with ▲/▼ labels and subtle colored background bars
+- Rewrote `drawTradeFlowArrow()`: now takes the full `good` object, draws the good's icon at the arrow midpoint
+- Updated star map click handler trade info to use `icon + name + value` format
