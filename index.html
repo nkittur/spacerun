@@ -9573,6 +9573,12 @@
 
                 cleanupExploration();
                 gameState.explorationMode = false;
+
+                // Reset player ship scale to normal before startNewLevel re-scales for exploration
+                if (playerShipMesh) {
+                    playerShipMesh.scaling.scaleInPlace(1 / settings.exploreShipScale);
+                }
+
                 startNewLevel(config);
                 saveGame();
                 showSavedNotification();
@@ -11450,8 +11456,9 @@
                 }
             } else {
                 // Normal combat mode: direct input
-                const exploreSpeedMult = 1.0;
-                const keySpeed = 0.004 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * exploreSpeedMult * deltaTime;
+                // When warp is held, boost movement to exploration-level speed
+                const warpBoost = gameState.speedUp ? 2.0 : 1.0;
+                const keySpeed = 0.004 * settings.shipSpeed * getSpeedMultiplier() * godModeSpeedMult * warpBoost * deltaTime;
                 if (keyState.left) playerShip.targetX -= keySpeed;
                 if (keyState.right) playerShip.targetX += keySpeed;
                 if (keyState.up) playerShip.targetY += keySpeed;
@@ -19864,8 +19871,9 @@
                 // ========== NORMAL COMBAT MODE (encounter or level-end) ==========
                 let scrollMultiplier = updatePlayerPosition(deltaTime) * speedMultiplier;
                 // Slow scroll in system/reward view for calmer pace after exploration
+                // Warp button overrides the damper for faster travel
                 if (gameState.levelEndSpawned || gameState.showingGates) {
-                    scrollMultiplier *= 0.35;
+                    scrollMultiplier *= gameState.speedUp ? 0.8 : 0.35;
                 }
                 updateBackgrounds(scrollMultiplier * 0.25, deltaTime);
 
