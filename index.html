@@ -8405,8 +8405,8 @@
             const corners = overlay.querySelectorAll('.targeting-corner');
 
             const screenPos = worldToScreen(ship.currentX, ship.currentY);
-            const screenSize = (ship.type.scale * 2 / (orthoHeight * 2)) * canvas.clientHeight;
-            const halfSize = Math.max(screenSize, 20);
+            const screenSize = (ship.type.scale * settings.exploreShipScale / (orthoHeight * 2)) * canvas.clientHeight;
+            const halfSize = Math.max(screenSize / 2, 14);
 
             const targetColor = '#44dd88';
             corners.forEach(c => c.style.borderColor = targetColor);
@@ -16889,7 +16889,7 @@
 
         function createEncounterRing(ship) {
             if (!scene || !ship.mesh) return;
-            const ringRadius = (ship.type.scale || 1.0) * settings.exploreShipScale * 1.2;
+            const ringRadius = (ship.type.scale || 1.0) * settings.exploreShipScale * 0.6;
             const ring = BABYLON.MeshBuilder.CreateTorus('encounterRing_' + Math.random(), {
                 diameter: ringRadius * 2,
                 thickness: 0.12,
