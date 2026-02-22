@@ -1,5 +1,81 @@
 # Latest Changes
 
+## Dynamic Security & Pirate Ecosystem (Feature 11)
+**Design:** [planning/dynamic-security.md](planning/dynamic-security.md)
+
+### What was implemented
+A living security ecosystem where pirates, patrols, and convoys interact to create cascading trade opportunities. Security is no longer static — it fluctuates based on patrol presence vs pirate presence, creating dynamic gameplay.
+
+### Systems
+
+**Dynamic Security Level:**
+- `baseSecurity` (original static 0-5), `piratePresence` (0.0-3.0), `patrolPresence` (0.0-3.0), `effectiveSecurity` (computed)
+- `effectiveSecurity = clamp(baseSecurity + patrolPresence - piratePresence, 0, 5)`
+- `sys.security` updated to `effectiveSecurity` each tick so all existing code works
+
+**Patrol Pool & Production:**
+- Global `world.patrols = { total, maxCap }` pool
+- Military nodes with `ordnanceWorks` consume 2 munitions + 1 fuel per tick → increase pool by 0.1
+- Without production, pool decays by 0.03/tick (attrition)
+
+**Pirate Growth & Migration:**
+- Growth: `growthRate = max(0, (2 - effectiveSecurity) * 0.12)` per tick
+- Decay: `-0.08/tick` when `effectiveSecurity >= 4`
+- Migration: When `patrolPresence > piratePresence * 0.6`, pirates overflow to connected lower-security systems
+
+**Patrol Redistribution:**
+- Each tick: transfer up to 0.5 patrol from lowest-threat to highest-threat system
+- Priority weighting: military > core > industrial > others
+- Reserve deployment: if reserve > 0.5 and a system has high pirates + low patrols
+
+**NPC Trade Convoys:**
+- `world.activeConvoys[]` with `{ goodId, quantity, sourceSys, destSys, ticksRemaining, protection }`
+- Spawn when surplus > 20 at source and deficit < -20 at destination (40% chance per eligible route)
+- Transit 1-2 ticks, deliver goods on arrival
+- Pirate interception: `chance = routePiratePresence * 0.15 * (1 - protection/5)`
+- Intercepted → goods lost, destination gets `demandSpike += 0.6`, `convoyDestroyed` world event
+- Max 4 active convoys
+
+**Security Response Events:**
+- When `piratePresence > 1.5` for 2+ consecutive ticks → `securityResponse` event created
+- Visible as bar rumor: "Patrols redeploying to [System] in response to pirate activity"
+
+### Exploration Mode
+- Pirate count now scales with `piratePresence`: `floor(piratePresence + random())`
+- Patrol ships spawn based on `patrolPresence`: federation warships with `isPatrol` flag
+- `patrolling` behavior: travel route + scan 20-unit radius for pirates → switch to `hunting`
+- Patrol ships return to `patrolling` after hunt timeout
+- Convoy ships: 2-3 civilian clusters with 📦 icon, escort warship if protection >= 3
+
+### Star Map
+- ☠ icon next to systems with `piratePresence > 0.8` (double skull if >= 2.0)
+- 🛡 icon next to systems with `patrolPresence > 0.5`
+- Selection card shows pirate/patrol levels in meta line
+
+### Bar Rumors
+- Dynamic security rumors: pirate surges, patrol withdrawals
+- Convoy route rumors when active convoys exist
+- Max 2 security rumors per bar visit
+
+### Save/Load
+- Old saves migrated: `baseSecurity`, `piratePresence`, `patrolPresence`, `effectiveSecurity` initialized from existing `security`
+- `world.patrols` and `world.activeConvoys` created if missing
+
+### Changes
+- `generateWorld()`: Added `baseSecurity`, `piratePresence`, `patrolPresence`, `effectiveSecurity` to systems; `world.patrols`, `world.activeConvoys`
+- New `tickSecurity(world)`: patrol production, pirate growth/migration, patrol redistribution, security response events, effectiveSecurity recompute
+- New `tickConvoys(world)`: convoy advance/delivery, pirate interception, convoy spawning
+- `worldEconomyTick()`: calls `tickSecurity()` and `tickConvoys()` each tick
+- `EVENT_TYPES`: added `securityResponse` and `convoyDestroyed` (frequency: 0, never randomly spawned)
+- `generateExplorationTraffic()`: dynamic pirate count from `piratePresence`, patrol ships from `patrolPresence`, convoy ship clusters with 📦 icons
+- `updateExplorationTraffic()`: new `patrolling` behavior — route following + pirate scanning within 20 units
+- Hunting give-up: patrol ships return to `patrolling` instead of `traveling`
+- `updateEncounterIcons()`: also renders 📦 icons for convoy lead ships
+- `renderStarMap()`: ☠ and 🛡 indicators after security pips
+- `updateSelectionCard()`: pirate/patrol info in meta line
+- `populateBarSection()`: security rumors (pirate surges, patrol gaps) + convoy rumors
+- `applySavedState()`: migrates old saves with dynamic security fields
+
 ## Gate Star Map Lock (Feature 1)
 **Design:** [planning/gate-map-lock.md](planning/gate-map-lock.md)
 

@@ -683,6 +683,48 @@
             border-color: #4a8;
             color: #66ddaa;
         }
+        #starmapDebugToggle.active {
+            background: #2a1a1a;
+            border-color: #886633;
+            color: #ddaa66;
+        }
+        .security-debug-panel {
+            position: absolute;
+            right: 8px;
+            top: 50px;
+            bottom: 8px;
+            width: 260px;
+            background: rgba(8, 8, 20, 0.92);
+            border: 1px solid #333;
+            border-radius: 4px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 10px;
+            color: #aaa;
+            padding: 6px;
+            z-index: 10;
+        }
+        .sdp-section { margin-bottom: 8px; }
+        .sdp-title {
+            color: #888;
+            font-size: 9px;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 2px;
+            margin-bottom: 4px;
+        }
+        .sdp-entry { line-height: 1.4; padding: 1px 0; }
+        .sdp-entry.pirate { color: #dd8844; }
+        .sdp-entry.patrol { color: #4488cc; }
+        .sdp-entry.convoy { color: #44cccc; }
+        .sdp-entry.event { color: #ddaa66; }
+        .sdp-tick-hdr {
+            color: #666;
+            font-size: 9px;
+            border-top: 1px solid #2a2a3a;
+            margin-top: 4px;
+            padding-top: 2px;
+        }
         #starmapCloseBtn {
             background: #443;
             border: 1px solid #665;
@@ -3539,6 +3581,7 @@
             <h2>Star Map</h2>
             <span id="starmapFuelDisplay">Fuel: 100</span>
             <button id="starmapTradeToggle" class="starmap-trade-toggle">Trade Overlay</button>
+            <button id="starmapDebugToggle" class="starmap-trade-toggle active">Security Debug</button>
             <button id="starmapCloseBtn">Close</button>
         </div>
         <canvas id="starmapCanvas" width="800" height="600"></canvas>
@@ -3568,6 +3611,11 @@
             <div class="starmap-card-actions">
                 <button id="starmapJumpBtn" style="display:none;">Jump (<span id="starmapFuelCost">0</span> Fuel)</button>
             </div>
+        </div>
+        <div id="securityDebugPanel" class="security-debug-panel">
+            <div class="sdp-section"><div class="sdp-title">GLOBAL STATE</div><div id="sdpGlobal"></div></div>
+            <div class="sdp-section"><div class="sdp-title">ACTIVE CONVOYS</div><div id="sdpConvoys"></div></div>
+            <div class="sdp-section"><div class="sdp-title">TICK LOG</div><div id="sdpLog"></div></div>
         </div>
     </div>
 
@@ -4117,11 +4165,303 @@
                 // 3. NPC trade flows (abstract: smooth out extreme imbalances between connected nodes)
                 npcTradeFlow(world);
 
-                // 4. Tick events
+                // 4. Dynamic security: patrols, pirate growth/migration, security recalc
+                tickSecurity(world);
+
+                // 5. Trade convoys: spawn, advance, intercept, deliver
+                tickConvoys(world);
+
+                // 6. Tick events
                 tickWorldEvents(world);
             }
 
             world.tickCount = (world.tickCount || 0) + ticks;
+        }
+
+        // Security debug tick log — keeps last 10 tick frames for overlay display
+        let securityTickLog = [];
+
+        // See planning/dynamic-security.md — tick security ecosystem each economy tick
+        function tickSecurity(world) {
+            if (!world.patrols) world.patrols = { total: 8, maxCap: 14 };
+
+            // Start a new log frame for this tick
+            const logFrame = { tick: world.tickCount || 0, entries: [] };
+            securityTickLog.push(logFrame);
+            if (securityTickLog.length > 10) securityTickLog.shift();
+            world._currentLogFrame = logFrame;
+
+            // 1. Patrol production — military nodes with ordnanceWorks consume munitions+fuel
+            let anyMilProduction = false;
+            for (const nodeId in world.nodes) {
+                const node = world.nodes[nodeId];
+                if (!node || node.type !== 'military') continue;
+                if (!(node.industries || []).includes('ordnanceWorks')) continue;
+                const inv = node.inventory;
+                if (inv && inv.munitions && inv.fuel &&
+                    inv.munitions.stock >= 2 && inv.fuel.stock >= 1) {
+                    inv.munitions.stock -= 2;
+                    inv.fuel.stock -= 1;
+                    world.patrols.total = Math.min(world.patrols.maxCap, world.patrols.total + 0.1);
+                    anyMilProduction = true;
+                }
+            }
+            // Attrition when no military production
+            if (!anyMilProduction) {
+                world.patrols.total = Math.max(0, world.patrols.total - 0.03);
+            }
+            logFrame.entries.push({ cat: 'patrol', text: `Patrols: ${world.patrols.total.toFixed(2)}/${world.patrols.maxCap} (${anyMilProduction ? 'producing' : 'attrition'})` });
+
+            // 2. Pirate growth — grows in low-security, decays in high-security
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                const growthRate = Math.max(0, (2 - sys.effectiveSecurity) * 0.12);
+                const oldPirate = sys.piratePresence;
+                sys.piratePresence = Math.min(3.0, sys.piratePresence + growthRate);
+                // Decay in high security
+                if (sys.effectiveSecurity >= 4) {
+                    sys.piratePresence = Math.max(0, sys.piratePresence - 0.08);
+                }
+                const delta = sys.piratePresence - oldPirate;
+                if (Math.abs(delta) > 0.001) {
+                    logFrame.entries.push({ cat: 'pirate', text: `${sys.name}: pirate ${delta > 0 ? '+' : ''}${delta.toFixed(3)} → ${sys.piratePresence.toFixed(2)}` });
+                }
+            }
+
+            // 3. Pirate migration — patrols push pirates to connected lower-security systems
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                if (sys.patrolPresence > sys.piratePresence * 0.6 && sys.piratePresence > 0.1) {
+                    const overflow = sys.piratePresence * 0.25;
+                    const neighbors = (sys.connections || []).filter(cid => {
+                        const cs = world.systems[cid];
+                        return cs && cs.effectiveSecurity < sys.effectiveSecurity;
+                    });
+                    if (neighbors.length > 0) {
+                        sys.piratePresence -= overflow;
+                        const share = overflow / neighbors.length;
+                        for (const nid of neighbors) {
+                            world.systems[nid].piratePresence = Math.min(3.0, world.systems[nid].piratePresence + share);
+                        }
+                        logFrame.entries.push({ cat: 'pirate', text: `Migration: ${sys.name} → ${neighbors.map(n => world.systems[n].name).join(', ')} (${overflow.toFixed(2)})` });
+                    }
+                }
+            }
+
+            // 4. Patrol redistribution — move patrols from low-threat to high-threat systems
+            let totalDeployed = 0;
+            let mostThreatened = null, mostThreatVal = -Infinity;
+            let canSpare = null, canSpareVal = Infinity;
+            const typePriority = { military: 4, core: 3, industrial: 2, agri: 1, extractor: 1, frontier: 0 };
+
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                totalDeployed += sys.patrolPresence;
+                const threat = sys.piratePresence - sys.patrolPresence;
+                // Weighted by system importance
+                const pri = Math.max(...(sys.nodeIds || []).map(nid => {
+                    const n = world.nodes[nid];
+                    return n ? (typePriority[n.type] || 0) : 0;
+                }), 0);
+                const weightedThreat = threat + pri * 0.2;
+                if (weightedThreat > mostThreatVal) {
+                    mostThreatVal = weightedThreat;
+                    mostThreatened = sysId;
+                }
+                if (sys.patrolPresence > 0.3 && sys.piratePresence < canSpareVal) {
+                    canSpareVal = sys.piratePresence;
+                    canSpare = sysId;
+                }
+            }
+
+            // Transfer up to 0.5 patrol per tick from low-threat to high-threat
+            if (mostThreatened && canSpare && mostThreatened !== canSpare && mostThreatVal > 0) {
+                const transfer = Math.min(0.5, world.systems[canSpare].patrolPresence - 0.1);
+                if (transfer > 0) {
+                    world.systems[canSpare].patrolPresence -= transfer;
+                    world.systems[mostThreatened].patrolPresence += transfer;
+                    logFrame.entries.push({ cat: 'patrol', text: `Transfer: ${world.systems[canSpare].name} → ${world.systems[mostThreatened].name} (${transfer.toFixed(2)})` });
+                }
+            }
+
+            // Deploy from reserve if needed
+            const reserve = world.patrols.total - totalDeployed;
+            if (reserve > 0.5 && mostThreatened) {
+                const sys = world.systems[mostThreatened];
+                if (sys.piratePresence > 1.0 && sys.patrolPresence < 1.0) {
+                    const deploy = Math.min(0.5, reserve);
+                    sys.patrolPresence += deploy;
+                    logFrame.entries.push({ cat: 'patrol', text: `Reserve deploy: ${deploy.toFixed(2)} → ${sys.name}` });
+                }
+            }
+
+            // 5. Security response events — when pirate presence is very high
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                if (sys.piratePresence > 1.5) {
+                    // Track consecutive ticks of high pirate presence
+                    sys._highPirateTicks = (sys._highPirateTicks || 0) + 1;
+                    if (sys._highPirateTicks >= 2) {
+                        // Check if we already have a security response event for this system
+                        const hasResponse = world.activeEvents.some(e =>
+                            e.type === 'securityResponse' && e.targetSystem === sysId);
+                        if (!hasResponse) {
+                            world.activeEvents.push({
+                                type: 'securityResponse',
+                                targetSystem: sysId,
+                                ticksRemaining: 2,
+                                newsText: `Patrols redeploying to ${sys.name} in response to pirate activity`
+                            });
+                            logFrame.entries.push({ cat: 'event', text: `Security response: ${sys.name} (pirate ${sys.piratePresence.toFixed(2)})` });
+                        }
+                        sys._highPirateTicks = 0;
+                    }
+                } else {
+                    sys._highPirateTicks = 0;
+                }
+            }
+
+            // 6. Recompute effectiveSecurity for all systems
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                sys.effectiveSecurity = Math.round(Math.max(0, Math.min(5,
+                    sys.baseSecurity + sys.patrolPresence - sys.piratePresence)));
+                // Update sys.security so all existing code (npcTradeFlow, map pips, etc.) works
+                sys.security = sys.effectiveSecurity;
+            }
+        }
+
+        // See planning/dynamic-security.md — tick convoy system each economy tick
+        function tickConvoys(world) {
+            if (!world.activeConvoys) world.activeConvoys = [];
+            const logFrame = world._currentLogFrame;
+
+            // 1. Advance existing convoys and resolve arrivals
+            for (let i = world.activeConvoys.length - 1; i >= 0; i--) {
+                const convoy = world.activeConvoys[i];
+                convoy.ticksRemaining--;
+
+                if (convoy.ticksRemaining <= 0) {
+                    // Deliver goods to destination node
+                    const destSys = world.systems[convoy.destSys];
+                    if (destSys) {
+                        for (const nodeId of (destSys.nodeIds || [])) {
+                            const node = world.nodes[nodeId];
+                            if (node && node.inventory && node.inventory[convoy.goodId]) {
+                                node.inventory[convoy.goodId].stock += convoy.quantity;
+                                break; // Deliver to first node that handles this good
+                            }
+                        }
+                        const goodName = TRADE_GOODS[convoy.goodId] ? TRADE_GOODS[convoy.goodId].name : convoy.goodId;
+                        if (logFrame) logFrame.entries.push({ cat: 'convoy', text: `Delivered: ${convoy.quantity} ${goodName} → ${destSys.name}` });
+                    }
+                    world.activeConvoys.splice(i, 1);
+                    continue;
+                }
+
+                // 2. Pirate interception check
+                const srcSys = world.systems[convoy.sourceSys];
+                const dstSys = world.systems[convoy.destSys];
+                if (!srcSys || !dstSys) continue;
+                const routePiratePresence = (srcSys.piratePresence + dstSys.piratePresence) / 2;
+                const interceptChance = routePiratePresence * 0.15 * (1 - convoy.protection / 5);
+                if (Math.random() < interceptChance) {
+                    // Convoy intercepted — goods lost, demand spike at destination
+                    const goodName = TRADE_GOODS[convoy.goodId] ? TRADE_GOODS[convoy.goodId].name : convoy.goodId;
+                    if (logFrame) logFrame.entries.push({ cat: 'convoy', text: `Intercepted! ${goodName} ${srcSys.name}→${dstSys.name}` });
+                    for (const nodeId of (dstSys.nodeIds || [])) {
+                        const node = world.nodes[nodeId];
+                        if (node && node.inventory && node.inventory[convoy.goodId]) {
+                            node.inventory[convoy.goodId].demandSpike = (node.inventory[convoy.goodId].demandSpike || 0) + 0.6;
+                        }
+                    }
+                    // Create convoy destroyed event
+                    const newsTemplates = EVENT_TYPES.convoyDestroyed.newsTemplates;
+                    const newsText = newsTemplates[Math.floor(Math.random() * newsTemplates.length)]
+                        .replace('{sys1}', srcSys.name).replace('{sys2}', dstSys.name)
+                        .replace('{good}', goodName);
+                    world.activeEvents.push({
+                        type: 'convoyDestroyed',
+                        targetLane: [convoy.sourceSys, convoy.destSys],
+                        ticksRemaining: 3,
+                        newsText,
+                        _goodId: convoy.goodId,
+                        _destSys: convoy.destSys
+                    });
+                    // Pirate success attracts more pirates
+                    srcSys.piratePresence = Math.min(3.0, srcSys.piratePresence + 0.15);
+                    dstSys.piratePresence = Math.min(3.0, dstSys.piratePresence + 0.15);
+                    world.activeConvoys.splice(i, 1);
+                }
+            }
+
+            // 3. Spawn new convoys — max 4 active at a time
+            if (world.activeConvoys.length >= 4) { delete world._currentLogFrame; return; }
+
+            const processed = new Set();
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                for (const connId of (sys.connections || [])) {
+                    const pairKey = [sysId, connId].sort().join('-');
+                    if (processed.has(pairKey)) continue;
+                    processed.add(pairKey);
+
+                    const connSys = world.systems[connId];
+                    if (!connSys) continue;
+
+                    // Check for surplus→deficit flows between connected systems
+                    for (const nodeIdA of (sys.nodeIds || [])) {
+                        for (const nodeIdB of (connSys.nodeIds || [])) {
+                            const nodeA = world.nodes[nodeIdA];
+                            const nodeB = world.nodes[nodeIdB];
+                            if (!nodeA || !nodeB) continue;
+
+                            for (const goodId in TRADE_GOODS) {
+                                if (world.activeConvoys.length >= 4) return;
+                                const invA = nodeA.inventory?.[goodId];
+                                const invB = nodeB.inventory?.[goodId];
+                                if (!invA || !invB) continue;
+
+                                let sourceSys, destSys, surplus;
+                                const surpA = invA.stock - invA.desiredStock;
+                                const surpB = invB.stock - invB.desiredStock;
+
+                                if (surpA > 20 && surpB < -20) {
+                                    sourceSys = sysId; destSys = connId; surplus = surpA;
+                                } else if (surpB > 20 && surpA < -20) {
+                                    sourceSys = connId; destSys = sysId; surplus = surpB;
+                                } else continue;
+
+                                // Don't spawn duplicate convoy for same good on same route
+                                const hasDup = world.activeConvoys.some(c =>
+                                    c.goodId === goodId && c.sourceSys === sourceSys && c.destSys === destSys);
+                                if (hasDup) continue;
+
+                                // 40% chance to spawn per eligible route per tick (not every route every tick)
+                                if (Math.random() > 0.4) continue;
+
+                                const quantity = Math.floor(surplus * 0.2);
+                                const srcSec = world.systems[sourceSys].effectiveSecurity;
+                                const dstSec = world.systems[destSys].effectiveSecurity;
+                                const protection = Math.round(Math.min(srcSec, dstSec));
+                                const convoyQty = Math.max(5, quantity);
+                                world.activeConvoys.push({
+                                    id: 'convoy_' + Math.floor(Math.random() * 99999),
+                                    goodId,
+                                    quantity: convoyQty,
+                                    sourceSys,
+                                    destSys,
+                                    ticksRemaining: 1 + Math.floor(Math.random() * 2), // 1-2 ticks
+                                    protection
+                                });
+                                const goodName = TRADE_GOODS[goodId] ? TRADE_GOODS[goodId].name : goodId;
+                                if (logFrame) logFrame.entries.push({ cat: 'convoy', text: `Spawned: ${convoyQty} ${goodName} ${world.systems[sourceSys].name}→${world.systems[destSys].name} (prot:${protection})` });
+                            }
+                        }
+                    }
+                }
+            }
+            delete world._currentLogFrame;
         }
 
         // NPC trade flows: move goods between connected nodes at ~30% efficiency
@@ -4248,6 +4588,31 @@
                     'Trade flourishing between {sys1} and {sys2}',
                     'Record cargo volumes on the {sys1}-{sys2} route',
                     'Merchant guilds report booming trade between {sys1} and {sys2}'
+                ]
+            },
+            // Dynamic security events — never randomly spawned, created by tickSecurity/tickConvoys
+            securityResponse: {
+                name: 'Security Response',
+                icon: '🛡',
+                frequency: 0,
+                targetType: 'system',
+                durationRange: [2, 2],
+                effects: {},
+                newsTemplates: [
+                    'Patrols redeploying to {sys1} in response to pirate activity',
+                    'Security reinforcements dispatched to {sys1}'
+                ]
+            },
+            convoyDestroyed: {
+                name: 'Convoy Destroyed',
+                icon: '💀',
+                frequency: 0,
+                targetType: 'lane',
+                durationRange: [3, 3],
+                effects: { demandSpike: {} },
+                newsTemplates: [
+                    'Trade convoy destroyed between {sys1} and {sys2}',
+                    'Pirates ambush cargo shipment on the {sys1}-{sys2} route'
                 ]
             }
         };
@@ -4469,17 +4834,24 @@
                 lastDockedNode: 'haven_orbital',
                 tickCount: 0,
                 activeEvents: [],
-                eventHistory: []
+                eventHistory: [],
+                patrols: { total: 8, maxCap: 14 },
+                activeConvoys: []
             };
 
             for (const sysId in systems) {
                 const sys = systems[sysId];
+                const baseSec = sys.security;
                 world.systems[sysId] = {
                     name: sys.name,
                     x: sys.x, y: sys.y,
                     starType: sys.starType,
                     faction: sys.faction,
-                    security: sys.security,
+                    security: baseSec,
+                    baseSecurity: baseSec,
+                    piratePresence: Math.max(0, (3 - baseSec) * 0.5),
+                    patrolPresence: Math.max(0, (baseSec - 2) * 0.5),
+                    effectiveSecurity: baseSec,
                     connections: sys.connections,
                     nodeIds: Object.keys(sys.nodes),
                     discovered: sysId === 'haven' || sysId === 'nexus' || sysId === 'dust',
@@ -8516,16 +8888,34 @@
 
             if (!gameState.explorationMode || gameState.zoomLevel < 3) return;
 
+            const shownConvoyIds = new Set();
             for (const ship of gameState.explorationTraffic) {
-                if (!ship.alive || !ship.tradeEncounter || ship.encountered) continue;
-                const screenPos = worldToScreen(ship.currentX, ship.currentY);
-                const shipScreenSize = (ship.type.scale * settings.exploreShipScale / (orthoHeight * 2)) * canvas.clientHeight;
-                const iconEl = document.createElement('div');
-                iconEl.className = 'encounter-ship-icon';
-                iconEl.textContent = ship.tradeEncounter._icon;
-                iconEl.style.left = screenPos.x + 'px';
-                iconEl.style.top = (screenPos.y - shipScreenSize / 2 - 4) + 'px';
-                container.appendChild(iconEl);
+                if (!ship.alive) continue;
+
+                // Trade encounter icons
+                if (ship.tradeEncounter && !ship.encountered) {
+                    const screenPos = worldToScreen(ship.currentX, ship.currentY);
+                    const shipScreenSize = (ship.type.scale * settings.exploreShipScale / (orthoHeight * 2)) * canvas.clientHeight;
+                    const iconEl = document.createElement('div');
+                    iconEl.className = 'encounter-ship-icon';
+                    iconEl.textContent = ship.tradeEncounter._icon;
+                    iconEl.style.left = screenPos.x + 'px';
+                    iconEl.style.top = (screenPos.y - shipScreenSize / 2 - 4) + 'px';
+                    container.appendChild(iconEl);
+                }
+
+                // Convoy icon — show once per convoy cluster (on the first ship)
+                if (ship.isConvoy && ship._convoyId && !shownConvoyIds.has(ship._convoyId)) {
+                    shownConvoyIds.add(ship._convoyId);
+                    const screenPos = worldToScreen(ship.currentX, ship.currentY);
+                    const shipScreenSize = (ship.type.scale * settings.exploreShipScale / (orthoHeight * 2)) * canvas.clientHeight;
+                    const iconEl = document.createElement('div');
+                    iconEl.className = 'encounter-ship-icon';
+                    iconEl.textContent = '📦';
+                    iconEl.style.left = screenPos.x + 'px';
+                    iconEl.style.top = (screenPos.y - shipScreenSize / 2 - 4) + 'px';
+                    container.appendChild(iconEl);
+                }
             }
         }
 
@@ -8975,6 +9365,46 @@
                     eventRumors.push({
                         source: eventSources[Math.floor(Math.random() * eventSources.length)],
                         text: `${evtType.icon} ${evt.newsText}`,
+                        isEvent: true
+                    });
+                }
+            }
+
+            // Security-related dynamic rumors
+            if (gameState.world) {
+                const secSources = ['Retired Pilot', 'Station Security', 'Nervous Merchant', 'Bounty Hunter'];
+                const secRumors = [];
+                for (const sysId in gameState.world.systems) {
+                    const sys = gameState.world.systems[sysId];
+                    if (!sys.visited) continue;
+                    if (sys.piratePresence > 1.5) {
+                        secRumors.push({
+                            source: secSources[Math.floor(Math.random() * secSources.length)],
+                            text: `☠ Pirate activity surging in ${sys.name} — traders avoiding the area`,
+                            isEvent: true
+                        });
+                    }
+                    if (sys.patrolPresence < 0.3 && sys.baseSecurity >= 3) {
+                        secRumors.push({
+                            source: secSources[Math.floor(Math.random() * secSources.length)],
+                            text: `🛡 Patrols pulled out of ${sys.name} — sector left vulnerable`,
+                            isEvent: true
+                        });
+                    }
+                }
+                // Limit to 2 security rumors max
+                const shuffledSec = secRumors.sort(() => Math.random() - 0.5).slice(0, 2);
+                eventRumors.push(...shuffledSec);
+
+                // Convoy-related rumors
+                if (gameState.world.activeConvoys && gameState.world.activeConvoys.length > 0) {
+                    const c = gameState.world.activeConvoys[0];
+                    const srcName = gameState.world.systems[c.sourceSys]?.name || c.sourceSys;
+                    const dstName = gameState.world.systems[c.destSys]?.name || c.destSys;
+                    const goodName = TRADE_GOODS[c.goodId]?.name || c.goodId;
+                    eventRumors.push({
+                        source: secSources[Math.floor(Math.random() * secSources.length)],
+                        text: `📦 Trade convoy carrying ${goodName} en route from ${srcName} to ${dstName}`,
                         isEvent: true
                     });
                 }
@@ -16925,8 +17355,10 @@
                 }
             }
 
-            // Spawn a couple pirates to create early tension
-            const pirateCount = 1 + Math.floor(Math.random() * 2); // 1-2
+            // Spawn pirates — count scales with system's piratePresence
+            const curSys = gameState.world?.systems[gameState.world?.currentSystem];
+            const pirateLevel = curSys?.piratePresence || 0.5;
+            const pirateCount = Math.max(0, Math.floor(pirateLevel + Math.random()));
             const playerStartX = 0, playerStartY = -7;
             const minPirateDistFromPlayer = 15; // Must spawn outside this radius
             for (let i = 0; i < pirateCount; i++) {
@@ -16944,6 +17376,84 @@
                 );
                 gameState.explorationTraffic.push(ship);
                 createTrafficVisual(ship);
+            }
+
+            // Spawn patrol ships — count scales with system's patrolPresence
+            const patrolLevel = curSys?.patrolPresence || 0;
+            const patrolCount = Math.max(0, Math.floor(patrolLevel + 0.3));
+            const patrolWarships = TRAFFIC_TYPES.filter(t => t.faction === 'federation' && t.warship);
+            for (let i = 0; i < patrolCount; i++) {
+                const type = patrolWarships[Math.floor(Math.random() * patrolWarships.length)];
+                const ship = generateTrafficShip(goalY, type);
+                ship.progress = Math.random() * 0.6;
+                ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
+                ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+                ship.isPatrol = true;
+                ship.behavior = 'patrolling';
+                gameState.explorationTraffic.push(ship);
+                createTrafficVisual(ship);
+            }
+
+            // Spawn convoy ships for active convoys touching this system
+            if (gameState.world?.activeConvoys) {
+                const currentSysId = gameState.world.currentSystem;
+                const convoyTypes = civilianTypes.filter(t => t.role === 'tanker' || t.role === 'carrier' || t.role === 'trader');
+                for (const convoy of gameState.world.activeConvoys) {
+                    if (convoy.sourceSys !== currentSysId && convoy.destSys !== currentSysId) continue;
+                    const clusterSize = 2 + Math.floor(Math.random() * 2); // 2-3 ships
+                    const leadType = convoyTypes[Math.floor(Math.random() * convoyTypes.length)] || civilianTypes[0];
+                    const leadShip = generateTrafficShip(goalY, leadType);
+                    leadShip.progress = Math.random() * 0.4 + 0.1;
+                    leadShip.currentX = leadShip.startX + (leadShip.endX - leadShip.startX) * leadShip.progress;
+                    leadShip.currentY = leadShip.startY + (leadShip.endY - leadShip.startY) * leadShip.progress;
+                    leadShip.isConvoy = true;
+                    leadShip._convoyId = convoy.id;
+                    gameState.explorationTraffic.push(leadShip);
+                    createTrafficVisual(leadShip);
+
+                    for (let c = 1; c < clusterSize; c++) {
+                        const wingType = convoyTypes[Math.floor(Math.random() * convoyTypes.length)] || civilianTypes[0];
+                        const wingShip = generateTrafficShip(goalY, wingType);
+                        const routeLen = Math.sqrt((leadShip.endX - leadShip.startX) ** 2 + (leadShip.endY - leadShip.startY) ** 2);
+                        const perpX = -Math.sin(leadShip.heading);
+                        const perpY = Math.cos(leadShip.heading);
+                        const offset = (c % 2 === 0 ? 1 : -1) * (3 + Math.random() * 3);
+                        wingShip.startX = leadShip.startX + perpX * offset;
+                        wingShip.startY = leadShip.startY + perpY * offset;
+                        wingShip.endX = wingShip.startX + Math.cos(leadShip.heading) * routeLen;
+                        wingShip.endY = wingShip.startY + Math.sin(leadShip.heading) * routeLen;
+                        wingShip.heading = leadShip.heading;
+                        wingShip.progress = leadShip.progress + (Math.random() - 0.5) * 0.1;
+                        wingShip.currentX = wingShip.startX + (wingShip.endX - wingShip.startX) * wingShip.progress;
+                        wingShip.currentY = wingShip.startY + (wingShip.endY - wingShip.startY) * wingShip.progress;
+                        wingShip.isConvoy = true;
+                        wingShip._convoyId = convoy.id;
+                        gameState.explorationTraffic.push(wingShip);
+                        createTrafficVisual(wingShip);
+                    }
+
+                    // If well-protected, add an escort warship
+                    if (convoy.protection >= 3) {
+                        const escortType = patrolWarships.length > 0
+                            ? patrolWarships[Math.floor(Math.random() * patrolWarships.length)]
+                            : TRAFFIC_TYPES.find(t => t.warship && t.faction === 'federation');
+                        if (escortType) {
+                            const escort = generateTrafficShip(goalY, escortType);
+                            escort.startX = leadShip.startX + 4;
+                            escort.startY = leadShip.startY - 3;
+                            escort.endX = escort.startX + Math.cos(leadShip.heading) * 60;
+                            escort.endY = escort.startY + Math.sin(leadShip.heading) * 60;
+                            escort.heading = leadShip.heading;
+                            escort.progress = leadShip.progress;
+                            escort.currentX = escort.startX + (escort.endX - escort.startX) * escort.progress;
+                            escort.currentY = escort.startY + (escort.endY - escort.startY) * escort.progress;
+                            escort.isConvoy = true;
+                            escort._convoyId = convoy.id;
+                            gameState.explorationTraffic.push(escort);
+                            createTrafficVisual(escort);
+                        }
+                    }
+                }
             }
 
             // Mark 1-2 civilian (non-pirate, non-warship) ships as trade encounter ships
@@ -17051,8 +17561,8 @@
                         ship.currentX += Math.cos(ship.heading) * huntSpeed;
                         ship.currentY += Math.sin(ship.heading) * huntSpeed;
                     } else {
-                        // Give up hunting - resume traveling with a new patrol route
-                        ship.behavior = 'traveling';
+                        // Give up hunting - resume traveling/patrolling with a new route
+                        ship.behavior = ship.isPatrol ? 'patrolling' : 'traveling';
                         ship.huntTarget = null;
                         ship.huntTimer = 0;
                         // Set new route: continue forward from current position
@@ -17091,6 +17601,51 @@
                             ship.behavior = 'fighting';
                         }
                     }
+                } else if (ship.behavior === 'patrolling') {
+                    // Patrol ships: travel their route but scan for nearby pirates
+                    const dx = ship.endX - ship.startX;
+                    const dy = ship.endY - ship.startY;
+                    const routeLen = Math.sqrt(dx * dx + dy * dy);
+                    if (routeLen > 0) {
+                        ship.progress += (ship.speed * deltaTime) / routeLen;
+                    }
+                    ship.currentX = ship.startX + (ship.endX - ship.startX) * ship.progress;
+                    ship.currentY = ship.startY + (ship.endY - ship.startY) * ship.progress;
+                    const rdx = ship.endX - ship.startX;
+                    const rdy = ship.endY - ship.startY;
+                    ship.heading = Math.atan2(rdy, rdx);
+
+                    // Scan for nearby pirate ships within 20 units
+                    let closestPirate = null, closestPirateDist = 20;
+                    for (const other of gameState.explorationTraffic) {
+                        if (!other.alive || other === ship || other.type.faction !== 'pirates') continue;
+                        const pdx = other.currentX - ship.currentX;
+                        const pdy = other.currentY - ship.currentY;
+                        const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
+                        if (pdist < closestPirateDist) {
+                            closestPirateDist = pdist;
+                            closestPirate = other;
+                        }
+                    }
+                    if (closestPirate) {
+                        ship.behavior = 'hunting';
+                        ship.huntTarget = closestPirate;
+                        ship.huntTimer = 0;
+                        ship.huntMaxTime = 12000 + Math.random() * 6000;
+                    }
+
+                    // If route finished, set a new patrol sweep route
+                    if (ship.progress >= 1.0) {
+                        ship.startX = ship.currentX;
+                        ship.startY = ship.currentY;
+                        const newHeading = ship.heading + (Math.random() - 0.5) * 2.0;
+                        const newRouteLen = 30 + Math.random() * 40;
+                        ship.endX = ship.currentX + Math.cos(newHeading) * newRouteLen;
+                        ship.endY = ship.currentY + Math.sin(newHeading) * newRouteLen;
+                        ship.heading = newHeading;
+                        ship.progress = 0;
+                    }
+
                 } else if (ship.behavior === 'fleeing' || ship.behavior === 'damaged_fleeing') {
                     // Flee in chosen direction
                     const fleeSpeed = ship.behavior === 'damaged_fleeing'
@@ -20326,6 +20881,22 @@
                 // Ensure activeEvents exists for old saves (see planning/world-events.md)
                 if (!gameState.world.activeEvents) gameState.world.activeEvents = [];
                 if (!gameState.world.eventHistory) gameState.world.eventHistory = [];
+                // Initialize dynamic security fields for old saves (see planning/dynamic-security.md)
+                if (!gameState.world.patrols) {
+                    gameState.world.patrols = { total: 8, maxCap: 14 };
+                }
+                if (!gameState.world.activeConvoys) {
+                    gameState.world.activeConvoys = [];
+                }
+                for (const sysId in gameState.world.systems) {
+                    const sys = gameState.world.systems[sysId];
+                    if (sys.baseSecurity === undefined) {
+                        sys.baseSecurity = sys.security;
+                        sys.piratePresence = Math.max(0, (3 - sys.security) * 0.5);
+                        sys.patrolPresence = Math.max(0, (sys.security - 2) * 0.5);
+                        sys.effectiveSecurity = sys.security;
+                    }
+                }
             }
             if (saveData.cargo) {
                 gameState.cargo = saveData.cargo;
@@ -20626,6 +21197,10 @@
             renderStarMap();
             document.getElementById('starmapFuelDisplay').textContent = `Fuel: ${gameState.fuel}/${gameState.maxFuel} | Range: ${getJumpRange()} hop${getJumpRange() > 1 ? 's' : ''}`;
 
+            // Show/hide security debug panel based on toggle state
+            document.getElementById('securityDebugPanel').style.display = starmapSecurityDebug ? '' : 'none';
+            document.getElementById('starmapDebugToggle').classList.toggle('active', starmapSecurityDebug);
+
             // See planning/gate-map-lock.md — gate-opened map is not closeable
             const closeBtn = document.getElementById('starmapCloseBtn');
             closeBtn.style.display = gameState.atWarpGate ? 'none' : '';
@@ -20662,6 +21237,133 @@
         // Aggregates all node inventories in a system to show what it produces,
         // consumes, and its current surplus/deficit per good.
         let starmapTradeOverlay = false;
+        let starmapSecurityDebug = true; // enabled by default
+
+        // Canvas overlay: per-system security data boxes and convoy route lines
+        function renderSecurityDebugOverlay(ctx, world, toScreen) {
+            ctx.save();
+            for (const sysId in world.systems) {
+                const sys = world.systems[sysId];
+                if (!sys.visited || sys._screenX === undefined) continue;
+                const p = toScreen(sys);
+                const boxX = p.x + (sys._screenR || 12) + 8;
+                const boxY = p.y - 14;
+
+                // Semi-transparent background
+                ctx.fillStyle = 'rgba(5, 5, 15, 0.8)';
+                ctx.fillRect(boxX - 2, boxY - 9, 80, 24);
+                ctx.strokeStyle = 'rgba(60, 60, 80, 0.5)';
+                ctx.lineWidth = 0.5;
+                ctx.strokeRect(boxX - 2, boxY - 9, 80, 24);
+
+                ctx.font = '9px monospace';
+                ctx.textAlign = 'left';
+
+                // Line 1: pirate + patrol presence
+                const pirate = (sys.piratePresence || 0).toFixed(2);
+                const patrol = (sys.patrolPresence || 0).toFixed(2);
+                ctx.fillStyle = '#dd6644';
+                ctx.fillText('\u2620' + pirate, boxX, boxY);
+                ctx.fillStyle = '#4488cc';
+                ctx.fillText('\uD83D\uDEE1' + patrol, boxX + 38, boxY);
+
+                // Line 2: effective security bar + base security
+                const eff = sys.effectiveSecurity || 0;
+                const base = sys.baseSecurity || 0;
+                const barY = boxY + 10;
+                ctx.fillStyle = '#44aa44';
+                ctx.fillText('E:' + eff, boxX, barY);
+                // Draw mini bar
+                for (let i = 0; i < 5; i++) {
+                    ctx.fillStyle = i < eff ? '#44aa44' : '#222';
+                    ctx.fillRect(boxX + 18 + i * 7, barY - 6, 5, 5);
+                }
+                ctx.fillStyle = '#888';
+                ctx.fillText('B:' + base, boxX + 56, barY);
+            }
+
+            // Draw convoy routes as dashed cyan lines
+            if (world.activeConvoys) {
+                for (const convoy of world.activeConvoys) {
+                    const srcSys = world.systems[convoy.sourceSys];
+                    const dstSys = world.systems[convoy.destSys];
+                    if (!srcSys || !dstSys || !srcSys.discovered || !dstSys.discovered) continue;
+                    const p1 = toScreen(srcSys);
+                    const p2 = toScreen(dstSys);
+
+                    ctx.strokeStyle = 'rgba(68, 204, 204, 0.6)';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Label at midpoint
+                    const mx = (p1.x + p2.x) / 2;
+                    const my = (p1.y + p2.y) / 2;
+                    const goodName = TRADE_GOODS[convoy.goodId] ? TRADE_GOODS[convoy.goodId].name : convoy.goodId;
+                    ctx.fillStyle = 'rgba(5, 5, 15, 0.8)';
+                    ctx.fillRect(mx - 25, my - 7, 50, 12);
+                    ctx.font = '8px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#44cccc';
+                    ctx.fillText(convoy.quantity + ' ' + goodName, mx, my + 3);
+                }
+            }
+            ctx.restore();
+        }
+
+        // Update the HTML debug panel with global state, convoys, and tick log
+        function updateSecurityDebugPanel() {
+            const world = gameState.world;
+            if (!world) return;
+            const panel = document.getElementById('securityDebugPanel');
+            if (!panel || panel.style.display === 'none') return;
+
+            // Global state
+            const patrols = world.patrols || { total: 0, maxCap: 14 };
+            let totalDeployed = 0;
+            for (const sysId in world.systems) {
+                totalDeployed += (world.systems[sysId].patrolPresence || 0);
+            }
+            const reserve = patrols.total - totalDeployed;
+            const activeEvents = (world.activeEvents || []).length;
+            document.getElementById('sdpGlobal').innerHTML =
+                `<div class="sdp-entry patrol">Patrols: ${patrols.total.toFixed(2)} / ${patrols.maxCap}</div>` +
+                `<div class="sdp-entry patrol">Deployed: ${totalDeployed.toFixed(2)} | Reserve: ${reserve.toFixed(2)}</div>` +
+                `<div class="sdp-entry">Tick: ${world.tickCount || 0} | Events: ${activeEvents}</div>`;
+
+            // Active convoys
+            const convoys = world.activeConvoys || [];
+            if (convoys.length === 0) {
+                document.getElementById('sdpConvoys').innerHTML = '<div class="sdp-entry" style="color:#555;">None</div>';
+            } else {
+                document.getElementById('sdpConvoys').innerHTML = convoys.map(c => {
+                    const srcName = world.systems[c.sourceSys] ? world.systems[c.sourceSys].name : '?';
+                    const dstName = world.systems[c.destSys] ? world.systems[c.destSys].name : '?';
+                    const goodName = TRADE_GOODS[c.goodId] ? TRADE_GOODS[c.goodId].name : c.goodId;
+                    return `<div class="sdp-entry convoy">${srcName}\u2192${dstName}: ${c.quantity} ${goodName} (${c.ticksRemaining}t, prot:${c.protection})</div>`;
+                }).join('');
+            }
+
+            // Tick log (newest first)
+            const logEl = document.getElementById('sdpLog');
+            if (securityTickLog.length === 0) {
+                logEl.innerHTML = '<div class="sdp-entry" style="color:#555;">No ticks yet</div>';
+            } else {
+                let html = '';
+                for (let i = securityTickLog.length - 1; i >= 0; i--) {
+                    const frame = securityTickLog[i];
+                    html += `<div class="sdp-tick-hdr">Tick ${frame.tick}</div>`;
+                    for (const entry of frame.entries) {
+                        html += `<div class="sdp-entry ${entry.cat}">${entry.text}</div>`;
+                    }
+                }
+                logEl.innerHTML = html;
+            }
+        }
 
         function getSystemTradeProfile(sysId) {
             const world = gameState.world;
@@ -20973,7 +21675,10 @@
             const faction = sys.faction.charAt(0).toUpperCase() + sys.faction.slice(1);
             const secDots = '<span style="color:#44aa44">' + '●'.repeat(sys.security) + '</span>' +
                 '<span style="color:#333">' + '○'.repeat(5 - sys.security) + '</span>';
-            document.getElementById('starmapSystemMeta').innerHTML = `${faction} | ${secDots}`;
+            let metaExtra = '';
+            if (sys.piratePresence > 0.8) metaExtra += ` | <span style="color:#cc6644">☠ ${sys.piratePresence >= 2 ? 'High' : 'Low'}</span>`;
+            if (sys.patrolPresence > 0.5) metaExtra += ` | <span style="color:#4488cc">🛡 ${Math.round(sys.patrolPresence)}</span>`;
+            document.getElementById('starmapSystemMeta').innerHTML = `${faction} | ${secDots}${metaExtra}`;
 
             // Buying / Selling columns
             const buyList = document.getElementById('starmapBuyingList');
@@ -21273,6 +21978,22 @@
                         ctx.fillStyle = i < sys.security ? '#44aa44' : '#333';
                         ctx.fillRect(p.x - 12 + i * 5, pipY, 4, 3);
                     }
+
+                    // Pirate threat indicator
+                    if (sys.piratePresence > 0.8) {
+                        ctx.font = '10px sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.fillStyle = sys.piratePresence >= 2.0 ? '#ff4444' : '#cc6644';
+                        const skulls = sys.piratePresence >= 2.0 ? '☠☠' : '☠';
+                        ctx.fillText(skulls, p.x + radius + 4, p.y - 2);
+                    }
+                    // Patrol indicator
+                    if (sys.patrolPresence > 0.5) {
+                        ctx.font = '10px sans-serif';
+                        ctx.textAlign = 'right';
+                        ctx.fillStyle = '#4488cc';
+                        ctx.fillText('🛡', p.x - radius - 4, p.y - 2);
+                    }
                 }
 
                 // Store screen coords for hit testing
@@ -21286,6 +22007,12 @@
             // See planning/supply-chain-map.md — draw trade overlay when toggled
             if (starmapTradeOverlay) {
                 renderTradeOverlay(ctx, world, toScreen);
+            }
+
+            // Security debug overlay on star map
+            if (starmapSecurityDebug) {
+                renderSecurityDebugOverlay(ctx, world, toScreen);
+                updateSecurityDebugPanel();
             }
         }
 
@@ -21373,12 +22100,30 @@
         document.getElementById('starmapTradeToggle').addEventListener('click', () => {
             starmapTradeOverlay = !starmapTradeOverlay;
             document.getElementById('starmapTradeToggle').classList.toggle('active', starmapTradeOverlay);
+            // Mutual exclusion: deactivate security debug when activating trade
             if (starmapTradeOverlay) {
+                starmapSecurityDebug = false;
+                document.getElementById('starmapDebugToggle').classList.remove('active');
+                document.getElementById('securityDebugPanel').style.display = 'none';
                 startStarmapAnimation();
             } else {
                 stopStarmapAnimation();
                 renderStarMap();
             }
+        });
+
+        // Security debug overlay toggle
+        document.getElementById('starmapDebugToggle').addEventListener('click', () => {
+            starmapSecurityDebug = !starmapSecurityDebug;
+            document.getElementById('starmapDebugToggle').classList.toggle('active', starmapSecurityDebug);
+            document.getElementById('securityDebugPanel').style.display = starmapSecurityDebug ? '' : 'none';
+            // Mutual exclusion: deactivate trade overlay when activating debug
+            if (starmapSecurityDebug) {
+                starmapTradeOverlay = false;
+                document.getElementById('starmapTradeToggle').classList.remove('active');
+                stopStarmapAnimation();
+            }
+            renderStarMap();
         });
 
         // Star map button — see planning/jump-drive-equipment.md
