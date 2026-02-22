@@ -175,3 +175,65 @@ The trade overlay showed production/consumption for systems, but players couldn'
 - HTML: added `#stationSubtitle` element, `#tradingNodeInfo` element
 - `applySavedState()`: migrates legacy station format (string[] → object[]) for old saves
 - Backward compat: legacy string station entries wrapped in objects automatically
+
+## Star Map Mobile UX Overhaul (Feature 10)
+
+### What was implemented
+Five improvements to the galactic star map for mobile usability and trade information clarity.
+
+### 1. Shape-Coded System Markers
+Systems now have distinct shapes based on their primary economy type, replacing uniform circles:
+- Core (population centers): Circle, blue `#88ccff`
+- Industrial (manufacturing): Hexagon, orange `#dd8833`
+- Agricultural: Circle, green `#44cc44`
+- Mining/Extraction: Diamond, copper `#cc8866`
+- Military: Pentagon, red-orange `#ff6644`
+- Frontier: Triangle, muted `#999966`
+
+Sizes increased to 9-14px radius (from 5-10) for better touch targets. Faction shown as subtle outline ring. Priority system determines primary type when a system has multiple node types.
+
+### 2. Fuel Range Bubble + Unreachable Dimming
+- Translucent radial gradient circle around current system showing max fuel range
+- Dashed border at range edge
+- Unreachable systems and their connections drawn at 30-35% opacity
+
+### 3. Selection Card (Bottom Sheet)
+Replaced the flat text info bar with a structured bottom card:
+- Header: shape icon canvas + system name + faction + security pips + close button
+- Body: two-column layout — BUYING (deficit goods with sell prices) and SELLING (surplus goods with buy prices)
+- Green highlight on goods the player has in cargo
+- Events row when active world events affect the system
+- Full-width Jump button in footer
+
+### 4. Double-Tap Jump
+- Single tap: select system, show card
+- Double tap (same system within 400ms): initiate jump if reachable with fuel
+- Tap empty space: deselect, hide card
+- 2-second charge-up provides cancel window
+
+### 5. Profit Heatmap Overlay
+Trade overlay rewritten with profit-focused features:
+- Desaturation wash dims the base map
+- Cargo-aware pulsing: systems that want player's current cargo get an animated gold ring + profit badge showing best sell price
+- Export/import icon rows kept (▲/▼ with emoji icons)
+- Directional chevrons replace static arrows — 3 animated `>` marks scroll along the path, with good icon at midpoint
+- `requestAnimationFrame` loop runs when trade overlay is active for smooth animation
+- Event markers retained with pulsing backgrounds
+
+### Changes
+- New `SYSTEM_TYPE_STYLES` constant: shape + color per economy type
+- New `getSystemPrimaryType(sys)`: picks highest-priority node type (military > core > industrial > agri > extractor > frontier)
+- New `drawSystemShape(ctx, x, y, r, type)`: canvas path for hexagon, diamond, pentagon, triangle, circle
+- New `getSystemTradeNode(sysId)`: finds first trade-enabled node in a system
+- New `updateSelectionCard(sysId)`: populates bottom sheet with trade data
+- New `hideSelectionCard()`: hides card and deselects
+- New `drawProfitChevrons()`: animated directional chevrons replacing `drawTradeFlowArrow()`
+- New `startStarmapAnimation()` / `stopStarmapAnimation()`: rAF loop for trade overlay
+- `renderStarMap()`: shape-coded markers, fuel range bubble, connection/system dimming, increased padding
+- `renderTradeOverlay()`: complete rewrite with desaturation wash, cargo pulses, chevrons
+- Canvas click handler: double-tap detection, card integration, larger hit radius
+- `openStarMap()`: resets card state
+- `closeStarMap()`: stops animation loop
+- Trade toggle handler: starts/stops animation
+- HTML: replaced `#starmapInfo` bar with `#starmapCard` bottom sheet structure
+- CSS: replaced `.starmap-info` with `.starmap-card` styles, trade item rows, card columns
